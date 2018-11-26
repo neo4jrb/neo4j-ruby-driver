@@ -17,6 +17,21 @@ module Neo4j
     module Types
       include_package 'org.neo4j.driver.v1.types'
     end
+
+    module RunOverride
+      def run(statement, parameters = {})
+        java_method(:run, [java.lang.String, java.util.Map])
+          .call(statement, parameters.map { |key, value| [key.to_s, value] }.to_h)
+      rescue Java::OrgNeo4jDriverV1Exceptions::NoSuchRecordException => e
+        raise Neo4j::Driver::Exceptions::NoSuchRecordException, e.message
+      end
+    end
+
+    module MapAccessor
+      def properties
+        as_map.to_hash.symbolize_keys
+      end
+    end
   end
 end
 
@@ -45,9 +60,15 @@ class Java::OrgNeo4jDriverV1::GraphDatabase
 end
 
 class Java::OrgNeo4jDriverInternal::InternalNode
-  def properties
-    as_map.to_hash.symbolize_keys
-  end
+  include Neo4j::Driver::MapAccessor
+end
+
+class Java::OrgNeo4jDriverInternal::InternalRelationship
+  include Neo4j::Driver::MapAccessor
+end
+
+class Java::OrgNeo4jDriverInternal::InternalPath
+  include Neo4j::Driver::MapAccessor
 end
 
 class Java::OrgNeo4jDriverInternal::InternalRecord
@@ -66,9 +87,9 @@ class Java::OrgNeo4jDriverInternal::InternalRecord
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::NODE
       value.asNode
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::RELATIONSHIP
-      wrap_relationship(value.asRelationship)
+      value.asRelationship
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::PATH
-      wrap_path(value.asPath)
+      value.asPath
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LIST
       value.java_method(:asList, [org.neo4j.driver.v1.util.Function]).call(&method(:wrap_value)).to_a
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::MAP
@@ -79,16 +100,9 @@ class Java::OrgNeo4jDriverInternal::InternalRecord
   end
 end
 
-module RunOverride
-  def run(statement, parameters = {})
-    java_method(:run, [java.lang.String, java.util.Map]).call(statement, parameters.map { |key, value| [key.to_s, value] }.to_h)
-  rescue Java::OrgNeo4jDriverV1Exceptions::NoSuchRecordException => e
-    raise Neo4j::Driver::Exceptions::NoSuchRecordException, e.message
-  end
-end
 
 class Java::OrgNeo4jDriverInternal::ExplicitTransaction
-  include RunOverride
+  include Neo4j::Driver::RunOverride
 
   def run(statement, parameters = {})
     super
@@ -96,7 +110,7 @@ class Java::OrgNeo4jDriverInternal::ExplicitTransaction
 end
 
 class Java::OrgNeo4jDriverInternal::NetworkSession
-  include RunOverride
+  include Neo4j::Driver::RunOverride
 
   def run(statement, parameters = {})
     super
