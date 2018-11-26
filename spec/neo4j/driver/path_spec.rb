@@ -13,4 +13,12 @@ RSpec.describe Neo4j::Driver::Types::Path do
   its(:length) { is_expected.to eq 1 }
   its(:start) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
   its(:end) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
+  its('relationships.first.type') { is_expected.to eq 'friend_of' }
+  its(:first) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Path::Segment }
+  its('first.relationship.type') { is_expected.to eq 'friend_of' }
+  its('first.relationship.properties') { is_expected.to eq(strength: 1) }
+  its('first.start') { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
+  its('first.start.properties') { is_expected.to eq(name: 'John') }
+  its('first.end') { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
+  its('first.end.properties') { is_expected.to eq(name: 'Paul') }
 end
