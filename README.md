@@ -2,12 +2,12 @@
 
 Proposal for an API for neo4j ruby driver. This gem contains reference implementation in jruby with most of the features
 completed.
-The proposed API is heavilly inspired but the java and javascipt driver. Please feel free to comment if you feel there 
+The proposed API is heavilly inspired but the java and javascipt driver. Please add comments and suggestions if you feel there 
 is better idiomatic alternative in ruby.
 
-The file `spec/neo4j/driver/dev_manual_examples_spec.rb` contains all the code examples in 
+The file `spec/neo4j/driver/dev_manual_examples_spec.rb` contains all the code examples included in the 
 [Chapter 4. Drivers][https://neo4j.com/docs/developer-manual/3.4/drivers/] of the Developer Manual and should be 
-reviewed in side by side with that manual.
+reviewed side by side with that manual.
 
 ## Installation
 
