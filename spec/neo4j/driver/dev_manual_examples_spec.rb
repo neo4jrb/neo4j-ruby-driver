@@ -50,7 +50,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 4.12. Trustd' do
+    context 'Example 4.12. Trust' do
       let(:config) { { trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates } }
       it { is_expected.to be true }
     end

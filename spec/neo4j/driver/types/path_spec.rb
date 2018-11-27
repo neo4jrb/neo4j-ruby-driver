@@ -10,6 +10,7 @@ RSpec.describe Neo4j::Driver::Types::Path do
   end
 
   it { is_expected.to be_a_kind_of Neo4j::Driver::Types::Path }
+  it { is_expected.to be_a_kind_of Enumerable }
   its(:length) { is_expected.to eq 1 }
   its(:start) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
   its(:end) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
