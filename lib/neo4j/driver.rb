@@ -2,6 +2,7 @@ require "neo4j/driver/version"
 
 require 'neo4j-java_driver_jars'
 require 'active_support/core_ext/hash/keys'
+require 'date'
 
 module Neo4j
   module Driver
@@ -20,10 +21,21 @@ module Neo4j
 
     module RunOverride
       def run(statement, parameters = {})
-        java_method(:run, [java.lang.String, java.util.Map])
-          .call(statement, parameters.map { |key, value| [key.to_s, value] }.to_h)
+        java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters))
       rescue Java::OrgNeo4jDriverV1Exceptions::NoSuchRecordException => e
         raise Neo4j::Driver::Exceptions::NoSuchRecordException, e.message
+      end
+
+      private
+
+      def to_neo(object)
+        if object.is_a? Hash
+          object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
+        elsif object.is_a? Date
+          Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
+        else
+          object
+        end
       end
     end
 
@@ -85,17 +97,20 @@ class Java::OrgNeo4jDriverInternal::InternalRecord
   def wrap_value(value)
     case value.type_constructor
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::NODE
-      value.asNode
+      value.as_node
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::RELATIONSHIP
-      value.asRelationship
+      value.as_relationship
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::PATH
-      value.asPath
+      value.as_path
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LIST
       value.java_method(:asList, [org.neo4j.driver.v1.util.Function]).call(&method(:wrap_value)).to_a
     when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::MAP
-      value.asMap(->(x) { wrap_value(x) }, nil).to_hash.symbolize_keys
+      value.as_map(->(x) { wrap_value(x) }, nil).to_hash.symbolize_keys
+    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE
+      date = value.as_local_date
+      Date.new(date.year, date.month_value, date.day_of_month)
     else
-      value.asObject
+      value.as_object
     end
   end
 end
