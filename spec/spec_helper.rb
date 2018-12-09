@@ -22,7 +22,7 @@ RSpec.configure do |config|
   # config.include Neo4jCleaner
   include DriverHelper::Helper
   include Neo4jCleaner
-  config.before(:suite) { clean }
+  config.before(:suite, &:clean)
   config.after(:suite) { driver.close }
   config.around(:each) do |example|
     cleaning do
