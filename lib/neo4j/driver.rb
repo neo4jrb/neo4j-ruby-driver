@@ -1,6 +1,6 @@
 require "neo4j/driver/version"
 
-require 'neo4j-java_driver_jars'
+require 'neo4j-driver_jars'
 require 'active_support/core_ext/hash/keys'
 require 'date'
 

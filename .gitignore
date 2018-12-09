@@ -11,6 +11,9 @@
 .rspec_status
 
 .ruby-version
-Gemfile.lock
+*.lock
+*.jar
 .env
 .idea/
+
+neo4j-driver_jars.rb
