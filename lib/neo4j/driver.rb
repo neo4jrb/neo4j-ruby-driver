@@ -62,7 +62,7 @@ class Java::OrgNeo4jDriverV1::GraphDatabase
 
     def to_java_config(hash)
       hash.reduce(Neo4j::Driver::Config.build) { |object, key_value| object.send(*config_method(*key_value)) }
-        .to_config
+          .to_config
     end
 
     def config_method(key, value)

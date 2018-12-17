@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.authors = ['Heinrich Klobuczek']
   spec.email = ['heinrich@mail.com']
 
-  spec.summary = %q{neo4j ruby driver}
+  spec.summary = 'neo4j ruby driver'
   spec.homepage = 'https://github.com/neo4jrb/neo4j-driver'
   spec.license = 'MIT'
 

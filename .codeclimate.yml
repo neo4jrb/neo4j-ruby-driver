@@ -19,7 +19,6 @@ plugins:
     enabled: true
 exclude_patterns:
 - db
-- spec/
 - doc/
 - "**/log/"
 - "**.log"
