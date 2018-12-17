@@ -1,6 +1,6 @@
----
-engines:
-  bundler-audit:
+version: "2"
+plugins:
+  structure:
     enabled: true
   duplication:
     enabled: true
@@ -15,11 +15,9 @@ engines:
     enabled: true
     config:
       score_threshold: 20.0
-
-ratings:
-  paths:
-  - "**.rb"
-exclude_paths:
+  git-legal:
+    enabled: true
+exclude_patterns:
 - db
 - spec/
 - doc/
