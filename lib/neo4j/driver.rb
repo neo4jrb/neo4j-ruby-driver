@@ -22,6 +22,8 @@ module Neo4j
     module RunOverride
       def run(statement, parameters = {})
         java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters))
+      rescue Java::OrgNeo4jDriverV1Exceptions::Neo4jException => e
+        raise Neo4j::Driver::Exceptions::Neo4jException, e.message
       rescue Java::OrgNeo4jDriverV1Exceptions::NoSuchRecordException => e
         raise Neo4j::Driver::Exceptions::NoSuchRecordException, e.message
       end
@@ -84,37 +86,18 @@ class Java::OrgNeo4jDriverInternal::InternalPath
 end
 
 class Java::OrgNeo4jDriverInternal::InternalRecord
-  # java_alias :to_a, :values
+  def values
+    java_send(:values).map(&:as_ruby_object)
+  end
 
   define_method(:[]) do |key|
-    wrap_value(java_method(:get, [java.lang.String]).call(key.to_s))
+    java_method(:get, [java.lang.String]).call(key.to_s).as_ruby_object
   end
 
   def first
-    wrap_value(java_method(:get, [Java::int]).call(0))
-  end
-
-  def wrap_value(value)
-    case value.type_constructor
-    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::NODE
-      value.as_node
-    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::RELATIONSHIP
-      value.as_relationship
-    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::PATH
-      value.as_path
-    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LIST
-      value.java_method(:asList, [org.neo4j.driver.v1.util.Function]).call(&method(:wrap_value)).to_a
-    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::MAP
-      value.as_map(->(x) { wrap_value(x) }, nil).to_hash.symbolize_keys
-    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE
-      date = value.as_local_date
-      Date.new(date.year, date.month_value, date.day_of_month)
-    else
-      value.as_object
-    end
+    java_method(:get, [Java::int]).call(0).as_ruby_object
   end
 end
-
 
 class Java::OrgNeo4jDriverInternal::ExplicitTransaction
   include Neo4j::Driver::RunOverride
@@ -129,5 +112,21 @@ class Java::OrgNeo4jDriverInternal::NetworkSession
 
   def run(statement, parameters = {})
     super
+  end
+end
+
+class Java::OrgNeo4jDriverInternalValue::ValueAdapter
+  def as_ruby_object
+    case type_constructor
+    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LIST
+      java_method(:asList, [org.neo4j.driver.v1.util.Function]).call(&:as_ruby_object).to_a
+    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::MAP
+      as_map(->(x) { x.as_ruby_object }, nil).to_hash.symbolize_keys
+    when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE
+      date = as_local_date
+      Date.new(date.year, date.month_value, date.day_of_month)
+    else
+      as_object
+    end
   end
 end

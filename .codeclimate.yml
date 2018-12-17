@@ -1,0 +1,31 @@
+---
+engines:
+  bundler-audit:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      languages:
+      - ruby
+  fixme:
+    enabled: true
+  rubocop:
+    enabled: true
+  flog:
+    enabled: true
+    config:
+      score_threshold: 20.0
+
+ratings:
+  paths:
+  - "**.rb"
+exclude_paths:
+- db
+- spec/
+- doc/
+- "**/log/"
+- "**.log"
+- ".idea/"
+- ".git/"
+- ".DS_Store"
+- ".autotest"

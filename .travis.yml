@@ -3,5 +3,27 @@ sudo: false
 language: ruby
 cache: bundler
 rvm:
-  - 2.5.0
-before_install: gem install bundler -v 1.17.1
+  - jruby-9
+before_install: gem install bundler
+before_script:
+  - "travis_retry bin/rake neo4j:install[$NEO4J_VERSION] --trace"
+  - "bin/rake neo4j:config[development,7474] --trace"
+  - "if [ -f ./db/neo4j/development/conf/neo4j-wrapper.conf ]; then WRAPPER=-wrapper; fi"
+  - "echo 'dbms.memory.pagecache.size=600m' >> ./db/neo4j/development/conf/neo4j.conf"
+  - "echo 'dbms.memory.heap.max_size=600' >> ./db/neo4j/development/conf/neo4j$WRAPPER.conf"
+  - "echo 'dbms.memory.heap.initial_size=600' >> ./db/neo4j/development/conf/neo4j$WRAPPER.conf"
+  - "bin/rake neo4j:start --trace"
+  - "while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done"
+env:
+  global:
+    - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
+    - NEO4J_BOLT_URL="bolt://localhost:7472"
+  matrix:
+    - NEO4J_VERSION=community-3.5.0
+    - NEO4J_VERSION=enterprise-3.5.0
+    - NEO4J_VERSION=enterprise-3.4.10
+    - NEO4J_VERSION=enterprise-3.3.9
+after_failure:
+  - cat ./db/neo4j/development/logs/neo4j.log
+  - cat ./db/neo4j/development/logs/debug.log
+  - cat ./db/neo4j/development/conf/neo4j.conf
