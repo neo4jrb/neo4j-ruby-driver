@@ -14,5 +14,6 @@
 *.jar
 .env
 .idea/
+db/
 
 neo4j-driver_jars.rb
