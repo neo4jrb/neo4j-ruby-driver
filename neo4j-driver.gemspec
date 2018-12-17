@@ -1,9 +1,9 @@
-lib = File.expand_path("../lib", __FILE__)
+lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require "neo4j/driver/version"
+require 'neo4j/driver/version'
 
 Gem::Specification.new do |spec|
-  spec.name = "neo4j-driver"
+  spec.name = 'neo4j-driver'
   spec.version = Neo4j::Driver::VERSION
   spec.authors = ['Heinrich Klobuczek']
   spec.email = ['heinrich@mail.com']
@@ -15,14 +15,14 @@ Gem::Specification.new do |spec|
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
   # to allow pushing to a single host or delete this section to allow pushing to any host.
   if spec.respond_to?(:metadata)
-    spec.metadata["allowed_push_host"] = 'https://rubygems.org/'
+    spec.metadata['allowed_push_host'] = 'https://rubygems.org/'
 
-    spec.metadata["homepage_uri"] = spec.homepage
-    spec.metadata["source_code_uri"] = 'https://github.com/neo4jrb/neo4j-driver'
+    spec.metadata['homepage_uri'] = spec.homepage
+    spec.metadata['source_code_uri'] = 'https://github.com/neo4jrb/neo4j-driver'
     # spec.metadata["changelog_uri"] = "TODO: Put your gem's CHANGELOG.md URL here."
   else
-    raise "RubyGems 2.0 or newer is required to protect against " \
-      "public gem pushes."
+    raise 'RubyGems 2.0 or newer is required to protect against ' \
+      'public gem pushes.'
   end
 
   # Specify which files should be added to the gem when it is released.
@@ -34,22 +34,22 @@ Gem::Specification.new do |spec|
   spec.files << Dir['lib/**/*.rb']
   spec.files << Dir['lib/**/*.jar']
 
-  spec.bindir = "exe"
+  spec.bindir = 'exe'
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
-  spec.require_paths = ["lib"]
+  spec.require_paths = ['lib']
 
   spec.platform = 'java'
 
+  spec.add_runtime_dependency 'activesupport', '>= 4.0'
   spec.add_runtime_dependency 'jar-dependencies'
 
   spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.1'
 
-  spec.add_dependency 'activesupport', '>= 4.0'
   spec.add_development_dependency 'bundler'
-  spec.add_development_dependency 'rake'
-  spec.add_development_dependency 'rspec-its'
   spec.add_development_dependency 'dotenv'
   spec.add_development_dependency 'neo4j-rake_tasks', '>= 0.3.0'
+  spec.add_development_dependency 'rake'
+  spec.add_development_dependency 'rspec-its'
 
   # avoids to install it on the fly when jar-dependencies needs it
   spec.add_development_dependency 'ruby-maven'
