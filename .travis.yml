@@ -6,7 +6,7 @@ rvm:
   - jruby-9
 before_install: gem install bundler
 before_script:
-  - "travis_retry bundle exewc rake neo4j:install[$NEO4J_VERSION] --trace"
+  - "travis_retry bundle exec rake neo4j:install[$NEO4J_VERSION] --trace"
   - "bundle exec rake neo4j:config[development,7474] --trace"
   - "if [ -f ./db/neo4j/development/conf/neo4j-wrapper.conf ]; then WRAPPER=-wrapper; fi"
   - "echo 'dbms.memory.pagecache.size=600m' >> ./db/neo4j/development/conf/neo4j.conf"
