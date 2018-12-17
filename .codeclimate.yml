@@ -19,7 +19,7 @@ plugins:
     enabled: true
 exclude_patterns:
 - db
-- doc/
+- doc
 - "**/log/"
 - "**.log"
 - ".idea/"
