@@ -4,7 +4,6 @@ language: ruby
 cache: bundler
 jdk:
   - oraclejdk8
-  - oraclejdk11
 rvm:
   - jruby-9
 before_install: gem install bundler
