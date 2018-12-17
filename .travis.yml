@@ -2,6 +2,9 @@
 sudo: false
 language: ruby
 cache: bundler
+jdk:
+  - oraclejdk8
+  - oraclejdk11
 rvm:
   - jruby-9
 before_install: gem install bundler
@@ -21,8 +24,7 @@ env:
   matrix:
     - NEO4J_VERSION=community-3.5.0
     - NEO4J_VERSION=enterprise-3.5.0
-    - NEO4J_VERSION=enterprise-3.4.10
-    - NEO4J_VERSION=enterprise-3.3.9
+    - NEO4J_VERSION=enterprise-3.4.11
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
   - cat ./db/neo4j/development/logs/debug.log
