@@ -14,7 +14,7 @@ reviewed side by side with that manual.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'neo4j-driver'
+gem 'neo4j-ruby-driver'
 ```
 
 And then execute:
@@ -23,7 +23,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install neo4j-driver
+    $ gem install neo4j-ruby-driver
 
 ## Usage
 
