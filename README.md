@@ -5,7 +5,7 @@ completed.
 The proposed API is heavilly inspired but the java and javascipt driver. Please add comments and suggestions if you feel there 
 is better idiomatic alternative in ruby.
 
-The file `spec/neo4j/driver/dev_manual_examples_spec.rb` contains all the code examples included in the 
+The file `doc/dev_manual_examples_spec.rb` contains all the code examples included in the 
 [Chapter 4. Drivers][https://neo4j.com/docs/developer-manual/3.4/drivers/] of the Developer Manual and should be 
 reviewed side by side with that manual.
 
