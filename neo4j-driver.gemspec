@@ -3,13 +3,13 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'neo4j/driver/version'
 
 Gem::Specification.new do |spec|
-  spec.name = 'neo4j-driver'
+  spec.name = 'neo4j-ruby-driver'
   spec.version = Neo4j::Driver::VERSION
   spec.authors = ['Heinrich Klobuczek']
   spec.email = ['heinrich@mail.com']
 
   spec.summary = 'neo4j ruby driver'
-  spec.homepage = 'https://github.com/neo4jrb/neo4j-driver'
+  spec.homepage = 'https://github.com/neo4jrb/neo4j-ruby-driver'
   spec.license = 'MIT'
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
     spec.metadata['allowed_push_host'] = 'https://rubygems.org/'
 
     spec.metadata['homepage_uri'] = spec.homepage
-    spec.metadata['source_code_uri'] = 'https://github.com/neo4jrb/neo4j-driver'
+    spec.metadata['source_code_uri'] = 'https://github.com/neo4jrb/neo4j-ruby-driver'
     # spec.metadata["changelog_uri"] = "TODO: Put your gem's CHANGELOG.md URL here."
   else
     raise 'RubyGems 2.0 or newer is required to protect against ' \
