@@ -4,7 +4,7 @@
 
 
 ######################################
-# Example 4.4. Hello World
+# Example 1.4. Hello World
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
@@ -24,7 +24,7 @@ end
 driver.close
 
 ######################################
-# Example 4.6. The driver lifecycle
+# Example 2.1. The driver lifecycle
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
@@ -32,38 +32,57 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 driver.close
 
 ######################################
-# Example 4.8. Basic authentication
+# Example 2.3. Custom Address Resolver
+######################################
+
+private
+
+def add_person(name)
+  username = 'neo4j'
+  password = 'some password'
+  config = { resolver: ->() { [ServerAddress.of("a.acme.com", 7676), ServerAddress.of("b.acme.com", 8787),
+                               ServerAddress.of("c.acme.com", 9898)] } }
+  driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(username, password), config)
+
+  session = driver.session
+  session.run('CREATE (a:Person {name: $name})', name: name)
+ensure
+  session&.close
+end
+
+######################################
+# Example 2.4. Basic authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
 
 ######################################
-# Example 4.9. Kerberos authentication
+# Example 2.5. Kerberos authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.kerberos(ticket))
 
 ######################################
-# Example 4.10. Custom authentication
+# Example 2.6. Custom authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.custom(principal, credentials, realm,
                                                                                    scheme, parameters))
 ######################################
-# Example 4.11. Unencrypted
+# Example 2.7. Unencrypted
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: false)
 
 ######################################
-# Example 4.12. Trust
+# Example 2.8. Trust
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates)
 
 ######################################
-# Example 4.13. Connection pool management
+# Example 2.9. Connection pool management
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
@@ -72,21 +91,21 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
                                              connection_acquisition_timeout: 2 * 60 * 1000) # 120 seconds
 
 ######################################
-# Example 4.14. Connection timeout
+# Example 2.10. Connection timeout
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              connection_timeout: 15 * 1000) # 15 seconds
 
 ######################################
-# Example 4.15. Load balancing strategy
+# Example Load balancing strategy
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              load_balancing_strategy: Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED)
 
 ######################################
-# Example 4.16. Max retry time
+# Example 2.11. Max retry time
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
@@ -94,7 +113,7 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 
 
 ######################################
-# Example 4.17. Service unavailable
+# Example 2.12. Service unavailable
 ######################################
 
 def add_item
@@ -110,7 +129,7 @@ ensure
 end
 
 ######################################
-# Example 4.18. Session
+# Example 3.1. Session
 ######################################
 
 def add_person(name)
@@ -123,7 +142,7 @@ ensure
 end
 
 ######################################
-# Example 4.19. Auto-commit transaction
+# Example 3.2. Auto-commit transaction
 ######################################
 
 def add_person(name)
@@ -134,7 +153,7 @@ ensure
 end
 
 ######################################
-# Example 4.20. Transaction function
+# Example 3.3. Transaction function
 ######################################
 
 def add_person(name)
@@ -149,7 +168,7 @@ def create_person_node(tx, name)
 end
 
 ######################################
-# 4.3.2.3. Explicit transactions
+# 3.2.3. Explicit transactions
 ######################################
 
 def add_person(name)
@@ -163,7 +182,7 @@ ensure
 end
 
 ######################################
-# Example 4.21. Passing bookmarks between sessions
+# Example 3.4. Passing bookmarks between sessions
 ######################################
 
 # Create a company node
@@ -242,7 +261,7 @@ def add_employ_and_make_friends
 end
 
 ######################################
-# Example 4.22. Read-write transaction
+# Example 3.5. Read-write transaction
 ######################################
 
 def add_person(name)
@@ -262,7 +281,7 @@ def match_person_node(tx, name)
 end
 
 ######################################
-# Example 4.24. Map Neo4j types to native language types
+# Example 4.1. Map Neo4j types to native language types
 ######################################
 
 # Neo4j type	  Ruby type
@@ -286,7 +305,7 @@ end
 # Path          Neo4j::Driver::Path
 
 ######################################
-# Example 4.25. Consuming the stream
+# Example 4.2. Consuming the stream
 ######################################
 
 def get_people
@@ -301,7 +320,7 @@ def match_person_nodes(tx)
 end
 
 ######################################
-# Example 4.26. Retain results for further processing
+# Example 4.3. Retain results for further processing
 ######################################
 
 def add_employees(company_name)

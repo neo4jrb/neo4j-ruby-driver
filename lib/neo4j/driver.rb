@@ -15,6 +15,10 @@ module Neo4j
       end
     end
 
+    module Net
+      include_package 'org.neo4j.driver.v1.net'
+    end
+
     module Types
       include_package 'org.neo4j.driver.v1.types'
     end
@@ -61,9 +65,9 @@ class Java::OrgNeo4jDriverV1::GraphDatabase
     private
 
     def to_java_config(hash)
-      puts "****************************************"
-      puts hash.inspect
-      puts "****************************************"
+      # puts "****************************************"
+      # puts hash.inspect
+      # puts "****************************************"
       build = Neo4j::Driver::Config.build
       build2 = hash.reduce(build) { |object, key_value| object.send(*config_method(*key_value)) }
       build2.to_config

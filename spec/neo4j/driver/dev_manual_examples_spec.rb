@@ -1,5 +1,5 @@
 RSpec.describe Neo4j::Driver do
-  it 'Example 4.4. Hello World' do
+  it 'Example 1.4. Hello World' do
     begin
       session = driver.session
       greeting = session.write_transaction do |tx|
@@ -15,7 +15,7 @@ RSpec.describe Neo4j::Driver do
     expect(greeting).to match(/hello, world, from node \d+/)
   end
 
-  context '4.2. Client applications' do
+  context '2. Client applications' do
     let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
     let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
     let(:config) { {} }
@@ -27,35 +27,42 @@ RSpec.describe Neo4j::Driver do
       session&.close
     end
 
-    context 'Example 4.6. The driver lifecycle' do
+    context 'Example 2.1. The driver lifecycle' do
       it { is_expected.to be true }
     end
 
-    context 'Example 4.8. Basic authentication' do
+    context 'Example 2.3. Custom Address Resolver' do
+      let(:config) { { resolver: ->() { [Neo4j::Driver::Net::ServerAddress.of("a.acme.com", 7676),
+                                         Neo4j::Driver::Net::ServerAddress.of("b.acme.com", 8787),
+                                         Neo4j::Driver::Net::ServerAddress.of("c.acme.com", 9898)] } } }
       it { is_expected.to be true }
     end
 
-    context 'Example 4.9. Kerberos authentication' do
+    context 'Example 2.4. Basic authentication' do
+      it { is_expected.to be true }
+    end
+
+    context 'Example 2.5. Kerberos authentication' do
       let(:auth_tokens) { Neo4j::Driver::AuthTokens.kerberos('ticket') }
       it { is_expected.to be true }
     end
 
-    context 'Example 4.10. Custom authentication' do
+    context 'Example 2.6. Custom authentication' do
       let(:auth_tokens) { Neo4j::Driver::AuthTokens.custom('principal', 'credentials', 'realm', 'scheme', {}) }
       it { is_expected.to be true }
     end
 
-    context 'Example 4.11. Unencrypted' do
+    context 'Example 2.7. Unencrypted' do
       let(:config) { { encryption: false } }
       it { is_expected.to be true }
     end
 
-    context 'Example 4.12. Trust' do
+    context 'Example 2.8. Trust' do
       let(:config) { { trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates } }
       it { is_expected.to be true }
     end
 
-    context 'Example 4.13. Connection pool management' do
+    context 'Example 2.9. Connection pool management' do
       let(:config) { {
         max_connection_lifetime: 3 * 60 * 60 * 1000, # 3 hours
         max_connection_pool_size: 50,
@@ -63,23 +70,23 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 4.14. Connection timeout' do
+    context 'Example 2.10. Connection timeout' do
       let(:config) { { connection_timeout: 15 * 1000 } } # 15 seconds
       it { is_expected.to be true }
     end
 
-    context 'Example 4.15. Load balancing strategy' do
+    context 'Example Load balancing strategy' do
       let(:config) { { load_balancing_strategy: Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED } }
       it { is_expected.to be true }
     end
 
-    context 'Example 4.16. Max retry time' do
+    context 'Example 2.11. Max retry time' do
       let(:config) { { max_transaction_retry_time: 15 * 1000 } } # 15 seconds
       it { is_expected.to be true }
     end
   end
 
-  context 'Example 4.17. Service unavailable' do
+  context 'Example 2.12. Service unavailable' do
     def add_item(driver)
       session = driver.session
       session.write_transaction { |tx| tx.run('CREATE (a:Item)') }
@@ -93,7 +100,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '4.3. Sessions and transactions' do
+  context '3. Sessions and transactions' do
     before(:example) { add_person('John') }
     subject(:name) do
       session = driver.session(Neo4j::Driver::AccessMode::READ)
@@ -102,7 +109,7 @@ RSpec.describe Neo4j::Driver do
       session&.close
     end
 
-    context 'Example 4.18. Session' do
+    context 'Example 3.1. Session' do
       def add_person(name)
         session = driver.session
         session.write_transaction do |tx|
@@ -115,7 +122,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq 'John' }
     end
 
-    context 'Example 4.19. Auto-commit transaction' do
+    context 'Example 3.2. Auto-commit transaction' do
       def add_person(name)
         session = driver.session
         session.run('CREATE (a:Person {name: $name})', name: name)
@@ -126,7 +133,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq 'John' }
     end
 
-    context 'Example 4.20. Transaction function' do
+    context 'Example 3.3. Transaction function' do
       def add_person(name)
         session = driver.session
         session.write_transaction { |tx| create_person_node(tx, name) }
@@ -141,7 +148,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq 'John' }
     end
 
-    context '4.3.2.3. Explicit transactions' do
+    context '3.2.3. Explicit transactions' do
       def add_person(name)
         session = driver.session(Neo4j::Driver::AccessMode::WRITE)
         tx = session.begin_transaction
@@ -156,7 +163,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'Example 4.21. Passing bookmarks between sessions' do
+  it 'Example 3.4. Passing bookmarks between sessions' do
     # Create a company node
     def add_company(tx, name)
       tx.run('CREATE (:Company {name: $name})', name: name)
@@ -233,7 +240,7 @@ RSpec.describe Neo4j::Driver do
     expect(add_employ_and_make_friends).to eq(['Alice knows Bob'])
   end
 
-  it 'Example 4.22. Read-write transaction' do
+  it 'Example 3.5. Read-write transaction' do
     def add_person(name)
       session = driver.session
       session.write_transaction { |tx| create_person_node(tx, name) }
@@ -253,7 +260,7 @@ RSpec.describe Neo4j::Driver do
     expect(add_person('John')).to be_a(Integer)
   end
 
-  context '4.4.2 Statement Results' do
+  context '4.2 Statement Results' do
     before(:example) do
       session = driver.session
       session.write_transaction { |tx| tx.run("CREATE (:Person{name: 'John'}) CREATE (:Person{name: 'Paul'})") }
@@ -261,7 +268,7 @@ RSpec.describe Neo4j::Driver do
       session&.close
     end
 
-    it 'Example 4.25. Consuming the stream' do
+    it 'Example 4.2. Consuming the stream' do
       def get_people
         session = driver.session
         session.read_transaction(&method(:match_person_nodes))
@@ -277,7 +284,7 @@ RSpec.describe Neo4j::Driver do
     end
 
 
-    it 'Example 4.26. Retain results for further processing' do
+    it 'Example 4.3. Retain results for further processing' do
       def add_employees(company_name)
         session = driver.session
         persons = session.read_transaction(&method(:match_person_nodes))
