@@ -65,12 +65,7 @@ class Java::OrgNeo4jDriverV1::GraphDatabase
     private
 
     def to_java_config(hash)
-      # puts "****************************************"
-      # puts hash.inspect
-      # puts "****************************************"
-      build = Neo4j::Driver::Config.build
-      build2 = hash.reduce(build) { |object, key_value| object.send(*config_method(*key_value)) }
-      build2.to_config
+      hash.reduce(Neo4j::Driver::Config.build) { |object, key_value| object.send(*config_method(*key_value)) }.to_config
     end
 
     def config_method(key, value)

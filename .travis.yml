@@ -21,8 +21,8 @@ env:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
     - NEO4J_BOLT_URL="bolt://localhost:7472"
   matrix:
-    - NEO4J_VERSION=community-3.5.0
-    - NEO4J_VERSION=enterprise-3.5.0
+    - NEO4J_VERSION=community-3.5.1
+    - NEO4J_VERSION=enterprise-3.5.1
     - NEO4J_VERSION=enterprise-3.4.11
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
