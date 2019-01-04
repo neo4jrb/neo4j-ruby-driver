@@ -22,11 +22,11 @@ RSpec.configure do |config|
   # config.include Neo4jCleaner
   include DriverHelper::Helper
   include Neo4jCleaner
-  config.before(:suite, &:clean)
+  config.before(:suite, &:clean) unless ENV['SEABOLT_LIB']
   config.after(:suite) { driver.close }
   config.around(:each) do |example|
     cleaning do
       example.run
     end
-  end
+  end unless ENV['SEABOLT_LIB']
 end

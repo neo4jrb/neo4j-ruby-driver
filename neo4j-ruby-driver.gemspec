@@ -31,26 +31,33 @@ Gem::Specification.new do |spec|
     `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   end
 
+  ffi = ENV['SEABOLT_LIB']
+  pdir = ffi ? 'ffi' : 'jruby'
+
   spec.files << Dir['lib/**/*.rb']
   spec.files << Dir['lib/**/*.jar']
+  spec.files << Dir["#{pdir}/**/*.rb"]
+  spec.files << Dir["#{pdir}/**/*.jar"]
 
   spec.bindir = 'exe'
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
-  spec.require_paths = ['lib']
+  spec.require_paths = ['lib', pdir]
 
-  spec.platform = 'java'
+  spec.platform = 'java' if RUBY_PLATFORM =~ /java/
+
+  if ffi
+    spec.add_runtime_dependency 'ffi'
+  else
+    spec.add_runtime_dependency 'jar-dependencies'
+    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.2'
+    # avoids to install it on the fly when jar-dependencies needs it
+    spec.add_development_dependency 'ruby-maven'
+  end
 
   spec.add_runtime_dependency 'activesupport', '>= 4.0'
-  spec.add_runtime_dependency 'jar-dependencies'
-
-  spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.2'
-
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'dotenv'
   spec.add_development_dependency 'neo4j-rake_tasks', '>= 0.3.0'
   spec.add_development_dependency 'rake'
   spec.add_development_dependency 'rspec-its'
-
-  # avoids to install it on the fly when jar-dependencies needs it
-  spec.add_development_dependency 'ruby-maven'
 end
