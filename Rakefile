@@ -4,7 +4,7 @@ require 'neo4j/rake_tasks'
 
 require 'jars/installer'
 task :install_jars do
-  Jars::Installer.vendor_jars!
+  Jars::Installer.vendor_jars!('jruby')
 end
 
 RSpec::Core::RakeTask.new(:spec)

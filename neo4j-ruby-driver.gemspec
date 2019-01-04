@@ -35,7 +35,6 @@ Gem::Specification.new do |spec|
   pdir = ffi ? 'ffi' : 'jruby'
 
   spec.files << Dir['lib/**/*.rb']
-  spec.files << Dir['lib/**/*.jar']
   spec.files << Dir["#{pdir}/**/*.rb"]
   spec.files << Dir["#{pdir}/**/*.jar"]
 
