@@ -9,9 +9,28 @@ module Neo4j
     include_package 'org.neo4j.driver.v1'
 
     module Exceptions
-      include_package 'org.neo4j.driver.v1.exceptions'
+      # include_package 'org.neo4j.driver.v1.exceptions'
+      class Neo4jException < Exception
+      end
+
+      class NoSuchRecordException < Exception
+      end
 
       class ServiceUnavailableException < Exception
+      end
+
+      class AuthenticationException < Exception
+      end
+
+      EXCEPTION_MAPPER = {
+        Java::OrgNeo4jDriverV1Exceptions::Neo4jException => Neo4jException,
+        Java::OrgNeo4jDriverV1Exceptions::NoSuchRecordException => NoSuchRecordException,
+        Java::OrgNeo4jDriverV1Exceptions::ServiceUnavailableException => ServiceUnavailableException,
+        Java::OrgNeo4jDriverV1Exceptions::AuthenticationException => AuthenticationException
+      }.freeze
+
+      def self.reraise(e)
+        raise EXCEPTION_MAPPER[e.class], e.message
       end
     end
 
@@ -27,9 +46,7 @@ module Neo4j
       def run(statement, parameters = {})
         java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters))
       rescue Java::OrgNeo4jDriverV1Exceptions::Neo4jException => e
-        raise Neo4j::Driver::Exceptions::Neo4jException, e.message
-      rescue Java::OrgNeo4jDriverV1Exceptions::NoSuchRecordException => e
-        raise Neo4j::Driver::Exceptions::NoSuchRecordException, e.message
+        reraise e
       end
 
       private
@@ -58,8 +75,8 @@ class Java::OrgNeo4jDriverV1::GraphDatabase
     def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = {})
       java_method(:driver, [java.lang.String, org.neo4j.driver.v1.AuthToken, org.neo4j.driver.v1.Config])
         .call(uri, auth_token, to_java_config(config))
-    rescue Java::OrgNeo4jDriverV1Exceptions::ServiceUnavailableException => e
-      raise Neo4j::Driver::Exceptions::ServiceUnavailableException, e.message
+    rescue Java::OrgNeo4jDriverV1Exceptions::Neo4jException => e
+      Neo4j::Driver::Exceptions.reraise e
     end
 
     private
