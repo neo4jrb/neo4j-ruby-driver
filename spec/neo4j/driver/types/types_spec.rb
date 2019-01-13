@@ -1,54 +1,56 @@
+# frozen_string_literal: true
+
 RSpec.describe Neo4j::Driver do
   subject do
     session = driver.session
-    session.write_transaction { |tx| tx.run("RETURN $param", param: param).single.first }
+    session.write_transaction { |tx| tx.run('RETURN $param', param: param).single.first }
   ensure
     session&.close
   end
 
-  context 'hash' do
+  context 'when hash' do
     let(:param) { { key: 1 } }
 
     it { is_expected.to eq param }
   end
 
-  context 'deep hash' do
+  context 'when deep hash' do
     let(:param) { { key: { inner: %w[abc def] } } }
 
     it { is_expected.to eq param }
   end
 
-  context 'array' do
+  context 'when array' do
     let(:param) { %w[abc def] }
 
     it { is_expected.to eq param }
   end
 
-  context 'true' do
+  context 'when true' do
     let(:param) { true }
 
     it { is_expected.to eq param }
   end
 
-  context 'false' do
+  context 'when false' do
     let(:param) { false }
 
     it { is_expected.to eq param }
   end
 
-  context 'nil' do
+  context 'when nil' do
     let(:param) { nil }
 
     it { is_expected.to eq nil }
   end
 
-  context 'Integer' do
+  context 'when Integer' do
     let(:param) { 1 }
 
     it { is_expected.to eq 1 }
   end
 
-  context 'Float' do
+  context 'when Float' do
     let(:param) { 1.1 }
 
     it { is_expected.to eq 1.1 }

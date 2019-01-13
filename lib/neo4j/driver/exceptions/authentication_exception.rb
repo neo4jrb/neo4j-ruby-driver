@@ -2,8 +2,8 @@
 
 module Neo4j
   module Driver
-    module Types
-      class Path
+    module Exceptions
+      class AuthenticationException < Neo4jException
       end
     end
   end

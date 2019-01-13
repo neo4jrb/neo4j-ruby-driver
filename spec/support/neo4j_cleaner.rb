@@ -1,20 +1,19 @@
 # frozen_string_literal: true
 
 module Neo4jCleaner
-  def start
-  end
+  def start; end
 
   def clean
     execute 'MATCH (n) DETACH DELETE n'
   end
 
-  def cleaning(&block)
+  def cleaning
     start
     yield
     clean
   end
 
-  def clean_with(*args)
+  def clean_with(*_args)
     clean
   end
 

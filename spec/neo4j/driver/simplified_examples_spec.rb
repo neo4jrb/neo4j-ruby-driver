@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 RSpec.describe Neo4j::Driver do
   it 'Simplified Hello World' do
     begin

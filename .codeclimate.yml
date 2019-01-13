@@ -26,3 +26,4 @@ exclude_patterns:
 - ".git/"
 - ".DS_Store"
 - ".autotest"
+- "**/neo4j-ruby-driver_jars.rb"

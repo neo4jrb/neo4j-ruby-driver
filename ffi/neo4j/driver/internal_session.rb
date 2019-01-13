@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Neo4j
   module Driver
     class InternalSession
@@ -16,7 +18,8 @@ module Neo4j
           Bolt::Values.bolt_value_format_as_string(
             Bolt::Connection.set_run_cypher_parameter(@connection, index, name, name.size),
             value,
-            value.size)
+            value.size
+          )
         end
         check_error Bolt::Connection.load_run_request(@connection)
         run = Bolt::Connection.last_request(@connection)

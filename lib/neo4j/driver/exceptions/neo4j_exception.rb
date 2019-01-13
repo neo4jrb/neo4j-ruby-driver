@@ -2,8 +2,8 @@
 
 module Neo4j
   module Driver
-    module Types
-      class Path
+    module Exceptions
+      class Neo4jException < RuntimeError
       end
     end
   end

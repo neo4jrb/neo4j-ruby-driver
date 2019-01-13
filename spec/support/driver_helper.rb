@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class DriverHelper
   module Helper
     def driver

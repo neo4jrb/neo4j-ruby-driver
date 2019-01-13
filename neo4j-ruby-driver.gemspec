@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'neo4j/driver/version'
@@ -42,7 +44,7 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib', pdir]
 
-  spec.platform = 'java' if RUBY_PLATFORM =~ /java/
+  spec.platform = 'java' if RUBY_PLATFORM.match?(/java/)
 
   if ffi
     spec.add_runtime_dependency 'ffi'

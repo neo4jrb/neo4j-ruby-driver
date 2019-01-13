@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'ffi'
 require 'neo4j/driver/auth_tokens'
 require 'neo4j/driver/bolt/address'
