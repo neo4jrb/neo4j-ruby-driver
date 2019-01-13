@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 RSpec.describe Neo4j::Driver::Types::Path do
   subject do
     session = driver.session
@@ -9,7 +11,7 @@ RSpec.describe Neo4j::Driver::Types::Path do
     session&.close
   end
 
-  it { is_expected.to be_a_kind_of Neo4j::Driver::Types::Path }
+  it { is_expected.to be_a_kind_of described_class }
   it { is_expected.to be_a_kind_of Enumerable }
   its(:length) { is_expected.to eq 1 }
   its(:start) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }

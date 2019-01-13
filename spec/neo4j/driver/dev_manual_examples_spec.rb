@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 RSpec.describe Neo4j::Driver do
   it 'Example 1.4. Hello World' do
     begin
@@ -16,25 +18,37 @@ RSpec.describe Neo4j::Driver do
   end
 
   context '2. Client applications' do
-    let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
-    let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
-    let(:config) { {} }
-    after(:example) { driver2.close }
+    after { driver2.close }
     subject do
       session = driver2.session
-      session.run("RETURN 1").single.first == 1
+      session.run('RETURN 1').single.first == 1
     ensure
       session&.close
     end
+
+    let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
+    let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
+    let(:config) { {} }
 
     context 'Example 2.1. The driver lifecycle' do
       it { is_expected.to be true }
     end
 
     context 'Example 2.3. Custom Address Resolver' do
-      let(:config) { { resolver: ->() { [Neo4j::Driver::Net::ServerAddress.of("a.acme.com", 7676),
-                                         Neo4j::Driver::Net::ServerAddress.of("b.acme.com", 8787),
-                                         Neo4j::Driver::Net::ServerAddress.of("c.acme.com", 9898)] } } }
+      let(:config) do
+        { resolver: lambda {
+          [Neo4j::Driver::Net::ServerAddress.of('a.acme.com', 7676),
+           Neo4j::Driver::Net::ServerAddress.of('b.acme.com', 8787),
+           Neo4j::Driver::Net::ServerAddress.of('c.acme.com', 9898)]
+        } }
+      end
+
+      it { is_expected.to be true }
+    end
+
+    context 'No authentication', auth: :none do
+      let(:auth_tokens) { Neo4j::Driver::AuthTokens.none }
+
       it { is_expected.to be true }
     end
 
@@ -42,46 +56,55 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.5. Kerberos authentication' do
+    context 'Example 2.5. Kerberos authentication', auth: :none do
       let(:auth_tokens) { Neo4j::Driver::AuthTokens.kerberos('ticket') }
+
       it { is_expected.to be true }
     end
 
-    context 'Example 2.6. Custom authentication' do
+    context 'Example 2.6. Custom authentication', auth: :none do
       let(:auth_tokens) { Neo4j::Driver::AuthTokens.custom('principal', 'credentials', 'realm', 'scheme', {}) }
+
       it { is_expected.to be true }
     end
 
     context 'Example 2.7. Unencrypted' do
       let(:config) { { encryption: false } }
+
       it { is_expected.to be true }
     end
 
     context 'Example 2.8. Trust' do
       let(:config) { { trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates } }
+
       it { is_expected.to be true }
     end
 
     context 'Example 2.9. Connection pool management' do
-      let(:config) { {
-        max_connection_lifetime: 3 * 60 * 60 * 1000, # 3 hours
-        max_connection_pool_size: 50,
-        connection_acquisition_timeout: 2 * 60 * 1000 } } # 120 seconds
+      let(:config) do
+        { max_connection_lifetime: 3 * 60 * 60 * 1000, # 3 hours
+          max_connection_pool_size: 50,
+          connection_acquisition_timeout: 2 * 60 * 1000 } # 120 seconds
+      end
+
       it { is_expected.to be true }
     end
 
     context 'Example 2.10. Connection timeout' do
       let(:config) { { connection_timeout: 15 * 1000 } } # 15 seconds
+
       it { is_expected.to be true }
     end
 
     context 'Example Load balancing strategy' do
       let(:config) { { load_balancing_strategy: Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED } }
+
       it { is_expected.to be true }
     end
 
     context 'Example 2.11. Max retry time' do
       let(:config) { { max_transaction_retry_time: 15 * 1000 } } # 15 seconds
+
       it { is_expected.to be true }
     end
   end
@@ -101,7 +124,7 @@ RSpec.describe Neo4j::Driver do
   end
 
   context '3. Sessions and transactions' do
-    before(:example) { add_person('John') }
+    before { add_person('John') }
     subject(:name) do
       session = driver.session(Neo4j::Driver::AccessMode::READ)
       session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
@@ -177,23 +200,23 @@ RSpec.describe Neo4j::Driver do
     # Create an employment relationship to a pre-existing company node.
     # This relies on the person first having been created.
     def employ(tx, person, company)
-      tx.run("MATCH (person:Person {name: $person_name}) " +
-               "MATCH (company:Company {name: $company_name}) " +
-               "CREATE (person)-[:WORKS_FOR]->(company)",
+      tx.run('MATCH (person:Person {name: $person_name}) ' \
+             'MATCH (company:Company {name: $company_name}) ' \
+             'CREATE (person)-[:WORKS_FOR]->(company)',
              person_name: person, company_name: company)
     end
 
     # Create a friendship between two people.
     def make_friends(tx, person1, person2)
-      tx.run("MATCH (a:Person {name: $person_1}) " +
-               "MATCH (b:Person {name: $person_2}) " +
-               "MERGE (a)-[:KNOWS]->(b)",
+      tx.run('MATCH (a:Person {name: $person_1}) ' \
+             'MATCH (b:Person {name: $person_2}) ' \
+             'MERGE (a)-[:KNOWS]->(b)',
              person_1: person1, person_2: person2)
     end
 
     # Match and display all friendships.
     def print_friends(tx)
-      result = tx.run("MATCH (a)-[:KNOWS]->(b) RETURN a.name, b.name")
+      result = tx.run('MATCH (a)-[:KNOWS]->(b) RETURN a.name, b.name')
       result.map { |record| "#{record['a.name']} knows #{record['b.name']}" }
     end
 
@@ -205,9 +228,9 @@ RSpec.describe Neo4j::Driver do
         # Create the first person and employment relationship.
         session1 = driver.session(Neo4j::Driver::AccessMode::WRITE)
 
-        session1.write_transaction { |tx| add_company(tx, "Wayne Enterprises") }
-        session1.write_transaction { |tx| add_person(tx, "Alice") }
-        session1.write_transaction { |tx| employ(tx, "Alice", "Wayne Enterprises") }
+        session1.write_transaction { |tx| add_company(tx, 'Wayne Enterprises') }
+        session1.write_transaction { |tx| add_person(tx, 'Alice') }
+        session1.write_transaction { |tx| employ(tx, 'Alice', 'Wayne Enterprises') }
 
         saved_bookmarks << session1.last_bookmark
       ensure
@@ -217,9 +240,9 @@ RSpec.describe Neo4j::Driver do
       begin
         # Create the second person and employment relationship.
         session2 = driver.session(Neo4j::Driver::AccessMode::WRITE)
-        session2.write_transaction { |tx| add_company(tx, "LexCorp") }
-        session2.write_transaction { |tx| add_person(tx, "Bob") }
-        session2.write_transaction { |tx| employ(tx, "Bob", "LexCorp") }
+        session2.write_transaction { |tx| add_company(tx, 'LexCorp') }
+        session2.write_transaction { |tx| add_person(tx, 'Bob') }
+        session2.write_transaction { |tx| employ(tx, 'Bob', 'LexCorp') }
 
         saved_bookmarks << session2.last_bookmark
       ensure
@@ -229,7 +252,7 @@ RSpec.describe Neo4j::Driver do
       begin
         # Create a friendship between the two people created above.
         session3 = driver.session(Neo4j::Driver::AccessMode::WRITE, saved_bookmarks)
-        session3.write_transaction { |tx| make_friends(tx, "Alice", "Bob") }
+        session3.write_transaction { |tx| make_friends(tx, 'Alice', 'Bob') }
 
         session3.read_transaction(&method(:print_friends))
       ensure
@@ -261,7 +284,7 @@ RSpec.describe Neo4j::Driver do
   end
 
   context '4.2 Statement Results' do
-    before(:example) do
+    before do
       session = driver.session
       session.write_transaction { |tx| tx.run("CREATE (:Person{name: 'John'}) CREATE (:Person{name: 'Paul'})") }
     ensure
@@ -269,7 +292,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     it 'Example 4.2. Consuming the stream' do
-      def get_people
+      def people
         session = driver.session
         session.read_transaction(&method(:match_person_nodes))
       ensure
@@ -277,12 +300,11 @@ RSpec.describe Neo4j::Driver do
       end
 
       def match_person_nodes(tx)
-        tx.run("MATCH (a:Person) RETURN a.name ORDER BY a.name").map(&:first)
+        tx.run('MATCH (a:Person) RETURN a.name ORDER BY a.name').map(&:first)
       end
 
-      expect(get_people).to eq(['John', 'Paul'])
+      expect(people).to eq %w[John Paul]
     end
-
 
     it 'Example 4.3. Retain results for further processing' do
       def add_employees(company_name)
@@ -291,9 +313,9 @@ RSpec.describe Neo4j::Driver do
 
         persons.sum do |person|
           session.write_transaction do |tx|
-            tx.run("MATCH (emp:Person {name: $person_name}) " +
-                     "MERGE (com:Company {name: $company_name}) " +
-                     "MERGE (emp)-[:WORKS_FOR]->(com)",
+            tx.run('MATCH (emp:Person {name: $person_name}) ' \
+                   'MERGE (com:Company {name: $company_name}) ' \
+                   'MERGE (emp)-[:WORKS_FOR]->(com)',
                    person_name: person[:name], company_name: company_name)
             1
           end

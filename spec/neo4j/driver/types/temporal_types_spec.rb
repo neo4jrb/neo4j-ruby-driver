@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 RSpec.describe Neo4j::Driver do
   describe 'param' do
     subject do
@@ -7,7 +9,7 @@ RSpec.describe Neo4j::Driver do
       session&.close
     end
 
-    context 'Date' do
+    context 'when Date' do
       let(:date) { '2018-04-05' }
       let(:param) { Date.parse(date) }
 
@@ -23,9 +25,9 @@ RSpec.describe Neo4j::Driver do
       session&.close
     end
 
-    context 'Date' do
+    context 'when Date' do
       let(:date) { '2018-04-05' }
-      let(:function) { %Q{date("#{date}")} }
+      let(:function) { %{date("#{date}")} }
       let(:result) { Date.parse(date) }
 
       it { is_expected.to eq result }
