@@ -4,6 +4,10 @@ module Neo4j
   module Driver
     module Ext
       module GraphDatabase
+        extend Neo4j::Driver::Ext::AutoClosable
+
+        auto_closable :driver
+
         def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = {})
           java_method(:driver, [java.lang.String, org.neo4j.driver.v1.AuthToken, org.neo4j.driver.v1.Config])
             .call(uri, auth_token, to_java_config(config))

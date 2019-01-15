@@ -11,8 +11,8 @@ driver = Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
                                              Neo4j::Driver::AuthTokens.basic('neo4j', 'password'))
 driver.session do |session|
   greeting = session.write_transaction do |tx|
-    result = tx.run('CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)',
-                                                                                                  message: 'hello, world')
+    result = tx.run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
+                    message: 'hello, world')
     result.single.first
   end
   puts greeting
