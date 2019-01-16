@@ -7,18 +7,17 @@
 # Example 1.4. Hello World
 ######################################
 
-driver = Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
-                                             Neo4j::Driver::AuthTokens.basic('neo4j', 'password'))
-driver.session do |session|
-  greeting = session.write_transaction do |tx|
-    result = tx.run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
-                    message: 'hello, world')
-    result.single.first
+Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
+                                    Neo4j::Driver::AuthTokens.basic('neo4j', 'password')) do |driver|
+  driver.session do |session|
+    greeting = session.write_transaction do |tx|
+      result = tx.run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
+                      message: 'hello, world')
+      result.single.first
+    end # session auto closed at the end of the block if one given
+    puts greeting
   end
-  puts greeting
-end
-
-driver.close
+end # driver auto closed at the end of the block if one given
 
 ######################################
 # Example 2.1. The driver lifecycle
@@ -32,14 +31,20 @@ driver.close
 # Example 2.3. Custom Address Resolver
 ######################################
 
+# with_resource yields the receiver and calls its close method after the block execution
+
 private
+
+def create_driver(virtual_uri, user, password, *addresses)
+  config = { resolver: -> { addresses } }
+  Neo4j::Driver::GraphDatabase.driver(virtual_uri, Neo4j::Driver::AuthTokens.basic(user, password), config)
+end
 
 def add_person(name)
   username = 'neo4j'
   password = 'some password'
-  config = { resolver: ->() { [ServerAddress.of('a.acme.com', 7676), ServerAddress.of('b.acme.com', 8787),
-                               ServerAddress.of('c.acme.com', 9898)] } }
-  Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(username, password), config) do |driver|
+  create_driver('bolt+routing://x.acme.com', username, password, ServerAddress.of('a.acme.com', 7676),
+                ServerAddress.of('b.acme.com', 8787), ServerAddress.of('c.acme.com', 9898)).with_resource do |driver|
     driver.session { |session| session.run('CREATE (a:Person {name: $name})', name: name) }
   end
 end
