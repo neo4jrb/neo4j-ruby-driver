@@ -9,7 +9,7 @@ module Neo4j
     module Ext
       module ExceptionMapper
         def reraise
-          raise mapped_exception, message
+          raise mapped_exception.new(code, message, cause)
         end
 
         private
