@@ -118,7 +118,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     it 'raises exception' do
-      expect { add_item(Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7998')) }
+      expect { add_item(Neo4j::Driver::GraphDatabase.driver('bolt://localhost:9999')) }
         .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
     end
   end

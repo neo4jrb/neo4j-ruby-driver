@@ -55,4 +55,10 @@ RSpec.describe Neo4j::Driver do
 
     it { is_expected.to eq 1.1 }
   end
+
+  context 'when String' do
+    let(:param) { 'string' }
+
+    it { is_expected.to match /^string$/ }
+  end
 end
