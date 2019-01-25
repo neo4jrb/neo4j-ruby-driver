@@ -6,6 +6,7 @@ require 'neo4j/driver/ext/exception_mapper'
 require 'neo4j/driver/ext/graph_database'
 require 'neo4j/driver/ext/internal_driver'
 require 'neo4j/driver/ext/internal_record'
+require 'neo4j/driver/ext/internal_statement_result'
 require 'neo4j/driver/ext/map_accessor'
 require 'neo4j/driver/ext/ruby_converter'
 require 'neo4j/driver/ext/run_override'
@@ -15,7 +16,8 @@ Java::OrgNeo4jDriverInternal::InternalDriver.prepend Neo4j::Driver::Ext::Interna
 Java::OrgNeo4jDriverInternal::InternalNode.include Neo4j::Driver::Ext::MapAccessor
 Java::OrgNeo4jDriverInternal::InternalRelationship.include Neo4j::Driver::Ext::MapAccessor
 Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::MapAccessor
-Java::OrgNeo4jDriverInternal::InternalRecord.include Neo4j::Driver::Ext::InternalRecord
+Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
+Java::OrgNeo4jDriverInternal::InternalStatementResult.prepend Neo4j::Driver::Ext::InternalStatementResult
 Java::OrgNeo4jDriverV1Exceptions::Neo4jException.include Neo4j::Driver::Ext::ExceptionMapper
 Java::OrgNeo4jDriverInternal::ExplicitTransaction.prepend Neo4j::Driver::Ext::RunOverride
 Java::OrgNeo4jDriverInternal::NetworkSession.prepend Neo4j::Driver::Ext::RunOverride

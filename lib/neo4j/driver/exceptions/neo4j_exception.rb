@@ -4,6 +4,13 @@ module Neo4j
   module Driver
     module Exceptions
       class Neo4jException < RuntimeError
+        attr_reader :code, :cause
+
+        def initialize(code, message, cause)
+          super(message)
+          @code = code
+          @cause = cause
+        end
       end
     end
   end
