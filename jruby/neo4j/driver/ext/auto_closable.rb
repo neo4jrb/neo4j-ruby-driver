@@ -16,12 +16,14 @@ module Neo4j
               define_method(method) do |*args, &block|
                 closable = super(*args)
                 if block
+                  begin
                     block.arity.zero? ? closable.instance_eval(&block) : block.call(closable)
+                  ensure
+                    closable&.close
+                  end
                 else
                   closable
                 end
-              ensure
-                closable&.close if block
               end
             end
           end

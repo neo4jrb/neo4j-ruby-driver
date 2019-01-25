@@ -172,7 +172,7 @@ def add_person(name)
     tx.run('CREATE (a:Person {name: $name})', name: name)
     tx.success
   ensure
-    tx.close
+    tx&.close
   end
 end
 

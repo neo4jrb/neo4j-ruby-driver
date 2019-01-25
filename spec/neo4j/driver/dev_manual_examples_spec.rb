@@ -2,16 +2,14 @@
 
 RSpec.describe Neo4j::Driver do
   it 'Example 1.4. Hello World' do
-    begin
-      session = driver.session
+    greeting = nil
+    driver.session do |session|
       greeting = session.write_transaction do |tx|
         result = tx.run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
                         message: 'hello, world')
         result.single.first
       end
       puts greeting
-    ensure
-      session&.close
     end
 
     expect(greeting).to match(/hello, world, from node \d+/)
@@ -20,10 +18,7 @@ RSpec.describe Neo4j::Driver do
   context '2. Client applications' do
     after { driver2.close }
     subject do
-      session = driver2.session
-      session.run('RETURN 1').single.first == 1
-    ensure
-      session&.close
+      driver2.session { |session| session.run('RETURN 1').single.first == 1 }
     end
 
     let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
@@ -126,20 +121,18 @@ RSpec.describe Neo4j::Driver do
   context '3. Sessions and transactions' do
     before { add_person('John') }
     subject(:name) do
-      session = driver.session(Neo4j::Driver::AccessMode::READ)
-      session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
-    ensure
-      session&.close
+      driver.session(Neo4j::Driver::AccessMode::READ) do |session|
+        session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
+      end
     end
 
     context 'Example 3.1. Session' do
       def add_person(name)
-        session = driver.session
-        session.write_transaction do |tx|
-          tx.run('CREATE (a:Person {name: $name})', name: name)
+        driver.session do |session|
+          session.write_transaction do |tx|
+            tx.run('CREATE (a:Person {name: $name})', name: name)
+          end
         end
-      ensure
-        session&.close
       end
 
       it { is_expected.to eq 'John' }
@@ -147,10 +140,7 @@ RSpec.describe Neo4j::Driver do
 
     context 'Example 3.2. Auto-commit transaction' do
       def add_person(name)
-        session = driver.session
-        session.run('CREATE (a:Person {name: $name})', name: name)
-      ensure
-        session&.close
+        driver.session { |session| session.run('CREATE (a:Person {name: $name})', name: name) }
       end
 
       it { is_expected.to eq 'John' }
@@ -173,13 +163,13 @@ RSpec.describe Neo4j::Driver do
 
     context '3.2.3. Explicit transactions' do
       def add_person(name)
-        session = driver.session(Neo4j::Driver::AccessMode::WRITE)
-        tx = session.begin_transaction
-        tx.run('CREATE (a:Person {name: $name})', name: name)
-        tx.success
-      ensure
-        tx&.close
-        session&.close
+        driver.session(Neo4j::Driver::AccessMode::WRITE) do |session|
+          tx = session.begin_transaction
+          tx.run('CREATE (a:Person {name: $name})', name: name)
+          tx.success
+        ensure
+          tx&.close
+        end
       end
 
       it { is_expected.to eq 'John' }
@@ -224,39 +214,30 @@ RSpec.describe Neo4j::Driver do
       # To collect the session bookmarks
       saved_bookmarks = []
 
-      begin
-        # Create the first person and employment relationship.
-        session1 = driver.session(Neo4j::Driver::AccessMode::WRITE)
+      # Create the first person and employment relationship.
+      driver.session(Neo4j::Driver::AccessMode::WRITE) do |session1|
 
         session1.write_transaction { |tx| add_company(tx, 'Wayne Enterprises') }
         session1.write_transaction { |tx| add_person(tx, 'Alice') }
         session1.write_transaction { |tx| employ(tx, 'Alice', 'Wayne Enterprises') }
 
         saved_bookmarks << session1.last_bookmark
-      ensure
-        session1&.close
       end
 
-      begin
-        # Create the second person and employment relationship.
-        session2 = driver.session(Neo4j::Driver::AccessMode::WRITE)
+      # Create the second person and employment relationship.
+      driver.session(Neo4j::Driver::AccessMode::WRITE) do |session2|
         session2.write_transaction { |tx| add_company(tx, 'LexCorp') }
         session2.write_transaction { |tx| add_person(tx, 'Bob') }
         session2.write_transaction { |tx| employ(tx, 'Bob', 'LexCorp') }
 
         saved_bookmarks << session2.last_bookmark
-      ensure
-        session2&.close
       end
 
-      begin
-        # Create a friendship between the two people created above.
-        session3 = driver.session(Neo4j::Driver::AccessMode::WRITE, saved_bookmarks)
+      # Create a friendship between the two people created above.
+      driver.session(Neo4j::Driver::AccessMode::WRITE, saved_bookmarks) do |session3|
         session3.write_transaction { |tx| make_friends(tx, 'Alice', 'Bob') }
 
         session3.read_transaction(&method(:print_friends))
-      ensure
-        session3&.close
       end
     end
 
@@ -265,11 +246,10 @@ RSpec.describe Neo4j::Driver do
 
   it 'Example 3.5. Read-write transaction' do
     def add_person(name)
-      session = driver.session
-      session.write_transaction { |tx| create_person_node(tx, name) }
-      session.read_transaction { |tx| match_person_node(tx, name) }
-    ensure
-      session&.close
+      driver.session do |session|
+        session.write_transaction { |tx| create_person_node(tx, name) }
+        session.read_transaction { |tx| match_person_node(tx, name) }
+      end
     end
 
     def create_person_node(tx, name)
@@ -285,18 +265,14 @@ RSpec.describe Neo4j::Driver do
 
   context '4.2 Statement Results' do
     before do
-      session = driver.session
-      session.write_transaction { |tx| tx.run("CREATE (:Person{name: 'John'}) CREATE (:Person{name: 'Paul'})") }
-    ensure
-      session&.close
+      driver.session do |session|
+        session.write_transaction { |tx| tx.run("CREATE (:Person{name: 'John'}) CREATE (:Person{name: 'Paul'})") }
+      end
     end
 
     it 'Example 4.2. Consuming the stream' do
       def people
-        session = driver.session
-        session.read_transaction(&method(:match_person_nodes))
-      ensure
-        session&.close
+        driver.session { |session| session.read_transaction(&method(:match_person_nodes)) }
       end
 
       def match_person_nodes(tx)
@@ -308,20 +284,19 @@ RSpec.describe Neo4j::Driver do
 
     it 'Example 4.3. Retain results for further processing' do
       def add_employees(company_name)
-        session = driver.session
-        persons = session.read_transaction(&method(:match_person_nodes))
+        driver.session do |session|
+          persons = session.read_transaction(&method(:match_person_nodes))
 
-        persons.sum do |person|
-          session.write_transaction do |tx|
-            tx.run('MATCH (emp:Person {name: $person_name}) ' \
-                   'MERGE (com:Company {name: $company_name}) ' \
-                   'MERGE (emp)-[:WORKS_FOR]->(com)',
-                   person_name: person[:name], company_name: company_name)
-            1
+          persons.sum do |person|
+            session.write_transaction do |tx|
+              tx.run('MATCH (emp:Person {name: $person_name}) ' \
+                     'MERGE (com:Company {name: $company_name}) ' \
+                     'MERGE (emp)-[:WORKS_FOR]->(com)',
+                     person_name: person[:name], company_name: company_name)
+              1
+            end
           end
         end
-      ensure
-        session&.close
       end
 
       def match_person_nodes(tx)
