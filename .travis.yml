@@ -5,7 +5,7 @@ cache: bundler
 jdk:
   - oraclejdk8
 rvm:
-  - jruby-9
+  - jruby-9.2.5.0
 before_install: gem install bundler
 before_script:
   - "travis_retry bundle exec rake neo4j:install[$NEO4J_VERSION] --trace"
@@ -14,7 +14,8 @@ before_script:
   - "echo 'dbms.memory.pagecache.size=600m' >> ./db/neo4j/development/conf/neo4j.conf"
   - "echo 'dbms.memory.heap.max_size=600' >> ./db/neo4j/development/conf/neo4j$WRAPPER.conf"
   - "echo 'dbms.memory.heap.initial_size=600' >> ./db/neo4j/development/conf/neo4j$WRAPPER.conf"
-  - "bundle exec rake neo4j:start --trace"
+  - "./db/neo4j/development/bin/neo4j-admin set-initial-password password"
+  - "bundle exec rake neo4j:enable_auth neo4j:start --trace"
   - "while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done"
 env:
   global:
