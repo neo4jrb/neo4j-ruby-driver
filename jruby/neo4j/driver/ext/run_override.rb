@@ -17,6 +17,8 @@ module Neo4j
             object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
           elsif object.is_a? Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
+          elsif object.is_a? ActiveSupport::Duration
+            Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(0, 0, object.to_i, 0)
           else
             object
           end
