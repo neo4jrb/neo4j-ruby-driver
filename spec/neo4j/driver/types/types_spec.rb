@@ -67,4 +67,25 @@ RSpec.describe Neo4j::Driver do
 
     it { is_expected.to eq param }
   end
+
+  WGS_84_CRS_CODE = 4326
+  CARTESIAN_CRS_CODE = 7203
+  DELTA = 0.00001
+
+  context 'when 2DPoint' do
+    let(:param) { Neo4j::Driver::Point.new(WGS_84_CRS_CODE, 2, 3) }
+
+    its(:srid) { is_expected.to eq WGS_84_CRS_CODE }
+    its(:x) { is_expected.to be_within(DELTA).of(2) }
+    its(:y) { is_expected.to be_within(DELTA).of(3) }
+  end
+
+  context 'when 3DPoint' do
+    let(:param) { Neo4j::Driver::Point.new(42, 2, 3, 4) }
+
+    its(:srid) { is_expected.to eq CARTESIAN_CRS_CODE }
+    its(:x) { is_expected.to be_within(DELTA).of(2) }
+    its(:y) { is_expected.to be_within(DELTA).of(3) }
+    its(:z) { is_expected.to be_within(DELTA).of(4) }
+  end
 end

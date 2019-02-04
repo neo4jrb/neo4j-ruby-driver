@@ -19,6 +19,9 @@ module Neo4j
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           elsif object.is_a? ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(0, 0, object.to_i, 0)
+          elsif object.is_a? Neo4j::Driver::Point
+            Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
+            # Java::OrgNeo4jDriverV1::Values.point(object.srid, object.x, object.y)
           else
             object
           end

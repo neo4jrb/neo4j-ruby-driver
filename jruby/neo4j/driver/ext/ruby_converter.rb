@@ -17,6 +17,9 @@ module Neo4j
             Date.new(date.year, date.month_value, date.day_of_month)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DURATION
             ActiveSupport::Duration.build(as_iso_duration.seconds)
+          when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::POINT
+            point = as_point
+            Neo4j::Driver::Point.new(point.srid, point.x, point.y)
           else
             as_object
           end
