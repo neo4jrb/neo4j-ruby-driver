@@ -19,10 +19,16 @@ module Neo4j
             ActiveSupport::Duration.build(as_iso_duration.seconds)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::POINT
             point = as_point
-            Neo4j::Driver::Point.new(point.srid, point.x, point.y)
+            Neo4j::Driver::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))
           else
             as_object
           end
+        end
+
+        private
+
+        def nullable(double)
+          double unless double == java.lang.Double::NaN
         end
       end
     end

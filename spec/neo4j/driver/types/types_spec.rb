@@ -69,11 +69,19 @@ RSpec.describe Neo4j::Driver do
   end
 
   WGS_84_CRS_CODE = 4326
-  CARTESIAN_CRS_CODE = 7203
+  CARTESIAN_3D_CRS_CODE = 9157
   DELTA = 0.00001
 
   context 'when 2DPoint' do
-    let(:param) { Neo4j::Driver::Point.new(WGS_84_CRS_CODE, 2, 3) }
+    let(:param) { Neo4j::Driver::Point.new(srid: WGS_84_CRS_CODE, x: 2, y: 3) }
+
+    its(:srid) { is_expected.to eq WGS_84_CRS_CODE }
+    its(:x) { is_expected.to be_within(DELTA).of(2) }
+    its(:y) { is_expected.to be_within(DELTA).of(3) }
+  end
+
+  context 'when 2DPoint implied' do
+    let(:param) { Neo4j::Driver::Point.new(longitude: 2, latitude: 3) }
 
     its(:srid) { is_expected.to eq WGS_84_CRS_CODE }
     its(:x) { is_expected.to be_within(DELTA).of(2) }
@@ -81,9 +89,9 @@ RSpec.describe Neo4j::Driver do
   end
 
   context 'when 3DPoint' do
-    let(:param) { Neo4j::Driver::Point.new(42, 2, 3, 4) }
+    let(:param) { Neo4j::Driver::Point.new(x: 2, y: 3, z: 4) }
 
-    its(:srid) { is_expected.to eq CARTESIAN_CRS_CODE }
+    its(:srid) { is_expected.to eq CARTESIAN_3D_CRS_CODE }
     its(:x) { is_expected.to be_within(DELTA).of(2) }
     its(:y) { is_expected.to be_within(DELTA).of(3) }
     its(:z) { is_expected.to be_within(DELTA).of(4) }
