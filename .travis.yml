@@ -2,7 +2,6 @@
 sudo: false
 language: ruby
 cache: bundler
-dist: xenial
 jdk:
   - oraclejdk8
 rvm:
