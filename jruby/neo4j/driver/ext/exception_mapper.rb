@@ -2,7 +2,6 @@
 
 java_import org.neo4j.driver.v1.exceptions.AuthenticationException
 java_import org.neo4j.driver.v1.exceptions.ClientException
-java_import org.neo4j.driver.v1.exceptions.NoSuchRecordException
 java_import org.neo4j.driver.v1.exceptions.ServiceUnavailableException
 
 module Neo4j
@@ -21,8 +20,6 @@ module Neo4j
             Neo4j::Driver::Exceptions::AuthenticationException
           when ClientException
             Neo4j::Driver::Exceptions::ClientException
-          when NoSuchRecordException
-            Neo4j::Driver::Exceptions::NoSuchRecordException
           when ServiceUnavailableException
             Neo4j::Driver::Exceptions::ServiceUnavailableException
           else
