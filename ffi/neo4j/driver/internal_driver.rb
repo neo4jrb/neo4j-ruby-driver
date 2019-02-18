@@ -16,14 +16,27 @@ module Neo4j
         Bolt::Config.destroy(config)
       end
 
-      def session
+      def session(*args, &block)
         status = Bolt::Status.create
         # connection = Bolt::Connector.acquire(@connector, :bolt_access_mode_write, status)
+        session = session_instance(status)
+        if block
+          begin
+            block.arity.zero? ? session.instance_eval(&block) : block.call(session)
+          ensure
+            session&.close
+          end
+        else
+          session
+        end
+      ensure
+        Bolt::Status.destroy(status)
+      end
+
+      def session_instance(status)
         connection = Bolt::Connector.acquire(@connector, 0, status)
         raise Exception, check_and_print_error(nil, status, 'unable to acquire connection') if connection.null?
         Neo4j::Driver::InternalSession.new(@connector, connection)
-      ensure
-        Bolt::Status.destroy(status)
       end
 
       def close
