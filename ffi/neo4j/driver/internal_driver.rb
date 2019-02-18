@@ -16,13 +16,12 @@ module Neo4j
         Bolt::Config.destroy(config)
       end
 
-      def session(*args, &block)
+      def session(&block)
         status = Bolt::Status.create
-        # connection = Bolt::Connector.acquire(@connector, :bolt_access_mode_write, status)
         session = session_instance(status)
         if block
           begin
-            block.arity.zero? ? session.instance_eval(&block) : block.call(session)
+            block.arity.zero? ? session.instance_eval(&block) : yield(session)
           ensure
             session&.close
           end
