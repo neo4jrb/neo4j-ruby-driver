@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'neo4j-ruby-driver_jars'
-require 'neo4j/driver/ext/auto_closable'
 require 'neo4j/driver/ext/exception_mapper'
 require 'neo4j/driver/ext/graph_database'
 require 'neo4j/driver/ext/internal_driver'
@@ -11,6 +10,7 @@ require 'neo4j/driver/ext/map_accessor'
 require 'neo4j/driver/ext/ruby_converter'
 require 'neo4j/driver/ext/run_override'
 require 'neo4j/driver/version'
+require 'neo4j/driver/auto_closable'
 
 Java::OrgNeo4jDriverInternal::InternalDriver.prepend Neo4j::Driver::Ext::InternalDriver
 Java::OrgNeo4jDriverInternal::InternalNode.include Neo4j::Driver::Ext::MapAccessor

@@ -3,7 +3,10 @@
 module Neo4j
   module Driver
     class InternalDriver
+      extend Neo4j::Driver::AutoClosable
       include ErrorHandling
+
+      auto_closable :session
 
       def initialize(uri, auth_token)
         uri = URI(uri)
@@ -18,24 +21,11 @@ module Neo4j
 
       def session(&block)
         status = Bolt::Status.create
-        session = session_instance(status)
-        if block
-          begin
-            block.arity.zero? ? session.instance_eval(&block) : yield(session)
-          ensure
-            session&.close
-          end
-        else
-          session
-        end
-      ensure
-        Bolt::Status.destroy(status)
-      end
-
-      def session_instance(status)
         connection = Bolt::Connector.acquire(@connector, 0, status)
         raise Exception, check_and_print_error(nil, status, 'unable to acquire connection') if connection.null?
         Neo4j::Driver::InternalSession.new(@connector, connection)
+      ensure
+        Bolt::Status.destroy(status)
       end
 
       def close
