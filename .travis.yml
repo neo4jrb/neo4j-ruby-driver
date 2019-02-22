@@ -27,7 +27,7 @@ env:
   matrix:
     - NEO4J_VERSION=enterprise-3.5.3
     - NEO4J_VERSION=enterprise-3.4.12
-    - NEO4J_VERSION=enterprise-3.3.9
+#    - NEO4J_VERSION=enterprise-3.3.9
     - NEO4J_VERSION=community-3.5.3
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
