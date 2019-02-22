@@ -14,6 +14,7 @@ require 'neo4j/driver/bolt/values'
 require 'neo4j/driver/bolt/values_private'
 require 'neo4j/driver/error_handling'
 require 'neo4j/driver/graph_database'
+require 'neo4j/driver/graph_database_ext'
 require 'neo4j/driver/internal_driver'
 require 'neo4j/driver/internal_record'
 require 'neo4j/driver/internal_session'
@@ -23,3 +24,5 @@ require 'neo4j/driver/types/path'
 require 'neo4j/driver/types/relationship'
 require 'neo4j/driver/auto_closable'
 require 'neo4j/driver/version'
+
+Neo4j::Driver::GraphDatabase.singleton_class.prepend Neo4j::Driver::GraphDatabaseExt
