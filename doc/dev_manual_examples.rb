@@ -283,7 +283,7 @@ end
 # LocalTime     Neo4j::Driver::LocalTime
 # DateTime      Neo4j::Driver::ZonedDateTime
 # LocalDateTime Neo4j::Driver::LocalDateTime
-# Duration      Neo4j::Driver::Duration(optionally ActiveSupport::Duration)
+# Duration      ActiveSupport::Duration
 # Point         Neo4j::Driver::Point
 # Node          Neo4j::Driver::Node
 # Relationship  Neo4j::Driver::Relationship

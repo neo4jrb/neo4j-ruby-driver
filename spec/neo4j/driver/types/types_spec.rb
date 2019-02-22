@@ -2,10 +2,9 @@
 
 RSpec.describe Neo4j::Driver do
   subject do
-    session = driver.session
-    session.write_transaction { |tx| tx.run('RETURN $param', param: param).single.first }
-  ensure
-    session&.close
+    driver.session do |session|
+      session.write_transaction { |tx| tx.run('RETURN $param', param: param).single.first }
+    end
   end
 
   context 'when hash' do
@@ -75,6 +74,7 @@ RSpec.describe Neo4j::Driver do
   context 'when 2DPoint' do
     let(:param) { Neo4j::Driver::Point.new(srid: WGS_84_CRS_CODE, x: 2, y: 3) }
 
+    it { is_expected.to be_a Neo4j::Driver::Point }
     its(:srid) { is_expected.to eq WGS_84_CRS_CODE }
     its(:x) { is_expected.to be_within(DELTA).of(2) }
     its(:y) { is_expected.to be_within(DELTA).of(3) }
@@ -95,5 +95,15 @@ RSpec.describe Neo4j::Driver do
     its(:x) { is_expected.to be_within(DELTA).of(2) }
     its(:y) { is_expected.to be_within(DELTA).of(3) }
     its(:z) { is_expected.to be_within(DELTA).of(4) }
+  end
+
+  context 'when bytes' do
+    let(:bytes) { [1, 2, 3] }
+    let(:param) { Neo4j::Driver::ByteArray.from_bytes(bytes) }
+
+    it { is_expected.to eq param }
+    # planned to be fixed in jruby 9.3.0.0
+    # its(:to_bytes) { is_expected.to eq bytes }
+    # it { is_expected.to be_a Neo4j::Driver::ByteArray }
   end
 end

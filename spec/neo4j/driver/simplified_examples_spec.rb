@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Neo4j::Driver do
-  it 'Simplified Hello World without block' do
+  it 'Simplified Hello World without block', ffi: true do
     begin
       session = driver.session
       greeting = session.run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
