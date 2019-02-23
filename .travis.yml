@@ -27,9 +27,9 @@ env:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
     - NEO4J_BOLT_URL="bolt://localhost:7472"
     - SEABOLT_LIB=./seabolt-1.7.2-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
-  matrix:
-    - NEO4J_VERSION=enterprise-3.5.3
-    - NEO4J_VERSION=enterprise-3.4.12
+#  matrix:
+#    - NEO4J_VERSION=enterprise-3.5.3
+#    - NEO4J_VERSION=enterprise-3.4.12
 #    - NEO4J_VERSION=community-3.5.3
 matrix:
   include:
