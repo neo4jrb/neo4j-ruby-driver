@@ -3,8 +3,8 @@ dist: xenial
 sudo: false
 language: ruby
 cache: bundler
-jdk:
-  - oraclejdk8
+#jdk:
+#  - oraclejdk8
 rvm:
 #  - jruby-9.2.6.0
   - 2.6.1
