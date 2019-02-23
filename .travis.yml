@@ -21,7 +21,7 @@ before_script:
   - "bundle exec rake neo4j:enable_auth neo4j:start --trace"
   - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.2/seabolt-1.7.2-Darwin.tar.gz | tar -xz"
   - pwd
-  - ls -al ./seabolt-1.7.2-Darwin/usr/local/lib/l
+  - ls -al ./seabolt-1.7.2-Darwin/usr/local/lib
   - "while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done"
 env:
   global:
