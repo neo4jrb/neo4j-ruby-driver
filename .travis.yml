@@ -6,9 +6,9 @@ jdk:
   - oraclejdk8
 rvm:
   - jruby-9.2.6.0
-#  - 2.6.1
-#  - 2.5.3
-#  - 2.4.5
+  - 2.6.1
+  - 2.5.3
+  - 2.4.5
 before_install: gem install bundler
 before_script:
   - "travis_retry bundle exec rake neo4j:install[$NEO4J_VERSION] --trace"
@@ -19,16 +19,22 @@ before_script:
   - "echo 'dbms.memory.heap.initial_size=600' >> ./db/neo4j/development/conf/neo4j$WRAPPER.conf"
   - "./db/neo4j/development/bin/neo4j-admin set-initial-password password"
   - "bundle exec rake neo4j:enable_auth neo4j:start --trace"
+  - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.2/seabolt-1.7.2-Darwin.tar.gz | tar -xz"
   - "while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done"
 env:
   global:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
     - NEO4J_BOLT_URL="bolt://localhost:7472"
+    - SEABOLT_LIB=./seabolt-1.7.2-Darwin/usr/local/lib/libseabolt17.dylib
   matrix:
     - NEO4J_VERSION=enterprise-3.5.3
     - NEO4J_VERSION=enterprise-3.4.12
-#    - NEO4J_VERSION=enterprise-3.3.9
     - NEO4J_VERSION=community-3.5.3
+matrix:
+  include:
+    - env: NEO4J_VERSION=enterprise-3.5.3 SEABOLT_LIB=
+    - env: NEO4J_VERSION=enterprise-3.4.12 SEABOLT_LIB=
+    - env: NEO4J_VERSION=community-3.5.3 SEABOLT_LIB=
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
   - cat ./db/neo4j/development/logs/debug.log
