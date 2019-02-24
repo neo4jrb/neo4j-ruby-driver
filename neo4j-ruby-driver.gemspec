@@ -33,7 +33,7 @@ Gem::Specification.new do |spec|
     `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   end
 
-  ffi = ENV['SEABOLT_LIB']
+  ffi = !ENV['SEABOLT_LIB'].empty?
   pdir = ffi ? 'ffi' : 'jruby'
 
   spec.files << Dir['lib/**/*.rb']

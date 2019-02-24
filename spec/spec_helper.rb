@@ -29,4 +29,5 @@ RSpec.configure do |config|
   config.around { |example| cleaning(&example.method(:run)) }
 
   config.filter_run_excluding auth: :none
+  config.filter_run_including ffi: true unless ENV['SEABOLT_LIB'].empty?
 end
