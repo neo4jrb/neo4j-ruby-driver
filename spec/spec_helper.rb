@@ -3,6 +3,10 @@
 require 'dotenv'
 Dotenv.load
 
+puts "*********************"
+puts ENV['SEABOLT_LIB']
+puts "*********************"
+
 require 'bundler/setup'
 require 'neo4j_ruby_driver'
 require 'support/driver_helper'

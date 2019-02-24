@@ -33,6 +33,10 @@ Gem::Specification.new do |spec|
     `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   end
 
+  puts "********************* in gemspec"
+  puts ENV['SEABOLT_LIB']
+  puts "*********************"
+
   ffi = !ENV['SEABOLT_LIB'].empty?
   pdir = ffi ? 'ffi' : 'jruby'
 
