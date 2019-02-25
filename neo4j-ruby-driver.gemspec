@@ -37,7 +37,7 @@ Gem::Specification.new do |spec|
   puts ENV['SEABOLT_LIB']
   puts "*********************"
 
-  ffi = !ENV['SEABOLT_LIB'].empty?
+  ffi = ENV['SEABOLT_LIB']&.length&.positive?
   pdir = ffi ? 'ffi' : 'jruby'
 
   spec.files << Dir['lib/**/*.rb']
