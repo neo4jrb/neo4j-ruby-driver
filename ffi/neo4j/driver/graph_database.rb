@@ -9,9 +9,16 @@ module Neo4j
         Bolt::Lifecycle.bolt_shutdown
       end
 
-      class << self
-        def driver(uri, auth_token)
-          Neo4j::Driver::InternalDriver.new(uri, auth_token)
+      def self.driver(uri, auth_token, &block)
+        closable = Neo4j::Driver::InternalDriver.new(uri, auth_token)
+        if block
+          begin
+            block.arity.zero? ? closable.instance_eval(&block) : block.call(closable)
+          ensure
+            closable&.close
+          end
+        else
+          closable
         end
       end
     end
