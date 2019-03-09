@@ -33,10 +33,6 @@ Gem::Specification.new do |spec|
     `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   end
 
-  puts "********************* in gemspec"
-  puts ENV['SEABOLT_LIB']
-  puts "*********************"
-
   ffi = ENV['SEABOLT_LIB']&.length&.positive?
   pdir = ffi ? 'ffi' : 'jruby'
 
@@ -54,7 +50,7 @@ Gem::Specification.new do |spec|
     spec.add_runtime_dependency 'ffi'
   else
     spec.add_runtime_dependency 'jar-dependencies'
-    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.2'
+    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.3'
     # avoids to install it on the fly when jar-dependencies needs it
     spec.add_development_dependency 'ruby-maven'
   end
