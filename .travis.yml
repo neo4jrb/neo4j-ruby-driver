@@ -3,8 +3,8 @@
 os: osx
 sudo: false
 language: ruby
-jdk:
-  - oraclejdk8
+#jdk:
+#  - oraclejdk8
 cache: bundler
 rvm:
   - jruby-9.2.6.0
