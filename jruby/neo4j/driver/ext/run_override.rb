@@ -15,10 +15,14 @@ module Neo4j
         def to_neo(object)
           if object.is_a? Hash
             object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
+          elsif object.is_a? Neo4j::Driver::ByteArray
+            object.to_java_bytes
           elsif object.is_a? Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           elsif object.is_a? ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(0, 0, object.to_i, 0)
+          elsif object.is_a? Neo4j::Driver::Point
+            Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
           else
             object
           end
