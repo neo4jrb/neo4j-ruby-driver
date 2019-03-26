@@ -24,5 +24,3 @@ require 'neo4j/driver/types/node'
 require 'neo4j/driver/types/path'
 require 'neo4j/driver/types/relationship'
 require 'neo4j/driver/version'
-
-#Neo4j::Driver::GraphDatabase.singleton_class.prepend Neo4j::Driver::GraphDatabaseExt
