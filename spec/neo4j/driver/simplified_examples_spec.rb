@@ -14,7 +14,7 @@ RSpec.describe Neo4j::Driver do
     expect(greeting).to match(/hello, world, from node \d+/)
   end
 
-  it 'Simplified Hello World with block' do
+  it 'Simplified Hello World with block', ffi: true do
     greeting = nil
     driver.session do |session|
       greeting = session.run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
@@ -24,7 +24,7 @@ RSpec.describe Neo4j::Driver do
     expect(greeting).to match(/hello, world, from node \d+/)
   end
 
-  it 'Simplified Hello World with 0 arity block' do
+  it 'Simplified Hello World with 0 arity block', ffi: true do
     greeting = nil
     driver.session do
       greeting = run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",

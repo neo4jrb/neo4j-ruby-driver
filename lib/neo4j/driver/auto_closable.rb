@@ -2,7 +2,6 @@
 
 module Neo4j
   module Driver
-    # prepending methods with block execution
     module AutoClosable
       def auto_closable(*methods)
         prepend with_block_definer(methods)
