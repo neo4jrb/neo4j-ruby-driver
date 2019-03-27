@@ -22,12 +22,43 @@ module Neo4j
             Neo4j::Driver::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::BYTES
             Neo4j::Driver::ByteArray.new(String.from_java_bytes(as_byte_array))
+          when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE_TIME
+            to_time
           else
             as_object
           end
         end
 
         private
+
+        def to_time
+          time = as_zoned_date_time
+          instant = time.to_instant
+          zone_id = time.zone.id
+          offset = /^(?<sign>[\+\-])(?<hour>[0-9]{2,2}):(?<minute>[0-9]{2,2})$/.match(zone_id)
+          ruby_time = Time.at(instant.epoch_second, instant.nano, :nsec)
+                        .in_time_zone(TZInfo::Timezone.get(zone_id == 'Z' || offset ? 'UTC' : zone_id))
+
+          if offset
+            %i[hour minute]
+              .reduce(ruby_time) { |time, unit| time.send(offset[:sign], offset[unit].to_i.send(unit)) }
+              .change(offset: zone_id)
+          else
+            ruby_time
+          end
+        end
+
+        def to_time2
+          time = as_zoned_date_time
+          instant = time.to_instant
+          zone_id = time.zone.id
+          offset = /^(?<sign>[\+\-])(?<hour>[0-9]{2,2}):(?<minute>[0-9]{2,2})$/.match(zone_id)
+          if zone_id == 'Z' || offset
+            Time.rfc3339(time.to_string)
+          else
+            Time.at(instant.epoch_second, instant.nano, :nsec).in_time_zone(TZInfo::Timezone.get(zone_id))
+          end
+        end
 
         def nullable(double)
           double unless double == java.lang.Double::NaN
