@@ -134,50 +134,26 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'when DateTime with offset' do
+    context 'when DateTime with offset -1' do
+      let(:param) { '2018-12-05T12:34:00-01:00' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'when DateTime with offset +1' do
       let(:param) { '2018-12-05T12:34:00+01:00' }
 
       it { is_expected.to be true }
     end
 
-    context 'when DateTime with offset and zone' do
-      let(:param) { '2018-04-05T12:34:00+02:00[Europe/Berlin]' }
+    context 'when DateTime with offset +0' do
+      let(:param) { '2018-12-05T12:34:00+00:00' }
 
       it { is_expected.to be true }
     end
 
-    context 'when epochMillis' do
-      let(:param) { { epochMillis: 3360000 } }
-
-      it { is_expected.to be true }
-    end
-  end
-
-  describe 'datetime roundtrip neo4j saving' do
-    subject do
-      driver.session do |session|
-        session.write_transaction do |tx|
-          dt = tx.run('RETURN datetime($param)', param: param).single.first
-          tx.run('CREATE (t:Test{neo4j: datetime($param), ruby: $dt}) RETURN t.ruby', param: param, dt: dt).single.first
-          tx.run('RETURN datetime($param) = $dt', param: param, dt: dt).single.first
-        end
-      end
-    end
-
-    context 'when dst DateTime with zone' do
-      let(:param) { '2018-07-05T12:34:00[Europe/Berlin]' }
-
-      it { is_expected.to be true }
-    end
-
-    context 'when winter DateTime with zone' do
-      let(:param) { '2018-01-05T12:34:00[Europe/Berlin]' }
-
-      it { is_expected.to be true }
-    end
-
-    context 'when DateTime with offset and no zone' do
-      let(:param) { '2018-12-05T12:34:00+01:00' }
+    context 'when DateTime with offset Z' do
+      let(:param) { '2018-12-05T12:34:00Z' }
 
       it { is_expected.to be true }
     end

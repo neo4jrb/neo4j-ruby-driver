@@ -33,29 +33,11 @@ module Neo4j
 
         def to_time
           time = as_zoned_date_time
-          instant = time.to_instant
           zone_id = time.zone.id
-          offset = /^(?<sign>[\+\-])(?<hour>[0-9]{2,2}):(?<minute>[0-9]{2,2})$/.match(zone_id)
-          ruby_time = Time.at(instant.epoch_second, instant.nano, :nsec)
-                        .in_time_zone(TZInfo::Timezone.get(zone_id == 'Z' || offset ? 'UTC' : zone_id))
-
-          if offset
-            %i[hour minute]
-              .reduce(ruby_time) { |time, unit| time.send(offset[:sign], offset[unit].to_i.send(unit)) }
-              .change(offset: zone_id)
+          if /^Z|[+\-][0-9]{2}:[0-9]{2}$/.match?(zone_id)
+            Time.parse(time.to_string)
           else
-            ruby_time
-          end
-        end
-
-        def to_time2
-          time = as_zoned_date_time
-          instant = time.to_instant
-          zone_id = time.zone.id
-          offset = /^(?<sign>[\+\-])(?<hour>[0-9]{2,2}):(?<minute>[0-9]{2,2})$/.match(zone_id)
-          if zone_id == 'Z' || offset
-            Time.rfc3339(time.to_string)
-          else
+            instant = time.to_instant
             Time.at(instant.epoch_second, instant.nano, :nsec).in_time_zone(TZInfo::Timezone.get(zone_id))
           end
         end

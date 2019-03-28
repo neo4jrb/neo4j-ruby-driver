@@ -4,6 +4,15 @@ module Neo4j
   module Driver
     module Ext
       module RunOverride
+        # work around jruby issue https://github.com/jruby/jruby/issues/5603
+        Struct.new('Wrapper', :object)
+
+        def write_transaction
+          super { |tx| Struct::Wrapper.new(yield(tx)) }.object
+        end
+
+        # end work around
+
         def run(statement, parameters = {})
           java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters))
         rescue Java::OrgNeo4jDriverV1Exceptions::Neo4jException => e
@@ -24,9 +33,11 @@ module Neo4j
           elsif object.is_a? Neo4j::Driver::Point
             Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
           elsif object.is_a? ActiveSupport::TimeWithZone
-          # elsif object.is_a? Time
             Java::JavaTime::ZonedDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
                                              object.nsec, Java::JavaTime::ZoneId.of(object.time_zone.tzinfo.identifier))
+          elsif object.is_a? Time
+            Java::JavaTime::ZonedDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
+                                             object.nsec, Java::JavaTime::ZoneId.of(object.formatted_offset))
           else
             object
           end

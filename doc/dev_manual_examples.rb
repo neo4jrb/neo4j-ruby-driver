@@ -281,7 +281,7 @@ end
 # Date          Date
 # Time          Neo4j::Driver::OffsetTime
 # LocalTime     Neo4j::Driver::LocalTime
-# DateTime      ActiveSupport::TimeWithZone
+# DateTime      Time/ActiveSupport::TimeWithZone
 # LocalDateTime Neo4j::Driver::LocalDateTime
 # Duration      ActiveSupport::Duration
 # Point         Neo4j::Driver::Point

@@ -102,8 +102,7 @@ RSpec.describe Neo4j::Driver do
     let(:param) { Neo4j::Driver::ByteArray.from_bytes(bytes) }
 
     it { is_expected.to eq param }
-    # planned to be fixed in jruby 9.3.0.0
-    # its(:to_bytes) { is_expected.to eq bytes }
-    # it { is_expected.to be_a Neo4j::Driver::ByteArray }
+    its(:to_bytes) { is_expected.to eq bytes }
+    it { is_expected.to be_a Neo4j::Driver::ByteArray }
   end
 end
