@@ -33,14 +33,17 @@ module Neo4j
           elsif object.is_a? Neo4j::Driver::Point
             Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
           elsif object.is_a? ActiveSupport::TimeWithZone
-            Java::JavaTime::ZonedDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
-                                             object.nsec, Java::JavaTime::ZoneId.of(object.time_zone.tzinfo.identifier))
+            to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
           elsif object.is_a? Time
-            Java::JavaTime::ZonedDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
-                                             object.nsec, Java::JavaTime::ZoneId.of(object.formatted_offset))
+            to_zoned_date_time(object, object.formatted_offset)
           else
             object
           end
+        end
+
+        def to_zoned_date_time(object, zone)
+          Java::JavaTime::ZonedDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
+                                           object.nsec, Java::JavaTime::ZoneId.of(zone))
         end
       end
     end
