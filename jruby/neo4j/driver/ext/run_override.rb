@@ -22,19 +22,20 @@ module Neo4j
         private
 
         def to_neo(object)
-          if object.is_a? Hash
+          case object
+          when Hash
             object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
-          elsif object.is_a? Neo4j::Driver::ByteArray
+          when Neo4j::Driver::ByteArray
             object.to_java_bytes
-          elsif object.is_a? Date
+          when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
-          elsif object.is_a? ActiveSupport::Duration
+          when ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(0, 0, object.to_i, 0)
-          elsif object.is_a? Neo4j::Driver::Point
+          when Neo4j::Driver::Point
             Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
-          elsif object.is_a? ActiveSupport::TimeWithZone
+          when ActiveSupport::TimeWithZone
             to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
-          elsif object.is_a? Time
+          when Time
             to_zoned_date_time(object, object.formatted_offset)
           else
             object
