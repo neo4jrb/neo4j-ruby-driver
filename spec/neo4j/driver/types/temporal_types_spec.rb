@@ -106,7 +106,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'when epochMillis' do
-      let(:param) { { epochMillis: 3360000 } }
+      let(:param) { { epochMillis: 3_360_000 } }
 
       it { is_expected.to be true }
     end
@@ -165,7 +165,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'when epochMillis' do
-      let(:param) { { epochMillis: 3360000 } }
+      let(:param) { { epochMillis: 3_360_000 } }
 
       it { is_expected.to be true }
     end
