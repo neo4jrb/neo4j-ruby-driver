@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'neo4j-ruby-driver_jars'
-require 'neo4j/driver/ext/auto_closable'
+require 'neo4j/driver/auto_closable'
 require 'neo4j/driver/ext/exception_mapper'
 require 'neo4j/driver/ext/graph_database'
 require 'neo4j/driver/ext/internal_driver'

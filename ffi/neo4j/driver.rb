@@ -2,6 +2,7 @@
 
 require 'ffi'
 require 'neo4j/driver/auth_tokens'
+require 'neo4j/driver/auto_closable'
 require 'neo4j/driver/bolt/address'
 require 'neo4j/driver/bolt/auth'
 require 'neo4j/driver/bolt/config'

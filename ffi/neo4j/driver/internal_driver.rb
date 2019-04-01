@@ -3,7 +3,10 @@
 module Neo4j
   module Driver
     class InternalDriver
+      extend Neo4j::Driver::AutoClosable
       include ErrorHandling
+
+      auto_closable :session
 
       def initialize(uri, auth_token)
         uri = URI(uri)
