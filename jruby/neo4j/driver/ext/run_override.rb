@@ -25,14 +25,22 @@ module Neo4j
           case object
           when Hash
             object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
-          when Neo4j::Driver::ByteArray
+          when Neo4j::Driver::Types::ByteArray
             object.to_java_bytes
           when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(0, 0, object.to_i, 0)
-          when Neo4j::Driver::Point
+          when Neo4j::Driver::Types::Point
             Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
+          when Neo4j::Driver::Types::OffsetTime
+            Java::JavaTime::OffsetTime.of(object.hour, object.min, object.sec,
+                                          object.nsec, Java::JavaTime::ZoneOffset.of_total_seconds(object.utc_offset))
+          when Neo4j::Driver::Types::LocalTime
+            Java::JavaTime::LocalTime.of(object.hour, object.min, object.sec, object.nsec)
+          when Neo4j::Driver::Types::LocalDateTime
+            Java::JavaTime::LocalDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
+                                             object.nsec)
           when ActiveSupport::TimeWithZone
             to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
           when Time

@@ -2,7 +2,6 @@
 # Ruby examples for https://neo4j.com/docs/developer-manual/current/drivers/
 ############################################################################
 
-
 ######################################
 # Example 1.4. Hello World
 ######################################
@@ -277,17 +276,17 @@ end
 # Integer       Integer
 # Float         Float
 # String        String
-# ByteArray     Neo4j::Driver::ByteArray
+# ByteArray     Neo4j::Driver::Types::ByteArray
 # Date          Date
-# Time          Neo4j::Driver::OffsetTime
-# LocalTime     Neo4j::Driver::LocalTime
+# Time          Neo4j::Driver::Types::OffsetTime
+# LocalTime     Neo4j::Driver::Types::LocalTime
 # DateTime      Time/ActiveSupport::TimeWithZone
-# LocalDateTime Neo4j::Driver::LocalDateTime
+# LocalDateTime Neo4j::Driver::Types::LocalDateTime
 # Duration      ActiveSupport::Duration
-# Point         Neo4j::Driver::Point
-# Node          Neo4j::Driver::Node
-# Relationship  Neo4j::Driver::Relationship
-# Path          Neo4j::Driver::Path
+# Point         Neo4j::Driver::Types::Point
+# Node          Neo4j::Driver::Types::Node
+# Relationship  Neo4j::Driver::Types::Relationship
+# Path          Neo4j::Driver::Types::Path
 
 ######################################
 # Example 4.2. Consuming the stream

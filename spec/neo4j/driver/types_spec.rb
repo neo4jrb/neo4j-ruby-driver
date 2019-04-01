@@ -58,7 +58,7 @@ RSpec.describe Neo4j::Driver do
   context 'when String' do
     let(:param) { 'string' }
 
-    it { is_expected.to match /^string$/ }
+    it { is_expected.to match(/^string$/) }
   end
 
   context 'when Duration' do
@@ -72,16 +72,16 @@ RSpec.describe Neo4j::Driver do
   DELTA = 0.00001
 
   context 'when 2DPoint' do
-    let(:param) { Neo4j::Driver::Point.new(srid: WGS_84_CRS_CODE, x: 2, y: 3) }
+    let(:param) { Neo4j::Driver::Types::Point.new(srid: WGS_84_CRS_CODE, x: 2, y: 3) }
 
-    it { is_expected.to be_a Neo4j::Driver::Point }
+    it { is_expected.to be_a Neo4j::Driver::Types::Point }
     its(:srid) { is_expected.to eq WGS_84_CRS_CODE }
     its(:x) { is_expected.to be_within(DELTA).of(2) }
     its(:y) { is_expected.to be_within(DELTA).of(3) }
   end
 
   context 'when 2DPoint implied' do
-    let(:param) { Neo4j::Driver::Point.new(longitude: 2, latitude: 3) }
+    let(:param) { Neo4j::Driver::Types::Point.new(longitude: 2, latitude: 3) }
 
     its(:srid) { is_expected.to eq WGS_84_CRS_CODE }
     its(:x) { is_expected.to be_within(DELTA).of(2) }
@@ -89,7 +89,7 @@ RSpec.describe Neo4j::Driver do
   end
 
   context 'when 3DPoint' do
-    let(:param) { Neo4j::Driver::Point.new(x: 2, y: 3, z: 4) }
+    let(:param) { Neo4j::Driver::Types::Point.new(x: 2, y: 3, z: 4) }
 
     its(:srid) { is_expected.to eq CARTESIAN_3D_CRS_CODE }
     its(:x) { is_expected.to be_within(DELTA).of(2) }
@@ -99,10 +99,10 @@ RSpec.describe Neo4j::Driver do
 
   context 'when bytes' do
     let(:bytes) { [1, 2, 3] }
-    let(:param) { Neo4j::Driver::ByteArray.from_bytes(bytes) }
+    let(:param) { Neo4j::Driver::Types::ByteArray.from_bytes(bytes) }
 
     it { is_expected.to eq param }
     its(:to_bytes) { is_expected.to eq bytes }
-    it { is_expected.to be_a Neo4j::Driver::ByteArray }
+    it { is_expected.to be_a Neo4j::Driver::Types::ByteArray }
   end
 end

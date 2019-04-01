@@ -19,9 +19,15 @@ module Neo4j
             ActiveSupport::Duration.build(as_iso_duration.seconds)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::POINT
             point = as_point
-            Neo4j::Driver::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))
+            Neo4j::Driver::Types::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::BYTES
-            Neo4j::Driver::ByteArray.new(String.from_java_bytes(as_byte_array))
+            Neo4j::Driver::Types::ByteArray.new(String.from_java_bytes(as_byte_array))
+          when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::TIME
+            Neo4j::Driver::Types::OffsetTime.parse(as_offset_time.to_string)
+          when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LOCAL_TIME
+            Neo4j::Driver::Types::LocalTime.parse(as_local_time.to_string)
+          when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LOCAL_DATE_TIME
+            Neo4j::Driver::Types::LocalDateTime.parse(as_local_date_time.to_string)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE_TIME
             to_time
           else
