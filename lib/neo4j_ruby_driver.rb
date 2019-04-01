@@ -2,6 +2,7 @@
 
 require 'active_support/duration'
 require 'active_support/time'
+require 'neo4j/driver/auto_closable'
 require 'neo4j/driver/exceptions/neo4j_exception'
 require 'neo4j/driver/exceptions/authentication_exception'
 require 'neo4j/driver/exceptions/client_exception'
