@@ -4,7 +4,7 @@ require 'bundler/gem_tasks'
 require 'rspec/core/rake_task'
 require 'neo4j/rake_tasks'
 
-if RUBY_PLATFORM.match?(/java/) && ENV['SEABOLT_LIB'].empty?
+if RUBY_PLATFORM.match?(/java/) && ENV['SEABOLT_LIB']&.length&.positive?
   require 'jars/installer'
   task :install_jars do
     Jars::Installer.vendor_jars!('jruby')

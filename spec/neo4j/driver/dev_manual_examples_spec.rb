@@ -16,10 +16,11 @@ RSpec.describe Neo4j::Driver do
   end
 
   context '2. Client applications' do
-    after { driver2.close }
     subject do
       driver2.session { |session| session.run('RETURN 1').single.first == 1 }
     end
+
+    after { driver2.close }
 
     let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
     let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
@@ -119,12 +120,13 @@ RSpec.describe Neo4j::Driver do
   end
 
   context '3. Sessions and transactions' do
-    before { add_person('John') }
     subject(:name) do
       driver.session(Neo4j::Driver::AccessMode::READ) do |session|
         session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
       end
     end
+
+    before { add_person('John') }
 
     context 'Example 3.1. Session' do
       def add_person(name)
