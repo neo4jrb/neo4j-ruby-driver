@@ -10,10 +10,9 @@ module Neo4j
         @connection = connection
         @run = run
         @pull = pull
-        unless success?
-          raise Exception,
-                check_and_print_error(@connection, Bolt::Connection.status(@connection), 'cypher execution failed')
-        end
+        return if success?
+        raise Exception,
+              check_and_print_error(@connection, Bolt::Connection.status(@connection), 'cypher execution failed')
       end
 
       def single
@@ -29,7 +28,7 @@ module Neo4j
 
       def field_names
         field_names = Bolt::Connection.field_names(@connection)
-        Bolt::Values.bolt_value_size(field_names).times.map do |i|
+        Array(Bolt::Values.bolt_value_size(field_names)) do |i|
           to_string(Bolt::Values.bolt_list_value(field_names, i), @connection)
         end
       end

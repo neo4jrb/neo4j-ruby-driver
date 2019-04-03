@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Neo4j
   module Driver
     class InternalRecord
@@ -7,9 +8,8 @@ module Neo4j
 
       def initialize(field_names, connection)
         field_values = Bolt::Connection.field_values(connection)
-        @field_values = field_names.size.times
-                          .map { |i| Bolt::Values.bolt_list_value(field_values, i) }
-                          .map(&method(:to_typed_value))
+        @field_values =
+          Array(field_names.size) { |i| to_typed_value(Bolt::Values.bolt_list_value(field_values, i)) }
       end
 
       private
