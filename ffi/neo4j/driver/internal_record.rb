@@ -9,7 +9,7 @@ module Neo4j
       def initialize(field_names, connection)
         field_values = Bolt::Connection.field_values(connection)
         @field_values =
-          Array(field_names.size) { |i| to_typed_value(Bolt::Values.bolt_list_value(field_values, i)) }
+          Array.new(field_names.size) { |i| to_typed_value(Bolt::Values.bolt_list_value(field_values, i)) }
       end
 
       private
