@@ -1,17 +1,29 @@
 # frozen_string_literal: true
 
-class InternalRecord
-  def initialize(connection)
-    @connection = connection
-  end
+module Neo4j
+  module Driver
+    class InternalRecord
+      include Conversions
+      delegate :first, to: :@field_values
 
-  def first
-    field_values = Bolt::Connection.field_values(@connection)
-    field_value = Bolt::Values.bolt_list_value(field_values, 0)
-    string_buffer = FFI::Buffer.alloc_out(:char, 4096)
+      def initialize(field_names, connection)
+        field_values = Bolt::Connection.field_values(connection)
+        @field_values =
+          Array.new(field_names.size) { |i| to_typed_value(Bolt::Values.bolt_list_value(field_values, i)) }
+      end
 
-    string_buffer[4095] = 0 if Bolt::Values.bolt_value_to_string(field_value, string_buffer, 4096, @connection) > 4096
+      private
 
-    string_buffer.get_string(0)
+      def to_typed_value(value)
+        case Bolt::Values.bolt_value_type(value)
+        when :bolt_string
+          to_string(value)
+        when :bolt_integer
+          Bolt::Values.bolt_integer_get(value)
+        else
+          to_string(value)
+        end
+      end
+    end
   end
 end

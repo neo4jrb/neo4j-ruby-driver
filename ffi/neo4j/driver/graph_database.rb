@@ -10,6 +10,10 @@ module Neo4j
       end
 
       class << self
+        extend Neo4j::Driver::AutoClosable
+
+        auto_closable :driver
+
         def driver(uri, auth_token)
           Neo4j::Driver::InternalDriver.new(uri, auth_token)
         end
