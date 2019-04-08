@@ -2,8 +2,7 @@
 
 module Bolt
   module Status
-    extend FFI::Library
-    ffi_lib ENV['SEABOLT_LIB']
+    extend Bolt::Library
 
     typedef :int32_t, :bolt_connection_state
 

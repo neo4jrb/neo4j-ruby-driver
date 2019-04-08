@@ -2,8 +2,7 @@
 
 module Bolt
   module Address
-    extend FFI::Library
-    ffi_lib ENV['SEABOLT_LIB']
+    extend Bolt::Library
     attach_function :create, :BoltAddress_create, %i[string string], :pointer
     attach_function :destroy, :BoltAddress_destroy, [:pointer], :void
   end
