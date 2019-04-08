@@ -2,8 +2,7 @@
 
 module Bolt
   module Values
-    extend FFI::Library
-    ffi_lib ENV['SEABOLT_LIB']
+    extend Bolt::Library
 
     enum :bolt_type,
          %i[bolt_null

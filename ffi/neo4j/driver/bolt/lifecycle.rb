@@ -2,8 +2,7 @@
 
 module Bolt
   module Lifecycle
-    extend FFI::Library
-    ffi_lib ENV['SEABOLT_LIB']
+    extend Bolt::Library
     attach_function :bolt_startup, :Bolt_startup, [], :void
     attach_function :bolt_shutdown, :Bolt_shutdown, [], :void
   end

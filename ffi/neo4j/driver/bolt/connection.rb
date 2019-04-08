@@ -2,8 +2,7 @@
 
 module Bolt
   module Connection
-    extend FFI::Library
-    ffi_lib ENV['SEABOLT_LIB']
+    extend Bolt::Library
 
     typedef :uint64_t, :bolt_request
 

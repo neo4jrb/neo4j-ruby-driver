@@ -2,8 +2,7 @@
 
 module Bolt
   module Error
-    extend FFI::Library
-    ffi_lib ENV['SEABOLT_LIB']
+    extend Bolt::Library
 
     # Identifies a successful operation which is defined as 0
     BOLT_SUCCESS = 0
