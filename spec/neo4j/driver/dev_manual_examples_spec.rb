@@ -140,7 +140,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq 'John' }
     end
 
-    context 'Example 3.2. Auto-commit transaction' do
+    context 'Example 3.2. Auto-commit transaction', ffi: true do
       def add_person(name)
         driver.session { |session| session.run('CREATE (a:Person {name: $name})', name: name) }
       end

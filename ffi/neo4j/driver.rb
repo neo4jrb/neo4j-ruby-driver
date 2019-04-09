@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'ffi'
+require 'neo4j/driver/access_mode'
 require 'neo4j/driver/auth_tokens'
 require 'neo4j/driver/auto_closable'
 require 'neo4j/driver/bolt/library'
