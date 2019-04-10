@@ -21,7 +21,7 @@ module Neo4j
         connection = Bolt::Connector.acquire(@connector, mode, status)
         raise Exception, check_and_print_error(nil, status, 'unable to acquire connection') if connection.null?
 
-        Neo4j::Driver::InternalSession.new(@connector, connection)
+        Neo4j::Driver::InternalSession.new(@connector, mode)
       end
 
       def close
