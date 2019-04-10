@@ -6,9 +6,9 @@ module Neo4j
       private
 
       def to_string(field_value, connection = nil)
-        size = Bolt::Values.bolt_value_size(field_value)
+        size = Bolt::Value.size(field_value)
         string_buffer = FFI::Buffer.alloc_out(:char, size)
-        Bolt::Values.bolt_value_to_string(field_value, string_buffer, size, connection)
+        Bolt::Value.to_string(field_value, string_buffer, size, connection)
         string_buffer.get_string(0)
       end
     end

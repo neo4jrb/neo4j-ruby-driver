@@ -3,7 +3,7 @@
 module Bolt
   module Config
     extend Bolt::Library
-    attach_function :create, :BoltConfig_create, [], :pointer
+    attach_function :create, :BoltConfig_create, [], :pointer, auto_release: true
     attach_function :destroy, :BoltConfig_destroy, [:pointer], :void
     attach_function :set_user_agent, :BoltConfig_set_user_agent, %i[pointer string], :int32_t
   end

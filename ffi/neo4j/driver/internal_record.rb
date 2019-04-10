@@ -9,17 +9,17 @@ module Neo4j
       def initialize(field_names, connection)
         field_values = Bolt::Connection.field_values(connection)
         @field_values =
-          Array.new(field_names.size) { |i| to_typed_value(Bolt::Values.bolt_list_value(field_values, i)) }
+          Array.new(field_names.size) { |i| to_typed_value(Bolt::List.value(field_values, i)) }
       end
 
       private
 
       def to_typed_value(value)
-        case Bolt::Values.bolt_value_type(value)
+        case Bolt::Value.type(value)
         when :bolt_string
           to_string(value)
         when :bolt_integer
-          Bolt::Values.bolt_integer_get(value)
+          Bolt::Integer.get(value)
         else
           to_string(value)
         end

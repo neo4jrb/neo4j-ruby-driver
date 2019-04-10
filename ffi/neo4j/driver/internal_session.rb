@@ -15,7 +15,7 @@ module Neo4j
         parameters.each_with_index do |(name, value), index|
           # This has to be converted with `to_neo` like in the jruby based driver with a shared method
           name = name.to_s
-          Bolt::Values.bolt_value_format_as_string(
+          Bolt::Value.format_as_string(
             Bolt::Connection.set_run_cypher_parameter(@connection, index, name, name.size),
             value,
             value.size

@@ -6,7 +6,7 @@ module Bolt
 
     typedef :int32_t, :bolt_connection_state
 
-    attach_function :create, :BoltStatus_create, [], :pointer
+    attach_function :create, :BoltStatus_create, [], :pointer, auto_release: true
     attach_function :destroy, :BoltStatus_destroy, [:pointer], :void
     attach_function :state, :BoltStatus_get_state, [:pointer], :bolt_connection_state
     attach_function :error, :BoltStatus_get_error, [:pointer], :int32_t

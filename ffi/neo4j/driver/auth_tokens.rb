@@ -7,6 +7,10 @@ module Neo4j
         def basic(username, password)
           Bolt::Auth.basic(username, password, nil)
         end
+
+        def none
+          Bolt::Auth.none
+        end
       end
     end
   end
