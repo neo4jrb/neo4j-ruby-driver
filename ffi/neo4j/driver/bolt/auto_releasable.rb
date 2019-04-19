@@ -4,6 +4,7 @@ module Bolt
   module AutoReleasable
     def attach_function(name, func, args, returns = nil, options = nil)
       return super unless returns == :auto_pointer
+
       super(name, func, args, :pointer, options)
       singleton_class.prepend with_auto_releaser(name, options&.dig(:releaser))
     end

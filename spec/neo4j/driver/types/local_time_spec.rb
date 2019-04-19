@@ -36,7 +36,7 @@ RSpec.describe Neo4j::Driver::Types::LocalTime do
     end
   end
 
-  describe 'datetime roundtrip ruby check' do
+  describe 'datetime roundtrip ruby check', ffi: true do
     subject do
       driver.session do |session|
         session.write_transaction do |tx|

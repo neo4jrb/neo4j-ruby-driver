@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Neo4j::Driver do
-  it 'Example 1.4. Hello World' do
+  it 'Example 1.4. Hello World', ffi: true do
     greeting = nil
     driver.session do |session|
       greeting = session.write_transaction do |tx|
@@ -119,7 +119,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '3. Sessions and transactions' do
+  context '3. Sessions and transactions', ffi: true do
     subject(:name) do
       driver.session(Neo4j::Driver::AccessMode::READ) do |session|
         session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
@@ -140,7 +140,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq 'John' }
     end
 
-    context 'Example 3.2. Auto-commit transaction', ffi: true do
+    context 'Example 3.2. Auto-commit transaction' do
       def add_person(name)
         driver.session { |session| session.run('CREATE (a:Person {name: $name})', name: name) }
       end
@@ -246,7 +246,7 @@ RSpec.describe Neo4j::Driver do
     expect(add_employ_and_make_friends).to eq(['Alice knows Bob'])
   end
 
-  it 'Example 3.5. Read-write transaction' do
+  it 'Example 3.5. Read-write transaction', ffi: true do
     def add_person(name)
       driver.session do |session|
         session.write_transaction { |tx| create_person_node(tx, name) }

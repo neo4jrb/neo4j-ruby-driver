@@ -81,25 +81,25 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
-    context 'when dst DateTime with zone' do
+    context 'when dst DateTime with zone', ffi: true do
       let(:param) { '2018-07-05T12:34:00[Europe/Berlin]' }
 
       it { is_expected.to be true }
     end
 
-    context 'when winter DateTime with zone' do
+    context 'when winter DateTime with zone', ffi: true do
       let(:param) { '2018-01-05T12:34:00[Europe/Berlin]' }
 
       it { is_expected.to be true }
     end
 
-    context 'when DateTime with offset' do
+    context 'when DateTime with offset', ffi: true  do
       let(:param) { '2018-12-05T12:34:00+01:00' }
 
       it { is_expected.to be true }
     end
 
-    context 'when DateTime with offset and zone' do
+    context 'when DateTime with offset and zone', ffi: true do
       let(:param) { '2018-04-05T12:34:00+02:00[Europe/Berlin]' }
 
       it { is_expected.to be true }

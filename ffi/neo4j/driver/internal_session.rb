@@ -4,51 +4,69 @@ module Neo4j
   module Driver
     class InternalSession
       include ErrorHandling
+      include StatementRunner
 
       def initialize(connector, mode)
         @connector = connector
         @mode = mode
+        @bookmarks = []
+        # @transaction = nil
       end
 
       def run(statement, parameters = {})
-        connection_acquire
-        check_error Bolt::Connection.set_run_cypher(@connection, statement, statement.size, parameters.size)
-        parameters.each_with_index do |(name, value), index|
-          # This has to be converted with `to_neo` like in the jruby based driver with a shared method
-          name = name.to_s
-          Bolt::Value.format_as_string(
-            Bolt::Connection.set_run_cypher_parameter(@connection, index, name, name.size),
-            value,
-            value.size
-          )
-        end
-        check_error Bolt::Connection.load_run_request(@connection)
-        run = Bolt::Connection.last_request(@connection)
+        acquire_connection
+        super
+      end
 
-        check_error Bolt::Connection.load_pull_request(@connection, -1)
-        pull_all = Bolt::Connection.last_request(@connection)
+      def read_transaction(&block)
+        transaction(Neo4j::Driver::AccessMode::READ, &block)
+      end
 
-        check_error Bolt::Connection.send(@connection)
-
-        InternalStatementResult.new(@connection, run, pull_all)
+      def write_transaction(&block)
+        transaction(Neo4j::Driver::AccessMode::WRITE, &block)
       end
 
       def close
-        connection_release
+        close_transaction_and_release_connection
+      end
+
+      def release_connection
+        Bolt::Connector.release(@connector, @connection) if @connection
+        @connection = nil
+      end
+
+      def begin_transaction(mode = @mode, config = nil)
+        # ensureNoOpenTxBeforeStartingTx
+        acquire_connection(mode)
+        @transaction = ExplicitTransaction.new(@connection, self).begin(@bookmarks, config)
       end
 
       private
 
-      def connection_acquire
-        raise Exception, "existing connection present" if @connection
+      def transaction(mode, config = nil)
+        # retry logic should go here
+        tx = begin_transaction(mode, config)
+        result = yield tx
+        tx.success
+        result
+      rescue e
+        tx&.failure
+        raise e
+      ensure
+        tx&.close
+      end
+
+      def acquire_connection(mode = @mode)
+        raise Exception, 'existing connection present' if @connection
+
         status = Bolt::Status.create
-        @connection = Bolt::Connector.acquire(@connector, @mode, status)
+        @connection = Bolt::Connector.acquire(@connector, mode, status)
         raise Exception, check_and_print_error(nil, status, 'unable to acquire connection') if @connection.null?
       end
 
-      def connection_release
-        Bolt::Connector.release(@connector, @connection)
-        @connection = nil
+      def close_transaction_and_release_connection
+        @transaction&.close
+        release_connection
       end
     end
   end
