@@ -93,7 +93,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'when DateTime with offset', ffi: true  do
+    context 'when DateTime with offset', ffi: true do
       let(:param) { '2018-12-05T12:34:00+01:00' }
 
       it { is_expected.to be true }
