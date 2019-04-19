@@ -69,6 +69,6 @@ module Bolt
     # Error set in connection
     BOLT_STATUS_SET = 0xFFF
 
-    attach_function :string, :BoltError_get_string, [:int32_t], :string
+    attach_function :get_string, :BoltError_get_string, [:int32_t], :string
   end
 end

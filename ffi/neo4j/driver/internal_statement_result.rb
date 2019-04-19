@@ -28,8 +28,8 @@ module Neo4j
 
       def field_names
         field_names = Bolt::Connection.field_names(@connection)
-        Array.new(Bolt::Values.bolt_value_size(field_names)) do |i|
-          to_string(Bolt::Values.bolt_list_value(field_names, i), @connection)
+        Array.new(Bolt::Value.size(field_names)) do |i|
+          to_string(Bolt::List.value(field_names, i), @connection)
         end
       end
     end

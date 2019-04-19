@@ -44,7 +44,7 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
     end
   end
 
-  describe 'offset_time roundtrip ruby check' do
+  describe 'offset_time roundtrip ruby check', ffi: true do
     subject do
       driver.session do |session|
         session.write_transaction do |tx|

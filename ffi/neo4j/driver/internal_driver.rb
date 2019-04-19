@@ -14,20 +14,14 @@ module Neo4j
         config = Bolt::Config.create
         Bolt::Config.set_user_agent(config, 'seabolt-cmake/1.7')
         @connector = Bolt::Connector.create(address, auth_token, config)
-        Bolt::Address.destroy(address)
-        Bolt::Values.bolt_value_destroy(auth_token)
-        Bolt::Config.destroy(config)
       end
 
-      def session
+      def session(mode = AccessMode::WRITE)
         status = Bolt::Status.create
-        # connection = Bolt::Connector.acquire(@connector, :bolt_access_mode_write, status)
-        connection = Bolt::Connector.acquire(@connector, 0, status)
+        connection = Bolt::Connector.acquire(@connector, mode, status)
         raise Exception, check_and_print_error(nil, status, 'unable to acquire connection') if connection.null?
 
-        Neo4j::Driver::InternalSession.new(@connector, connection)
-      ensure
-        Bolt::Status.destroy(status)
+        Neo4j::Driver::InternalSession.new(@connector, mode)
       end
 
       def close
