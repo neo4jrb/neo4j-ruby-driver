@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Exceptions
-      class NoSuchRecordException < RuntimeError
+      class DatabaseException < Neo4jException
       end
     end
   end

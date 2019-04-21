@@ -6,6 +6,8 @@ module Neo4j
       include ErrorHandling
       include StatementRunner
 
+      attr_reader :bookmarks
+
       def initialize(connector, mode)
         @connector = connector
         @mode = mode
@@ -41,6 +43,14 @@ module Neo4j
         @transaction = ExplicitTransaction.new(@connection, self).begin(@bookmarks, config)
       end
 
+      def bookmarks=(bookmarks)
+        @bookmarks = bookmarks if bookmarks.present?
+      end
+
+      def last_bookmark
+        @bookmarks.max
+      end
+
       private
 
       def transaction(mode, config = nil)
@@ -49,7 +59,7 @@ module Neo4j
         result = yield tx
         tx.success
         result
-      rescue e
+      rescue Exception => e
         tx&.failure
         raise e
       ensure

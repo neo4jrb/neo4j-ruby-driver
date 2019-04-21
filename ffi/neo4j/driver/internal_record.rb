@@ -4,12 +4,16 @@ module Neo4j
   module Driver
     class InternalRecord
       include Conversions
-      delegate :first, to: :@field_values
+      delegate :first, to: :@values
 
-      def initialize(field_names, connection)
-        field_values = Bolt::Connection.field_values(connection)
-        @field_values =
-          Array.new(field_names.size) { |i| to_typed_value(Bolt::List.value(field_values, i)) }
+      def initialize(keys, connection)
+        @keys = keys
+        values = Bolt::Connection.field_values(connection)
+        @values = Array.new(keys.size) { |i| to_typed_value(Bolt::List.value(values, i)) }
+      end
+
+      def [](key)
+        @values[key.is_a?(Integer) ? key : @keys.index(key)]
       end
 
       private

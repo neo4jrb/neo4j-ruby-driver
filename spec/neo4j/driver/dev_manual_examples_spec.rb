@@ -178,7 +178,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'Example 3.4. Passing bookmarks between sessions' do
+  it 'Example 3.4. Passing bookmarks between sessions', ffi: true do
     # Create a company node
     def add_company(tx, name)
       tx.run('CREATE (:Company {name: $name})', name: name)
@@ -272,7 +272,7 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
-    it 'Example 4.2. Consuming the stream' do
+    it 'Example 4.2. Consuming the stream', ffi: true do
       def people
         driver.session { |session| session.read_transaction(&method(:match_person_nodes)) }
       end

@@ -4,6 +4,8 @@ module Neo4j
   module Driver
     module Ext
       module RunOverride
+        include ExceptionCheckable
+
         # work around jruby issue https://github.com/jruby/jruby/issues/5603
         Struct.new('Wrapper', :object)
 
@@ -14,9 +16,7 @@ module Neo4j
         # end work around
 
         def run(statement, parameters = {})
-          java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters))
-        rescue Java::OrgNeo4jDriverV1Exceptions::Neo4jException => e
-          e.reraise
+          check { java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters)) }
         end
 
         private

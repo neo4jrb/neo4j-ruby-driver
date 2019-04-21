@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     class InternalDriver
-      extend Neo4j::Driver::AutoClosable
+      extend AutoClosable
       include ErrorHandling
 
       auto_closable :session
@@ -16,12 +16,8 @@ module Neo4j
         @connector = Bolt::Connector.create(address, auth_token, config)
       end
 
-      def session(mode = AccessMode::WRITE)
-        status = Bolt::Status.create
-        connection = Bolt::Connector.acquire(@connector, mode, status)
-        raise Exception, check_and_print_error(nil, status, 'unable to acquire connection') if connection.null?
-
-        Neo4j::Driver::InternalSession.new(@connector, mode)
+      def session(mode = AccessMode::WRITE, bookmarks = [])
+        InternalSession.new(@connector, mode).tap { |session| session.bookmarks = bookmarks }
       end
 
       def close

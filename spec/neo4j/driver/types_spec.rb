@@ -55,7 +55,7 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to eq 1.1 }
   end
 
-  context 'when String' do
+  context 'when String', ffi: true do
     let(:param) { 'string' }
 
     it { is_expected.to match(/^string$/) }
@@ -101,7 +101,9 @@ RSpec.describe Neo4j::Driver do
     let(:bytes) { [1, 2, 3] }
     let(:param) { Neo4j::Driver::Types::ByteArray.from_bytes(bytes) }
 
-    it { is_expected.to eq param }
+    context 'dummy', ffi: true do # context to be removed
+      it { is_expected.to eq param }
+    end
     its(:to_bytes) { is_expected.to eq bytes }
     it { is_expected.to be_a Neo4j::Driver::Types::ByteArray }
   end

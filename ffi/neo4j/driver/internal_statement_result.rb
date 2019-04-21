@@ -3,6 +3,7 @@
 module Neo4j
   module Driver
     class InternalStatementResult
+      include Enumerable
       include ErrorHandling
       include Conversions
 
@@ -16,8 +17,13 @@ module Neo4j
       end
 
       def single
-        Bolt::Connection.fetch(@connection, @pull)
-        InternalRecord.new(field_names, @connection)
+        each { |r| break(r) } # requires proper implementation
+      end
+
+      def each
+        while Bolt::Connection.fetch(@connection, @pull) > 0
+          yield InternalRecord.new(field_names, @connection)
+        end
       end
 
       private
