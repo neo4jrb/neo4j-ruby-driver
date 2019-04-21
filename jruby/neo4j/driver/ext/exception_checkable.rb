@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-#
+
 module Neo4j
   module Driver
     module Ext
@@ -9,9 +9,9 @@ module Neo4j
         rescue Java::OrgNeo4jDriverV1Exceptions::Neo4jException => e
           e.reraise
         rescue Java::OrgNeo4jDriverV1Exceptions::NoSuchRecordException => e
-          raise Neo4j::Driver::Exceptions::NoSuchRecordException.new(e.message)
+          raise Neo4j::Driver::Exceptions::NoSuchRecordException, e.message
         rescue Java::OrgNeo4jDriverV1Exceptions::UntrustedServerException => e
-          raise Neo4j::Driver::Exceptions::UntrustedServerException.new(e.message)
+          raise Neo4j::Driver::Exceptions::UntrustedServerException, e.message
         end
       end
     end

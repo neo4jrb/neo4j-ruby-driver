@@ -21,9 +21,7 @@ module Neo4j
       end
 
       def each
-        while Bolt::Connection.fetch(@connection, @pull) > 0
-          yield InternalRecord.new(field_names, @connection)
-        end
+        yield InternalRecord.new(field_names, @connection) while Bolt::Connection.fetch(@connection, @pull).positive?
       end
 
       private
