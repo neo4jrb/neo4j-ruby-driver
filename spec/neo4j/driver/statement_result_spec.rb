@@ -6,7 +6,7 @@ RSpec.describe 'StatementResult' do
       driver.session { |session| session.run("UNWIND [#{items}] as r RETURN r").single.first }
     end
 
-    shared_examples "raises exception" do
+    shared_examples 'raises exception' do
       specify { expect(&method(:subject)).to raise_error Neo4j::Driver::Exceptions::NoSuchRecordException, message }
     end
 

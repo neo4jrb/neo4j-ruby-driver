@@ -59,7 +59,7 @@ module Neo4j
         result = yield tx
         tx.success
         result
-      rescue => e
+      rescue StandardError => e
         tx&.failure
         raise e
       ensure
