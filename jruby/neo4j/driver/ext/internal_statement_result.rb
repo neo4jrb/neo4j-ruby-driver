@@ -4,11 +4,11 @@ module Neo4j
   module Driver
     module Ext
       module InternalStatementResult
-        %i[has_next? list to_a map].each do |method|
+        include ExceptionCheckable
+
+        %i[has_next? list to_a map single].each do |method|
           define_method(method) do |*args, &block|
-            super(*args, &block)
-          rescue Java::OrgNeo4jDriverV1Exceptions::Neo4jException => e
-            e.reraise
+            check { super(*args, &block) }
           end
         end
       end

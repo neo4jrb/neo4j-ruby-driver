@@ -5,14 +5,15 @@ module Neo4j
     module Ext
       module GraphDatabase
         extend Neo4j::Driver::AutoClosable
+        include ExceptionCheckable
 
         auto_closable :driver
 
         def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = {})
-          java_method(:driver, [java.lang.String, org.neo4j.driver.v1.AuthToken, org.neo4j.driver.v1.Config])
-            .call(uri, auth_token, to_java_config(config))
-        rescue Java::OrgNeo4jDriverV1Exceptions::Neo4jException => e
-          e.reraise
+          check do
+            java_method(:driver, [java.lang.String, org.neo4j.driver.v1.AuthToken, org.neo4j.driver.v1.Config])
+              .call(uri, auth_token, to_java_config(config))
+          end
         end
 
         private
