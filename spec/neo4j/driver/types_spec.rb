@@ -25,31 +25,31 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to eq param }
   end
 
-  context 'when true' do
+  context 'when true', ffi: true do
     let(:param) { true }
 
     it { is_expected.to eq param }
   end
 
-  context 'when false' do
+  context 'when false', ffi: true do
     let(:param) { false }
 
     it { is_expected.to eq param }
   end
 
-  context 'when nil' do
+  context 'when nil', ffi: true do
     let(:param) { nil }
 
     it { is_expected.to eq nil }
   end
 
-  context 'when Integer' do
+  context 'when Integer', ffi: true do
     let(:param) { 1 }
 
     it { is_expected.to eq 1 }
   end
 
-  context 'when Float' do
+  context 'when Float', ffi: true do
     let(:param) { 1.1 }
 
     it { is_expected.to eq 1.1 }
@@ -97,13 +97,11 @@ RSpec.describe Neo4j::Driver do
     its(:z) { is_expected.to be_within(DELTA).of(4) }
   end
 
-  context 'when bytes' do
+  context 'when bytes', ffi: true do
     let(:bytes) { [1, 2, 3] }
     let(:param) { Neo4j::Driver::Types::ByteArray.from_bytes(bytes) }
 
-    context 'dummy', ffi: true do # context to be removed
-      it { is_expected.to eq param }
-    end
+    it { is_expected.to eq param }
     its(:to_bytes) { is_expected.to eq bytes }
     it { is_expected.to be_a Neo4j::Driver::Types::ByteArray }
   end
