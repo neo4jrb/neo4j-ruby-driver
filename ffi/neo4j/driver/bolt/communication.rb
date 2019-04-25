@@ -3,6 +3,7 @@
 module Bolt
   module Communication
     extend Bolt::Library
+
     attach_function :startup, :BoltCommunication_startup, [], :int
     attach_function :shutdown, :BoltCommunication_shutdown, [], :int
     attach_function :open, :BoltCommunication_open, %i[pointer pointer string], :int
@@ -12,6 +13,8 @@ module Bolt
                     %i[pointer pointer int int pointer string], :int
     attach_function :local_endpoint, :BoltCommunication_local_endpoint, %i[pointer], :pointer
     attach_function :remote_endpoint, :BoltCommunication_remote_endpoint, %i[pointer], :pointer
-    attach_function :remote_endpoint, :BoltCommunication_destroy, %i[pointer], :void
+    attach_function :destroy, :BoltCommunication_destroy, %i[pointer], :void
+    attach_function :create_secure, :BoltCommunication_destroy,
+                    %i[pointer pointer pointer pointer string string], :pointer
   end
 end

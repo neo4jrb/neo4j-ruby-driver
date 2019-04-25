@@ -3,6 +3,7 @@
 module Bolt
   module Buffer
     extend Bolt::Library
+
     attach_function :create, :BoltBuffer_create, %i[int], :pointer
     attach_function :destroy, :BoltBuffer_destroy, %i[pointer], :void
     attach_function :compact, :BoltBuffer_compact, %i[pointer], :void
