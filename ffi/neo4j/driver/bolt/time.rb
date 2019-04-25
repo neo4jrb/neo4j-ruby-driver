@@ -10,4 +10,3 @@ module Bolt
     attach_function :diff_time, :BoltTime_diff_time, %i[pointer pointer pointer], :void
   end
 end
-

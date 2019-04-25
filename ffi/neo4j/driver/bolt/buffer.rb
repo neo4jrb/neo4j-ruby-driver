@@ -15,7 +15,7 @@ module Bolt
     attach_function :load_i8, :BoltBuffer_load_i8, %i[pointer int8_t], :void
     attach_function :load_i16be, :BoltBuffer_load_i16be, %i[pointer uint16_t], :void
     attach_function :load_i32be, :BoltBuffer_load_i32be, %i[pointer int32_t], :void
-    attach_function :load_i64be, :BoltBuffer_load_i64be,  %i[pointer int64_t], :void
+    attach_function :load_i64be, :BoltBuffer_load_i64be, %i[pointer int64_t], :void
     attach_function :load_f64be, :BoltBuffer_load_f64be, %i[pointer double], :void
     attach_function :unloadable, :BoltBuffer_unloadable, %i[pointer], :int
     attach_function :unload_pointer, :BoltBuffer_unload_pointer, %i[pointer int], :pointer

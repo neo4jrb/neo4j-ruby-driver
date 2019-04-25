@@ -7,12 +7,12 @@ module Bolt
     attach_function :mutex_create, :BoltSync_mutex_create, %i[pointer], :int
     attach_function :mutex_destroy, :BoltSync_mutex_destroy, %i[pointer], :int
     attach_function :mutex_lock, :BoltSync_mutex_lock, %i[pointer], :int
-    attach_function :mutex_unlock,:BoltSync_mutex_unlock, %i[pointer], :int
-    attach_function :mutex_trylock,:BoltSync_mutex_trylock, %i[pointer], :int
-    attach_function :rwlock_create,:BoltSync_rwlock_create, %i[pointer], :int
-    attach_function :rwlock_destroy,:BoltSync_rwlock_destroy, %i[pointer], :int
-    attach_function :rwlock_rdlock,:BoltSync_rwlock_rdlock, %i[pointer], :int
-    attach_function :rwlock_wrlock,:BoltSync_rwlock_wrlock, %i[pointer], :int
+    attach_function :mutex_unlock, :BoltSync_mutex_unlock, %i[pointer], :int
+    attach_function :mutex_trylock, :BoltSync_mutex_trylock, %i[pointer], :int
+    attach_function :rwlock_create, :BoltSync_rwlock_create, %i[pointer], :int
+    attach_function :rwlock_destroy, :BoltSync_rwlock_destroy, %i[pointer], :int
+    attach_function :rwlock_rdlock, :BoltSync_rwlock_rdlock, %i[pointer], :int
+    attach_function :rwlock_wrlock, :BoltSync_rwlock_wrlock, %i[pointer], :int
     attach_function :rwlock_tryrdlock, :BoltSync_rwlock_tryrdlock, %i[pointer], :int
     attach_function :rwlock_trywrlock, :BoltSync_rwlock_trywrlock, %i[pointer], :int
     attach_function :rwlock_timedrdlock, :BoltSync_rwlock_timedrdlock, %i[pointer int], :int
