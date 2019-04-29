@@ -7,19 +7,19 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context 'when hash' do
+  context 'when hash', ffi: true do
     let(:param) { { key: 1 } }
 
     it { is_expected.to eq param }
   end
 
-  context 'when deep hash' do
+  context 'when deep hash', ffi: true do
     let(:param) { { key: { inner: %w[abc def] } } }
 
     it { is_expected.to eq param }
   end
 
-  context 'when array' do
+  context 'when array', ffi: true do
     let(:param) { %w[abc def] }
 
     it { is_expected.to eq param }
@@ -71,7 +71,7 @@ RSpec.describe Neo4j::Driver do
   CARTESIAN_3D_CRS_CODE = 9157
   DELTA = 0.00001
 
-  context 'when 2DPoint' do
+  context 'when 2DPoint explicit', ffi: true do
     let(:param) { Neo4j::Driver::Types::Point.new(srid: WGS_84_CRS_CODE, x: 2, y: 3) }
 
     it { is_expected.to be_a Neo4j::Driver::Types::Point }
@@ -80,7 +80,7 @@ RSpec.describe Neo4j::Driver do
     its(:y) { is_expected.to be_within(DELTA).of(3) }
   end
 
-  context 'when 2DPoint implied' do
+  context 'when 2DPoint implied', ffi: true do
     let(:param) { Neo4j::Driver::Types::Point.new(longitude: 2, latitude: 3) }
 
     its(:srid) { is_expected.to eq WGS_84_CRS_CODE }
@@ -88,7 +88,7 @@ RSpec.describe Neo4j::Driver do
     its(:y) { is_expected.to be_within(DELTA).of(3) }
   end
 
-  context 'when 3DPoint' do
+  context 'when 3DPoint', ffi: true do
     let(:param) { Neo4j::Driver::Types::Point.new(x: 2, y: 3, z: 4) }
 
     its(:srid) { is_expected.to eq CARTESIAN_3D_CRS_CODE }
