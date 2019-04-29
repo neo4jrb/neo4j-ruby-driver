@@ -17,7 +17,7 @@ module Bolt
 
     attach_function :create, :BoltValue_create, [], :auto_pointer
     attach_function :destroy, :BoltValue_destroy, %i[pointer], :void
-    attach_function :duplicate, :BoltValue_duplicate, %i[pointer], :pointer
+    attach_function :duplicate, :BoltValue_duplicate, %i[pointer], :auto_pointer
     attach_function :copy, :BoltValue_copy, %i[pointer pointer], :void
     attach_function :size, :BoltValue_size, %i[pointer], :int32_t
     attach_function :type, :BoltValue_type, %i[pointer], :bolt_type

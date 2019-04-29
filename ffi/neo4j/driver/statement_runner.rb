@@ -5,14 +5,9 @@ module Neo4j
     module StatementRunner
       def run(statement, parameters = {})
         check_error Bolt::Connection.set_run_cypher(@connection, statement, statement.size, parameters.size)
-        parameters.each_with_index do |(name, value), index|
-          # This has to be converted with `to_neo` like in the jruby based driver with a shared method
+        parameters.each_with_index do |(name, object), index|
           name = name.to_s
-          Bolt::Value.format_as_string(
-            Bolt::Connection.set_run_cypher_parameter(@connection, index, name, name.size),
-            value,
-            value.size
-          )
+          Value.to_neo(Bolt::Connection.set_run_cypher_parameter(@connection, index, name, name.size), object)
         end
         check_error Bolt::Connection.load_run_request(@connection)
         run = Bolt::Connection.last_request(@connection)

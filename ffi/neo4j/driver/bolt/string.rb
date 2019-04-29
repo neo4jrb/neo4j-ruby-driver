@@ -4,6 +4,6 @@ module Bolt
   module String
     extend Bolt::Library
 
-    attach_function :get, :BoltString_get, [:pointer], :pointer
+    attach_function :get, :BoltString_get, [:pointer], :strptr
   end
 end
