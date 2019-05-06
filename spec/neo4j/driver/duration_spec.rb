@@ -2,7 +2,7 @@
 
 RSpec.describe ActiveSupport::Duration, ffi: true do
   describe 'param' do
-    subject do
+    subject(:result) do
       driver.session do |session|
         session.read_transaction { |tx| tx.run('RETURN $param', param: param).single.first }
       end
@@ -43,8 +43,8 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
 
       it { is_expected.to eq param }
 
-      it 'should have 10 months' do
-        expect(subject.parts[:months]).to eq 10
+      it 'has 10 months' do
+        expect(result.parts[:months]).to eq 10
       end
     end
 
@@ -53,8 +53,8 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
 
       it { is_expected.to eq param }
 
-      it 'should have 15 days' do
-        expect(subject.parts[:days]).to eq 15
+      it 'has 15 days' do
+        expect(result.parts[:days]).to eq 15
       end
     end
 
@@ -66,7 +66,7 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
   end
 
   describe 'cypher functions' do
-    subject do
+    subject(:result) do
       driver.session do |session|
         session.read_transaction { |tx| tx.run("RETURN duration('#{duration}')").single.first }
       end
@@ -74,47 +74,42 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
 
     context 'when 1 year only' do
       let(:duration) { 'P1Y' }
-      let(:result) { described_class.years(1) }
 
-      it { is_expected.to eq result }
+      it { is_expected.to eq described_class.years(1) }
     end
 
     context 'when 1 year 2 months' do
       let(:duration) { 'P1Y2M' }
-      let(:result) { described_class.months(14) }
 
-      it { is_expected.to eq result }
+      it { is_expected.to eq described_class.months(14) }
     end
 
     context 'when 0.9 years' do
       let(:duration) { 'P0.9Y' }
-      let(:result) { described_class.years(BigDecimal('0.9')) }
 
       # it { is_expected.to eq result }
       # Bug in neo4j
-      it { is_expected.to be_within(1e-9).of(result) }
+      it { is_expected.to be_within(1e-9).of(described_class.years(BigDecimal('0.9'))) }
 
-      it 'should have 10 months' do
-        expect(subject.parts[:months]).to eq 10
+      it 'has 10 months' do
+        expect(result.parts[:months]).to eq 10
       end
     end
 
     context 'when half month' do
       let(:duration) { 'P0.5M' }
-      let(:result) { described_class.months(0.5) }
 
-      it { is_expected.to eq result }
+      it { is_expected.to eq described_class.months(0.5) }
 
-      it 'should have 15 days' do
-        expect(subject.parts[:days]).to eq 15
+      it 'has 15 days' do
+        expect(result.parts[:days]).to eq 15
       end
     end
 
     context 'when half day' do
       let(:duration) { 'P0.5D' }
-      let(:result) { described_class.days(0.5) }
 
-      it { is_expected.to eq result }
+      it { is_expected.to eq described_class.days(0.5) }
     end
   end
 
@@ -144,7 +139,7 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
     end
   end
 
-  describe 'roundtrip ruby check', ffi: true do
+  describe 'roundtrip ruby check' do
     subject do
       driver.session do |session|
         session.read_transaction do |tx|
@@ -153,6 +148,7 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
         end
       end
     end
+
     it_behaves_like 'duration'
   end
 
@@ -165,6 +161,7 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
         end
       end
     end
+
     it_behaves_like 'duration'
   end
 end
