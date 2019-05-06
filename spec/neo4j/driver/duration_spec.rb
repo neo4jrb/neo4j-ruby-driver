@@ -118,16 +118,7 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
     end
   end
 
-  describe 'roundtrip ruby check', ffi: true do
-    subject do
-      driver.session do |session|
-        session.read_transaction do |tx|
-          dt = tx.run('RETURN duration($param)', param: param).single.first
-          dt == tx.run('RETURN $param', param: dt).single.first
-        end
-      end
-    end
-
+  shared_examples 'duration' do
     context 'when duration with all components' do
       let(:param) { 'P1Y2M3W10DT12H45M30.01S' }
 
@@ -153,6 +144,18 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
     end
   end
 
+  describe 'roundtrip ruby check', ffi: true do
+    subject do
+      driver.session do |session|
+        session.read_transaction do |tx|
+          dt = tx.run('RETURN duration($param)', param: param).single.first
+          dt == tx.run('RETURN $param', param: dt).single.first
+        end
+      end
+    end
+    it_behaves_like 'duration'
+  end
+
   describe 'roundtrip neo4j check' do
     subject do
       driver.session do |session|
@@ -162,29 +165,6 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
         end
       end
     end
-
-    context 'when duration with all components' do
-      let(:param) { 'P1Y2M3W10DT12H45M30.01S' }
-
-      it { is_expected.to be true }
-    end
-
-    context 'when negative seconds' do
-      let(:param) { 'PT-1.7S' }
-
-      it { is_expected.to be true }
-    end
-
-    context 'when half month' do
-      let(:param) { 'P0.5M' }
-
-      it { is_expected.to be true }
-    end
-
-    context 'when half day' do
-      let(:param) { 'P0.5D' }
-
-      it { is_expected.to be true }
-    end
+    it_behaves_like 'duration'
   end
 end
