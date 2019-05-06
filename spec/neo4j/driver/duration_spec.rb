@@ -38,7 +38,7 @@ RSpec.describe ActiveSupport::Duration, ffi: true do
       it { is_expected.to eq param }
     end
 
-    context 'when half month' do
+    context 'when 0.9 years' do
       let(:param) { described_class.years(BigDecimal('0.9')) }
 
       it { is_expected.to eq param }
