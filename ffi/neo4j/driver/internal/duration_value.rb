@@ -11,7 +11,7 @@ module Neo4j
 
           def to_ruby(value)
             %i[months days seconds].each_with_index.map { |part, index| partial_duration(part, value, index) }.sum +
-              partial_duration(:seconds, value, 3) * 1e-9
+              (partial_duration(:seconds, value, 3) * BigDecimal('1e-9'))
           end
 
           def to_neo(value, object)
