@@ -30,7 +30,9 @@ module Neo4j
           when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when ActiveSupport::Duration
-            Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(0, 0, object.to_i, 0)
+            Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(
+              *Neo4j::Driver::Internal::DurationNormalizer.normalize(object)
+            )
           when Neo4j::Driver::Types::Point
             Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
           when Neo4j::Driver::Types::OffsetTime
