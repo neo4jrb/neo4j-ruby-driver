@@ -4,11 +4,9 @@ module Neo4j
   module Driver
     module Internal
       module DurationValue
-        class << self
-          def match(cd)
-            self if code == cd
-          end
+        extend StructureValue
 
+        class << self
           def to_ruby(value)
             %i[months days seconds].each_with_index.map { |part, index| partial_duration(part, value, index) }.sum +
               (partial_duration(:seconds, value, 3) * BigDecimal('1e-9'))
@@ -25,10 +23,6 @@ module Neo4j
 
           def code_sym
             :E
-          end
-
-          def code
-            code_sym.to_s.getbyte(0)
           end
 
           def partial_duration(part, value, index)

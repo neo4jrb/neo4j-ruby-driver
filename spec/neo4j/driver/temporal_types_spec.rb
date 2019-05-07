@@ -8,7 +8,7 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
-    context 'when Date' do
+    context 'when Date', ffi: true do
       let(:date) { '2018-04-05' }
       let(:param) { Date.parse(date) }
 
@@ -29,7 +29,7 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
-    context 'when Date' do
+    context 'when Date', ffi: true do
       let(:date) { '2018-04-05' }
       let(:function) { %{date("#{date}")} }
       let(:result) { Date.parse(date) }
