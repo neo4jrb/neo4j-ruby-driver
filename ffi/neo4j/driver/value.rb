@@ -45,7 +45,7 @@ module Neo4j
             Array.new(Bolt::Value.size(value)) { |i| to_ruby(Bolt::List.value(value, i)) }
           when :bolt_structure
             code = Bolt::Structure.code(value)
-            handler = Internal::DurationValue.match(code)
+            handler = [Internal::DateValue, Internal::DurationValue].find { |klass| klass.match(code) }
             return handler.to_ruby(value) if handler
             return unless CLASS[code]
             CLASS[code].send(
@@ -81,8 +81,8 @@ module Neo4j
               Bolt::Dictionary.set_key(value, index, key, key.size)
               to_neo(Bolt::Dictionary.value(value, index), elem)
             end
-            # when Date
-            #   Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
+          when Date
+            Internal::DateValue.to_neo(value, object)
           when ActiveSupport::Duration
             Internal::DurationValue.to_neo(value, object)
           when Neo4j::Driver::Types::Point
