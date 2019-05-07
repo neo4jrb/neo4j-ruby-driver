@@ -45,6 +45,8 @@ module Neo4j
             Array.new(Bolt::Value.size(value)) { |i| to_ruby(Bolt::List.value(value, i)) }
           when :bolt_structure
             code = Bolt::Structure.code(value)
+            handler = Internal::DurationValue.match(code)
+            return handler.to_ruby(value) if handler
             return unless CLASS[code]
             CLASS[code].send(
               :new,
@@ -62,7 +64,6 @@ module Neo4j
           when FalseClass
             Bolt::Value.format_as_boolean(value, 0)
           when Integer
-            puts object
             Bolt::Value.format_as_integer(value, object)
           when Float
             Bolt::Value.format_as_float(value, object)
@@ -82,8 +83,8 @@ module Neo4j
             end
             # when Date
             #   Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
-            # when ActiveSupport::Duration
-            #   Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(0, 0, object.to_i, 0)
+          when ActiveSupport::Duration
+            Internal::DurationValue.to_neo(value, object)
           when Neo4j::Driver::Types::Point
             attributes = object.coordinates
             size = attributes.size + 1

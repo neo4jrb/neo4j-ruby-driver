@@ -61,12 +61,6 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to match(/^string$/) }
   end
 
-  context 'when Duration' do
-    let(:param) { ActiveSupport::Duration.days(1) }
-
-    it { is_expected.to eq param }
-  end
-
   WGS_84_CRS_CODE = 4326
   CARTESIAN_3D_CRS_CODE = 9157
   DELTA = 0.00001
