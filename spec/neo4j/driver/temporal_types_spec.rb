@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver do
+RSpec.describe Neo4j::Driver, ffi: true do
   describe 'param' do
     subject do
       driver.session do |session|
@@ -8,7 +8,7 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
-    context 'when Date', ffi: true do
+    context 'when Date' do
       let(:date) { '2018-04-05' }
       let(:param) { Date.parse(date) }
 
@@ -29,7 +29,7 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
-    context 'when Date', ffi: true do
+    context 'when Date' do
       let(:date) { '2018-04-05' }
       let(:function) { %{date("#{date}")} }
       let(:result) { Date.parse(date) }
@@ -71,7 +71,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  describe 'datetime roundtrip ruby check', ffi: true do
+  describe 'datetime roundtrip ruby check' do
     subject do
       driver.session do |session|
         session.write_transaction do |tx|
@@ -166,6 +166,12 @@ RSpec.describe Neo4j::Driver do
 
     context 'when epochMillis' do
       let(:param) { { epochMillis: 3_360_000 } }
+
+      it { is_expected.to be true }
+    end
+
+    context 'when nanosecond' do
+      let(:param) { { epochSeconds: 1, nanosecond: 1 } }
 
       it { is_expected.to be true }
     end
