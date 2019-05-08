@@ -45,7 +45,8 @@ module Neo4j
             Array.new(Bolt::Value.size(value)) { |i| to_ruby(Bolt::List.value(value, i)) }
           when :bolt_structure
             code = Bolt::Structure.code(value)
-            handler = [Internal::DateValue, Internal::DurationValue].find { |klass| klass.match(code) }
+            handler = [Internal::DateValue, Internal::DurationValue, Internal::TimeWithZoneIdValue,
+                       Internal::TimeWithZoneOffsetValue].find { |klass| klass.match(code) }
             return handler.to_ruby(value) if handler
             return unless CLASS[code]
             CLASS[code].send(
@@ -101,10 +102,10 @@ module Neo4j
             # when Neo4j::Driver::Types::LocalDateTime
             #   Java::JavaTime::LocalDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
             #                                    object.nsec)
-            # when ActiveSupport::TimeWithZone
-            #   to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
-            # when Time
-            #   to_zoned_date_time(object, object.formatted_offset)
+          when ActiveSupport::TimeWithZone
+            Internal::TimeWithZoneIdValue.to_neo(value, object)
+          when Time
+            Internal::TimeWithZoneOffsetValue.to_neo(value, object)
           else
             object
           end

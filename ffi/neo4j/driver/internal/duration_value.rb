@@ -7,26 +7,19 @@ module Neo4j
         extend StructureValue
 
         class << self
-          def to_ruby(value)
-            %i[months days seconds].each_with_index.map { |part, index| partial_duration(part, value, index) }.sum +
-              (partial_duration(:seconds, value, 3) * BigDecimal('1e-9'))
-          end
-
-          def to_neo(value, object)
-            Bolt::Value.format_as_structure(value, code, 4)
-            Neo4j::Driver::Internal::DurationNormalizer.normalize(object).each_with_index do |elem, index|
-              Neo4j::Driver::Value.to_neo(Bolt::Structure.value(value, index), elem)
-            end
-          end
-
-          private
-
           def code_sym
             :E
           end
 
-          def partial_duration(part, value, index)
-            ActiveSupport::Duration.send(part, Neo4j::Driver::Value.to_ruby(Bolt::Structure.value(value, index)))
+          def to_ruby_value(months, days, seconds, nanoseconds)
+            ActiveSupport::Duration.months(months) +
+              ActiveSupport::Duration.days(days) +
+              ActiveSupport::Duration.seconds(seconds) +
+              ActiveSupport::Duration.seconds(nanoseconds * BigDecimal('1e-9'))
+          end
+
+          def to_neo_values(object)
+            Neo4j::Driver::Internal::DurationNormalizer.normalize(object)
           end
         end
       end
