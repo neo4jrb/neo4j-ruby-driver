@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::LocalTime do
-  describe '#<=>', ffi: true do
+RSpec.describe Neo4j::Driver::Types::LocalTime, ffi: true do
+  describe '#<=>' do
     it 'smaller' do
       expect(described_class.parse('8:05:21.00001')).to be < described_class.parse('8:06:21.00001')
     end
@@ -36,7 +36,7 @@ RSpec.describe Neo4j::Driver::Types::LocalTime do
     end
   end
 
-  describe 'datetime roundtrip ruby check', ffi: true do
+  describe 'datetime roundtrip ruby check' do
     subject do
       driver.session do |session|
         session.write_transaction do |tx|

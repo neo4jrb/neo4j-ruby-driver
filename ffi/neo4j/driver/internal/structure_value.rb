@@ -4,11 +4,20 @@ module Neo4j
   module Driver
     module Internal
       module StructureValue
+        def self.extended(mod)
+          (@modules ||= []) << mod
+        end
+
         def match(cd)
           self if code == cd
         end
 
-        def to_ruby(value)
+        def self.to_ruby(value)
+          code = Bolt::Structure.code(value)
+          @modules.find { |klass| klass.match(code) }&.to_ruby_specific(value)
+        end
+
+        def to_ruby_specific(value)
           to_ruby_value(*Array.new(size, &method(:ruby_value).curry.call(value)))
         end
 

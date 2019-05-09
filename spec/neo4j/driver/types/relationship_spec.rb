@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::Relationship do
+RSpec.describe Neo4j::Driver::Types::Relationship, ffi: true do
   subject do
     session = driver.session
     session.write_transaction { |tx| tx.run('CREATE ()-[f:friend_of{strength: 1}]->() RETURN f').single.first }

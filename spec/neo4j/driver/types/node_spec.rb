@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::Node do
+RSpec.describe Neo4j::Driver::Types::Node, ffi: true do
   subject do
     session = driver.session
     session.write_transaction { |tx| tx.run('CREATE (p:Person{name: "John"}) RETURN p').single.first }
