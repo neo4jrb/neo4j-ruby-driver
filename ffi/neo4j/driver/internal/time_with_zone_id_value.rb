@@ -4,13 +4,10 @@ module Neo4j
   module Driver
     module Internal
       module TimeWithZoneIdValue
+        CODE = :f
         extend StructureValue
 
         class << self
-          def code_sym
-            :f
-          end
-
           def to_ruby_value(epoch_second_local, nsec, zone_id_string)
             time = Time.at(epoch_second_local, nsec, :nsec).in_time_zone(TZInfo::Timezone.get(zone_id_string))
             time - time.utc_offset

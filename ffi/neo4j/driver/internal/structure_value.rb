@@ -5,16 +5,13 @@ module Neo4j
     module Internal
       module StructureValue
         def self.extended(mod)
-          (@modules ||= []) << mod
-        end
-
-        def match(cd)
-          self if code == cd
+          code = mod.const_get('CODE').to_s.getbyte(0)
+          (@modules ||= {})[code] = mod
+          mod.define_singleton_method(:code) { code }
         end
 
         def self.to_ruby(value)
-          code = Bolt::Structure.code(value)
-          @modules.find { |klass| klass.match(code) }&.to_ruby_specific(value)
+          @modules[Bolt::Structure.code(value)]&.to_ruby_specific(value)
         end
 
         def to_ruby_specific(value)
@@ -34,12 +31,8 @@ module Neo4j
           Neo4j::Driver::Value.to_ruby(Bolt::Structure.value(value, index))
         end
 
-        def code
-          code_sym.to_s.getbyte(0)
-        end
-
         def size
-          method(:to_ruby_value).arity
+          @size ||= method(:to_ruby_value).arity
         end
       end
     end

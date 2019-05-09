@@ -4,13 +4,10 @@ module Neo4j
   module Driver
     module Internal
       module LocalDateTimeValue
+        CODE = :d
         extend StructureValue
 
         class << self
-          def code_sym
-            :d
-          end
-
           def to_ruby_value(epoch_second_utc, nsec)
             Neo4j::Driver::Types::LocalDateTime.new(Time.at(epoch_second_utc, nsec, :nsec).utc)
           end

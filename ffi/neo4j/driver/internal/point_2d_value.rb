@@ -4,13 +4,10 @@ module Neo4j
   module Driver
     module Internal
       module Point2DValue
+        CODE = :X
         extend StructureValue
 
         class << self
-          def code_sym
-            :X
-          end
-
           def to_ruby_value(srid, x, y)
             Neo4j::Driver::Types::Point.new(srid: srid, x: x, y: y)
           end
