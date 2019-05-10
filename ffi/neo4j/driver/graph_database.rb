@@ -14,7 +14,7 @@ module Neo4j
 
         auto_closable :driver
 
-        def driver(uri, auth_token)
+        def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = {})
           Neo4j::Driver::InternalDriver.new(uri, auth_token)
         end
       end

@@ -26,11 +26,11 @@ RSpec.describe Neo4j::Driver do
     let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
     let(:config) { {} }
 
-    context 'Example 2.1. The driver lifecycle' do
+    context 'Example 2.1. The driver lifecycle', ffi: true do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.3. Custom Address Resolver' do
+    context 'Example 2.3. Custom Address Resolver', ffi: true do
       let(:config) do
         { resolver: lambda {
           [Neo4j::Driver::Net::ServerAddress.of('a.acme.com', 7676),
@@ -48,7 +48,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.4. Basic authentication' do
+    context 'Example 2.4. Basic authentication', ffi: true do
       it { is_expected.to be true }
     end
 
@@ -64,7 +64,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.7. Unencrypted' do
+    context 'Example 2.7. Unencrypted', ffi: true do
       let(:config) { { encryption: false } }
 
       it { is_expected.to be true }
@@ -76,7 +76,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.9. Connection pool management' do
+    context 'Example 2.9. Connection pool management', ffi: true do
       let(:config) do
         { max_connection_lifetime: 3 * 60 * 60 * 1000, # 3 hours
           max_connection_pool_size: 50,
@@ -86,7 +86,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.10. Connection timeout' do
+    context 'Example 2.10. Connection timeout', ffi: true do
       let(:config) { { connection_timeout: 15 * 1000 } } # 15 seconds
 
       it { is_expected.to be true }
@@ -98,7 +98,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.11. Max retry time' do
+    context 'Example 2.11. Max retry time', ffi: true do
       let(:config) { { max_transaction_retry_time: 15 * 1000 } } # 15 seconds
 
       it { is_expected.to be true }
