@@ -23,7 +23,7 @@ module Neo4j
         end
 
         def coordinates
-          [x, y, z].compact
+          [x, y, z].compact.map(&:to_f)
         end
 
         private

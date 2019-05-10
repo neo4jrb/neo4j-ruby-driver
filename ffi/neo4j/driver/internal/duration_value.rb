@@ -4,13 +4,10 @@ module Neo4j
   module Driver
     module Internal
       module DurationValue
+        CODE = :E
         extend StructureValue
 
         class << self
-          def code_sym
-            :E
-          end
-
           def to_ruby_value(months, days, seconds, nanoseconds)
             ActiveSupport::Duration.months(months) +
               ActiveSupport::Duration.days(days) +

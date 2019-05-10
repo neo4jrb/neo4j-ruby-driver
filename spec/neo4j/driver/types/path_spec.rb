@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::Path do
+RSpec.describe Neo4j::Driver::Types::Path, ffi: true do
   subject do
     session = driver.session
     session.write_transaction do |tx|
@@ -14,14 +14,14 @@ RSpec.describe Neo4j::Driver::Types::Path do
   it { is_expected.to be_a_kind_of described_class }
   it { is_expected.to be_a_kind_of Enumerable }
   its(:length) { is_expected.to eq 1 }
-  its(:start) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
-  its(:end) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
+  its(:start_node) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
+  its(:end_node) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
   its('relationships.first.type') { is_expected.to eq 'friend_of' }
   its(:first) { is_expected.to be_a_kind_of Neo4j::Driver::Types::Path::Segment }
   its('first.relationship.type') { is_expected.to eq 'friend_of' }
   its('first.relationship.properties') { is_expected.to eq(strength: 1) }
-  its('first.start') { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
-  its('first.start.properties') { is_expected.to eq(name: 'John') }
-  its('first.end') { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
-  its('first.end.properties') { is_expected.to eq(name: 'Paul') }
+  its('first.start_node') { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
+  its('first.start_node.properties') { is_expected.to eq(name: 'John') }
+  its('first.end_node') { is_expected.to be_a_kind_of Neo4j::Driver::Types::Node }
+  its('first.end_node.properties') { is_expected.to eq(name: 'Paul') }
 end

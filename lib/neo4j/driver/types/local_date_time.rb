@@ -15,6 +15,7 @@ module Neo4j
         end
 
         delegate(*significant_fields, to: :@time)
+        delegate :to_i, to: :@time
       end
     end
   end

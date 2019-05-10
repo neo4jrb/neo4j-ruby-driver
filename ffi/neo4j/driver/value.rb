@@ -3,23 +3,6 @@
 module Neo4j
   module Driver
     module Value
-      SIGNATURES = {
-        X: [Neo4j::Driver::Types::Point, 3],
-        Y: [Neo4j::Driver::Types::Point, 4]
-      }.freeze
-
-      class << self
-        private
-
-        def rehash(&block)
-          SIGNATURES.map { |code, klass_desc| [code.to_s.getbyte(0), klass_desc] }.map(&block).to_h.freeze
-        end
-      end
-
-      CLASS = rehash { |code, (klass, _)| [code, klass] }
-      SIZE = rehash { |code, (_, size)| [code, size] }
-      CODE = rehash { |code, klass_desc| [klass_desc, code] }
-
       class << self
         def to_ruby(value)
           case Bolt::Value.type(value)
@@ -44,15 +27,9 @@ module Neo4j
           when :bolt_list
             Array.new(Bolt::Value.size(value)) { |i| to_ruby(Bolt::List.value(value, i)) }
           when :bolt_structure
-            code = Bolt::Structure.code(value)
-            handler = [Internal::DateValue, Internal::DurationValue, Internal::TimeWithZoneIdValue,
-                       Internal::TimeWithZoneOffsetValue].find { |klass| klass.match(code) }
-            return handler.to_ruby(value) if handler
-            return unless CLASS[code]
-            CLASS[code].send(
-              :new,
-              %i[srid x y z].zip(Array.new(SIZE[code]) { |i| to_ruby(Bolt::Structure.value(value, i)) }).to_h
-            )
+            Internal::StructureValue.to_ruby(value)
+          else
+            raise Exception
           end
         end
 
@@ -87,27 +64,26 @@ module Neo4j
           when ActiveSupport::Duration
             Internal::DurationValue.to_neo(value, object)
           when Neo4j::Driver::Types::Point
-            attributes = object.coordinates
-            size = attributes.size + 1
-            Bolt::Value.format_as_structure(value, CODE[[object.class, size]], size)
-            to_neo(Bolt::Structure.value(value, 0), object.srid.to_i)
-            attributes.each_with_index do |elem, index|
-              to_neo(Bolt::Structure.value(value, index + 1), elem.to_f)
-            end
-            # when Neo4j::Driver::Types::OffsetTime
-            #   Java::JavaTime::OffsetTime.of(object.hour, object.min, object.sec,
-            #                                 object.nsec, Java::JavaTime::ZoneOffset.of_total_seconds(object.utc_offset))
-            # when Neo4j::Driver::Types::LocalTime
-            #   Java::JavaTime::LocalTime.of(object.hour, object.min, object.sec, object.nsec)
-            # when Neo4j::Driver::Types::LocalDateTime
-            #   Java::JavaTime::LocalDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
-            #                                    object.nsec)
+            case object.coordinates.size
+            when 2
+              Internal::Point2DValue
+            when 3
+              Internal::Point3DValue
+            else
+              raise Exception
+            end&.to_neo(value, object)
+          when Neo4j::Driver::Types::OffsetTime
+            Internal::OffsetTimeValue.to_neo(value, object)
+          when Neo4j::Driver::Types::LocalTime
+            Internal::LocalTimeValue.to_neo(value, object)
+          when Neo4j::Driver::Types::LocalDateTime
+            Internal::LocalDateTimeValue.to_neo(value, object)
           when ActiveSupport::TimeWithZone
             Internal::TimeWithZoneIdValue.to_neo(value, object)
           when Time
             Internal::TimeWithZoneOffsetValue.to_neo(value, object)
           else
-            object
+            raise Exception
           end
         end
       end
