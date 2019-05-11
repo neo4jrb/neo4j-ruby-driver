@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::OffsetTime, ffi: true do
+RSpec.describe Neo4j::Driver::Types::OffsetTime do
   describe '#<=>' do
     it 'smaller' do
       expect(described_class.parse('8:05:21.00001-05:00')).to be < described_class.parse('8:06:21.00001-05:00')

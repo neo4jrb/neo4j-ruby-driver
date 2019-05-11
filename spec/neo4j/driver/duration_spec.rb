@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe ActiveSupport::Duration, ffi: true do
+RSpec.describe ActiveSupport::Duration do
   describe 'param' do
     subject(:result) do
       driver.session do |session|

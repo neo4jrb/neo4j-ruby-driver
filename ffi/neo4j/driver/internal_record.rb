@@ -3,17 +3,15 @@
 module Neo4j
   module Driver
     class InternalRecord
-      include Conversions
       delegate :first, to: :@values
 
       def initialize(keys, connection)
         @keys = keys
-        values = Bolt::Connection.field_values(connection)
-        @values = Array.new(keys.size) { |i| Value.to_ruby(Bolt::List.value(values, i)) }
+        @values = Neo4j::Driver::Value.to_ruby(Bolt::Connection.field_values(connection))
       end
 
       def [](key)
-        @values[key.is_a?(Integer) ? key : @keys.index(key)]
+        @values[key.is_a?(Integer) ? key : @keys.index(key.to_s)]
       end
     end
   end

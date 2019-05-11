@@ -71,7 +71,7 @@ module Neo4j
 
         status = Bolt::Status.create
         @connection = Bolt::Connector.acquire(@connector, mode, status)
-        raise Exception, check_and_print_error(nil, status, 'unable to acquire connection') if @connection.null?
+        check_status(status)
       end
 
       def close_transaction_and_release_connection

@@ -6,7 +6,7 @@ module Neo4j
       class Neo4jException < RuntimeError
         attr_reader :code, :cause
 
-        def initialize(code, message, cause)
+        def initialize(code, message, cause = nil)
           super(message)
           @code = code
           @cause = cause

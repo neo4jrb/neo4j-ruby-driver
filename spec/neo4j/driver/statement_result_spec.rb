@@ -12,12 +12,12 @@ RSpec.describe 'StatementResult' do
 
     context 'when 0 results' do
       let(:items) { '' }
-      let(:message) { 'Cannot retrieve a single record, because this result is empty.' }
+      let(:message) { Neo4j::Driver::Exceptions::NoSuchRecordException::EMPTY }
 
       it_behaves_like 'raises exception'
     end
 
-    context 'when 1 result', ffi: true do
+    context 'when 1 result' do
       let(:items) { '1' }
 
       it { is_expected.to eq 1 }
@@ -25,10 +25,7 @@ RSpec.describe 'StatementResult' do
 
     context 'when 2 results' do
       let(:items) { '1, 2' }
-      let(:message) do
-        'Expected a result with a single record, but this result ' \
-          'contains at least one more. Ensure your query returns only one record.'
-      end
+      let(:message) { Neo4j::Driver::Exceptions::NoSuchRecordException::TOO_MANY }
 
       it_behaves_like 'raises exception'
     end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::LocalDateTime, ffi: true do
+RSpec.describe Neo4j::Driver::Types::LocalDateTime do
   describe '#<=>' do
     it 'smaller' do
       expect(described_class.parse('2018-5-5 8:07:21.00001')).to be < described_class.parse('2018-5-6 8:06:21.00001')

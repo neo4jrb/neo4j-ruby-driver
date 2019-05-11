@@ -20,13 +20,28 @@ module Neo4j
 
         def to_java_config(hash)
           hash.reduce(Neo4j::Driver::Config.build) { |object, key_value| object.send(*config_method(*key_value)) }
-              .to_config
+            .to_config
         end
 
         def config_method(key, value)
-          return :without_encryption if key == :encryption && !value
-
-          [:"with_#{key}", value, (java.util.concurrent.TimeUnit::SECONDS if key.to_s.match?(/Time(out)?$/i))].compact
+          method = :"with_#{key}"
+          unit = nil
+          case key.to_s
+          when 'encryption'
+            method, value = :without_encryption, nil unless value
+          when 'load_balancing_strategy'
+            value = case value
+                    when :least_connected
+                      Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED
+                    when :round_robin
+                      Neo4j::Driver::Config::LoadBalancingStrategy::ROUND_ROBIN
+                    else
+                      raise ArgumentError
+                    end
+          when /Time(out)?$/i
+            unit = java.util.concurrent.TimeUnit::SECONDS
+          end
+          [method, value, unit].compact
         end
       end
     end
