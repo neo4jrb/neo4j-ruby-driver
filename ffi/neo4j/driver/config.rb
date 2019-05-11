@@ -4,8 +4,7 @@ module Neo4j
   module Driver
     class Config
       class TrustStrategy
-        def self.trust_all_certificates
-        end
+        def self.trust_all_certificates; end
       end
     end
   end

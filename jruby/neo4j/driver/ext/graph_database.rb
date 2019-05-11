@@ -20,7 +20,7 @@ module Neo4j
 
         def to_java_config(hash)
           hash.reduce(Neo4j::Driver::Config.build) { |object, key_value| object.send(*config_method(*key_value)) }
-            .to_config
+              .to_config
         end
 
         def config_method(key, value)
@@ -28,20 +28,27 @@ module Neo4j
           unit = nil
           case key.to_s
           when 'encryption'
-            method, value = :without_encryption, nil unless value
+            unless value
+              method = :without_encryption
+              value = nil
+            end
           when 'load_balancing_strategy'
-            value = case value
-                    when :least_connected
-                      Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED
-                    when :round_robin
-                      Neo4j::Driver::Config::LoadBalancingStrategy::ROUND_ROBIN
-                    else
-                      raise ArgumentError
-                    end
+            value = load_balancing_strategy(value)
           when /Time(out)?$/i
             unit = java.util.concurrent.TimeUnit::SECONDS
           end
           [method, value, unit].compact
+        end
+
+        def load_balancing_strategy(value)
+          case value
+          when :least_connected
+            Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED
+          when :round_robin
+            Neo4j::Driver::Config::LoadBalancingStrategy::ROUND_ROBIN
+          else
+            raise ArgumentError
+          end
         end
       end
     end
