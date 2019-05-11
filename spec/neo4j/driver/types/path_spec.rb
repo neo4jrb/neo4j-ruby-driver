@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::Path, ffi: true do
+RSpec.describe Neo4j::Driver::Types::Path do
   subject do
     session = driver.session
     session.write_transaction do |tx|

@@ -14,10 +14,18 @@ module Neo4j
         config = Bolt::Config.create
         Bolt::Config.set_user_agent(config, 'seabolt-cmake/1.7')
         @connector = Bolt::Connector.create(address, auth_token, config)
+        verify_connection
       end
 
       def session(mode = AccessMode::WRITE, bookmarks = [])
         InternalSession.new(@connector, mode).tap { |session| session.bookmarks = bookmarks }
+      end
+
+      def verify_connection
+        session(AccessMode::READ) do
+          acquire_connection
+          release_connection
+        end
       end
 
       def close

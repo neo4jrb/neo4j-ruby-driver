@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver, ffi: true do
+RSpec.describe Neo4j::Driver do
   describe 'param' do
     subject do
       driver.session do |session|

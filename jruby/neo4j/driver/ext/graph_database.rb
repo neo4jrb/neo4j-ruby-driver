@@ -24,9 +24,31 @@ module Neo4j
         end
 
         def config_method(key, value)
-          return :without_encryption if key == :encryption && !value
+          method = :"with_#{key}"
+          unit = nil
+          case key.to_s
+          when 'encryption'
+            unless value
+              method = :without_encryption
+              value = nil
+            end
+          when 'load_balancing_strategy'
+            value = load_balancing_strategy(value)
+          when /Time(out)?$/i
+            unit = java.util.concurrent.TimeUnit::SECONDS
+          end
+          [method, value, unit].compact
+        end
 
-          [:"with_#{key}", value, (java.util.concurrent.TimeUnit::SECONDS if key.to_s.match?(/Time(out)?$/i))].compact
+        def load_balancing_strategy(value)
+          case value
+          when :least_connected
+            Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED
+          when :round_robin
+            Neo4j::Driver::Config::LoadBalancingStrategy::ROUND_ROBIN
+          else
+            raise ArgumentError
+          end
         end
       end
     end

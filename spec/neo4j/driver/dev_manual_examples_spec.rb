@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Neo4j::Driver do
-  it 'Example 1.4. Hello World', ffi: true do
+  it 'Example 1.4. Hello World' do
     greeting = nil
     driver.session do |session|
       greeting = session.write_transaction do |tx|
@@ -26,11 +26,11 @@ RSpec.describe Neo4j::Driver do
     let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
     let(:config) { {} }
 
-    context 'Example 2.1. The driver lifecycle', ffi: true do
+    context 'Example 2.1. The driver lifecycle' do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.3. Custom Address Resolver', ffi: true do
+    context 'Example 2.3. Custom Address Resolver' do
       let(:config) do
         { resolver: lambda {
           [Neo4j::Driver::Net::ServerAddress.of('a.acme.com', 7676),
@@ -48,7 +48,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.4. Basic authentication', ffi: true do
+    context 'Example 2.4. Basic authentication' do
       it { is_expected.to be true }
     end
 
@@ -64,7 +64,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.7. Unencrypted', ffi: true do
+    context 'Example 2.7. Unencrypted' do
       let(:config) { { encryption: false } }
 
       it { is_expected.to be true }
@@ -76,7 +76,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.9. Connection pool management', ffi: true do
+    context 'Example 2.9. Connection pool management' do
       let(:config) do
         { max_connection_lifetime: 3 * 60 * 60 * 1000, # 3 hours
           max_connection_pool_size: 50,
@@ -86,19 +86,19 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.10. Connection timeout', ffi: true do
+    context 'Example 2.10. Connection timeout' do
       let(:config) { { connection_timeout: 15 * 1000 } } # 15 seconds
 
       it { is_expected.to be true }
     end
 
     context 'Example Load balancing strategy' do
-      let(:config) { { load_balancing_strategy: Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED } }
+      let(:config) { { load_balancing_strategy: :least_connected } }
 
       it { is_expected.to be true }
     end
 
-    context 'Example 2.11. Max retry time', ffi: true do
+    context 'Example 2.11. Max retry time' do
       let(:config) { { max_transaction_retry_time: 15 * 1000 } } # 15 seconds
 
       it { is_expected.to be true }
@@ -119,7 +119,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '3. Sessions and transactions', ffi: true do
+  context '3. Sessions and transactions' do
     subject(:name) do
       driver.session(Neo4j::Driver::AccessMode::READ) do |session|
         session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
@@ -178,7 +178,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'Example 3.4. Passing bookmarks between sessions', ffi: true do
+  it 'Example 3.4. Passing bookmarks between sessions' do
     # Create a company node
     def add_company(tx, name)
       tx.run('CREATE (:Company {name: $name})', name: name)
@@ -246,7 +246,7 @@ RSpec.describe Neo4j::Driver do
     expect(add_employ_and_make_friends).to eq(['Alice knows Bob'])
   end
 
-  it 'Example 3.5. Read-write transaction', ffi: true do
+  it 'Example 3.5. Read-write transaction' do
     def add_person(name)
       driver.session do |session|
         session.write_transaction { |tx| create_person_node(tx, name) }
@@ -272,7 +272,7 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
-    it 'Example 4.2. Consuming the stream', ffi: true do
+    it 'Example 4.2. Consuming the stream' do
       def people
         driver.session { |session| session.read_transaction(&method(:match_person_nodes)) }
       end
