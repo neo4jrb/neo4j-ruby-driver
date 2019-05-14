@@ -6,7 +6,7 @@ module Neo4j
       module InternalStatementResult
         include ExceptionCheckable
 
-        %i[has_next? list to_a map single].each do |method|
+        %i[has_next? list to_a map single consume].each do |method|
           define_method(method) do |*args, &block|
             check { super(*args, &block) }
           end

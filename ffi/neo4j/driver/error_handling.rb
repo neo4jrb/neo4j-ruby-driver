@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module ErrorHandling
-      def check_error(error_code, error_text = nil)
+      def check_error(error_code, status= nil, error_text = nil)
         case error_code
           # Identifies a successful operation which is defined as 0
         when Bolt::Error::BOLT_SUCCESS # 0
@@ -15,7 +15,7 @@ module Neo4j
         when Bolt::Error::BOLT_CONNECTION_REFUSED
           raise Exceptions::ServiceUnavailableException.new(error_code, 'unable to acquire connection')
         else
-          error_ctx = Bolt::Status.error_context(status)
+          error_ctx = status && Bolt::Status.get_error_context(status)
           raise Exceptions::Neo4jException.new(
             error_code,
             "#{error_text || 'Unknown Bolt failure'} (code: #{error_code.to_s(16)}, " \
@@ -25,7 +25,7 @@ module Neo4j
       end
 
       def check_status(status)
-        check_error(Bolt::Status.error(status))
+        check_error(Bolt::Status.get_error(status), status)
       end
     end
   end

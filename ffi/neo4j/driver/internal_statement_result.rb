@@ -5,21 +5,23 @@ module Neo4j
     class InternalStatementResult
       include Enumerable
       include ErrorHandling
+      include Internal::Protocol
 
-      def initialize(connection, run, pull)
+      attr_reader :requests
+
+      def initialize(connection, requests)
         @connection = connection
-        @pull = pull
-        summary(run)
-        @field_names = field_names
+        @requests = requests
       end
 
       def single
-        case Bolt::Connection.fetch(@connection, @pull)
+        pull = process
+        case Bolt::Connection.fetch(@connection, pull)
         when 0
           raise Neo4j::Driver::Exceptions::NoSuchRecordException.empty
         when 1
           rec = InternalRecord.new(@field_names, @connection)
-          raise Neo4j::Driver::Exceptions::NoSuchRecordException.too_many if summary(@pull).positive?
+          raise Neo4j::Driver::Exceptions::NoSuchRecordException.too_many if summary(pull).positive?
           rec
         else
           check_status(Bolt::Connection.status(@connection))
@@ -27,21 +29,19 @@ module Neo4j
       end
 
       def each
-        yield InternalRecord.new(@field_names, @connection) while (rc = Bolt::Connection.fetch(@connection, @pull)) == 1
+        pull = process
+        yield InternalRecord.new(field_names, @connection) while (rc = Bolt::Connection.fetch(@connection, pull)) == 1
         check_status(Bolt::Connection.status(@connection)) if rc == -1
+      end
+
+      def consume
+        process(true)
       end
 
       private
 
-      def summary(run)
-        n = Bolt::Connection.fetch_summary(@connection, run)
-        return n if Bolt::Connection.summary_success(@connection) == 1
-        failure = Neo4j::Driver::Value.to_ruby(Bolt::Connection.failure(@connection))
-        raise Neo4j::Driver::Exceptions::ClientException.new(failure[:code], failure[:message])
-      end
-
       def field_names
-        Neo4j::Driver::Value.to_ruby(Bolt::Connection.field_names(@connection))
+        @field_names ||= Neo4j::Driver::Value.to_ruby(Bolt::Connection.field_names(@connection))
       end
     end
   end

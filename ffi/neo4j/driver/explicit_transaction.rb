@@ -7,6 +7,9 @@ module Neo4j
     class ExplicitTransaction
       include ErrorHandling
       include StatementRunner
+      include Internal::Protocol
+
+      delegate :bookmarks, :requests, to: :@session
 
       def initialize(connection, session)
         @connection = connection
@@ -14,8 +17,11 @@ module Neo4j
         @state = :active
       end
 
-      def begin(initial_bookmarks, config)
+      def begin(config)
         check_error Bolt::Connection.clear_begin(@connection)
+        set_bookmarks if bookmarks.present?
+        request Bolt::Connection.load_begin_request(@connection)
+        process(true) if bookmarks.present?
         self
       end
 
@@ -40,6 +46,18 @@ module Neo4j
 
       private
 
+      def set_bookmarks
+        value = Bolt::Value.create
+        Neo4j::Driver::Value.to_neo(value, bookmarks)
+        check_error Bolt::Connection.set_begin_bookmarks(@connection, value)
+      end
+
+      # def set_run_bookmarks(bookmarks)
+      #   value = Bolt::Value.create
+      #   Neo4j::Driver::Value.to_neo(value, bookmarks)
+      #   check_error Bolt::Connection.set_run_bookmarks(@connection, value)
+      # end
+
       def commit
         case @state
         when :committed
@@ -59,18 +77,10 @@ module Neo4j
           'It has been rolled back either because of an error or explicit termination'
         end
 
-        Bolt::Connection.load_commit_request(@connection)
-        Bolt::Connection.send(@connection)
+        request Bolt::Connection.load_commit_request(@connection)
+        process
+        @session.bookmarks = Bolt::Connection.last_bookmark(@connection).first
       end
-
-      # return protocol.commitTransaction( connection )
-      #          .thenApply( newBookmarks ->
-      # {
-      #   session.setBookmarks( newBookmarks );
-      # return null;
-      # } );
-      # end
-      #
 
       def rollback
         case @state
@@ -89,8 +99,8 @@ module Neo4j
       def do_rollback
         return if @state == :terminated
 
-        Bolt::Connection.load_rollback_request(@connection)
-        Bolt::Connection.send(@connection)
+        request Bolt::Connection.load_rollback_request(@connection)
+        process
       end
 
       def transaction_closed(new_state)

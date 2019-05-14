@@ -8,9 +8,10 @@ module Neo4j
 
         auto_closable :session
 
-        # def session(mode = AccessMode::WRITE, *bookmarks)
-        #   java_method(:session, [org.neo4j.driver.v1.AccessMode, java.lang.Iterable]).call(mode, bookmarks)
-        # end
+        def session(*args)
+          java_method(:session, [org.neo4j.driver.v1.AccessMode, java.lang.Iterable])
+            .call(*Neo4j::Driver::Internal::RubySignature.session(args))
+        end
       end
     end
   end

@@ -238,7 +238,7 @@ def add_employ_and_make_friends
   end
 
   # Create a friendship between the two people created above.
-  driver.session(Neo4j::Driver::AccessMode::WRITE, saved_bookmarks) do |session3|
+  driver.session(Neo4j::Driver::AccessMode::WRITE, *saved_bookmarks) do |session3|
     session3.write_transaction { |tx| make_friends(tx, 'Alice', 'Bob') }
 
     session3.read_transaction(&method(:print_friends))

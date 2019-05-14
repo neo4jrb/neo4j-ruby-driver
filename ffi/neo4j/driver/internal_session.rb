@@ -6,13 +6,13 @@ module Neo4j
       include ErrorHandling
       include StatementRunner
 
-      attr_reader :bookmarks
+      attr_reader :bookmarks, :requests
 
-      def initialize(connector, mode)
+      def initialize(connector, mode, bookmarks)
         @connector = connector
         @mode = mode
-        @bookmarks = []
-        # @transaction = nil
+        @bookmarks = bookmarks
+        @requests = []
       end
 
       def run(statement, parameters = {})
@@ -29,22 +29,24 @@ module Neo4j
       end
 
       def close
+        process(true)
         close_transaction_and_release_connection
       end
 
       def release_connection
-        Bolt::Connector.release(@connector, @connection) if @connection
+        return unless @connection
+        Bolt::Connector.release(@connector, @connection)
         @connection = nil
       end
 
       def begin_transaction(mode = @mode, config = nil)
         # ensureNoOpenTxBeforeStartingTx
         acquire_connection(mode)
-        @transaction = ExplicitTransaction.new(@connection, self).begin(@bookmarks, config)
+        @transaction = ExplicitTransaction.new(@connection, self).begin(config)
       end
 
       def bookmarks=(bookmarks)
-        @bookmarks = bookmarks if bookmarks.present?
+        @bookmarks = Array(bookmarks) if bookmarks.present?
       end
 
       def last_bookmark
@@ -63,7 +65,7 @@ module Neo4j
         tx&.failure
         raise e
       ensure
-        tx&.close
+        close_transaction_and_release_connection
       end
 
       def acquire_connection(mode = @mode)
@@ -76,6 +78,8 @@ module Neo4j
 
       def close_transaction_and_release_connection
         @transaction&.close
+      ensure
+        @transaction = nil
         release_connection
       end
     end

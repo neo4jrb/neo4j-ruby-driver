@@ -17,8 +17,9 @@ module Neo4j
         verify_connection
       end
 
-      def session(mode = AccessMode::WRITE, bookmarks = [])
-        InternalSession.new(@connector, mode).tap { |session| session.bookmarks = bookmarks }
+      def session(*args)
+        mode, bookmarks = Neo4j::Driver::Internal::RubySignature.session(args)
+        InternalSession.new(@connector, mode, bookmarks)
       end
 
       def verify_connection
