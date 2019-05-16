@@ -52,11 +52,6 @@ module Neo4j
         check_error Bolt::Connection.set_begin_bookmarks(@connection, value)
       end
 
-      # def set_run_bookmarks(bookmarks)
-      #   value = Bolt::Value.create
-      #   Neo4j::Driver::Value.to_neo(value, bookmarks)
-      #   check_error Bolt::Connection.set_run_bookmarks(@connection, value)
-      # end
 
       def commit
         case @state
@@ -65,9 +60,12 @@ module Neo4j
         when :rolled_back
           raise ClientExceptiom, "Can't commit, transaction has been rolled back"
         else
-          do_commit
-          # handleCommitOrRollback( error )
-          transaction_closed(:committed)
+          begin
+            do_commit
+              # handleCommitOrRollback( error )
+          ensure
+            transaction_closed(:committed)
+          end
         end
       end
 
@@ -78,7 +76,7 @@ module Neo4j
         end
 
         request Bolt::Connection.load_commit_request(@connection)
-        process
+        process(true)
         @session.bookmarks = Bolt::Connection.last_bookmark(@connection).first
       end
 
@@ -89,10 +87,13 @@ module Neo4j
         when :rolled_back
           nil
         else
-          do_rollback
-          # resultCursors.retrieveNotConsumedError()
-          # handleCommitOrRollback( error )
-          transaction_closed(:rolled_back)
+          begin
+            do_rollback
+              # resultCursors.retrieveNotConsumedError()
+              # handleCommitOrRollback( error )
+          ensure
+            transaction_closed(:rolled_back)
+          end
         end
       end
 
@@ -100,7 +101,7 @@ module Neo4j
         return if @state == :terminated
 
         request Bolt::Connection.load_rollback_request(@connection)
-        process
+        process(true)
       end
 
       def transaction_closed(new_state)

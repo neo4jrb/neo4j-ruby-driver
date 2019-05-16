@@ -12,10 +12,17 @@ module Neo4j
           name = name.to_s
           Value.to_neo(Bolt::Connection.set_run_cypher_parameter(@connection, index, name, name.size), object)
         end
+        # set_run_bookmarks if bookmarks.present?
         request Bolt::Connection.load_run_request(@connection)
         request Bolt::Connection.load_pull_request(@connection, -1)
 
         InternalStatementResult.new(@connection, requests)
+      end
+
+      def set_run_bookmarks
+        value = Bolt::Value.create
+        Neo4j::Driver::Value.to_neo(value, bookmarks)
+        check_error Bolt::Connection.set_run_bookmarks(@connection, value)
       end
     end
   end
