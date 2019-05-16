@@ -22,7 +22,7 @@ module Neo4j
           check { java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters)) }
         end
 
-        def begin_transaction() #config = nil)
+        def begin_transaction # (config = nil)
           check { super }
         end
 

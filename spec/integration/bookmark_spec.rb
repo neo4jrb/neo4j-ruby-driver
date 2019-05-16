@@ -26,7 +26,8 @@ RSpec.describe 'Bookmark' do
 
   it 'raises for invalid bookmark' do
     invalid_bookmark = 'hi, this is an invalid bookmark'
-    expect { driver.session(invalid_bookmark, &:begin_transaction) }.to raise_error Neo4j::Driver::Exceptions::ClientException
+    expect { driver.session(invalid_bookmark, &:begin_transaction) }
+      .to raise_error Neo4j::Driver::Exceptions::ClientException
   end
 
   it 'remain after rollback tx' do

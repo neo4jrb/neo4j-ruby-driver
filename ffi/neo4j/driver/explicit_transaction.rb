@@ -52,7 +52,6 @@ module Neo4j
         check_error Bolt::Connection.set_begin_bookmarks(@connection, value)
       end
 
-
       def commit
         case @state
         when :committed
@@ -62,7 +61,7 @@ module Neo4j
         else
           begin
             do_commit
-              # handleCommitOrRollback( error )
+            # handleCommitOrRollback( error )
           ensure
             transaction_closed(:committed)
           end
@@ -89,8 +88,8 @@ module Neo4j
         else
           begin
             do_rollback
-              # resultCursors.retrieveNotConsumedError()
-              # handleCommitOrRollback( error )
+            # resultCursors.retrieveNotConsumedError()
+            # handleCommitOrRollback( error )
           ensure
             transaction_closed(:rolled_back)
           end

@@ -7,8 +7,8 @@ module Neo4j
         class << self
           def session(args)
             [
-              args.empty? || args.first.is_a?(String) ? Neo4j::Driver::AccessMode::WRITE : args.shift, #mode
-              args #bookmarks
+              args.empty? || args.first.is_a?(String) ? Neo4j::Driver::AccessMode::WRITE : args.shift, # mode
+              args # bookmarks
             ]
           end
         end
