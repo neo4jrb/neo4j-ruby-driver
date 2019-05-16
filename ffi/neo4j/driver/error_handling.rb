@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module ErrorHandling
-      def   check_error(error_code, status = nil, error_text = nil)
+      def check_error(error_code, status = nil, error_text = nil)
         case error_code
           # Identifies a successful operation which is defined as 0
         when Bolt::Error::BOLT_SUCCESS # 0
