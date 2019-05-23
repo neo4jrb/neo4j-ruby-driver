@@ -18,8 +18,8 @@ plugins:
   git-legal:
     enabled: true
 exclude_patterns:
-- db
-- doc
+- db/
+- doc/
 - "**/log/"
 - "**.log"
 - ".idea/"

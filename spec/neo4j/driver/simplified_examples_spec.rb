@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver do
+RSpec.describe Neo4j::Driver, ffi: true do
   it 'Simplified Hello World without block' do
     begin
       session = driver.session
@@ -34,13 +34,13 @@ RSpec.describe Neo4j::Driver do
     expect(greeting).to match(/hello, world, from node \d+/)
   end
 
-  it 'Driver with block' do
+  it 'Driver with block and fetching before session close' do
     username = 'neo4j'
     password = 'password'
     result = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(username, password)) do |driver|
-      driver.session { |session| session.run('CREATE (a:Person {name: $name}) RETURN a.name', name: 'John') }
+      driver.session { |session| session.run('CREATE (a:Person {name: $name}) RETURN a.name', name: 'John').single }
     end
 
-    expect(result.single.first).to eq 'John'
+    expect(result.first).to eq 'John'
   end
 end

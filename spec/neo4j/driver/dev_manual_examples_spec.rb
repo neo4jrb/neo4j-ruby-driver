@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Neo4j::Driver do
-  it 'Example 1.4. Hello World' do
+  it 'Example 1.4. Hello World', ffi: true do
     greeting = nil
     driver.session do |session|
       greeting = session.write_transaction do |tx|
@@ -16,10 +16,11 @@ RSpec.describe Neo4j::Driver do
   end
 
   context '2. Client applications' do
-    after { driver2.close }
     subject do
       driver2.session { |session| session.run('RETURN 1').single.first == 1 }
     end
+
+    after { driver2.close }
 
     let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
     let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
@@ -118,13 +119,14 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '3. Sessions and transactions' do
-    before { add_person('John') }
+  context '3. Sessions and transactions', ffi: true do
     subject(:name) do
       driver.session(Neo4j::Driver::AccessMode::READ) do |session|
         session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
       end
     end
+
+    before { add_person('John') }
 
     context 'Example 3.1. Session' do
       def add_person(name)
@@ -176,7 +178,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'Example 3.4. Passing bookmarks between sessions' do
+  it 'Example 3.4. Passing bookmarks between sessions', ffi: true do
     # Create a company node
     def add_company(tx, name)
       tx.run('CREATE (:Company {name: $name})', name: name)
@@ -244,7 +246,7 @@ RSpec.describe Neo4j::Driver do
     expect(add_employ_and_make_friends).to eq(['Alice knows Bob'])
   end
 
-  it 'Example 3.5. Read-write transaction' do
+  it 'Example 3.5. Read-write transaction', ffi: true do
     def add_person(name)
       driver.session do |session|
         session.write_transaction { |tx| create_person_node(tx, name) }
@@ -270,7 +272,7 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
-    it 'Example 4.2. Consuming the stream' do
+    it 'Example 4.2. Consuming the stream', ffi: true do
       def people
         driver.session { |session| session.read_transaction(&method(:match_person_nodes)) }
       end

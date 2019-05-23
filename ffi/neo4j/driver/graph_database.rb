@@ -3,13 +3,17 @@
 module Neo4j
   module Driver
     class GraphDatabase
-      Bolt::Lifecycle.bolt_startup
+      Bolt::Lifecycle.startup
 
       at_exit do
-        Bolt::Lifecycle.bolt_shutdown
+        Bolt::Lifecycle.shutdown
       end
 
       class << self
+        extend Neo4j::Driver::AutoClosable
+
+        auto_closable :driver
+
         def driver(uri, auth_token)
           Neo4j::Driver::InternalDriver.new(uri, auth_token)
         end

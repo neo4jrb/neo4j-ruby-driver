@@ -2,8 +2,7 @@
 
 module Bolt
   module Connector
-    extend FFI::Library
-    ffi_lib ENV['SEABOLT_LIB']
+    extend Bolt::Library
 
     BoltAccessMode = enum(
       :bolt_access_mode_write,
