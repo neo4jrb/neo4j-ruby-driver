@@ -16,7 +16,7 @@ module Neo4j
       end
 
       def run(statement, parameters = {})
-        acquire_connection
+        ensure_connection
         super
       end
 
@@ -54,6 +54,7 @@ module Neo4j
       end
 
       def last_bookmark
+        process(true)
         @bookmarks.max
       end
 
@@ -70,6 +71,15 @@ module Neo4j
         raise e
       ensure
         close_transaction_and_release_connection
+      end
+
+      def ensure_connection(mode = @mode)
+        connection_present? || acquire_connection(mode)
+      end
+
+      def connection_present?
+        save_bookmark if @connection
+        @connection
       end
 
       def acquire_connection(mode = @mode)
