@@ -5,6 +5,9 @@ module Neo4j
     module Ext
       module RunOverride
         include ExceptionCheckable
+        extend Neo4j::Driver::AutoClosable
+
+        auto_closable :begin_transaction
 
         # work around jruby issue https://github.com/jruby/jruby/issues/5603
         Struct.new('Wrapper', :object)
@@ -17,6 +20,14 @@ module Neo4j
 
         def run(statement, parameters = {})
           check { java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters)) }
+        end
+
+        def begin_transaction # (config = nil)
+          check { super }
+        end
+
+        def close
+          check { super }
         end
 
         private

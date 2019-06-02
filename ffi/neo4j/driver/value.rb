@@ -29,7 +29,7 @@ module Neo4j
           when :bolt_structure
             Internal::StructureValue.to_ruby(value)
           else
-            raise Exception
+            raise Exception, 'unsupported neo4j type'
           end
         end
 
@@ -83,8 +83,9 @@ module Neo4j
           when Time
             Internal::TimeWithZoneOffsetValue.to_neo(value, object)
           else
-            raise Exception
+            raise Exception, 'unsupported ruby type'
           end
+          value
         end
       end
     end
