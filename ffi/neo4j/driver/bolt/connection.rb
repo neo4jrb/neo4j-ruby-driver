@@ -6,7 +6,7 @@ module Bolt
 
     typedef :uint64, :bolt_request
 
-    attach_function :send, :BoltConnection_send, [:pointer], :int32
+    attach_function :flush, :BoltConnection_send, [:pointer], :int32
     attach_function :fetch, :BoltConnection_fetch, %i[pointer bolt_request], :int32
     attach_function :fetch_summary, :BoltConnection_fetch_summary, %i[pointer bolt_request], :int32
     attach_function :clear_begin, :BoltConnection_clear_begin, %i[pointer], :int32

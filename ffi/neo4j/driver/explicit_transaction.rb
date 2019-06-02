@@ -19,7 +19,7 @@ module Neo4j
 
       def begin(config)
         check_error Bolt::Connection.clear_begin(@connection)
-        set_bookmarks if bookmarks.present?
+        set_bookmarks(:set_begin_bookmarks)
         request Bolt::Connection.load_begin_request(@connection)
         process(true) if bookmarks.present?
         self
@@ -46,12 +46,6 @@ module Neo4j
 
       private
 
-      def set_bookmarks
-        value = Bolt::Value.create
-        Neo4j::Driver::Value.to_neo(value, bookmarks)
-        check_error Bolt::Connection.set_begin_bookmarks(@connection, value)
-      end
-
       def commit
         case @state
         when :committed
@@ -76,7 +70,7 @@ module Neo4j
 
         request Bolt::Connection.load_commit_request(@connection)
         process(true)
-        @session.bookmarks = Bolt::Connection.last_bookmark(@connection).first
+        @session.save_bookmark
       end
 
       def rollback

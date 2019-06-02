@@ -20,7 +20,7 @@ module Neo4j
         end
 
         def flush
-          check_error Bolt::Connection.send(@connection)
+          check_error Bolt::Connection.flush(@connection)
         end
 
         private
@@ -30,6 +30,13 @@ module Neo4j
           return n if Bolt::Connection.summary_success(@connection) == 1
           failure = Neo4j::Driver::Value.to_ruby(Bolt::Connection.failure(@connection))
           raise Neo4j::Driver::Exceptions::ClientException.new(failure[:code], failure[:message])
+        end
+
+        def set_bookmarks(method)
+          return unless bookmarks.present?
+          value = Bolt::Value.create
+          Neo4j::Driver::Value.to_neo(value, bookmarks)
+          check_error Bolt::Connection.send(method, @connection, value)
         end
       end
     end
