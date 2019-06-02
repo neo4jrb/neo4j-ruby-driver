@@ -9,20 +9,20 @@ module Bolt
     # typedef BoltExtendedValue, :bolt_extended_value
     #
     # class BoltValue < FFI::Struct
-    #   layout :type, :int16_t,
-    #          :subtype, :int16_t,
-    #          :size, :int16_t,
-    #          :data_size, :uint64_t,
+    #   layout :type, :int16,
+    #          :subtype, :int16,
+    #          :size, :int16,
+    #          :data_size, :uint64,
     #          :data, :bolt_data
     # end
     #
     # class BoltData < FFI::Union
     #   layout :as_char, [:char, 16],
-    #          :as_uint32, [:uint32_t, 4],
+    #          :as_uint32, [:uint32, 4],
     #          :as_int8, [:int8_t, 16],
-    #          :as_int16, [:int16_t, 8],
-    #          :as_int32, [:int32_t, 4],
-    #          :as_int64, [:int64_t, 2],
+    #          :as_int16, [:int16, 8],
+    #          :as_int32, [:int32, 4],
+    #          :as_int64, [:int64, 2],
     #          :as_double, [:double, 2],
     #          :extended, :bolt_extended_value
     # end

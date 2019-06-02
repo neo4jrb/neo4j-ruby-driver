@@ -4,6 +4,6 @@ module Bolt
   module Integer
     extend Bolt::Library
 
-    attach_function :get, :BoltInteger_get, %i[pointer], :int64_t
+    attach_function :get, :BoltInteger_get, %i[pointer], :int64
   end
 end
