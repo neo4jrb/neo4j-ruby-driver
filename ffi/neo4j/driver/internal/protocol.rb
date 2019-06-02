@@ -22,6 +22,7 @@ module Neo4j
 
         def flush
           check_error Bolt::Connection.flush(@connection)
+          @flushed = true
         end
 
         private
