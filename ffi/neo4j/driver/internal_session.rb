@@ -16,9 +16,8 @@ module Neo4j
       end
 
       def run(statement, parameters = {})
-        puts "in InteernalSession#run"
-        ensure_connection
-        super(statement, parameters, :set_run_bookmarks)
+        acquire_connection
+        super
       end
 
       def read_transaction(&block)
@@ -30,16 +29,12 @@ module Neo4j
       end
 
       def close
-        puts "in InteernalSession#close"
-        puts requests.inspect
-        process(true) if @connection
-        save_bookmark if @connection && @flushed
+        process(true)
         close_transaction_and_release_connection
       end
 
       def release_connection
         return unless @connection
-        puts "before release"
         Bolt::Connector.release(@connector, @connection)
         @connection = nil
       end
@@ -51,11 +46,6 @@ module Neo4j
       end
 
       def save_bookmark
-        puts 'in save_bookmark'
-        puts requests.inspect
-        process(true)
-        puts @requests.inspect
-        puts caller
         self.bookmarks = Bolt::Connection.last_bookmark(@connection).first
       end
 
@@ -64,7 +54,6 @@ module Neo4j
       end
 
       def last_bookmark
-        save_bookmark
         @bookmarks.max
       end
 
@@ -81,15 +70,6 @@ module Neo4j
         raise e
       ensure
         close_transaction_and_release_connection
-      end
-
-      def ensure_connection(mode = @mode)
-        connection_present? || acquire_connection(mode)
-      end
-
-      def connection_present?
-        save_bookmark if @connection
-        @connection
       end
 
       def acquire_connection(mode = @mode)

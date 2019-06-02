@@ -11,8 +11,7 @@ module Neo4j
 
         def process(all = false)
           requests = self.requests
-          return if requests.empty?
-          flush
+          flush unless requests.empty?
           pull = requests.pop unless all
           requests.each(&method(:summary))
           pull
@@ -22,7 +21,6 @@ module Neo4j
 
         def flush
           check_error Bolt::Connection.flush(@connection)
-          @flushed = true
         end
 
         private
