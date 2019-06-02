@@ -75,6 +75,16 @@ RSpec.describe 'Bookmark' do
     end
   end
 
+  it 'is updated every auto-commit tx' do
+    driver.session do |session|
+      expect(session.last_bookmark).not_to be_present
+      expect(Array.new(3) do
+        session.run('CREATE (:Person)')
+        session.last_bookmark
+      end.to_set.size).to eq 3
+    end
+  end
+
   it 'creates session with initial bookmark' do
     bookmark = 'TheBookmark'
     expect(driver.session(bookmark, &:last_bookmark)).to eq bookmark

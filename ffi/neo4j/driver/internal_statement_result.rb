@@ -16,6 +16,7 @@ module Neo4j
 
       def single
         pull = process
+        puts "connection: #{@connection.inspect}, pull: #{pull.inspect}"
         case Bolt::Connection.fetch(@connection, pull)
         when 0
           raise Neo4j::Driver::Exceptions::NoSuchRecordException.empty
