@@ -1,19 +1,19 @@
 ---
-#dist: xenial
+dist: xenial
 # osx because of issue https://github.com/ffi/ffi/issues/686
-os: osx
-osx_image: xcode9.3
+#os: osx
+#osx_image: xcode9.3
 sudo: false
 language: ruby
-#jdk:
-#  - openjdk8
+jdk:
+  - openjdk8
 cache: bundler
 rvm:
   - jruby-9.2.7.0
 # exclude MRI ruby due to  libgdbm.6.dylib problems on osx. ffi can still be tested with jruby
-#  - 2.6.2
-#  - 2.5.3
-#  - 2.4.5
+  - 2.6.3
+  - 2.5.4
+  - 2.4.6
 before_install: gem install bundler
 before_script:
   - "travis_retry bundle exec rake neo4j:install[$NEO4J_VERSION] --trace"
@@ -24,24 +24,24 @@ before_script:
   - "echo 'dbms.memory.heap.initial_size=600m' >> ./db/neo4j/development/conf/neo4j$WRAPPER.conf"
   - "./db/neo4j/development/bin/neo4j-admin set-initial-password password"
   - "bundle exec rake neo4j:enable_auth neo4j:start --trace"
-#  - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.2/seabolt-1.7.2-Linux-ubuntu-16.04.tar.gz | tar -xz"
-  - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.3/seabolt-1.7.3-Darwin.tar.gz | tar -xz"
+  - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.4/seabolt-1.7.4-Linux-ubuntu-16.04.tar.gz | tar -xz"
+#  - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.3/seabolt-1.7.3-Darwin.tar.gz | tar -xz"
   - "while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done"
 env:
   global:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
     - NEO4J_BOLT_URL="bolt://localhost:7472"
-#    - SEABOLT_LIB=./seabolt-1.7.2-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
-    - SEABOLT_LIB=./seabolt-1.7.3-Darwin/usr/local/lib/libseabolt17.dylib
+    - SEABOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
+#    - SEABOLT_LIB=./seabolt-1.7.3-Darwin/usr/local/lib/libseabolt17.dylib
   matrix:
-    - NEO4J_VERSION=enterprise-3.5.5
-    - NEO4J_VERSION=enterprise-3.4.13
-    - NEO4J_VERSION=community-3.5.5
+    - NEO4J_VERSION=enterprise-3.5.6
+    - NEO4J_VERSION=enterprise-3.4.14
+    - NEO4J_VERSION=community-3.5.6
 matrix:
   include:
-    - env: NEO4J_VERSION=enterprise-3.5.5 SEABOLT_LIB=
-    - env: NEO4J_VERSION=enterprise-3.4.13 SEABOLT_LIB=
-    - env: NEO4J_VERSION=community-3.5.5 SEABOLT_LIB=
+    - env: NEO4J_VERSION=enterprise-3.5.6 SEABOLT_LIB=
+    - env: NEO4J_VERSION=enterprise-3.4.14 SEABOLT_LIB=
+    - env: NEO4J_VERSION=community-3.5.6 SEABOLT_LIB=
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
   - cat ./db/neo4j/development/logs/debug.log

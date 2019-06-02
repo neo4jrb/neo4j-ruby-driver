@@ -50,7 +50,7 @@ Gem::Specification.new do |spec|
     spec.add_runtime_dependency 'ffi'
   else
     spec.add_runtime_dependency 'jar-dependencies'
-    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.4'
+    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5'
     # avoids to install it on the fly when jar-dependencies needs it
     spec.add_development_dependency 'ruby-maven'
   end
