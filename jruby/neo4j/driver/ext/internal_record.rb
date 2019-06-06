@@ -9,7 +9,7 @@ module Neo4j
         end
 
         define_method(:[]) do |key|
-          java_method(:get, [java.lang.String]).call(key.to_s).as_ruby_object
+          java_method(:get, [key.is_a?(Integer) ? Java::int : java.lang.String]).call(key).as_ruby_object
         end
 
         def first

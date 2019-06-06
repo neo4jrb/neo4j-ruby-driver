@@ -9,6 +9,10 @@ module Neo4j
         def properties
           as_map.to_hash.symbolize_keys
         end
+
+        def [](key)
+          get(key.to_s).as_ruby_object
+        end
       end
     end
   end

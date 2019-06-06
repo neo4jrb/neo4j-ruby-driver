@@ -20,7 +20,7 @@ module Neo4j
         when 0
           raise Neo4j::Driver::Exceptions::NoSuchRecordException.empty
         when 1
-          rec = InternalRecord.new(@field_names, @connection)
+          rec = InternalRecord.new(@keys, @connection)
           raise Neo4j::Driver::Exceptions::NoSuchRecordException.too_many if summary(pull).positive?
           rec
         else
@@ -30,7 +30,7 @@ module Neo4j
 
       def each
         pull = process
-        yield InternalRecord.new(field_names, @connection) while (rc = Bolt::Connection.fetch(@connection, pull)) == 1
+        yield InternalRecord.new(keys, @connection) while (rc = Bolt::Connection.fetch(@connection, pull)) == 1
         check_status(Bolt::Connection.status(@connection)) if rc == -1
       end
 
@@ -38,10 +38,8 @@ module Neo4j
         process(true)
       end
 
-      private
-
-      def field_names
-        @field_names ||= Neo4j::Driver::Value.to_ruby(Bolt::Connection.field_names(@connection))
+      def keys
+        @keys ||= Neo4j::Driver::Value.to_ruby(Bolt::Connection.field_names(@connection))
       end
     end
   end
