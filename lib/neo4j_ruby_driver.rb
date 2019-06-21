@@ -2,23 +2,24 @@
 
 require 'active_support/duration'
 require 'active_support/time'
-require 'neo4j/driver/auto_closable'
-require 'neo4j/driver/exceptions/neo4j_exception'
-require 'neo4j/driver/exceptions/authentication_exception'
-require 'neo4j/driver/exceptions/client_exception'
-require 'neo4j/driver/exceptions/database_exception'
-require 'neo4j/driver/exceptions/no_such_record_exception'
-require 'neo4j/driver/exceptions/protocol_exception'
-require 'neo4j/driver/exceptions/security_exception'
-require 'neo4j/driver/exceptions/service_unavailable_exception'
-require 'neo4j/driver/exceptions/session_expried_exception'
-require 'neo4j/driver/exceptions/transient_exception'
-require 'neo4j/driver/exceptions/untrusted_server_exception'
-require 'neo4j/driver/internal/duration_normalizer'
-require 'neo4j/driver/internal/ruby_signature'
-require 'neo4j/driver/types/byte_array'
-require 'neo4j/driver/types/local_date_time'
-require 'neo4j/driver/types/local_time'
-require 'neo4j/driver/types/offset_time'
-require 'neo4j/driver/types/point'
 require 'neo4j/driver'
+
+require 'zeitwerk'
+require 'zeitwerk/neo4j_ruby_driver_inflector'
+
+loader = Zeitwerk::Loader.new
+loader.tag = "neo4j-ruby-driver"
+lib_dir_path = File.expand_path File.dirname(__FILE__)
+loader.push_dir(lib_dir_path)
+loader.ignore("#{lib_dir_path}/neo4j-ruby-driver_jars.rb")
+
+if ENV['SEABOLT_LIB']&.length&.positive?
+  loader.push_dir(lib_dir_path.sub('lib', 'ffi'))
+else
+  loader.push_dir(lib_dir_path.sub('lib', 'jruby'))
+end
+
+loader.inflector = Neo4jRubyDriverInflector.new
+loader.setup
+loader.eager_load
+Neo4j::Driver.after_zeitwerk_load_complete
