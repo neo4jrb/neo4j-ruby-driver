@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'neo4j/driver/bolt/value'
-
 module Bolt
   module Auth
     extend Bolt::Library

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'neo4j/driver/statement_runner'
-
 module Neo4j
   module Driver
     class ExplicitTransaction

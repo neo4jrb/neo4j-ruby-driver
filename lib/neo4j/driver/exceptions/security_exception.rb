@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Exceptions
-      class ProtocolException < Neo4jException
+      class SecurityException < Neo4jException
       end
     end
   end
