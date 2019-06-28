@@ -1,24 +1,18 @@
 # frozen_string_literal: true
 
+# Workaround for missing zeitwerk support in jruby-9.2.7.0
+if RUBY_PLATFORM.match?(/java/)
+  module Neo4j
+    module Driver
+      module Exceptions
+      end
+      module Internal
+      end
+    end
+  end
+end
+# End workaround
+
 require 'active_support/duration'
 require 'active_support/time'
-require 'neo4j/driver/auto_closable'
-require 'neo4j/driver/exceptions/neo4j_exception'
-require 'neo4j/driver/exceptions/authentication_exception'
-require 'neo4j/driver/exceptions/client_exception'
-require 'neo4j/driver/exceptions/database_exception'
-require 'neo4j/driver/exceptions/no_such_record_exception'
-require 'neo4j/driver/exceptions/protocol_exception'
-require 'neo4j/driver/exceptions/security_exception'
-require 'neo4j/driver/exceptions/service_unavailable_exception'
-require 'neo4j/driver/exceptions/session_expried_exception'
-require 'neo4j/driver/exceptions/transient_exception'
-require 'neo4j/driver/exceptions/untrusted_server_exception'
-require 'neo4j/driver/internal/duration_normalizer'
-require 'neo4j/driver/internal/ruby_signature'
-require 'neo4j/driver/types/byte_array'
-require 'neo4j/driver/types/local_date_time'
-require 'neo4j/driver/types/local_time'
-require 'neo4j/driver/types/offset_time'
-require 'neo4j/driver/types/point'
 require 'neo4j/driver'

@@ -15,7 +15,7 @@ module Neo4j
     module Ext
       module ExceptionMapper
         def reraise
-          raise mapped_exception.new(code, message, self)
+          raise mapped_exception&.new(code, message, self) || self
         end
 
         private
@@ -39,7 +39,7 @@ module Neo4j
           when TransientException
             Neo4j::Driver::Exceptions::TransientException
           else
-            self
+            nil
           end
         end
       end
