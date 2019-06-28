@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'neo4j/driver/types/time'
-
 module Neo4j
   module Driver
     module Types
