@@ -13,7 +13,7 @@ class DriverHelper
 
   class << self
     def uri
-      ENV.fetch('NEO4J_BOLT_URL', 'bolt://localhost:7687')
+      ENV.fetch('NEO4J_BOLT_URL', 'bolt://localhost:7998')
     end
 
     def driver

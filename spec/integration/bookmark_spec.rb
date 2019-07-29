@@ -12,6 +12,7 @@ RSpec.describe 'Bookmark' do
 
   def create_and_expect(session)
     create_node_in_tx(session)
+    puts "in create_and_expect session=#{session.object_id}"
     bookmark = session.last_bookmark
     expect(bookmark).to be_present
     bookmark
@@ -19,6 +20,7 @@ RSpec.describe 'Bookmark' do
 
   it 'receives bookmark on successfull commit' do
     driver.session do |session|
+      puts "in it session=#{session.object_id}"
       preamble(session)
       expect(session.last_bookmark).to start_with('neo4j:bookmark:v1:tx')
     end

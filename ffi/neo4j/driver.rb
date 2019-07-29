@@ -6,6 +6,22 @@ if RUBY_PLATFORM.match?(/java/)
   end
   module Neo4j
     module Driver
+      module Internal
+        module Async
+        end
+        module Handlers
+        end
+        module Messaging
+          module V1
+          end
+          module V2
+          end
+          module V3
+          end
+        end
+        module Util
+        end
+      end
       module Types
       end
     end
@@ -13,6 +29,9 @@ if RUBY_PLATFORM.match?(/java/)
 end
 # End workaround
 
+require 'active_support/concern'
+require 'concurrent/atomic/atomic_boolean'
+require 'concurrent/atomic/atomic_reference'
 require 'ffi'
 require 'loader'
 Loader.load
