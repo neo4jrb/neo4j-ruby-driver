@@ -29,13 +29,13 @@ Or install it yourself as:
 
 Refer to https://neo4j.com/docs/developer-manual/3.4/drivers/.
 
-This gem includes 2 different implementations: java driver based (jRuby) and another one using seabolt via ffi (MRI, jRuby)
+This gem includes 2 different implementations: java driver based (jRuby) and another one using seabolt via ffi (MRI, jRuby).
      
 Please note that seabolt has to be installed separately from: https://github.com/neo4j-drivers/seabolt, alongside with it's dependencies.
-For seabolt library itself we recommend picking one of already released packages, appropriate for your platform: https://github.com/neo4j-drivers/seabolt/releases     
+For seabolt library itself we recommend picking one of already released packages, appropriate for your platform: https://github.com/neo4j-drivers/seabolt/releases.     
 
 For MRI version, gem will not work if `SEABOLT_LIB` environment variable is not set. 
-For jRuby version if `SEABOLT_LIB` is not set neo4j java driver will be used..
+For jRuby version if `SEABOLT_LIB` is not set neo4j java driver will be used.
 
 ## Development
 
