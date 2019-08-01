@@ -46,13 +46,13 @@ Gem::Specification.new do |spec|
 
   spec.platform = 'java' if RUBY_PLATFORM.match?(/java/)
 
-  if ffi
-    spec.add_runtime_dependency 'ffi'
-  else
+  if RUBY_PLATFORM.match?(/java/)
     spec.add_runtime_dependency 'jar-dependencies'
     spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5'
     # avoids to install it on the fly when jar-dependencies needs it
     spec.add_development_dependency 'ruby-maven'
+  else
+    spec.add_runtime_dependency 'ffi'
   end
 
   spec.add_runtime_dependency 'activesupport'
