@@ -33,12 +33,12 @@ Gem::Specification.new do |spec|
     `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   end
 
-  ffi = ENV['SEABOLT_LIB']&.length&.positive?
-  pdir = ffi ? 'ffi' : 'jruby'
+  mri = !RUBY_PLATFORM.match?(/java/)
+  pdir = mri ? 'ffi' : 'jruby'
 
   spec.files << Dir['lib/**/*.rb']
   spec.files << Dir["#{pdir}/**/*.rb"]
-  spec.files << Dir["#{pdir}/**/*.jar"]
+  spec.files << Dir["#{pdir}/**/*.jar"] unless mri
 
   spec.bindir = 'exe'
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
