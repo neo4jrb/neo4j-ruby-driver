@@ -34,19 +34,22 @@ Gem::Specification.new do |spec|
   end
 
   mri = !RUBY_PLATFORM.match?(/java/)
-  pdir = mri ? 'ffi' : 'jruby'
+  pdir = mri ? 'ffi' : ENV.has_key?('SEABOLT_LIB') ? 'ffi' : 'jruby'
 
   spec.files << Dir['lib/**/*.rb']
   spec.files << Dir["#{pdir}/**/*.rb"]
-  spec.files << Dir["#{pdir}/**/*.jar"] unless mri
+
+  unless mri
+    spec.files << Dir["#{pdir}/**/*.jar"]
+    spec.platform = 'java'
+  end
 
   spec.bindir = 'exe'
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib', pdir]
 
-  spec.platform = 'java' if RUBY_PLATFORM.match?(/java/)
 
-  if RUBY_PLATFORM.match?(/java/)
+  if !mri
     spec.add_runtime_dependency 'jar-dependencies'
     spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5'
     # avoids to install it on the fly when jar-dependencies needs it
