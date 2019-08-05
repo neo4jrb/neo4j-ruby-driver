@@ -2,7 +2,6 @@
 
 module Bolt
   module AutoReleasable
-    extend Bolt::Library
 
     def attach_function(name, func, args, returns = nil, options = nil)
       return super unless returns == :auto_pointer
