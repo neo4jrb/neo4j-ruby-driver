@@ -2,6 +2,7 @@
 
 module Bolt
   module AutoReleasable
+    ffi_lib ENV['SEABOLT_LIB']
 
     def attach_function(name, func, args, returns = nil, options = nil)
       return super unless returns == :auto_pointer
