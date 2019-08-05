@@ -5,6 +5,8 @@ module Bolt
     extend FFI::Library
     ffi_lib ENV['SEABOLT_LIB']
 
+    puts "env: #{ENV['SEABOLT_LIB']}"
+
     def attach_function(name, func, args, returns = nil, options = nil)
       return super unless returns == :auto_pointer
 
