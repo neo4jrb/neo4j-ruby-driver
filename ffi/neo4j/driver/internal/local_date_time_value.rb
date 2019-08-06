@@ -9,7 +9,7 @@ module Neo4j
 
         class << self
           def to_ruby_value(epoch_second_utc, nsec)
-            Neo4j::Driver::Types::LocalDateTime.new(Time.at(epoch_second_utc, nsec, :nsec).utc)
+            Types::LocalDateTime.new(Time.at(epoch_second_utc, nsec, :nsec).utc)
           end
 
           def to_neo_values(local_date_time)

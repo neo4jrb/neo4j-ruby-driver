@@ -8,7 +8,7 @@ module Neo4j
         extend StructureValue
 
         def self.to_ruby_value(id, start_node_id, end_node_id, type, properties)
-          Neo4j::Driver::Types::Relationship.new(id, start_node_id, end_node_id, type, properties)
+          Types::Relationship.new(id, start_node_id, end_node_id, type, properties)
         end
       end
     end

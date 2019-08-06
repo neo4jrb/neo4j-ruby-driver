@@ -13,14 +13,14 @@ module Neo4j
             prev_node = uniq_nodes.first
             nodes = [prev_node] # Start node is always 0, and isn't encoded in the sequence
             rels = []
-            path = Neo4j::Driver::Types::Path.new(nodes, rels)
+            path = Types::Path.new(nodes, rels)
             sequence.in_groups_of(2) do |node_idx, rel_idx|
               node = uniq_nodes[node_idx]
               nodes << node
               rel = uniq_rels[rel_idx.abs - 1] # -1 because rel idx are 1-indexed
               update(rel, prev_node, node, rel_idx.negative?)
               rels << rel
-              path << Neo4j::Driver::Types::Path::Segment.new(prev_node, rel, node)
+              path << Types::Path::Segment.new(prev_node, rel, node)
               prev_node = node
             end
             path

@@ -9,7 +9,7 @@ module Neo4j
         extend BaseTimeValue
 
         def self.to_ruby_value(nano_of_day_local)
-          Neo4j::Driver::Types::LocalTime.new(time(nano_of_day_local))
+          Types::LocalTime.new(time(nano_of_day_local))
         end
       end
     end

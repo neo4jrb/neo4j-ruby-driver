@@ -10,7 +10,7 @@ module Neo4j
       end
 
       class << self
-        extend Neo4j::Driver::AutoClosable
+        extend AutoClosable
 
         auto_closable :driver
 

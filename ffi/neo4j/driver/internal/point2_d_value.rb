@@ -9,7 +9,7 @@ module Neo4j
 
         class << self
           def to_ruby_value(srid, x, y)
-            Neo4j::Driver::Types::Point.new(srid: srid, x: x, y: y)
+            Types::Point.new(srid: srid, x: x, y: y)
           end
 
           def to_neo_values(point)

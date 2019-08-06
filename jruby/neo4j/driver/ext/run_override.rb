@@ -5,7 +5,7 @@ module Neo4j
     module Ext
       module RunOverride
         include ExceptionCheckable
-        extend Neo4j::Driver::AutoClosable
+        extend AutoClosable
 
         auto_closable :begin_transaction
 
@@ -36,22 +36,22 @@ module Neo4j
           case object
           when Hash
             object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
-          when Neo4j::Driver::Types::ByteArray
+          when Types::ByteArray
             object.to_java_bytes
           when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(
-              *Neo4j::Driver::Internal::DurationNormalizer.normalize(object)
+              *Internal::DurationNormalizer.normalize(object)
             )
-          when Neo4j::Driver::Types::Point
+          when Types::Point
             Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
-          when Neo4j::Driver::Types::OffsetTime
+          when Types::OffsetTime
             Java::JavaTime::OffsetTime.of(object.hour, object.min, object.sec,
                                           object.nsec, Java::JavaTime::ZoneOffset.of_total_seconds(object.utc_offset))
-          when Neo4j::Driver::Types::LocalTime
+          when Types::LocalTime
             Java::JavaTime::LocalTime.of(object.hour, object.min, object.sec, object.nsec)
-          when Neo4j::Driver::Types::LocalDateTime
+          when Types::LocalDateTime
             Java::JavaTime::LocalDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
                                              object.nsec)
           when ActiveSupport::TimeWithZone

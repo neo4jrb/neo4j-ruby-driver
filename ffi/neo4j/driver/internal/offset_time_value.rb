@@ -10,7 +10,7 @@ module Neo4j
 
         class << self
           def to_ruby_value(nano_of_day_local, offset_seconds)
-            Neo4j::Driver::Types::OffsetTime.new(time(nano_of_day_local, offset_seconds))
+            Types::OffsetTime.new(time(nano_of_day_local, offset_seconds))
           end
 
           def to_neo_values(offset_time)

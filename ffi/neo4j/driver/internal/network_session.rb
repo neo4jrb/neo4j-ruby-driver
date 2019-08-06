@@ -100,7 +100,8 @@ module Neo4j
         #refactor
 
         def ensure_session_is_open
-          raise ClientException, 'No more interaction with this session are allowed as the current session is already closed.' unless @open.true?
+          raise Exceptions::ClientException,
+                'No more interaction with this session are allowed as the current session is already closed.' unless @open.true?
         end
 
         def ensure_no_open_tx_before_running_query

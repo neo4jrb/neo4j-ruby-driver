@@ -8,7 +8,7 @@ module Neo4j
           attr_reader :server, :counters
           def initialize(bolt_connection)
             @server = InternalServerInfo.new(bolt_connection)
-            metadata = Neo4j::Driver::Value.to_ruby(Bolt::Connection.metadata(bolt_connection))
+            metadata = Value.to_ruby(Bolt::Connection.metadata(bolt_connection))
             @counters = InternalSummaryCounters.new(metadata[:stats])
           end
         end
