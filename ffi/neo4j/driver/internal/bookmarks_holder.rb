@@ -15,7 +15,6 @@ module Neo4j
         end
 
         def bookmarks=(bookmarks)
-          puts "in bookmarks= self=#{object_id}, bookmarks=#{bookmarks.inspect}"
           bookmarks = Array(bookmarks).select(&:present?)
           @bookmarks = bookmarks if bookmarks.present?
         end

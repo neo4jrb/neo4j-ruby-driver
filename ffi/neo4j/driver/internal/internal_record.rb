@@ -4,7 +4,8 @@ module Neo4j
   module Driver
     module Internal
       class InternalRecord
-        delegate :first, to: :@values
+        attr_reader :values
+        delegate :first, to: :values
 
         def initialize(keys, values)
           @keys = keys

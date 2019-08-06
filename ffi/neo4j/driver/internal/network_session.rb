@@ -6,6 +6,9 @@ module Neo4j
       class NetworkSession
         include BookmarksHolder
         include ErrorHandling
+        extend AutoClosable
+
+        auto_closable :begin_transaction
 
         def initialize(connection_provider, mode, retry_logic = nil, logging = nil)
           super()
@@ -38,6 +41,7 @@ module Neo4j
         def close
           return unless @open.make_false
           begin
+            @result&.finalize
             @result&.failure
           ensure
             close_transaction_and_release_connection
@@ -55,7 +59,6 @@ module Neo4j
         end
 
         def last_bookmark
-          puts "in last_bookmars, self=#{object_id}, bookmarks=#{bookmarks}"
           bookmarks&.max
         end
 

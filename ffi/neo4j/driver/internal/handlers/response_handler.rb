@@ -16,12 +16,24 @@ module Neo4j
           def finalize
             return if @finished
             @finished = true
-            previous&.finalize
-            n = Bolt::Connection.fetch_summary(bolt_connection, request)
-            return n if Bolt::Connection.summary_success(bolt_connection) == 1
-            failure = Neo4j::Driver::Value.to_ruby(Bolt::Connection.failure(bolt_connection))
-            raise Neo4j::Driver::Exceptions::ClientException.new(failure[:code], failure[:message])
+            begin
+              previous&.finalize
+            ensure
+              n = Bolt::Connection.fetch_summary(bolt_connection, request)
+              if Bolt::Connection.summary_success(bolt_connection) == 1
+                extract_result_summary
+              else
+                failure = Neo4j::Driver::Value.to_ruby(Bolt::Connection.failure(bolt_connection))
+                error = Neo4j::Driver::Exceptions::ClientException.new(failure[:code], failure[:message])
+                extract_result_summary
+                raise error
+              end
+            end
           end
+
+          private
+
+          def extract_result_summary; end
         end
       end
     end

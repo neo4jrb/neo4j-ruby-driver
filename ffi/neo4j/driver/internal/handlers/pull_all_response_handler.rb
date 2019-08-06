@@ -14,29 +14,44 @@ module Neo4j
             @statetement = statement
             @run_handler = run_handler
             @metadate_extractor = metadata_extractor
+            @records = []
           end
 
           def consume
             # @ignore_records = true
-            @record = nil
+            @records.clear
             finalize
+            @summary
+          rescue StandardError => e
+            on_failure(e)
+            raise e
+          end
+
+          def summary
+            unless @finished
+              while (record = fetch)
+                @records << record
+              end
+            end
+            @summary
           end
 
           def peek
-            @record || ((@record = fetch) unless @finished)
+            @records.first || ((@records << fetch).first unless @finished)
           end
 
           def next
-            peek.tap { @record = nil }
+            peek
+            @records.shift
           end
 
-          def on_success(metadata)
+          def on_success
             @finished = true
-            @summary = extract_result_summary(metadata)
+            extract_result_summary
 
-            after_success(metadata)
+            after_success(nil)
 
-            @record = nil
+            # @records.clear
             @failure = nil
 
           end
@@ -50,11 +65,11 @@ module Neo4j
 
           def on_failure(error)
             @finished = true
-            @summary = extract_result_summary({})
+            extract_result_summary
 
             after_failure(error)
 
-            @record = nil
+            @records.clear
             @failure = error
           end
 
@@ -62,20 +77,24 @@ module Neo4j
 
           def fetch
             @run_handler.finalize
-            case Bolt::Connection.fetch(bolt_connection, request)
+            bolt_connection_fetch = Bolt::Connection.fetch(bolt_connection, request)
+            case bolt_connection_fetch
             when -1
               check_status(Bolt::Connection.status(bolt_connection))
             when 1
               InternalRecord.new(@run_handler.statement_keys,
                                  Neo4j::Driver::Value.to_ruby(Bolt::Connection.field_values(bolt_connection)))
             else
-              on_success({})
+              on_success
               nil
             end
+          rescue StandardError => e
+            @finished = true
+            raise e
           end
 
-          def extract_result_summary(metadata)
-            InternalResultSummary.new
+          def extract_result_summary
+            @summary ||= Summary::InternalResultSummary.new(bolt_connection)
           end
         end
       end

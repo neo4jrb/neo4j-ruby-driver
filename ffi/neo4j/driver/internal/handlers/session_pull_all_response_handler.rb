@@ -11,11 +11,7 @@ module Neo4j
           end
 
           def after_success(metadata)
-            puts "after_success"
-            puts caller_locations
-            puts "@bookmarks_holder=#{@bookmarks_holder.object_id}"
-            @bookmarks_holder.bookmarks = Bolt::Connection.last_bookmark(bolt_connection).first
-            puts @bookmarks_holder.bookmarks.inspect
+            @bookmarks_holder.bookmarks = connection.last_bookmark
             release_connection
             # @bookmarks_holder.bookmarks = @metadata_extractor.extract_bookmarks(metadata)
           end

@@ -89,6 +89,7 @@ module Neo4j
           # @session.bookmarks = @protocol.commit_transaction(@connection)
           chain @protocol.commit_transaction(@connection)
           finalize
+          @session.bookmarks = @connection.last_bookmark
         end
 
         def rollback

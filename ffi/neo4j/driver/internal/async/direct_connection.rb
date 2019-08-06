@@ -44,7 +44,6 @@ module Neo4j
 
           def commit(handler)
             register(handler, Bolt::Connection.load_commit_request(bolt_connection))
-            Bolt::Connection.last_bookmark(bolt_connection).first
             flush
           end
 
@@ -61,6 +60,11 @@ module Neo4j
 
           def open?
             @status.get == :open
+          end
+
+          def last_bookmark
+            puts "in last_bookmark bolt_connection=#{bolt_connection.inspect}"
+            Bolt::Connection.last_bookmark(bolt_connection).first
           end
 
           private
