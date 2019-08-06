@@ -76,7 +76,7 @@ module Neo4j
           def set_bookmarks(method, bookmarks)
             return unless bookmarks.present?
             value = Bolt::Value.create
-            Neo4j::Driver::Value.to_neo(value, bookmarks)
+            Value.to_neo(value, bookmarks)
             check_error Bolt::Connection.send(method, bolt_connection, value)
           end
         end

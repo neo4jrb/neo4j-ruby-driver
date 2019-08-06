@@ -26,7 +26,6 @@ module Neo4jCleaner
   private
 
   def execute(query)
-    # driver.session.tap { |session| session.write_transaction { |tx| tx.run(query) } }.close
-    driver.session.tap { |session| session.run(query) }.close
+    driver.session { run(query) }
   end
 end
