@@ -19,6 +19,8 @@ if RUBY_PLATFORM.match?(/java/)
           module V3
           end
         end
+        module Summary
+        end
         module Util
         end
       end

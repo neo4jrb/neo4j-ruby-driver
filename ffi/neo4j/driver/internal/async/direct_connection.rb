@@ -63,7 +63,6 @@ module Neo4j
           end
 
           def last_bookmark
-            puts "in last_bookmark bolt_connection=#{bolt_connection.inspect}"
             Bolt::Connection.last_bookmark(bolt_connection).first
           end
 

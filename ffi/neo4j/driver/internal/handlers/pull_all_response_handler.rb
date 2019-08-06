@@ -33,7 +33,7 @@ module Neo4j
                 @records << record
               end
             end
-            @summary
+            @summary ||= Summary::InternalResultSummary.new(bolt_connection)
           end
 
           def peek
@@ -47,13 +47,12 @@ module Neo4j
 
           def on_success
             @finished = true
-            extract_result_summary
+            summary
 
             after_success(nil)
 
             # @records.clear
             @failure = nil
-
           end
 
           def failure
@@ -65,7 +64,7 @@ module Neo4j
 
           def on_failure(error)
             @finished = true
-            extract_result_summary
+            summary
 
             after_failure(error)
 
@@ -85,16 +84,14 @@ module Neo4j
               InternalRecord.new(@run_handler.statement_keys,
                                  Neo4j::Driver::Value.to_ruby(Bolt::Connection.field_values(bolt_connection)))
             else
+              @finished = true
+              check_summary_failure
               on_success
               nil
             end
           rescue StandardError => e
             @finished = true
             raise e
-          end
-
-          def extract_result_summary
-            @summary ||= Summary::InternalResultSummary.new(bolt_connection)
           end
         end
       end

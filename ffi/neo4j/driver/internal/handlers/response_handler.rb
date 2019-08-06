@@ -19,21 +19,21 @@ module Neo4j
             begin
               previous&.finalize
             ensure
-              n = Bolt::Connection.fetch_summary(bolt_connection, request)
-              if Bolt::Connection.summary_success(bolt_connection) == 1
-                extract_result_summary
-              else
-                failure = Neo4j::Driver::Value.to_ruby(Bolt::Connection.failure(bolt_connection))
-                error = Neo4j::Driver::Exceptions::ClientException.new(failure[:code], failure[:message])
-                extract_result_summary
-                raise error
-              end
+              Bolt::Connection.fetch_summary(bolt_connection, request)
+              check_summary_failure
             end
           end
 
           private
 
-          def extract_result_summary; end
+          def check_summary_failure
+            summary
+            return if Bolt::Connection.summary_success(bolt_connection) == 1
+            failure = Neo4j::Driver::Value.to_ruby(Bolt::Connection.failure(bolt_connection))
+            raise Neo4j::Driver::Exceptions::ClientException.new(failure[:code], failure[:message])
+          end
+
+          def summary; end
         end
       end
     end

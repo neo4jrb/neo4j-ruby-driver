@@ -9,7 +9,6 @@ module Neo4j
           def initialize(bolt_connection)
             @server = InternalServerInfo.new(bolt_connection)
             metadata = Neo4j::Driver::Value.to_ruby(Bolt::Connection.metadata(bolt_connection))
-            puts "metedata=#{metadata}"
             @counters = InternalSummaryCounters.new(metadata[:stats])
           end
         end
