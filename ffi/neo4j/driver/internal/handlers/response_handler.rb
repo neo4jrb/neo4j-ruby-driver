@@ -29,7 +29,7 @@ module Neo4j
           def check_summary_failure
             summary
             return if Bolt::Connection.summary_success(bolt_connection) == 1
-            failure = Value.to_ruby(Bolt::Connection.failure(bolt_connection))
+            failure = Value::ValueAdapter.to_ruby(Bolt::Connection.failure(bolt_connection))
             raise Exceptions::ClientException.new(failure[:code], failure[:message])
           end
 

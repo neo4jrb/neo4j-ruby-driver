@@ -82,7 +82,7 @@ module Neo4j
               check_status(Bolt::Connection.status(bolt_connection))
             when 1
               InternalRecord.new(@run_handler.statement_keys,
-                                 Neo4j::Driver::Value.to_ruby(Bolt::Connection.field_values(bolt_connection)))
+                                 Value::ValueAdapter.to_ruby(Bolt::Connection.field_values(bolt_connection)))
             else
               @finished = true
               check_summary_failure

@@ -24,7 +24,8 @@ module Neo4j
             check_error Bolt::Connection.set_run_cypher(bolt_connection, statement, statement.size, parameters.size)
             parameters.each_with_index do |(name, object), index|
               name = name.to_s
-              Value.to_neo(Bolt::Connection.set_run_cypher_parameter(bolt_connection, index, name, name.size), object)
+              Value::ValueAdapter.to_neo(
+                  Bolt::Connection.set_run_cypher_parameter(bolt_connection, index, name, name.size), object)
             end
             set_bookmarks(:set_run_bookmarks, boomarks_holder.bookmarks)
             register(run_handler, Bolt::Connection.load_run_request(bolt_connection))
@@ -76,7 +77,7 @@ module Neo4j
           def set_bookmarks(method, bookmarks)
             return unless bookmarks.present?
             value = Bolt::Value.create
-            Value.to_neo(value, bookmarks)
+            Value::ValueAdapter.to_neo(value, bookmarks)
             check_error Bolt::Connection.send(method, bolt_connection, value)
           end
         end

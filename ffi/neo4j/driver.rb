@@ -23,6 +23,8 @@ if RUBY_PLATFORM.match?(/java/)
         end
         module Util
         end
+        module Value
+        end
       end
       module Summary
       end

@@ -21,8 +21,8 @@ module Neo4j
           def finalize
             return if @finished
             super
-            @statement_keys = Value.to_ruby(Bolt::Connection.field_names(bolt_connection))
-            metadata = Value.to_ruby(Bolt::Connection.metadata(bolt_connection))
+            @statement_keys = Value::ValueAdapter.to_ruby(Bolt::Connection.field_names(bolt_connection))
+            metadata = Value::ValueAdapter.to_ruby(Bolt::Connection.metadata(bolt_connection))
             @results_available_after = metadata[:result_available_after] || metadata[:t_first]
           end
         end

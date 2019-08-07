@@ -12,7 +12,7 @@ module Neo4j
           def initialize(statement, bolt_connection)
             @statement = statement
             @server = InternalServerInfo.new(bolt_connection)
-            metadata = Value.to_ruby(Bolt::Connection.metadata(bolt_connection))
+            metadata = Value::ValueAdapter.to_ruby(Bolt::Connection.metadata(bolt_connection))
             @statement_type = metadata[:type]
             @counters = InternalSummaryCounters.new(metadata[:stats])
           end
