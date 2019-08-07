@@ -11,7 +11,7 @@ module Neo4j
         end
 
         def acquire_connection(mode)
-         Async::DirectConnection.new(@connector, mode)
+          Async::DirectConnection.new(@connector, mode)
         end
 
         def verify_connectivity

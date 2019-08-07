@@ -5,12 +5,9 @@ module Neo4j
     module Internal
       module Util
         class MetadataExtractor
-          def initialize(resultAvailableAfterMetadataKey, resultConsumedAfterMetadataKey)
-          end
+          def initialize(result_available_after_metadata_key, result_consumed_after_metadata_key); end
 
-          def extract_bookmarks(metadata)
-
-          end
+          def extract_bookmarks(metadata); end
         end
       end
     end

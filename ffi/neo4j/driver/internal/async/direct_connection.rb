@@ -25,7 +25,8 @@ module Neo4j
             parameters.each_with_index do |(name, object), index|
               name = name.to_s
               Value::ValueAdapter.to_neo(
-                  Bolt::Connection.set_run_cypher_parameter(bolt_connection, index, name, name.size), object)
+                Bolt::Connection.set_run_cypher_parameter(bolt_connection, index, name, name.size), object
+              )
             end
             set_bookmarks(:set_run_bookmarks, boomarks_holder.bookmarks)
             register(run_handler, Bolt::Connection.load_run_request(bolt_connection))

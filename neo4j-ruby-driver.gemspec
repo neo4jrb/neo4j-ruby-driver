@@ -59,7 +59,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'zeitwerk'
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'neo4j-rake_tasks', '>= 0.3.0'
+  spec.add_development_dependency 'parallel'
   spec.add_development_dependency 'rake'
   spec.add_development_dependency 'rspec-its'
-  spec.add_development_dependency 'parallel'
 end

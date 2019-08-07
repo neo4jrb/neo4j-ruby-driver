@@ -27,7 +27,9 @@ module Neo4j
           ensure_session_is_open
           ensure_no_open_tx_before_running_query
           acquire_connection(@mode)
-          @result = @connection.protocol.run_in_auto_commit_transaction(@connection, Statement.new(statement, parameters), self, config)
+          @result = @connection.protocol.run_in_auto_commit_transaction(
+            @connection, Statement.new(statement, parameters), self, config
+          )
         end
 
         def read_transaction(&block)
@@ -82,7 +84,7 @@ module Neo4j
           @result&.failure
           raise Exceptions::IllegalStateException, 'Existing open connection detected' if @connection&.open?
           @connection = @connection_provider.acquire_connection(@mode)
-          #old
+          # old
           # raise Exception, 'existing connection present' if @connection
           #
           # status = Bolt::Status.create
@@ -100,8 +102,9 @@ module Neo4j
         #refactor
 
         def ensure_session_is_open
+          return if @open.true?
           raise Exceptions::ClientException,
-                'No more interaction with this session are allowed as the current session is already closed.' unless @open.true?
+                'No more interaction with this session are allowed as the current session is already closed.'
         end
 
         def ensure_no_open_tx_before_running_query

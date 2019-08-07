@@ -45,12 +45,13 @@ module Neo4j
                 InternalStatementResult.new(run_handler, pull_all_handler)
               end
 
-
               def new_pull_all_handler(statement, run_handler, connection, bookmarks_holder, tx)
                 if tx
-                  Handlers::TransactionPullAllResponseHandler.new(statement, run_handler, connection, tx, METADATA_EXTRACTOR)
+                  Handlers::TransactionPullAllResponseHandler.new(statement, run_handler, connection, tx,
+                                                                  METADATA_EXTRACTOR)
                 else
-                  Handlers::SessionPullAllResponseHandler.new(statement, run_handler, connection, bookmarks_holder, METADATA_EXTRACTOR)
+                  Handlers::SessionPullAllResponseHandler.new(statement, run_handler, connection, bookmarks_holder,
+                                                              METADATA_EXTRACTOR)
                 end
               end
             end

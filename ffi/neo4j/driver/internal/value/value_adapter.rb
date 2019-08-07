@@ -17,9 +17,7 @@ module Neo4j
               when :bolt_float
                 Bolt::Float.get(value)
               when :bolt_bytes
-                Types::ByteArray.from_bytes(
-                    Array.new(Bolt::Value.size(value)) { |i| Bolt::Bytes.get(value, i) }
-                )
+                Types::ByteArray.from_bytes(Array.new(Bolt::Value.size(value)) { |i| Bolt::Bytes.get(value, i) })
               when :bolt_string
                 Bolt::String.get(value).first
               when :bolt_dictionary

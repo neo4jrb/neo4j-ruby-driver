@@ -31,16 +31,18 @@ module Neo4j
                 run_handler = Handlers::RunResponseHandler.new(METADATA_EXTRACTOR)
                 pull_all_handler = new_pull_all_handler(statement, run_handler, connection, tx)
 
-                connection.write_and_flush(query, params, run_handler,  pull_all_handler)
+                connection.write_and_flush(query, params, run_handler, pull_all_handler)
                 InternalStatementResult.new(run_handler, pull_all_handler)
               end
 
 
               def new_pull_all_handler(statement, run_handler, connection, tx)
                 if tx
-                  Handlers::TransactionPullAllResponseHandler.new(statement, run_handler, connection, tx, METADATA_EXTRACTOR)
+                  Handlers::TransactionPullAllResponseHandler.new(statement, run_handler, connection, tx,
+                                                                  METADATA_EXTRACTOR)
                 else
-                  Handlers::SessionPullAllResponseHandler.new(statement, run_handler, connection, BookmarksHolder::NO_OP, METADATA_EXTRACTOR)
+                  Handlers::SessionPullAllResponseHandler.new(statement, run_handler, connection,
+                                                              BookmarksHolder::NO_OP, METADATA_EXTRACTOR)
                 end
               end
 

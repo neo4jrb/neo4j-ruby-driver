@@ -5,9 +5,7 @@ RSpec.describe 'ResultStream' do
     driver.session do |session|
       res = session.run('UNWIND [1,2,3,4] AS a RETURN a')
       idx = 0
-      while res.has_next?
-        expect(res.next['a']).to eq idx += 1
-      end
+      expect(res.next['a']).to eq idx += 1 while res.has_next?
     end
   end
 
@@ -63,7 +61,7 @@ RSpec.describe 'ResultStream' do
       res = session.run('INVALID')
       res.consume
     rescue Neo4j::Driver::Exceptions::ClientException
-      #ignore
+      # ignore
     ensure
       summary = res.summary
       expect(summary).not_to be_nil

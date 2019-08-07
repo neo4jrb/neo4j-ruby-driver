@@ -30,7 +30,7 @@ module Neo4j
         end
 
         def create_session_factory(connection_provider, retry_logic = nil, config = nil)
-          SessionFactoryImpl.new(connection_provider, retry_logic, config )
+          SessionFactoryImpl.new(connection_provider, retry_logic, config)
         end
       end
     end

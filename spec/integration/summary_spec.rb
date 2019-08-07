@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 RSpec.describe 'Summary' do
-  it 'should contain basic metadata' do
+  it 'contains basic metadata' do
     driver.session do |session|
       statement_text = 'UNWIND [1, 2, 3, 4] AS n RETURN n AS number LIMIT {limit}'
-      statement_parameters = {limit: 10}
+      statement_parameters = { limit: 10 }
       result = session.run(statement_text, statement_parameters)
       expect(result).to have_next
       summary = result.consume

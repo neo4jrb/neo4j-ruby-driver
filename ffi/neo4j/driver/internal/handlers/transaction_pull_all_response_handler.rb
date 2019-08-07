@@ -11,8 +11,7 @@ module Neo4j
             @tx.chain run_handler, self
           end
 
-          def after_success(_metadata)
-          end
+          def after_success(_metadata); end
 
           def after_failure(_error)
             @tx.mark_terminated

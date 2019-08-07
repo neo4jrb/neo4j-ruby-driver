@@ -73,7 +73,7 @@ module Neo4j
           else
             begin
               do_commit
-                # handleCommitOrRollback( error )
+              # handleCommitOrRollback( error )
             ensure
               transaction_closed(:committed)
             end
@@ -101,8 +101,8 @@ module Neo4j
           else
             begin
               do_rollback
-                # resultCursors.retrieveNotConsumedError()
-                # handleCommitOrRollback( error )
+              # resultCursors.retrieveNotConsumedError()
+              # handleCommitOrRollback( error )
             ensure
               transaction_closed(:rolled_back)
             end
@@ -134,8 +134,6 @@ module Neo4j
             when :terminated
               'Cannot run more statements in this transaction, ' \
             'it has either experienced an fatal error or was explicitly terminated'
-            else
-              nil
             end
 
           raise Exceptions::ClientException, reason if reason

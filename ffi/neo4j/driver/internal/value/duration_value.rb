@@ -11,13 +11,13 @@ module Neo4j
           class << self
             def to_ruby_value(months, days, seconds, nanoseconds)
               ActiveSupport::Duration.months(months) +
-                  ActiveSupport::Duration.days(days) +
-                  ActiveSupport::Duration.seconds(seconds) +
-                  ActiveSupport::Duration.seconds(nanoseconds * BigDecimal('1e-9'))
+                ActiveSupport::Duration.days(days) +
+                ActiveSupport::Duration.seconds(seconds) +
+                ActiveSupport::Duration.seconds(nanoseconds * BigDecimal('1e-9'))
             end
 
             def to_neo_values(object)
-              Neo4j::Driver::Internal::DurationNormalizer.normalize(object)
+              DurationNormalizer.normalize(object)
             end
           end
         end

@@ -59,8 +59,7 @@ module Neo4j
             # bolt_summary if connection.open?
           end
 
-          def after_success(metadata)
-          end
+          def after_success(metadata); end
 
           def on_failure(error)
             @finished = true
