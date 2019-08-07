@@ -17,4 +17,12 @@ RSpec.describe 'Summary' do
       expect(summary).to eq result.consume
     end
   end
+
+  it 'contains time information' do
+    driver.session do |session|
+      summary = session.run('UNWIND range(1,1000) AS n RETURN n AS numbe').consume
+      expect(summary.result_available_after).to be >= 0
+      expect(summary.result_consumed_after).to be >= 0
+    end
+  end
 end

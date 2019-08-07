@@ -4,7 +4,7 @@ module Neo4j
   module Driver
     module Ext
       module InternalDriver
-        extend Neo4j::Driver::AutoClosable
+        extend AutoClosable
 
         auto_closable :session
 

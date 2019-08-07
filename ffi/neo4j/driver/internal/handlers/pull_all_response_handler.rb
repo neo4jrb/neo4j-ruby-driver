@@ -6,13 +6,13 @@ module Neo4j
       module Handlers
         class PullAllResponseHandler < ResponseHandler
           delegate :bolt_connection, to: :connection
-          delegate :statement_keys, to: :@run_handler
+          delegate :statement_keys, to: :run_handler
           attr_reader :connection
 
           def initialize(statement, run_handler, connection, metadata_extractor)
             super(connection)
             @statement = statement
-            @run_handler = run_handler
+            @previous = run_handler
             @metadate_extractor = metadata_extractor
             @records = []
           end
@@ -33,7 +33,7 @@ module Neo4j
                 @records << record
               end
             end
-            @summary ||= Summary::InternalResultSummary.new(@statement, bolt_connection)
+            @summary ||= Summary::InternalResultSummary.new(@statement, run_handler.result_available_after, bolt_connection)
           end
 
           def peek
@@ -73,14 +73,18 @@ module Neo4j
 
           private
 
+          def run_handler
+            @previous
+          end
+
           def fetch
-            @run_handler.finalize
+            run_handler.finalize
             bolt_connection_fetch = Bolt::Connection.fetch(bolt_connection, request)
             case bolt_connection_fetch
             when -1
               check_status(Bolt::Connection.status(bolt_connection))
             when 1
-              InternalRecord.new(@run_handler.statement_keys,
+              InternalRecord.new(run_handler.statement_keys,
                                  Value::ValueAdapter.to_ruby(Bolt::Connection.field_values(bolt_connection)))
             else
               @finished = true

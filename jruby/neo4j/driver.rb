@@ -22,6 +22,10 @@ module Neo4j
     # Workaround for missing zeitwerk support in jruby-9.2.7.0
     if RUBY_PLATFORM.match?(/java/)
       module Ext
+        module Internal
+          module Summary
+          end
+        end
       end
     end
     # End workaround
@@ -40,6 +44,7 @@ Java::OrgNeo4jDriverInternal::InternalRelationship.include Neo4j::Driver::Ext::M
 Java::OrgNeo4jDriverInternal::InternalStatementResult.prepend Neo4j::Driver::Ext::InternalStatementResult
 Java::OrgNeo4jDriverInternal::ExplicitTransaction.prepend Neo4j::Driver::Ext::RunOverride
 Java::OrgNeo4jDriverInternal::NetworkSession.prepend Neo4j::Driver::Ext::RunOverride
+Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
 Java::OrgNeo4jDriverV1::GraphDatabase.singleton_class.prepend Neo4j::Driver::Ext::GraphDatabase
 Java::OrgNeo4jDriverV1::Statement.prepend Neo4j::Driver::Ext::Statement

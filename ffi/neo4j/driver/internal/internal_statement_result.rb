@@ -6,7 +6,6 @@ module Neo4j
       class InternalStatementResult
         include Enumerable
 
-        # delegate :consume, :summary, to: :@pull_all_handler
         delegate :consume, :failure, :summary, :finalize, to: :@pull_all_handler
 
         def initialize(run_handler, pull_all_handler)
