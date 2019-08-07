@@ -24,6 +24,8 @@ if RUBY_PLATFORM.match?(/java/)
         module Util
         end
       end
+      module Summary
+      end
       module Types
       end
     end

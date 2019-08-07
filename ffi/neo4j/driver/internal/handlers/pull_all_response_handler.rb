@@ -11,7 +11,7 @@ module Neo4j
 
           def initialize(statement, run_handler, connection, metadata_extractor)
             super(connection)
-            @statetement = statement
+            @statement = statement
             @run_handler = run_handler
             @metadate_extractor = metadata_extractor
             @records = []
@@ -33,7 +33,7 @@ module Neo4j
                 @records << record
               end
             end
-            @summary ||= Summary::InternalResultSummary.new(bolt_connection)
+            @summary ||= Summary::InternalResultSummary.new(@statement, bolt_connection)
           end
 
           def peek
