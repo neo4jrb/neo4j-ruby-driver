@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
   end
 
   jruby = RUBY_PLATFORM.match?(/java/)
-  pdir = if ENV.has_key?('SEABOLT_LIB')
+  pdir = if ENV.key?('SEABOLT_LIB')
            'ffi'
          else
            jruby ? 'jruby' : 'ffi'
