@@ -3,6 +3,9 @@
 lib = File.expand_path('lib', __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'neo4j/driver/version'
+require 'platform_requirements'
+
+PlatformRequirements.run_checks!
 
 Gem::Specification.new do |spec|
   spec.name = 'neo4j-ruby-driver'
