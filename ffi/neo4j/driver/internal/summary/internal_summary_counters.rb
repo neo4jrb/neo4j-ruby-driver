@@ -4,14 +4,17 @@ module Neo4j
   module Driver
     module Internal
       module Summary
-        class InternalSummaryCounters < Hash
+        class InternalSummaryCounters
           def initialize(stats)
-            super(0)
-            stats&.each { |key, value| self[key.to_s.split('-').join('_').to_sym] = value }
+            @stats = stats || RecursiveOpenStruct.new
+          end
+
+          def contains_updates?
+            @stats.to_h.values.any?(&:positive?)
           end
 
           def method_missing(method)
-            self[method]
+            @stats.send(method) || 0
           end
         end
       end

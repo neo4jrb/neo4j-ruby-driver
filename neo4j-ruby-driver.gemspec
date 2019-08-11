@@ -48,6 +48,7 @@ Gem::Specification.new do |spec|
 
   if ffi
     spec.add_runtime_dependency 'ffi'
+    spec.add_runtime_dependency 'recursive-open-struct'
   else
     spec.add_runtime_dependency 'jar-dependencies'
     spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5'

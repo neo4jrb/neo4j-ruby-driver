@@ -59,8 +59,6 @@ module Neo4j
             # bolt_summary if connection.open?
           end
 
-          def after_success(metadata); end
-
           def on_failure(error)
             @finished = true
             summary
@@ -89,7 +87,6 @@ module Neo4j
             else
               @finished = true
               check_summary_failure
-              on_success
               nil
             end
           rescue StandardError => e

@@ -12,7 +12,7 @@ module Neo4j
           raise Neo4j::Driver::Exceptions::NoSuchRecordException, e.message
         rescue Java::OrgNeo4jDriverV1Exceptions::UntrustedServerException => e
           raise Neo4j::Driver::Exceptions::UntrustedServerException, e.message
-        rescue Java::Lang::IllegalStateException => e
+        rescue Java::JavaLang::IllegalStateException => e
           raise Neo4j::Driver::Exceptions::IllegalStateException, e.message
         end
       end
