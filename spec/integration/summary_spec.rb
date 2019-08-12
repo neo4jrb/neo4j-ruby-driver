@@ -18,8 +18,7 @@ RSpec.describe 'Summary' do
     end
   end
 
-  # probably bug in seabolt
-  xit 'contains time information' do
+  it 'contains time information' do
     driver.session do |session|
       summary = session.run('UNWIND range(1,1000) AS n RETURN n AS numbe').consume
       expect(summary.result_available_after).to be >= 0
@@ -27,8 +26,7 @@ RSpec.describe 'Summary' do
     end
   end
 
-  # probably bug in seabolt
-  xit 'contains correct statistics' do
+  it 'contains correct statistics' do
     driver.session do |session|
       expect(session.run('CREATE (n)').consume.counters.nodes_created).to eq 1
       expect(session.run('MATCH (n) DELETE (n)').consume.counters.nodes_deleted).to eq 1

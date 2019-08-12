@@ -19,10 +19,11 @@ module Neo4j
               when :bolt_bytes
                 Types::ByteArray.from_bytes(Array.new(Bolt::Value.size(value)) { |i| Bolt::Bytes.get(value, i) })
               when :bolt_string
-                Bolt::String.get(value).first
+                # imperfect this might potentially copy a long unterminated string before truncation
+                Bolt::String.get(value).first[0, Bolt::Value.size(value)]
               when :bolt_dictionary
                 Array.new(Bolt::Value.size(value)) do |i|
-                  [Bolt::Dictionary.get_key(value, i).first, to_ruby(Bolt::Dictionary.value(value, i))]
+                  [to_ruby(Bolt::Dictionary.key(value, i)), to_ruby(Bolt::Dictionary.value(value, i))]
                 end.to_h.symbolize_keys
               when :bolt_list
                 Array.new(Bolt::Value.size(value)) { |i| to_ruby(Bolt::List.value(value, i)) }
