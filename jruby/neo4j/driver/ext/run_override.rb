@@ -42,7 +42,7 @@ module Neo4j
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(
-              *Internal::DurationNormalizer.normalize(object)
+              *Driver::Internal::DurationNormalizer.normalize(object)
             )
           when Types::Point
             Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)

@@ -16,12 +16,13 @@ module Neo4j
               underscore_keys(Value::ValueAdapter.to_ruby(Bolt::Connection.metadata(bolt_connection))),
               recurse_over_arrays: true
             )
-            puts "metadata=#{@metadata.to_h.inspect}"
-            puts "metadata.plan=#{@metadata.plan.inspect}"
             @result_consumed_after = @metadata.result_consumed_after || @metadata.t_last
             @counters = InternalSummaryCounters.new(@metadata.stats)
           end
 
+          def notifications
+            @metadata.notifications || []
+          end
           def plan
             @metadata.plan || profile
           end
