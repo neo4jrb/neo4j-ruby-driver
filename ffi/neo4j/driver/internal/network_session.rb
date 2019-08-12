@@ -99,8 +99,6 @@ module Neo4j
           release_connection
         end
 
-        #refactor
-
         def ensure_session_is_open
           return if @open.true?
           raise Exceptions::ClientException,

@@ -33,7 +33,8 @@ module Neo4j
                 @records << record
               end
             end
-            @summary ||= Summary::InternalResultSummary.new(@statement, run_handler.result_available_after, bolt_connection)
+            @summary ||= Summary::InternalResultSummary.new(@statement, run_handler.result_available_after,
+                                                            bolt_connection)
           end
 
           def peek

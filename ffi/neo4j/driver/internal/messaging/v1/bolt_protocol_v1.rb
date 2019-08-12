@@ -35,7 +35,6 @@ module Neo4j
                 InternalStatementResult.new(run_handler, pull_all_handler)
               end
 
-
               def new_pull_all_handler(statement, run_handler, connection, tx)
                 if tx
                   Handlers::TransactionPullAllResponseHandler.new(statement, run_handler, connection, tx,

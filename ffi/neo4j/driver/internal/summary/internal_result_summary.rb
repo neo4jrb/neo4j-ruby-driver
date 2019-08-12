@@ -23,6 +23,7 @@ module Neo4j
           def notifications
             @metadata.notifications || []
           end
+
           def plan
             @metadata.plan || profile
           end
