@@ -48,6 +48,7 @@ Gem::Specification.new do |spec|
 
   if ffi
     spec.add_runtime_dependency 'ffi'
+    spec.add_runtime_dependency 'recursive-open-struct'
   else
     spec.add_runtime_dependency 'jar-dependencies'
     spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5'
@@ -58,8 +59,8 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'activesupport'
   spec.add_runtime_dependency 'zeitwerk'
   spec.add_development_dependency 'bundler'
-  spec.add_development_dependency 'dotenv'
   spec.add_development_dependency 'neo4j-rake_tasks', '>= 0.3.0'
+  spec.add_development_dependency 'parallel'
   spec.add_development_dependency 'rake'
   spec.add_development_dependency 'rspec-its'
 end

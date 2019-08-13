@@ -5,6 +5,7 @@ module Neo4j
     module Types
       class Entity
         attr_reader :id, :properties
+        delegate :[], to: :properties
 
         def initialize(id, properties)
           @id = id

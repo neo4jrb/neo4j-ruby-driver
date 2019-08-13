@@ -23,18 +23,18 @@ before_script:
 env:
   global:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
-    - NEO4J_BOLT_URL="bolt://localhost:7472"
+    - NEO4J_BOLT_URL="bolt://127.0.0.1:7472"
     - SEABOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
   matrix:
-    - NEO4J_VERSION=enterprise-3.5.6
+    - NEO4J_VERSION=enterprise-3.5.8
     - NEO4J_VERSION=enterprise-3.4.14
-    - NEO4J_VERSION=community-3.5.6
+    - NEO4J_VERSION=community-3.5.8
 matrix:
   include:
-    - rvm: 2.5.4
-    - env: NEO4J_VERSION=enterprise-3.5.6 SEABOLT_LIB=
+    - rvm: 2.5.5
+    - env: NEO4J_VERSION=enterprise-3.5.8 SEABOLT_LIB=
     - env: NEO4J_VERSION=enterprise-3.4.14 SEABOLT_LIB=
-    - env: NEO4J_VERSION=community-3.5.6 SEABOLT_LIB=
+    - env: NEO4J_VERSION=community-3.5.8 SEABOLT_LIB=
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
   - cat ./db/neo4j/development/logs/debug.log
