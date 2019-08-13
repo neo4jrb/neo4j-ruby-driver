@@ -92,10 +92,11 @@ RSpec.describe 'Summary' do
     end
   end
 
-  # maybe configuration missing, no notifications returned
-  xit 'contains notifications' do
+  it 'contains notifications' do
     driver.session do |session|
-      summary = session.run('EXPLAIN MATCH (n), (m) RETURN n, m').consume
+      # 'EXPLAIN MATCH (n), (m) RETURN n, m' does not return notifications. Server issue?
+      # summary = session.run('EXPLAIN MATCH (n), (m) RETURN n, m').consume
+      summary = session.run('EXPLAIN MATCH (n), (m) RETURN *').consume
 
       notifications = summary.notifications
       expect(notifications).to be_present

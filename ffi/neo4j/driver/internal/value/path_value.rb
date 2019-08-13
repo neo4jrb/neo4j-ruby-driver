@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'active_support/core_ext/array/grouping'
-
 module Neo4j
   module Driver
     module Internal

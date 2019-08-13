@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'active_support/core_ext/hash/indifferent_access'
-
 module Neo4j
   module Driver
     module Types
