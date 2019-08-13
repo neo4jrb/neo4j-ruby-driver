@@ -21,7 +21,7 @@ module Neo4j
       include_package 'org.neo4j.driver.v1.types'
     end
 
-    # Workaround for missing zeitwerk support in jruby-9.2.7.0
+    # Workaround for missing zeitwerk support in jruby-9.2.8.0
     if RUBY_PLATFORM.match?(/java/)
       module Ext
         module Internal

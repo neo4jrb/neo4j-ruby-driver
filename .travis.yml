@@ -6,7 +6,7 @@ jdk:
   - openjdk8
 cache: bundler
 rvm:
-  - jruby-9.2.7.0
+  - jruby-9.2.8.0
   - 2.6.3
 before_install: gem install bundler
 before_script:

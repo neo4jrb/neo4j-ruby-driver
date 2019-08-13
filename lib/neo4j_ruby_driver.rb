@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Workaround for missing zeitwerk support in jruby-9.2.7.0
+# Workaround for missing zeitwerk support in jruby-9.2.8.0
 if RUBY_PLATFORM.match?(/java/)
   module Neo4j
     module Driver
