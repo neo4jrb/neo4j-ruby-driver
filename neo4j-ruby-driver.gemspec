@@ -5,7 +5,9 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'neo4j/driver/version'
 
 Gem::Specification.new do |spec|
-  spec.name = 'neo4j-ruby-driver'
+  ffi = ENV['SEABOLT_LIB']&.length&.positive?
+
+  spec.name = "neo4j-#{ffi ? :ruby : :java}-driver"
   spec.version = Neo4j::Driver::VERSION
   spec.authors = ['Heinrich Klobuczek']
   spec.email = ['heinrich@mail.com']
@@ -28,12 +30,8 @@ Gem::Specification.new do |spec|
   end
 
   # Specify which files should be added to the gem when it is released.
-  # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
-  spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
-  end
+  spec.files << Dir[*%w[neo4j-ruby-driver.gemspec Rakefile README.md LICENSE.txt Gemfile]]
 
-  ffi = ENV['SEABOLT_LIB']&.length&.positive?
   pdir = ffi ? 'ffi' : 'jruby'
 
   spec.files << Dir['lib/**/*.rb']
