@@ -186,6 +186,5 @@ RSpec.describe 'LoadCsv' do
       expect(result.next['c']).to eq(150)
       expect(result.has_next?).to be_falsey
     end
-    puts "Ran successfully"
   end
 end
