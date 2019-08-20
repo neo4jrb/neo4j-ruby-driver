@@ -174,7 +174,7 @@ RSpec.describe 'LoadCsv' do
   after { File.delete(file_path) if File.exist?(file_path) }
 
   it 'loads CSV' do
-    driver.session do |session| 
+    driver.session do |session|
       result = session.run("USING PERIODIC COMMIT 40\n"\
                            "LOAD CSV WITH HEADERS FROM {csv_file_url} AS l\n"\
                            "MATCH (c:Class {name: l.class_name})\n"\
