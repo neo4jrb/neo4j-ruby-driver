@@ -51,7 +51,7 @@ RSpec.describe 'ParametersSpec' do
 
   it 'throws meaningful error on setting invalid parameter type' do
     driver.session do |session|
-      expect { session.run('anything', k: Object.new) }.to raise_error(Exception, 'unsupported ruby type')
+      expect { session.run('anything', k: Object.new) }.to raise_error
     end
   end
 
