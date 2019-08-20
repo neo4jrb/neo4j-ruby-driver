@@ -30,13 +30,12 @@ Gem::Specification.new do |spec|
   end
 
   # Specify which files should be added to the gem when it is released.
-  spec.files << Dir[*%w[neo4j-ruby-driver.gemspec Rakefile README.md LICENSE.txt Gemfile]]
+  spec.files << Dir[*%w[neo4j-ruby-driver.gemspec Rakefile README.md LICENSE.txt Gemfile lib/neo4j_ruby_driver.rb lib/loader.rb]]
 
   pdir = ffi ? 'ffi' : 'jruby'
 
-  spec.files << Dir['lib/**/*.rb']
+  spec.files << Dir['lib/neo4j/**/*.rb']
   spec.files << Dir["#{pdir}/**/*.rb"]
-  spec.files << Dir["#{pdir}/**/*.jar"]
 
   spec.bindir = 'exe'
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
