@@ -4,7 +4,7 @@ require 'csv'
 RSpec.describe 'LoadCsv' do
   let(:iris_class_names) { ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'] }
   let(:file_path) { 'db/neo4j/development/import/file.csv' }
-  let(:iris_data) {
+  let(:iris_data) do
                     ['sepal_length,sepal_width,petal_length,petal_width,class_name',
                      '5.1,3.5,1.4,0.2,Iris-setosa',
                      '4.9,3.0,1.4,0.2,Iris-setosa',
@@ -156,8 +156,9 @@ RSpec.describe 'LoadCsv' do
                      '6.5,3.0,5.2,2.0,Iris-virginica',
                      '6.2,3.4,5.4,2.3,Iris-virginica',
                      '5.9,3.0,5.1,1.8,Iris-virginica']
-                  }
-  before(:example) do
+                  end
+
+  before do
     driver.session do |session|
       iris_class_names.each do |class_name|
         session.run('CREATE (c:Class {name: {class_name}}) RETURN c', class_name: class_name).consume
@@ -170,18 +171,18 @@ RSpec.describe 'LoadCsv' do
     end
   end
 
-  after(:example) { File.delete(file_path) if File.exist?(file_path) }
+  after { File.delete(file_path) if File.exist?(file_path) }
 
-  it 'should load CSV' do
-    driver.session do |session|      
-      result = session.run(
-                "USING PERIODIC COMMIT 40\n"\
-                "LOAD CSV WITH HEADERS FROM {csv_file_url} AS l\n"\
-                "MATCH (c:Class {name: l.class_name})\n" +
-                "CREATE (s:Sample {sepal_length: l.sepal_length, sepal_width: l.sepal_width, petal_length: l.petal_length, petal_width: l.petal_width})\n"\
-                'CREATE (c)<-[:HAS_CLASS]-(s) '\
-                'RETURN count(*) AS c',
-                csv_file_url: 'file:///file.csv')
+  it 'loads CSV' do
+    driver.session do |session| 
+      result = session.run("USING PERIODIC COMMIT 40\n"\
+                           "LOAD CSV WITH HEADERS FROM {csv_file_url} AS l\n"\
+                           "MATCH (c:Class {name: l.class_name})\n"\
+                           'CREATE (s:Sample {sepal_length: l.sepal_length, sepal_width: l.sepal_width,'\
+                           " petal_length: l.petal_length, petal_width: l.petal_width})\n"\
+                           'CREATE (c)<-[:HAS_CLASS]-(s) '\
+                           'RETURN count(*) AS c',
+                           csv_file_url: 'file:///file.csv')
       expect(result.next['c']).to eq(150)
       expect(result.has_next?).to be_falsey
     end

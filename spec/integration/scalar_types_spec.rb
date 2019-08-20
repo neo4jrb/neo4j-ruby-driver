@@ -10,23 +10,23 @@ RSpec.describe 'ScalarTypesSpec' do
     end
   end
 
-  it_should_behave_like 'scalar type', 1
+  it_behaves_like 'scalar type', 1
 
-  it_should_behave_like 'scalar type', 1.1
+  it_behaves_like 'scalar type', 1.1
 
-  it_should_behave_like 'scalar type', "'Hello'", 'Hello'
+  it_behaves_like 'scalar type', "'Hello'", 'Hello'
 
-  it_should_behave_like 'scalar type', true
+  it_behaves_like 'scalar type', true
 
-  it_should_behave_like 'scalar type', false
+  it_behaves_like 'scalar type', false
 
-  it_should_behave_like 'scalar type', [1, 2, 3], [1, 2, 3]
+  it_behaves_like 'scalar type', [1, 2, 3], [1, 2, 3]
 
-  it_should_behave_like 'scalar type', ['Hello'], ['Hello']
+  it_behaves_like 'scalar type', ['Hello'], ['Hello']
 
-  it_should_behave_like 'scalar type', [], []
+  it_behaves_like 'scalar type', [], []
 
-  it_should_behave_like 'scalar type', {}
+  it_behaves_like 'scalar type', {}
 
-  it_should_behave_like 'scalar type', "{k: 'Hello'}", { k: 'Hello' }
+  it_behaves_like 'scalar type', "{k: 'Hello'}", k: 'Hello'
 end
