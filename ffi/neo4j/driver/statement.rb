@@ -5,9 +5,9 @@ module Neo4j
     class Statement
       attr_reader :text, :parameters
 
-      def initialize(text, parameters = {})
+      def initialize(text, parameters = nil)
         @text = text
-        @parameters = parameters
+        @parameters = parameters || {}
       end
     end
   end
