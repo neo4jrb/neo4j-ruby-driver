@@ -3,7 +3,7 @@
 require 'active_support/core_ext/hash/keys'
 require 'date'
 require 'loader'
-require 'neo4j-ruby-driver_jars'
+require 'neo4j-java-driver_jars'
 
 module Neo4j
   module Driver
