@@ -27,11 +27,13 @@ RSpec.describe 'ParametersSpec' do
 
   it_behaves_like 'original type', type: 'string', value: ''
 
-  # it_behaves_like 'original type', type: 'string', value: "π≈3.14"
+  it_behaves_like 'original type', type: 'string', value: "π≈3.14"
 
-  # it_behaves_like 'original type', type: 'string', value: "Mjölnir"
+  it_behaves_like 'original type', type: 'string', value: "Mjölnir"
 
   it_behaves_like 'original type', type: 'string', value: '*** Hello World! ***'
+
+  it_behaves_like 'original type', type: 'string', value: 'π≈3.14'
 
   it_behaves_like 'original type', type: 'boolean array', value: [true, false, true]
 
