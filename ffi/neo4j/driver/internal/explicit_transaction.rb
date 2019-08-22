@@ -25,7 +25,8 @@ module Neo4j
 
         def run(query, parameters = {})
           ensure_can_run_queries
-          @protocol.run_in_explicit_transaction(@connection, Statement.new(query, parameters), self)
+          @result&.failure
+          @result = @protocol.run_in_explicit_transaction(@connection, Statement.new(query, parameters), self)
         end
 
         def success

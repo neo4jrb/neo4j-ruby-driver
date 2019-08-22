@@ -48,8 +48,8 @@ module Neo4j
               when Types::ByteArray
                 Bolt::Value.format_as_bytes(value, object, object.size)
               when String
-                str = object.encode(Encoding::UTF_8)
-                Bolt::Value.format_as_string(value, str, str.bytesize)
+                object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
+                Bolt::Value.format_as_string(value, object, object.bytesize)
               when Array
                 Bolt::Value.format_as_list(value, object.size)
                 object.each_with_index { |elem, index| to_neo(Bolt::List.value(value, index), elem) }

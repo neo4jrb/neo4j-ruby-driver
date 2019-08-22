@@ -15,13 +15,21 @@ module Neo4j
     module Ext
       module ExceptionMapper
         def reraise
-          raise mapped_exception&.new(code, message, self) || self
+          raise mapped_exception(self)
+        end
+
+        def mapped_exception(exception)
+          mapped_exception_class(exception)&.new(*exception.arguments) || exception
+        end
+
+        def arguments
+          [code, message, self, suppressed.map(&method(:mapped_exception))]
         end
 
         private
 
-        def mapped_exception
-          case self
+        def mapped_exception_class(exception)
+          case exception
           when AuthenticationException
             Neo4j::Driver::Exceptions::AuthenticationException
           when ClientException

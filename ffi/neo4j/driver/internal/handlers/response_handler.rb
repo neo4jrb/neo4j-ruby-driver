@@ -6,7 +6,7 @@ module Neo4j
       module Handlers
         class ResponseHandler
           delegate :bolt_connection, to: :connection
-          attr_reader :connection
+          attr_reader :connection, :failure
           attr_accessor :request, :previous
 
           def initialize(connection)
@@ -31,8 +31,9 @@ module Neo4j
             if Bolt::Connection.summary_success(bolt_connection) == 1
               after_success(nil)
             else
-              failure = Value::ValueAdapter.to_ruby(Bolt::Connection.failure(bolt_connection))
-              raise Exceptions::ClientException.new(failure[:code], failure[:message])
+              return if previous&.failure
+              @failure = Value::ValueAdapter.to_ruby(Bolt::Connection.failure(bolt_connection))
+              raise Exceptions::ClientException.new(@failure[:code], @failure[:message])
             end
           end
 
