@@ -13,7 +13,7 @@ module Neo4j
         Struct.new('Wrapper', :object)
 
         def write_transaction
-          super { |tx| Struct::Wrapper.new(yield(tx)) }.object
+          check { super { |tx| Struct::Wrapper.new(yield(tx)) }.object }
         end
 
         # end work around

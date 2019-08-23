@@ -19,7 +19,7 @@ module Neo4j
               when :bolt_bytes
                 Types::ByteArray.from_bytes(Array.new(Bolt::Value.size(value)) { |i| Bolt::Bytes.get(value, i) })
               when :bolt_string
-                Bolt::String.get(value).read_string(Bolt::Value.size(value)).force_encoding('UTF-8')
+                Bolt::String.get(value).read_string(Bolt::Value.size(value)).force_encoding(Encoding::UTF_8)
               when :bolt_dictionary
                 Array.new(Bolt::Value.size(value)) do |i|
                   [to_ruby(Bolt::Dictionary.key(value, i)).to_sym, to_ruby(Bolt::Dictionary.value(value, i))]
@@ -48,6 +48,7 @@ module Neo4j
               when Types::ByteArray
                 Bolt::Value.format_as_bytes(value, object, object.size)
               when String
+                object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
                 Bolt::Value.format_as_string(value, object, object.bytesize)
               when Array
                 Bolt::Value.format_as_list(value, object.size)

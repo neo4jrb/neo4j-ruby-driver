@@ -55,6 +55,7 @@ module Neo4j
         end
 
         def begin_transaction(mode = @mode, config = nil)
+          ensure_session_is_open
           ensure_no_open_tx_before_starting_tx
           acquire_connection(mode)
           @transaction = ExplicitTransaction.new(@connection, self).begin(bookmarks, config)
@@ -81,15 +82,16 @@ module Neo4j
         end
 
         def acquire_connection(mode = @mode)
+          # make sure previous result is fully consumed and connection is released back to the pool
           @result&.failure
+
+          # there is no unconsumed error, so one of the following is true:
+          #   1) this is first time connection is acquired in this session
+          #   2) previous result has been successful and is fully consumed
+          #   3) previous result failed and error has been consumed
+
           raise Exceptions::IllegalStateException, 'Existing open connection detected' if @connection&.open?
           @connection = @connection_provider.acquire_connection(@mode)
-          # old
-          # raise Exception, 'existing connection present' if @connection
-          #
-          # status = Bolt::Status.create
-          # @connection = Bolt::Connector.acquire(@connector, mode, status)
-          # check_status(status)
         end
 
         def close_transaction_and_release_connection

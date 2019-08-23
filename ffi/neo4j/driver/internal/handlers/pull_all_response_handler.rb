@@ -56,9 +56,8 @@ module Neo4j
             @failure = nil
           end
 
-          def failure
-            # bolt_summary if connection.open?
-          end
+          alias failure consume # it probably should be summary instead of consume to preserve the potentially yet
+                                # unused result set
 
           def on_failure(error)
             @finished = true
