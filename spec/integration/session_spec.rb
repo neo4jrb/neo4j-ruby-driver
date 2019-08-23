@@ -1,22 +1,24 @@
 # frozen_string_literal: true
 
 RSpec.describe 'SessionSpec' do
-  # it 'knows session is closed' do
-  #   session = driver.session
-  #   session.close
-  #   expect(session.is_open?).to be false
-  # end
+  it 'knows session is closed' do
+    session = driver.session
+    session.close
+    expect(session).not_to be_open
+  end
 
-  # it 's nil config' do
-  #   session = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'), nil)
-  #   session.close
-  #   expect(session.is_open?).to be false
-  # end
+  it 'handles nil config' do
+    driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'), nil)
+    session = driver.session
+    session.close
+    expect(session).not_to be_open
+    driver.close
+  end
 
-  # it 'handles nil AuthToken' do
-  #   expect { Neo4j::Driver::GraphDatabase.driver(uri, nil) }
-  #     .to raise_error
-  # end
+  it 'handles nil AuthToken' do
+    expect { Neo4j::Driver::GraphDatabase.driver(uri, nil) {} }
+      .to raise_error Neo4j::Driver::Exceptions::AuthenticationException
+  end
 
   it 'executes read transaction in read session' do
     test_read_transaction(Neo4j::Driver::AccessMode::READ)
@@ -44,23 +46,25 @@ RSpec.describe 'SessionSpec' do
 
   def test_read_transaction(mode)
     driver.session do |session|
-      session.run( "CREATE (:Person {name: 'Tony Stark'})" ).consume;
-      session.run( "CREATE (:Person {name: 'Steve Rogers'})" ).consume;
+      session.run("CREATE (:Person {name: 'Tony Stark'})").consume
+      session.run("CREATE (:Person {name: 'Steve Rogers'})").consume
     end
-    session = driver.session(mode)
-    names = session.read_transaction do |tx|
-      tx.run('MATCH (p:Person) RETURN p.name AS name').collect do |result|
-        result['name']
+    driver.session(mode) do |session|
+      names = session.read_transaction do |tx|
+        tx.run('MATCH (p:Person) RETURN p.name AS name').collect do |result|
+          result['name']
+        end
       end
+      expect(names).to contain_exactly('Tony Stark', 'Steve Rogers')
     end
-    expect(names).to contain_exactly('Tony Stark', 'Steve Rogers')
   end
 
   def test_write_transaction(mode)
-    session = driver.session(mode)
-    session.write_transaction do |tx|
-      node = tx.run("CREATE (s:Shield {material: 'Vibranium'}) RETURN s").next['s']
-      expect(node.properties[:material]).to eq ('Vibranium')  
+    driver.session(mode) do |session|
+      session.write_transaction do |tx|
+        node = tx.run("CREATE (s:Shield {material: 'Vibranium'}) RETURN s").next['s']
+        expect(node.properties[:material]).to eq ('Vibranium')
+      end
     end
     driver.session do |session|
       result = session.run('MATCH (s:Shield) RETURN s.material').next
@@ -69,14 +73,15 @@ RSpec.describe 'SessionSpec' do
   end
 
   def test_tx_rollback_when_function_throws_exception(mode)
-    session = driver.session(mode)
-    expect {
-      session.write_transaction do |tx|
-        tx.run("CREATE (:Person {name: 'Thanos'})")
-        tx.run( 'UNWIND range(0, 1) AS i RETURN 10/i')
-        tx.success
-      end
-    }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+    driver.session(mode) do |session|
+      expect {
+        session.write_transaction do |tx|
+          tx.run("CREATE (:Person {name: 'Thanos'})")
+          tx.run('UNWIND range(0, 1) AS i RETURN 10/i')
+          tx.success
+        end
+      }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+    end
 
     driver.session do |session|
       result = session.run("MATCH (p:Person {name: 'Thanos'}) RETURN count(p)").next
