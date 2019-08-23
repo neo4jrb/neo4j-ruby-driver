@@ -56,7 +56,8 @@ module Neo4j
             @failure = nil
           end
 
-          alias failure consume
+          alias failure consume # it probably should be summary instead of consume to preserve the potentially yet
+                                # unused result set
 
           def on_failure(error)
             @finished = true
