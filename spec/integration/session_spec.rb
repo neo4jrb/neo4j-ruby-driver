@@ -44,6 +44,18 @@ RSpec.describe 'SessionSpec' do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE)
   end
 
+  it 'retries read transaction until success' do
+
+  end
+
+  it 'retries read transaction until failure' do
+
+  end
+
+  it 'retries write transaction until failure' do
+
+  end
+
   def test_read_transaction(mode)
     driver.session do |session|
       session.run("CREATE (:Person {name: 'Tony Stark'})").consume
