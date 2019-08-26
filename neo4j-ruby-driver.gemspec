@@ -56,6 +56,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'activesupport'
   spec.add_runtime_dependency 'zeitwerk'
   spec.add_development_dependency 'bundler'
+  spec.add_development_dependency 'ffaker'
   spec.add_development_dependency 'neo4j-rake_tasks', '>= 0.3.0'
   spec.add_development_dependency 'parallel'
   spec.add_development_dependency 'rake'

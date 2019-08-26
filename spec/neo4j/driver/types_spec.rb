@@ -98,11 +98,10 @@ RSpec.describe Neo4j::Driver do
   end
 
   context 'when bytes' do
-    let(:bytes) { [1, 2, 3] }
-    let(:param) { Neo4j::Driver::Types::ByteArray.from_bytes(bytes) }
+    let(:param) { [1, 2, 3].pack('C*') }
 
     it { is_expected.to eq param }
-    its(:to_bytes) { is_expected.to eq bytes }
-    it { is_expected.to be_a Neo4j::Driver::Types::ByteArray }
+    it { is_expected.to be_a String }
+    its(:encoding) { is_expected.to eq Encoding::ASCII_8BIT }
   end
 end
