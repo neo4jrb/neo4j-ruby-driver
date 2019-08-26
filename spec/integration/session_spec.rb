@@ -44,17 +44,17 @@ RSpec.describe 'SessionSpec' do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE)
   end
 
-  it 'retries read transaction until success' do
+  # it 'retries read transaction until success' do
 
-  end
+  # end
 
-  it 'retries read transaction until failure' do
+  # it 'retries read transaction until failure' do
 
-  end
+  # end
 
-  it 'retries write transaction until failure' do
+  # it 'retries write transaction until failure' do
 
-  end
+  # end
 
   def test_read_transaction(mode)
     driver.session do |session|
