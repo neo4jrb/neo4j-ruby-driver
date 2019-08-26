@@ -65,7 +65,7 @@ module Neo4j
           end
 
           def last_bookmark
-            Bolt::Connection.last_bookmark(bolt_connection).first
+            Bolt::Connection.last_bookmark(bolt_connection).first.force_encoding(Encoding::UTF_8)
           end
 
           private

@@ -19,7 +19,11 @@ module Neo4j
         # end work around
 
         def run(statement, parameters = {})
-          check { java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters)) }
+          Neo4j::Driver::Internal::StatementValidator.validate!(parameters)
+          check do
+            java_method(:run, [org.neo4j.driver.v1.Statement])
+              .call(Neo4j::Driver::Statement.new(statement, to_neo(parameters)))
+          end
         end
 
         def begin_transaction # (config = nil)
@@ -36,8 +40,12 @@ module Neo4j
           case object
           when Hash
             object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
-          when Types::ByteArray
-            object.to_java_bytes
+          when Types::Path
+            Exceptions::ClientException.unable_to_convert(object)
+          when Enumerable
+            object.map(&method(:to_neo))
+          when String
+            object.encoding == Encoding::ASCII_8BIT ? object.to_java_bytes : object
           when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when ActiveSupport::Duration
@@ -58,8 +66,10 @@ module Neo4j
             to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
           when Time
             to_zoned_date_time(object, object.formatted_offset)
-          else
+          when nil, true, false, Integer, Float
             object
+          else
+            raise Exceptions::ClientException.unable_to_convert(object)
           end
         end
 

@@ -17,7 +17,7 @@ module Neo4j
               when :bolt_float
                 Bolt::Float.get(value)
               when :bolt_bytes
-                Types::ByteArray.from_bytes(Array.new(Bolt::Value.size(value)) { |i| Bolt::Bytes.get(value, i) })
+                Array.new(Bolt::Value.size(value)) { |i| Bolt::Bytes.get(value, i) }.pack('C*')
               when :bolt_string
                 Bolt::String.get(value).read_string(Bolt::Value.size(value)).force_encoding(Encoding::UTF_8)
               when :bolt_dictionary
@@ -45,14 +45,13 @@ module Neo4j
                 Bolt::Value.format_as_integer(value, object)
               when Float
                 Bolt::Value.format_as_float(value, object)
-              when Types::ByteArray
-                Bolt::Value.format_as_bytes(value, object, object.size)
               when String
-                object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
-                Bolt::Value.format_as_string(value, object, object.bytesize)
-              when Array
-                Bolt::Value.format_as_list(value, object.size)
-                object.each_with_index { |elem, index| to_neo(Bolt::List.value(value, index), elem) }
+                if object.encoding == Encoding::ASCII_8BIT
+                  Bolt::Value.format_as_bytes(value, object, object.size)
+                else
+                  object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
+                  Bolt::Value.format_as_string(value, object, object.bytesize)
+                end
               when Hash
                 Bolt::Value.format_as_dictionary(value, object.size)
                 object.each_with_index do |(key, elem), index|
@@ -60,6 +59,12 @@ module Neo4j
                   Bolt::Dictionary.set_key(value, index, key, key.size)
                   to_neo(Bolt::Dictionary.value(value, index), elem)
                 end
+              when Types::Path
+                Exceptions::ClientException.unable_to_convert(object)
+              when Enumerable
+                object = object.to_a
+                Bolt::Value.format_as_list(value, object.size)
+                object.each_with_index { |elem, index| to_neo(Bolt::List.value(value, index), elem) }
               when Date
                 DateValue.to_neo(value, object)
               when ActiveSupport::Duration
@@ -84,7 +89,7 @@ module Neo4j
               when Time
                 TimeWithZoneOffsetValue.to_neo(value, object)
               else
-                raise Exception, 'unsupported ruby type'
+                Exceptions::ClientException.unable_to_convert(object)
               end
               value
             end

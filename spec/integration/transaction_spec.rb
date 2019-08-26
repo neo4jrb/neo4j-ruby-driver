@@ -139,7 +139,7 @@ RSpec.describe 'Transaction' do
         tx.run('CREATE (:Node2)')
         tx.run('CREATE SmthStrange')
         # In java the code below might be or might be not executed as all `tx.run` are responding asynchronously and the
-        # exeption might happen before 1 of the 3 subsequent lines is executed.
+        # exception might happen before any of the 3 subsequent lines is executed.
         tx.run('CREATE (:Node3)')
         tx.run('CREATE (:Node4)')
 

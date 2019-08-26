@@ -23,7 +23,7 @@ module Neo4j
         end
 
         def arguments
-          [code, message, self, suppressed.map(&method(:mapped_exception))]
+          [code, message, cause, suppressed.map(&method(:mapped_exception))]
         end
 
         private

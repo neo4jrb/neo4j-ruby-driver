@@ -29,7 +29,7 @@ module Bolt
     attach_function :format_as_string, :BoltValue_format_as_String, %i[pointer string int32], :void
     attach_function :format_as_dictionary, :BoltValue_format_as_Dictionary, %i[pointer int32], :void
     attach_function :format_as_list, :BoltValue_format_as_List, %i[pointer int32], :void
-    attach_function :format_as_bytes, :BoltValue_format_as_Bytes, %i[pointer string int32], :void
+    attach_function :format_as_bytes, :BoltValue_format_as_Bytes, %i[pointer pointer int32], :void
     attach_function :format_as_structure, :BoltValue_format_as_Structure, %i[pointer int16 int32], :void
   end
 end

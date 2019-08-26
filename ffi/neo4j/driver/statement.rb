@@ -6,6 +6,7 @@ module Neo4j
       attr_reader :text, :parameters
 
       def initialize(text, parameters = nil)
+        Internal::StatementValidator.validate!(parameters)
         @text = text
         @parameters = parameters || {}
       end
