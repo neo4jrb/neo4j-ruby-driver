@@ -48,6 +48,10 @@ RSpec.describe 'SessionSpec' do
 
   # end
 
+  # it 'retries write transaction until success' do
+
+  # end
+
   # it 'retries read transaction until failure' do
 
   # end
@@ -55,6 +59,59 @@ RSpec.describe 'SessionSpec' do
   # it 'retries write transaction until failure' do
 
   # end
+
+  # it 'collects write transaction retry errors' do
+
+  # end
+
+  # it 'collects read transaction retry errors' do
+
+  # end
+
+  it 'commits read transaction without success' do
+    session = driver.session
+    expect(session.last_bookmark).to be nil
+    answer = session.read_transaction { |tx| tx.run('RETURN 43').single[0] }
+    expect(answer).to eq(43)
+    expect(session.last_bookmark).not_to be nil
+  end
+
+  it 'commits write transaction without success' do
+    session = driver.session
+    answer = session.write_transaction { |tx| tx.run("CREATE (:Person {name: 'Thor Odinson'}) RETURN 42").single[0] }
+    expect(answer).to eq(42)
+    val = driver.session do |session|
+      session.run("MATCH (p:Person {name: 'Thor Odinson'}) RETURN count(p)").single[0]
+    end
+    expect(val).to eq(1)
+  end
+
+  it 'rolls back read transaction with failure' do
+    session = driver.session
+    expect(session.last_bookmark).to be nil
+    answer = session.read_transaction do |tx|
+      val = tx.run('RETURN 42').single[0]
+      tx.failure
+      val
+    end
+    expect(answer).to eq(42)
+    expect(session.last_bookmark).to be nil
+  end
+
+  it 'rolls back write transaction with failure' do
+    session = driver.session
+    expect(session.last_bookmark).to be nil
+    answer = session.write_transaction do |tx|
+      val = tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
+      tx.failure
+      42
+    end
+    expect(answer).to eq(42)
+    val = driver.session do |session|
+      session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)").single[0]
+    end
+    expect(val).to eq(0)
+  end
 
   def test_read_transaction(mode)
     driver.session do |session|
