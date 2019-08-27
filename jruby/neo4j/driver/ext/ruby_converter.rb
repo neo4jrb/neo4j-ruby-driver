@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'date'
-
 module Neo4j
   module Driver
     module Ext
@@ -19,15 +17,15 @@ module Neo4j
             ActiveSupport::Duration.parse(as_iso_duration.to_s)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::POINT
             point = as_point
-            Neo4j::Driver::Types::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))
+            Types::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::BYTES
-            Neo4j::Driver::Types::ByteArray.new(String.from_java_bytes(as_byte_array))
+            String.from_java_bytes(as_byte_array)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::TIME
-            Neo4j::Driver::Types::OffsetTime.parse(as_offset_time.to_string)
+            Types::OffsetTime.parse(as_offset_time.to_string)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LOCAL_TIME
-            Neo4j::Driver::Types::LocalTime.parse(as_local_time.to_string)
+            Types::LocalTime.parse(as_local_time.to_string)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LOCAL_DATE_TIME
-            Neo4j::Driver::Types::LocalDateTime.parse(as_local_date_time.to_string)
+            Types::LocalDateTime.parse(as_local_date_time.to_string)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE_TIME
             to_time
           else

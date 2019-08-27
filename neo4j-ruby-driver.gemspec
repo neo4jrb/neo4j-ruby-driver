@@ -8,7 +8,9 @@ require 'platform_requirements'
 PlatformRequirements.run_checks!
 
 Gem::Specification.new do |spec|
-  spec.name = 'neo4j-ruby-driver'
+  ffi = ENV.key?('SEABOLT_LIB')
+
+  spec.name = "neo4j-#{ffi ? :ruby : :java}-driver"
   spec.version = Neo4j::Driver::VERSION
   spec.authors = ['Heinrich Klobuczek']
   spec.email = ['heinrich@mail.com']
@@ -31,29 +33,30 @@ Gem::Specification.new do |spec|
   end
 
   # Specify which files should be added to the gem when it is released.
-  # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
-  spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
-  end
+  spec.files << Dir[*%w[neo4j-ruby-driver.gemspec Rakefile README.md LICENSE.txt Gemfile lib/neo4j_ruby_driver.rb lib/loader.rb]]
 
-  jruby = RUBY_PLATFORM.match?(/java/)
-  pdir = if ENV.key?('SEABOLT_LIB')
-           'ffi'
-         else
-           jruby ? 'jruby' : 'ffi'
-         end
+  pdir = ffi ? 'ffi' : 'jruby'
+  #jruby = RUBY_PLATFORM.match?(/java/)
+  #pdir = if ENV.key?('SEABOLT_LIB')
+  #         'ffi'
+  #       else
+  #         jruby ? 'jruby' : 'ffi'
+  #       end
 
-  spec.files << Dir['lib/**/*.rb']
+  spec.files << Dir['lib/neo4j/**/*.rb']
   spec.files << Dir["#{pdir}/**/*.rb"]
+  spec.files << Dir["#{pdir}/**/*.jar"]
 
   spec.bindir = 'exe'
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib', pdir]
 
-  spec.add_runtime_dependency 'ffi'
+  spec.platform = 'java' if RUBY_PLATFORM.match?(/java/)
 
-  if jruby
-    spec.platform = 'java'
+  if ffi
+    spec.add_runtime_dependency 'ffi'
+    spec.add_runtime_dependency 'recursive-open-struct'
+  else
     spec.add_runtime_dependency 'jar-dependencies'
     spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5'
     # avoids to install it on the fly when jar-dependencies needs it
@@ -63,7 +66,9 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'activesupport'
   spec.add_runtime_dependency 'zeitwerk'
   spec.add_development_dependency 'bundler'
+  spec.add_development_dependency 'ffaker'
   spec.add_development_dependency 'neo4j-rake_tasks', '>= 0.3.0'
+  spec.add_development_dependency 'parallel'
   spec.add_development_dependency 'rake'
   spec.add_development_dependency 'rspec-its'
 end

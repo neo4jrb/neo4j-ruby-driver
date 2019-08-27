@@ -5,7 +5,7 @@ module Neo4j
     module Ext
       module RunOverride
         include ExceptionCheckable
-        extend Neo4j::Driver::AutoClosable
+        extend AutoClosable
 
         auto_closable :begin_transaction
 
@@ -13,13 +13,17 @@ module Neo4j
         Struct.new('Wrapper', :object)
 
         def write_transaction
-          super { |tx| Struct::Wrapper.new(yield(tx)) }.object
+          check { super { |tx| Struct::Wrapper.new(yield(tx)) }.object }
         end
 
         # end work around
 
         def run(statement, parameters = {})
-          check { java_method(:run, [java.lang.String, java.util.Map]).call(statement, to_neo(parameters)) }
+          Neo4j::Driver::Internal::StatementValidator.validate!(parameters)
+          check do
+            java_method(:run, [org.neo4j.driver.v1.Statement])
+              .call(Neo4j::Driver::Statement.new(statement, to_neo(parameters)))
+          end
         end
 
         def begin_transaction # (config = nil)
@@ -36,30 +40,36 @@ module Neo4j
           case object
           when Hash
             object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
-          when Neo4j::Driver::Types::ByteArray
-            object.to_java_bytes
+          when Types::Path
+            Exceptions::ClientException.unable_to_convert(object)
+          when Enumerable
+            object.map(&method(:to_neo))
+          when String
+            object.encoding == Encoding::ASCII_8BIT ? object.to_java_bytes : object
           when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(
-              *Neo4j::Driver::Internal::DurationNormalizer.normalize(object)
+              *Driver::Internal::DurationNormalizer.normalize(object)
             )
-          when Neo4j::Driver::Types::Point
+          when Types::Point
             Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
-          when Neo4j::Driver::Types::OffsetTime
+          when Types::OffsetTime
             Java::JavaTime::OffsetTime.of(object.hour, object.min, object.sec,
                                           object.nsec, Java::JavaTime::ZoneOffset.of_total_seconds(object.utc_offset))
-          when Neo4j::Driver::Types::LocalTime
+          when Types::LocalTime
             Java::JavaTime::LocalTime.of(object.hour, object.min, object.sec, object.nsec)
-          when Neo4j::Driver::Types::LocalDateTime
+          when Types::LocalDateTime
             Java::JavaTime::LocalDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
                                              object.nsec)
           when ActiveSupport::TimeWithZone
             to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
           when Time
             to_zoned_date_time(object, object.formatted_offset)
-          else
+          when nil, true, false, Integer, Float
             object
+          else
+            raise Exceptions::ClientException.unable_to_convert(object)
           end
         end
 

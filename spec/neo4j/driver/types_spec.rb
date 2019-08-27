@@ -61,6 +61,12 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to match(/^string$/) }
   end
 
+  context "when long String" do
+    let(:param) { 'a' * 30 }
+
+    it { is_expected.to eq param }
+  end
+
   WGS_84_CRS_CODE = 4326
   CARTESIAN_3D_CRS_CODE = 9157
   DELTA = 0.00001
@@ -92,11 +98,10 @@ RSpec.describe Neo4j::Driver do
   end
 
   context 'when bytes' do
-    let(:bytes) { [1, 2, 3] }
-    let(:param) { Neo4j::Driver::Types::ByteArray.from_bytes(bytes) }
+    let(:param) { [1, 2, 3].pack('C*') }
 
     it { is_expected.to eq param }
-    its(:to_bytes) { is_expected.to eq bytes }
-    it { is_expected.to be_a Neo4j::Driver::Types::ByteArray }
+    it { is_expected.to be_a String }
+    its(:encoding) { is_expected.to eq Encoding::ASCII_8BIT }
   end
 end

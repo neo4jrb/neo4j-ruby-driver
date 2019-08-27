@@ -4,12 +4,17 @@ module Neo4j
   module Driver
     module Ext
       module InternalStatementResult
+        include Enumerable
         include ExceptionCheckable
 
-        %i[has_next? list to_a map single consume].each do |method|
+        %i[has_next? next keys single consume summary].each do |method|
           define_method(method) do |*args, &block|
             check { super(*args, &block) }
           end
+        end
+
+        def each(&block)
+          check { stream.for_each(&block) }
         end
       end
     end

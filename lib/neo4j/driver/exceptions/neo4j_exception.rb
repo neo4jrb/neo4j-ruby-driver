@@ -4,12 +4,18 @@ module Neo4j
   module Driver
     module Exceptions
       class Neo4jException < RuntimeError
-        attr_reader :code, :cause
+        attr_reader :code, :cause, :suppressed
 
-        def initialize(code, message, cause = nil)
+        def initialize(*args)
+          @code = args.shift if args.count > 1
+          message = args.shift
+          @cause = args.shift
+          @suppressed = args.shift
           super(message)
-          @code = code
-          @cause = cause
+        end
+
+        def add_suppressed(exception)
+          (@suppressed ||= []) << exception
         end
       end
     end

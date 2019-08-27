@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
+require 'ffaker'
 require 'neo4j_ruby_driver'
 require 'support/driver_helper'
 require 'support/neo4j_cleaner'
 require 'rspec/its'
+require 'parallel'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

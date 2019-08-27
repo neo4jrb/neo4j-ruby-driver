@@ -4,7 +4,7 @@ module Neo4j
   module Driver
     module Ext
       module GraphDatabase
-        extend Neo4j::Driver::AutoClosable
+        extend AutoClosable
         include ExceptionCheckable
 
         auto_closable :driver
@@ -19,8 +19,8 @@ module Neo4j
         private
 
         def to_java_config(hash)
-          hash.reduce(Neo4j::Driver::Config.build) { |object, key_value| object.send(*config_method(*key_value)) }
-              .to_config
+          hash&.reduce(Neo4j::Driver::Config.build) { |object, key_value| object.send(*config_method(*key_value)) }
+              &.to_config
         end
 
         def config_method(key, value)
@@ -43,9 +43,9 @@ module Neo4j
         def load_balancing_strategy(value)
           case value
           when :least_connected
-            Neo4j::Driver::Config::LoadBalancingStrategy::LEAST_CONNECTED
+            Config::LoadBalancingStrategy::LEAST_CONNECTED
           when :round_robin
-            Neo4j::Driver::Config::LoadBalancingStrategy::ROUND_ROBIN
+            Config::LoadBalancingStrategy::ROUND_ROBIN
           else
             raise ArgumentError
           end

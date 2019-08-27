@@ -10,10 +10,12 @@
 .rspec_status
 
 .ruby-version
+.rakeTasks
 *.lock
 *.jar
+*.gem
 .env
 .idea/
 db/
 
-neo4j-ruby-driver_jars.rb
+neo4j-java-driver_jars.rb

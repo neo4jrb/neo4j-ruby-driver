@@ -6,7 +6,7 @@ jdk:
   - openjdk8
 cache: bundler
 rvm:
-  - jruby-9.2.7.0
+  - jruby-9.2.8.0
   - 2.6.3
 before_install: gem install bundler
 before_script:
@@ -23,15 +23,15 @@ before_script:
 env:
   global:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
-    - NEO4J_BOLT_URL="bolt://localhost:7472"
-    - BOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
+    - NEO4J_BOLT_URL="bolt://127.0.0.1:7472"
+    - SEABOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
   matrix:
     - NEO4J_VERSION=enterprise-3.5.8 SEABOLT_LIB=$BOLT_LIB
     - NEO4J_VERSION=enterprise-3.4.14 SEABOLT_LIB=$BOLT_LIB
     - NEO4J_VERSION=community-3.5.8 SEABOLT_LIB=$BOLT_LIB
 matrix:
   include:
-    - rvm: 2.5.4
+    - rvm: 2.5.5
     - env: NEO4J_VERSION=enterprise-3.5.8
     - env: NEO4J_VERSION=enterprise-3.4.14
     - env: NEO4J_VERSION=community-3.5.8
