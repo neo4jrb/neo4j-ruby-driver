@@ -7,7 +7,7 @@ jdk:
 cache: bundler
 rvm:
   - jruby-9.2.8.0
-  - 2.6.3
+  - 2.6.4
 before_install: gem install bundler
 before_script:
   - "travis_retry bundle exec rake neo4j:install[$NEO4J_VERSION] --trace"
