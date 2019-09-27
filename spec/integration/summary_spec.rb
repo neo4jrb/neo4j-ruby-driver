@@ -94,9 +94,10 @@ RSpec.describe 'Summary' do
 
   it 'contains notifications' do
     driver.session do |session|
-      # 'EXPLAIN MATCH (n), (m) RETURN n, m' does not return notifications. Server issue?
+      # 'EXPLAIN MATCH (n), (m) RETURN n, m' seems to return notifications randomly. Server issue?
       # summary = session.run('EXPLAIN MATCH (n), (m) RETURN n, m').consume
-      summary = session.run('EXPLAIN MATCH (n), (m) RETURN *').consume
+      # summary = session.run('EXPLAIN MATCH (n), (m) RETURN *').consume
+      summary = session.run('EXPLAIN MATCH (n:ThisLabelDoesNotExist) RETURN n').consume
 
       notifications = summary.notifications
       expect(notifications).to be_present

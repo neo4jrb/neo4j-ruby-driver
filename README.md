@@ -1,5 +1,7 @@
 # Neo4j::Driver
 
+home  :: https://github.com/neo4jrb/neo4j-ruby-driver
+
 Proposal for an API for neo4j ruby driver. This gem contains reference implementation in jruby with most of the features
 completed.
 The proposed API is heavilly inspired but the java and javascipt driver. Please add comments and suggestions if you feel there 
@@ -34,7 +36,6 @@ Refer to https://neo4j.com/docs/developer-manual/3.4/drivers/.
 After checking out the repo, run `bin/setup` to install dependencies. 
 In order to run test by running `rake spec` you may have to set your own `NEO4J_BOLT_URL` URI or it will
 fallback to `bolt://localhost:7687`.
-You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
@@ -42,15 +43,16 @@ This gem includes 2 different implementations: java driver based and another one
 
 For java driver based:
 
-    $ rvm use jruby-9.2.5.0
+    $ gem install hoe
+    $ gem install hoe-bundler
+    $ gem install hoe-gemspec
+    $ rake clean bundler:gemfile[,true] gem:spec
     $ bundle
-    $ rspec
+    $ rake  
     
-FFI based:
+FFI based: same as above but with SEABOLT_LIB variable set
 
-    $ rvm use 2.5.3 # or jruby-9.2.5.0
-    $ SEABOLT_LIB=~/seabolt/build/dist/lib/libseabolt17.dylib bundle
-    $ SEABOLT_LIB=~/seabolt/build/dist/lib/libseabolt17.dylib rspec
+    $ SEABOLT_LIB=~/seabolt/build/dist/lib/libseabolt17.dylib 
      
 Please note that seabolt for now has to be installed separately: https://github.com/neo4j-drivers/seabolt      
     
