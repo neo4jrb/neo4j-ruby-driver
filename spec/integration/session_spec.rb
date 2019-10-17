@@ -225,6 +225,35 @@ RSpec.describe 'SessionSpec' do
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
+
+  it 'should Be Possible To Consume Result After Session Is Closed' do
+    session = driver.session
+    result = session.run('UNWIND range(1, 20000) AS x RETURN x').list.collect {|l| l['x']}
+    expect(result.size).to eq(20000)
+  end
+
+  it 'should Propagate Failure From Summary' do
+    session = driver.session
+    result = session.run( "RETURN Wrong" )
+    expect { result.summary }.to raise_error Neo4j::Driver::Exceptions::ClientException
+  end
+
+  it 'should Throw From Close When Previous Error Not Consumed' do
+    session = driver.session
+    session.run('CREATE ()')
+    session.run('CREATE ()')
+    session.run( 'RETURN 10 / 0')
+    expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+  end
+
+  it 'should Throw From Run When Previous Error Not Consumed' do
+    session = driver.session
+    session.run('CREATE ()')
+    session.run('CREATE ()')
+    session.run( 'RETURN 10 / 0')
+    expect { session.run('CREATE ()') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+  end
+
   def test_read_transaction(mode)
     driver.session do |session|
       session.run("CREATE (:Person {name: 'Tony Stark'})").consume
