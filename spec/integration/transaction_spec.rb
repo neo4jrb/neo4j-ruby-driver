@@ -128,8 +128,8 @@ RSpec.describe 'Transaction' do
       tx.success
     end
 
-    expect(count_nodes_by_label('Node')).to be_zero
-    expect(count_nodes_by_label('OtherNode')).to be_zero
+    expect(count_nodes_by_label(:Node)).to be_zero
+    expect(count_nodes_by_label(:OtherNode)).to be_zero
   end
 
   it 'rolls back when marked successful but one statement fails' do
@@ -154,10 +154,10 @@ RSpec.describe 'Transaction' do
       # expect(suppressed.message).to start_with "Transaction can't be committed"
     end
 
-    expect(count_nodes_by_label('Node1')).to be_zero
-    expect(count_nodes_by_label('Node2')).to be_zero
-    expect(count_nodes_by_label('Node3')).to be_zero
-    expect(count_nodes_by_label('Node4')).to be_zero
+    expect(count_nodes_by_label(:Node1)).to be_zero
+    expect(count_nodes_by_label(:Node2)).to be_zero
+    expect(count_nodes_by_label(:Node3)).to be_zero
+    expect(count_nodes_by_label(:Node4)).to be_zero
   end
 
   def count_nodes_by_label(label)

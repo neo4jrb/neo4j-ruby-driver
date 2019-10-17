@@ -19,7 +19,7 @@ module Neo4j
             point = as_point
             Types::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::BYTES
-            String.from_java_bytes(as_byte_array)
+            Types::Bytes.new(String.from_java_bytes(as_byte_array))
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::TIME
             Types::OffsetTime.parse(as_offset_time.to_string)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LOCAL_TIME

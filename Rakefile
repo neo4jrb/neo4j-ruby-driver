@@ -28,7 +28,7 @@ end.spec gem_name do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
 
   dependency 'activesupport', '>= 0'
-  dependency 'zeitwerk', '>= 0'
+  dependency 'zeitwerk', '>= 2.1.10'
   dependency 'ffaker', '>= 0', :dev
   dependency 'neo4j-rake_tasks', '>= 0.3.0', :dev
   dependency 'parallel', '>= 0', :dev

@@ -9,7 +9,7 @@ module Neo4j
           extend StructureValue
 
           def self.to_ruby_value(id, labels, properties)
-            Types::Node.new(id, labels, properties)
+            Types::Node.new(id, labels.map(&:to_sym), properties)
           end
         end
       end

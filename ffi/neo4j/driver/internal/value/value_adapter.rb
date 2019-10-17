@@ -17,7 +17,7 @@ module Neo4j
               when :bolt_float
                 Bolt::Float.get(value)
               when :bolt_bytes
-                Array.new(Bolt::Value.size(value)) { |i| Bolt::Bytes.get(value, i) }.pack('C*')
+                Types::Bytes.new(Array.new(Bolt::Value.size(value)) { |i| Bolt::Bytes.get(value, i) }.pack('C*'))
               when :bolt_string
                 Bolt::String.get(value).read_string(Bolt::Value.size(value)).force_encoding(Encoding::UTF_8)
               when :bolt_dictionary
@@ -45,13 +45,11 @@ module Neo4j
                 Bolt::Value.format_as_integer(value, object)
               when Float
                 Bolt::Value.format_as_float(value, object)
+              when Types::Bytes
+                Bolt::Value.format_as_bytes(value, object, object.size)
               when String
-                if object.encoding == Encoding::ASCII_8BIT
-                  Bolt::Value.format_as_bytes(value, object, object.size)
-                else
-                  object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
-                  Bolt::Value.format_as_string(value, object, object.bytesize)
-                end
+                object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
+                Bolt::Value.format_as_string(value, object, object.bytesize)
               when Hash
                 Bolt::Value.format_as_dictionary(value, object.size)
                 object.each_with_index do |(key, elem), index|

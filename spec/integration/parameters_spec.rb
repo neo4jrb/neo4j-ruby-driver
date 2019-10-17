@@ -41,12 +41,13 @@ RSpec.describe 'Parameters' do
     end
 
     it 'is able to set and return ByteArray property' do
-      proc = ->(v) { v.is_a? String && v.encoding == Encoding::ASCII_8BIT }
-      test_property Random.new.bytes(0, &proc)
+      proc = ->(v) { v.is_a? Neo4j::Driver::Types::Bytes && v.encoding == Encoding::ASCII_8BIT }
+      bytes = ->(size) { Neo4j::Driver::Types::Bytes.new(Random.new.bytes(size, &proc)) }
+      test_property bytes.(0)
       16.times do |i|
         length = 2 ** i
-        test_property Random.new.bytes(length, &proc)
-        test_property Random.new.bytes(length - 1, &proc)
+        test_property bytes.(length)
+        test_property bytes.(length - 1)
       end
     end
 
@@ -170,7 +171,7 @@ RSpec.describe 'Parameters' do
     end
 
     context 'sends and receives long array of bytes' do
-      let(:value) { Random.new.bytes(LONG_VALUE_SIZE) }
+      let(:value) { Neo4j::Driver::Types::Bytes.new(Random.new.bytes(LONG_VALUE_SIZE)) }
 
       it { is_expected.to eq value }
     end

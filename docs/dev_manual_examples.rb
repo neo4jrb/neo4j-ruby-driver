@@ -275,8 +275,8 @@ end
 # Boolean       TrueClass/FalseClass
 # Integer       Integer
 # Float         Float
-# String        String (Encoding:UTF-8)
-# ByteArray     String (Encoding:ASCII-8BIT)
+# String        String
+# ByteArray     Neo4j::Driver::Types::Bytes
 # Date          Date
 # Time          Neo4j::Driver::Types::OffsetTime
 # LocalTime     Neo4j::Driver::Types::LocalTime
