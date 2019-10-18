@@ -11,7 +11,7 @@ module Neo4j
           super(id, properties)
           @start_node_id = start_node_id
           @end_node_id = end_node_id
-          @type = type
+          @type = type.to_sym
         end
       end
     end

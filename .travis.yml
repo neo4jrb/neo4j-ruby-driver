@@ -7,8 +7,8 @@ jdk:
 cache: bundler
 rvm:
   - jruby-9.2.8.0
-  - 2.6.4
-before_install: gem install bundler
+  - 2.6.5
+before_install: bin/setup
 before_script:
   - "travis_retry bundle exec rake neo4j:install[$NEO4J_VERSION] --trace"
   - "bundle exec rake neo4j:config[development,7474] --trace"
@@ -26,15 +26,15 @@ env:
     - NEO4J_BOLT_URL="bolt://127.0.0.1:7472"
     - SEABOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
   matrix:
-    - NEO4J_VERSION=enterprise-3.5.8
-    - NEO4J_VERSION=enterprise-3.4.14
-    - NEO4J_VERSION=community-3.5.8
+    - NEO4J_VERSION=enterprise-3.5.12
+    - NEO4J_VERSION=enterprise-3.4.16
+    - NEO4J_VERSION=community-3.5.12
 matrix:
   include:
-    - rvm: 2.5.5
-    - env: NEO4J_VERSION=enterprise-3.5.8 SEABOLT_LIB=
-    - env: NEO4J_VERSION=enterprise-3.4.14 SEABOLT_LIB=
-    - env: NEO4J_VERSION=community-3.5.8 SEABOLT_LIB=
+    - rvm: 2.5.7
+    - env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
+    - env: NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
+    - env: NEO4J_VERSION=community-3.5.12 SEABOLT_LIB=
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
   - cat ./db/neo4j/development/logs/debug.log

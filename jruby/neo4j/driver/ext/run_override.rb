@@ -44,8 +44,8 @@ module Neo4j
             Exceptions::ClientException.unable_to_convert(object)
           when Enumerable
             object.map(&method(:to_neo))
-          when String
-            object.encoding == Encoding::ASCII_8BIT ? object.to_java_bytes : object
+          when Types::Bytes
+            object.to_java_bytes
           when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when ActiveSupport::Duration
@@ -66,7 +66,7 @@ module Neo4j
             to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
           when Time
             to_zoned_date_time(object, object.formatted_offset)
-          when nil, true, false, Integer, Float
+          when nil, true, false, Integer, Float, String
             object
           else
             raise Exceptions::ClientException.unable_to_convert(object)
