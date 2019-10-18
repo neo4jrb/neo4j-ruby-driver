@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 RSpec.describe 'SessionSpec' do
+  let(:session) { driver.session }
   it 'knows session is closed' do
-    session = driver.session
     session.close
     expect(session).not_to be_open
   end
@@ -69,7 +69,6 @@ RSpec.describe 'SessionSpec' do
   # end
 
   it 'commits read transaction without success' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     answer = session.read_transaction { |tx| tx.run('RETURN 43').single[0] }
     expect(answer).to eq(43)
@@ -77,7 +76,6 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'commits write transaction without success' do
-    session = driver.session
     answer = session.write_transaction { |tx| tx.run("CREATE (:Person {name: 'Thor Odinson'}) RETURN 42").single[0] }
     expect(answer).to eq(42)
     val = driver.session do |session|
@@ -87,7 +85,6 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'rolls back read transaction with failure' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     answer = session.read_transaction do |tx|
       val = tx.run('RETURN 42').single[0]
@@ -99,7 +96,6 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'rolls back write transaction with failure' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     answer = session.write_transaction do |tx|
       val = tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
@@ -115,7 +111,6 @@ RSpec.describe 'SessionSpec' do
 
 
   it 'rolls back read transaction when exception is thrown' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     expect { 
       session.read_transaction do |tx|
@@ -128,7 +123,6 @@ RSpec.describe 'SessionSpec' do
   end
  
   it 'rolls back write transaction when exception is thrown' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     expect {
       session.write_transaction do |tx|
@@ -143,7 +137,6 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'rolls back read transaction when marked both success and failure' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     answer = session.read_transaction do |tx|
       val = tx.run('RETURN 42').single[0]
@@ -156,7 +149,6 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'rolls back write transaction when marked both success and failure' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     answer = session.write_transaction do |tx|
       val = tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
@@ -173,7 +165,6 @@ RSpec.describe 'SessionSpec' do
 
 
   it 'rolls back read transaction when marked success and throws exception' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     expect { 
       session.read_transaction do |tx|
@@ -186,7 +177,6 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'rolls back write transaction when marked success and exception is thrown' do
-    session = driver.session
     expect(session.last_bookmark).to be nil
     expect {
       session.write_transaction do |tx|
@@ -214,32 +204,27 @@ RSpec.describe 'SessionSpec' do
   # end
 
   it 'should propagate failure when closed' do
-    session = driver.session
     session.run('RETURN 10 / 0')
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
   it 'should Propagate Pull All Failure When Closed' do
-    session = driver.session
     session.run('UNWIND range(20000, 0, -1) AS x RETURN 10 / x')
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
 
   it 'should Be Possible To Consume Result After Session Is Closed' do
-    session = driver.session
     result = session.run('UNWIND range(1, 20000) AS x RETURN x').list.collect {|l| l['x']}
     expect(result.size).to eq(20000)
   end
 
   it 'should Propagate Failure From Summary' do
-    session = driver.session
     result = session.run( "RETURN Wrong" )
     expect { result.summary }.to raise_error Neo4j::Driver::Exceptions::ClientException
   end
 
   it 'should Throw From Close When Previous Error Not Consumed' do
-    session = driver.session
     session.run('CREATE ()')
     session.run('CREATE ()')
     session.run( 'RETURN 10 / 0')
@@ -247,11 +232,53 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'should Throw From Run When Previous Error Not Consumed' do
-    session = driver.session
     session.run('CREATE ()')
     session.run('CREATE ()')
     session.run( 'RETURN 10 / 0')
     expect { session.run('CREATE ()') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+  end
+
+  it 'should Close Cleanly When Run Error Consumed' do
+    session.run('CREATE ()')
+    expect { session.run('RETURN 10 / 0').consume }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+    session.run('CREATE ()')
+    session.close
+    expect(session.open?).to eq(false)
+  end
+
+  it 'should Consume Previous Result Before Running New Query' do
+    session.run('UNWIND range(1000, 0, -1) AS x RETURN 42 / x')
+    expect { session.run('RETURN 1') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+  end
+
+  it 'shouldNotRetryOnConnectionAcquisitionTimeout' do
+
+  end
+
+  it 'should Allow Consuming Records After Failure In Session Close' do
+    result = session.run('CYPHER runtime=interpreted UNWIND [2, 4, 8, 0] AS x RETURN 32 / x')
+    expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+    expect(result.has_next?).to eq(true)
+    expect(result.next.values.first).to eq(16)
+    expect(result.has_next?).to eq(true)
+    expect(result.next.values.first).to eq(8)
+    expect(result.has_next?).to eq(true)
+    expect(result.next.values.first).to eq(4)
+    expect(result.has_next?).to eq(false)
+  end
+
+  it 'should Allow Accessing Records After Summary' do
+    record_count = 10000
+    query = 'UNWIND range(1, 10000) AS x RETURN x'
+    result = session.run(query)
+    summary = result.summary
+    expect(summary.statement.text).to eq(query)
+    expect(summary.statement_type.name).to eq('READ_ONLY')
+    records = result.list
+    expect(records.size).to eq(record_count)
+    records.each_with_index do |record, index|
+      expect(record[0]).to eq(index + 1)
+    end
   end
 
   def test_read_transaction(mode)
