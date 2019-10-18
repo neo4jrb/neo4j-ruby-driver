@@ -109,7 +109,6 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              max_transaction_retry_time: 15 * 1000) # 15 seconds
 
-
 ######################################
 # Example 2.12. Service unavailable
 ######################################
@@ -220,7 +219,6 @@ def add_employ_and_make_friends
 
   # Create the first person and employment relationship.
   driver.session(Neo4j::Driver::AccessMode::WRITE) do |session1|
-
     session1.write_transaction { |tx| add_company(tx, 'Wayne Enterprises') }
     session1.write_transaction { |tx| add_person(tx, 'Alice') }
     session1.write_transaction { |tx| employ(tx, 'Alice', 'Wayne Enterprises') }

@@ -41,13 +41,13 @@ RSpec.describe 'Parameters' do
     end
 
     it 'is able to set and return ByteArray property' do
-      proc = ->(v) { v.is_a? Neo4j::Driver::Types::Bytes && v.encoding == Encoding::ASCII_8BIT }
+      proc = ->(v) { v.is_a?(Neo4j::Driver::Types::Bytes && v.encoding == Encoding::ASCII_8BIT) }
       bytes = ->(size) { Neo4j::Driver::Types::Bytes.new(Random.new.bytes(size, &proc)) }
-      test_property bytes.(0)
+      test_property bytes.call(0)
       16.times do |i|
         length = 2 ** i
-        test_property bytes.(length)
-        test_property bytes.(length - 1)
+        test_property bytes.call(length)
+        test_property bytes.call(length - 1)
       end
     end
 

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
-require "rubygems"
-require "hoe"
+
+require 'rubygems'
+require 'hoe'
 require 'neo4j/rake_tasks'
 
 Hoe.plugin :bundler
@@ -49,7 +50,7 @@ end.spec gem_name do
     dependency 'jar-dependencies', '>= 0'
     dependency 'ruby-maven', '>= 0', :dev
 
-    spec_extras[:requirements] = -> (requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5' }
+    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5' }
     spec_extras[:platform] = 'java'
   end
 end

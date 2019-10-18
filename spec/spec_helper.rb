@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', ENV['SEABOLT_LIB']&.length&.positive? ? 'ffi' : 'jruby')
 
 require 'ffaker'
