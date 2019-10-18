@@ -3,13 +3,12 @@ set -euo pipefail
 IFS=$'\n\t'
 set -vx
 
-gem uninstall rake -v 13.0.0
 gem install rake -v 12.3.3
 gem install neo4j-rake_tasks
 gem install hoe
 gem install hoe-bundler
 gem install hoe-gemspec
-rake clean bundler:gemfile[,true] gem:spec
+rake _12.3.3._ clean bundler:gemfile[,true] gem:spec
 bundle update
 
 # Do any other automated setup that you need to do here
