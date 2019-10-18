@@ -14,8 +14,11 @@
 *.lock
 *.jar
 *.gem
+*.gemspec
 .env
 .idea/
 db/
 
 neo4j-java-driver_jars.rb
+Gemfile
+

@@ -46,7 +46,7 @@ Or install it yourself as:
 ## Usage
 
 Both drivers implement identical API and can be used interchangeably. The API is to highest possible degree consistent with the official java driver. 
-At this moment [The Neo4j Drivers Manual v1.7](https://neo4j.com/docs/driver-manual/1.7/) along with the ruby version of the [code fragments](https://github.com/neo4jrb/neo4j-ruby-driver/blob/hoe/docs/dev_manual_examples.rb) and the ruby specs provide the only documentation. 
+At this moment [The Neo4j Drivers Manual v1.7](https://neo4j.com/docs/driver-manual/1.7/) along with the ruby version of the [code fragments](https://github.com/neo4jrb/neo4j-ruby-driver/blob/master/docs/dev_manual_examples.rb) and the ruby specs provide the only documentation. 
 
 [Neo4j Java Driver 1.7 API](https://neo4j.com/docs/api/java-driver/current/) can be helpful as well..
 
