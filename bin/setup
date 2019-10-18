@@ -5,6 +5,7 @@ set -vx
 
 gem uninstall rake -v 13.0.0
 gem install rake -v 12.3.3
+gem install neo4j-rake_tasks
 gem install hoe
 gem install hoe-bundler
 gem install hoe-gemspec
