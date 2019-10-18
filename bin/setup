@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 set -vx
 
+gem install rake -v 12.3.3
 gem install hoe
 gem install hoe-bundler
 gem install hoe-gemspec
