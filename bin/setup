@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 set -vx
 
+gem uninstall rake -v 13.0.0
 gem install rake -v 12.3.3
 gem install hoe
 gem install hoe-bundler
