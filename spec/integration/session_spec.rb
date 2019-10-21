@@ -281,6 +281,143 @@ RSpec.describe 'SessionSpec' do
     end
   end
 
+  it 'should Allow Accessing Records After Session Closed' do
+    record_count = 11333
+    result = session.run('UNWIND range(1, 11333) AS x RETURN x')
+    session.close
+    records = result.list
+    expect(records.size).to eq(record_count)
+    records.each_with_index do |record, index|
+      expect(record[0]).to eq(index + 1)
+    end
+  end
+
+  it 'should Allow To Consume Records Slowly And Close Session' do
+    result = session.run('UNWIND range(10000, 0, -1) AS x RETURN 10 / x')
+    10.times do |index|
+      expect(result.has_next?).to eq(true)
+      expect(result.next).to be_truthy
+      sleep(10)
+    end    
+    expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException
+  end
+
+  it 'should Allow To Consume Records Slowly And Retrieve Summary' do
+    result = session.run('UNWIND range(8000, 1, -1) AS x RETURN 42 / x')
+    10.times do |index|
+      expect(result.has_next?).to eq(true)
+      expect(result.next).to be_truthy
+      sleep(10)
+    end    
+    expect(result.summary).to be_truthy
+  end
+
+  # it 'shouldBeResponsiveToThreadInterruptWhenWaitingForResult' do
+
+  # end
+
+  # it 'shouldAllowLongRunningQueryWithConnectTimeout' do
+
+  # end
+
+  it 'should Allow Returning Null From Transaction Function' do
+    expect(session.write_transaction { |tx| nil }).to be_nil
+    expect(session.read_transaction { |tx| nil }).to be_nil
+  end
+
+  it 'should Allow Iterating Over Empty Result' do
+    result = session.run('UNWIND [] AS x RETURN x')
+    expect(result.has_next?).to eq(false)
+    expect {result.next}.to raise_error Neo4j::Driver::Exceptions::NoSuchRecordException, 'No more records'
+  end
+
+  it 'should Allow Consuming Empty Result' do
+    result = session.run('UNWIND [] AS x RETURN x')
+    summary = result.consume
+    expect(summary).to be_truthy
+    expect(summary.statement_type.name).to eq('READ_ONLY')
+  end
+
+  it 'should Allow List Empty Result' do
+    result = session.run('UNWIND [] AS x RETURN x')
+    expect(result.list).to eq([])
+  end
+
+  it 'should Consume' do
+    query = 'UNWIND [1, 2, 3, 4, 5] AS x RETURN x'
+    result = session.run(query)
+    summary = result.consume
+    expect(summary.statement.text).to eq(query)
+    expect(summary.statement_type.name).to eq('READ_ONLY')
+    expect(result.has_next?).to eq(false)
+    expect(result.list).to eq([])
+  end
+
+  it 'should Consume With Failure' do
+    query = 'UNWIND [1, 2, 3, 4, 0] AS x RETURN 10 / x'
+    result = session.run(query)
+    expect { result.consume }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+    expect(result.summary.statement.text).to eq(query)
+    expect(result.has_next?).to eq(false)
+    expect(result.list).to eq([])
+  end
+
+  it 'should Not Allow Starting Multiple Transactions' do
+    tx = session.begin_transaction
+    expect(tx).to be_truthy
+    error_message = 'You cannot begin a transaction on a session with an open transaction; either run from within the transaction or use a different session.'
+    3.times do
+      expect { session.begin_transaction }.to raise_error Neo4j::Driver::Exceptions::ClientException, error_message
+    end
+    tx.close
+    expect(session.begin_transaction).to be_truthy
+  end
+
+  it 'should Close Open Transaction When Closed' do
+    tx = session.begin_transaction
+    tx.run('CREATE (:Node {id: 123})')
+    tx.run('CREATE (:Node {id: 456})')
+    tx.success
+    #expect(count_nodes_with_id(123)).to eq(1)
+    #expect(count_nodes_with_id(456)).to eq(1)
+  end
+
+  it 'should Rollback Open Transaction When Closed' do
+    tx = session.begin_transaction
+    tx.run('CREATE (:Node {id: 123})')
+    tx.run('CREATE (:Node {id: 456})')
+    tx.failure
+    #expect(count_nodes_with_id(123)).to eq(0)
+    #expect(count_nodes_with_id(456)).to eq(0)
+  end
+
+  it 'should Support Nested Queries' do
+    session.run('UNWIND range(1, 100) AS x CREATE (:Property {id: x})').consume
+    session.run('UNWIND range(1, 10) AS x CREATE (:Resource {id: x})').consume
+    seen_properties = 0
+    seen_resources = 0
+    properties = session.run('MATCH (p:Property) RETURN p')
+    while properties.has_next?
+      expect(properties.next).to be_truthy
+      seen_properties += 1
+      resources = session.run('MATCH (r:Resource) RETURN r')
+      while resources.has_next?
+        expect(resources.next).to be_truthy
+        seen_resources += 1
+      end
+    end
+    expect(seen_resources).to eq(1000)
+    expect(seen_properties).to eq(100)
+  end
+
+  def count_nodes_with_id(id)
+    result = driver.session do |session|
+      binding.pry
+      session.run('MATCH (n {id: {id}}) RETURN count(n)', id: id)
+    end
+    result.single[0]
+  end
+
   def test_read_transaction(mode)
     driver.session do |session|
       session.run("CREATE (:Person {name: 'Tony Stark'})").consume
