@@ -2,6 +2,9 @@
 
 module Neo4j
   module Driver
-    VERSION = '0.1.3'
+    module Types
+      class Bytes < String
+      end
+    end
   end
 end

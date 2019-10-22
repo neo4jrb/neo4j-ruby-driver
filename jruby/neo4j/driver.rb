@@ -18,15 +18,16 @@ module Neo4j
     end
 
     module Types
-      include_package 'org.neo4j.driver.v1.types'
+      Entity = Java::OrgNeo4jDriverInternal::InternalEntity
+      Node = Java::OrgNeo4jDriverInternal::InternalNode
+      Path = Java::OrgNeo4jDriverInternal::InternalPath
+      Relationship = Java::OrgNeo4jDriverInternal::InternalRelationship
     end
 
     # Workaround for missing zeitwerk support in jruby-9.2.8.0
-    if RUBY_PLATFORM.match?(/java/)
-      module Ext
-        module Internal
-          module Summary
-          end
+    module Ext
+      module Internal
+        module Summary
         end
       end
     end
@@ -37,12 +38,12 @@ end
 Loader.load
 
 Java::OrgNeo4jDriverInternal::InternalDriver.prepend Neo4j::Driver::Ext::InternalDriver
-Java::OrgNeo4jDriverInternal::InternalNode.include Neo4j::Driver::Ext::MapAccessor
-Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::MapAccessor
+Java::OrgNeo4jDriverInternal::InternalEntity.include Neo4j::Driver::Ext::MapAccessor
+Java::OrgNeo4jDriverInternal::InternalNode.prepend Neo4j::Driver::Ext::InternalNode
 Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
-Java::OrgNeo4jDriverInternal::InternalRelationship.include Neo4j::Driver::Ext::MapAccessor
+Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::InternalRelationship
 Java::OrgNeo4jDriverInternal::InternalStatementResult.prepend Neo4j::Driver::Ext::InternalStatementResult
 Java::OrgNeo4jDriverInternal::ExplicitTransaction.prepend Neo4j::Driver::Ext::RunOverride
 Java::OrgNeo4jDriverInternal::NetworkSession.prepend Neo4j::Driver::Ext::RunOverride

@@ -9,7 +9,7 @@ RSpec.describe Neo4j::Driver::Types::Node do
   end
 
   it { is_expected.to be_a_kind_of described_class }
-  its(:labels) { is_expected.to eq(['Person']) }
+  its(:labels) { is_expected.to eq(%i[Person]) }
   its(:id) { is_expected.to be_a(Integer) }
   its(:properties) { is_expected.to eq(name: 'John') }
 end
