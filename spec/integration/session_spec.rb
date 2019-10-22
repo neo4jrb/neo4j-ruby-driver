@@ -2,6 +2,7 @@
 
 RSpec.describe 'SessionSpec' do
   let(:session) { driver.session }
+
   it 'knows session is closed' do
     session.close
     expect(session).not_to be_open
@@ -98,7 +99,7 @@ RSpec.describe 'SessionSpec' do
   it 'rolls back write transaction with failure' do
     expect(session.last_bookmark).to be nil
     answer = session.write_transaction do |tx|
-      val = tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
+      tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
       tx.failure
       42
     end
@@ -109,27 +110,26 @@ RSpec.describe 'SessionSpec' do
     expect(val).to eq(0)
   end
 
-
   it 'rolls back read transaction when exception is thrown' do
     expect(session.last_bookmark).to be nil
-    expect { 
+    expect do
       session.read_transaction do |tx|
         val = tx.run('RETURN 42').single[0]
         raise Neo4j::Driver::Exceptions::IllegalStateException if val == 42
         1
       end
-    }.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
+    end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
     expect(session.last_bookmark).to be nil
   end
- 
+
   it 'rolls back write transaction when exception is thrown' do
     expect(session.last_bookmark).to be nil
-    expect {
+    expect do
       session.write_transaction do |tx|
         tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
         raise Neo4j::Driver::Exceptions::IllegalStateException
       end
-    }.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
+    end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
     val = driver.session do |session|
       session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)").single[0]
     end
@@ -151,7 +151,7 @@ RSpec.describe 'SessionSpec' do
   it 'rolls back write transaction when marked both success and failure' do
     expect(session.last_bookmark).to be nil
     answer = session.write_transaction do |tx|
-      val = tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
+      tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
       tx.success
       tx.failure
       42
@@ -163,28 +163,27 @@ RSpec.describe 'SessionSpec' do
     expect(val).to eq(0)
   end
 
-
   it 'rolls back read transaction when marked success and throws exception' do
     expect(session.last_bookmark).to be nil
-    expect { 
+    expect do
       session.read_transaction do |tx|
         tx.run('RETURN 42').single[0]
         tx.success
         raise Neo4j::Driver::Exceptions::IllegalStateException
       end
-    }.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
+    end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
     expect(session.last_bookmark).to be nil
   end
 
   it 'rolls back write transaction when marked success and exception is thrown' do
     expect(session.last_bookmark).to be nil
-    expect {
+    expect do
       session.write_transaction do |tx|
         tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
         tx.success
         raise Neo4j::Driver::Exceptions::IllegalStateException
       end
-    }.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
+    end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
     val = driver.session do |session|
       session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)").single[0]
     end
@@ -203,59 +202,59 @@ RSpec.describe 'SessionSpec' do
 
   # end
 
-  it 'should propagate failure when closed' do
+  it 'propagate failure when closed' do
     session.run('RETURN 10 / 0')
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
-  it 'should Propagate Pull All Failure When Closed' do
+  it 'Propagate Pull All Failure When Closed' do
     session.run('UNWIND range(20000, 0, -1) AS x RETURN 10 / x')
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
-
-  it 'should Be Possible To Consume Result After Session Is Closed' do
-    result = session.run('UNWIND range(1, 20000) AS x RETURN x').list.collect {|l| l['x']}
-    expect(result.size).to eq(20000)
+  it 'Be Possible To Consume Result After Session Is Closed' do
+    result = session.run('UNWIND range(1, 20000) AS x RETURN x').list.collect { |l| l['x'] }
+    expect(result.size).to eq(20_000)
   end
 
-  it 'should Propagate Failure From Summary' do
-    result = session.run( "RETURN Wrong" )
+  it 'Propagate Failure From Summary' do
+    result = session.run('RETURN Wrong')
     expect { result.summary }.to raise_error Neo4j::Driver::Exceptions::ClientException
   end
 
-  it 'should Throw From Close When Previous Error Not Consumed' do
+  it 'Throw From Close When Previous Error Not Consumed' do
     session.run('CREATE ()')
     session.run('CREATE ()')
-    session.run( 'RETURN 10 / 0')
+    session.run('RETURN 10 / 0')
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
-  it 'should Throw From Run When Previous Error Not Consumed' do
+  it 'Throw From Run When Previous Error Not Consumed' do
     session.run('CREATE ()')
     session.run('CREATE ()')
-    session.run( 'RETURN 10 / 0')
+    session.run('RETURN 10 / 0')
     expect { session.run('CREATE ()') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
-  it 'should Close Cleanly When Run Error Consumed' do
+  it 'Close Cleanly When Run Error Consumed' do
     session.run('CREATE ()')
-    expect { session.run('RETURN 10 / 0').consume }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+    expect do
+      session.run('RETURN 10 / 0').consume
+    end.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     session.run('CREATE ()')
     session.close
     expect(session.open?).to eq(false)
   end
 
-  it 'should Consume Previous Result Before Running New Query' do
+  it 'Consume Previous Result Before Running New Query' do
     session.run('UNWIND range(1000, 0, -1) AS x RETURN 42 / x')
     expect { session.run('RETURN 1') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
-  it 'shouldNotRetryOnConnectionAcquisitionTimeout' do
+  # it 'shouldNotRetryOnConnectionAcquisitionTimeout' do
+  # end
 
-  end
-
-  it 'should Allow Consuming Records After Failure In Session Close' do
+  it 'Allow Consuming Records After Failure In Session Close' do
     result = session.run('CYPHER runtime=interpreted UNWIND [2, 4, 8, 0] AS x RETURN 32 / x')
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     expect(result.has_next?).to eq(true)
@@ -267,8 +266,8 @@ RSpec.describe 'SessionSpec' do
     expect(result.has_next?).to eq(false)
   end
 
-  it 'should Allow Accessing Records After Summary' do
-    record_count = 10000
+  it 'Allow Accessing Records After Summary' do
+    record_count = 10_000
     query = 'UNWIND range(1, 10000) AS x RETURN x'
     result = session.run(query)
     summary = result.summary
@@ -281,8 +280,8 @@ RSpec.describe 'SessionSpec' do
     end
   end
 
-  it 'should Allow Accessing Records After Session Closed' do
-    record_count = 11333
+  it 'Allow Accessing Records After Session Closed' do
+    record_count = 11_333
     result = session.run('UNWIND range(1, 11333) AS x RETURN x')
     session.close
     records = result.list
@@ -292,23 +291,23 @@ RSpec.describe 'SessionSpec' do
     end
   end
 
-  it 'should Allow To Consume Records Slowly And Close Session' do
+  it 'Allow To Consume Records Slowly And Close Session' do
     result = session.run('UNWIND range(10000, 0, -1) AS x RETURN 10 / x')
-    10.times do |index|
+    10.times do
       expect(result.has_next?).to eq(true)
       expect(result.next).to be_truthy
       sleep(10)
-    end    
+    end
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException
   end
 
-  it 'should Allow To Consume Records Slowly And Retrieve Summary' do
+  it 'Allow To Consume Records Slowly And Retrieve Summary' do
     result = session.run('UNWIND range(8000, 1, -1) AS x RETURN 42 / x')
-    10.times do |index|
+    10.times do
       expect(result.has_next?).to eq(true)
       expect(result.next).to be_truthy
       sleep(10)
-    end    
+    end
     expect(result.summary).to be_truthy
   end
 
@@ -320,30 +319,30 @@ RSpec.describe 'SessionSpec' do
 
   # end
 
-  it 'should Allow Returning Null From Transaction Function' do
-    expect(session.write_transaction { |tx| nil }).to be_nil
-    expect(session.read_transaction { |tx| nil }).to be_nil
+  it 'Allow Returning Null From Transaction Function' do
+    expect(session.write_transaction { nil }).to be_nil
+    expect(session.read_transaction { nil }).to be_nil
   end
 
-  it 'should Allow Iterating Over Empty Result' do
+  it 'Allow Iterating Over Empty Result' do
     result = session.run('UNWIND [] AS x RETURN x')
     expect(result.has_next?).to eq(false)
-    expect {result.next}.to raise_error Neo4j::Driver::Exceptions::NoSuchRecordException, 'No more records'
+    expect { result.next }.to raise_error Neo4j::Driver::Exceptions::NoSuchRecordException, 'No more records'
   end
 
-  it 'should Allow Consuming Empty Result' do
+  it 'Allow Consuming Empty Result' do
     result = session.run('UNWIND [] AS x RETURN x')
     summary = result.consume
     expect(summary).to be_truthy
     expect(summary.statement_type.name).to eq('READ_ONLY')
   end
 
-  it 'should Allow List Empty Result' do
+  it 'Allow List Empty Result' do
     result = session.run('UNWIND [] AS x RETURN x')
     expect(result.list).to eq([])
   end
 
-  it 'should Consume' do
+  it 'Consume' do
     query = 'UNWIND [1, 2, 3, 4, 5] AS x RETURN x'
     result = session.run(query)
     summary = result.consume
@@ -353,7 +352,7 @@ RSpec.describe 'SessionSpec' do
     expect(result.list).to eq([])
   end
 
-  it 'should Consume With Failure' do
+  it 'Consume With Failure' do
     query = 'UNWIND [1, 2, 3, 4, 0] AS x RETURN 10 / x'
     result = session.run(query)
     expect { result.consume }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
@@ -362,10 +361,11 @@ RSpec.describe 'SessionSpec' do
     expect(result.list).to eq([])
   end
 
-  it 'should Not Allow Starting Multiple Transactions' do
+  it 'Not Allow Starting Multiple Transactions' do
     tx = session.begin_transaction
     expect(tx).to be_truthy
-    error_message = 'You cannot begin a transaction on a session with an open transaction; either run from within the transaction or use a different session.'
+    error_message = 'You cannot begin a transaction on a session with an open transaction; either run'\
+                    ' from within the transaction or use a different session.'
     3.times do
       expect { session.begin_transaction }.to raise_error Neo4j::Driver::Exceptions::ClientException, error_message
     end
@@ -373,25 +373,25 @@ RSpec.describe 'SessionSpec' do
     expect(session.begin_transaction).to be_truthy
   end
 
-  it 'should Close Open Transaction When Closed' do
+  it 'Close Open Transaction When Closed' do
     tx = session.begin_transaction
     tx.run('CREATE (:Node {id: 123})')
     tx.run('CREATE (:Node {id: 456})')
     tx.success
-    #expect(count_nodes_with_id(123)).to eq(1)
-    #expect(count_nodes_with_id(456)).to eq(1)
+    # expect(count_nodes_with_id(123)).to eq(1)
+    # expect(count_nodes_with_id(456)).to eq(1)
   end
 
-  it 'should Rollback Open Transaction When Closed' do
+  it 'Rollback Open Transaction When Closed' do
     tx = session.begin_transaction
     tx.run('CREATE (:Node {id: 123})')
     tx.run('CREATE (:Node {id: 456})')
     tx.failure
-    #expect(count_nodes_with_id(123)).to eq(0)
-    #expect(count_nodes_with_id(456)).to eq(0)
+    # expect(count_nodes_with_id(123)).to eq(0)
+    # expect(count_nodes_with_id(456)).to eq(0)
   end
 
-  it 'should Support Nested Queries' do
+  it 'Support Nested Queries' do
     session.run('UNWIND range(1, 100) AS x CREATE (:Property {id: x})').consume
     session.run('UNWIND range(1, 10) AS x CREATE (:Resource {id: x})').consume
     seen_properties = 0
@@ -412,7 +412,6 @@ RSpec.describe 'SessionSpec' do
 
   def count_nodes_with_id(id)
     result = driver.session do |session|
-      binding.pry
       session.run('MATCH (n {id: {id}}) RETURN count(n)', id: id)
     end
     result.single[0]
@@ -437,7 +436,7 @@ RSpec.describe 'SessionSpec' do
     driver.session(mode) do |session|
       session.write_transaction do |tx|
         node = tx.run("CREATE (s:Shield {material: 'Vibranium'}) RETURN s").next['s']
-        expect(node.properties[:material]).to eq ('Vibranium')
+        expect(node.properties[:material]).to eq('Vibranium')
       end
     end
     driver.session do |session|
@@ -448,13 +447,13 @@ RSpec.describe 'SessionSpec' do
 
   def test_tx_rollback_when_function_throws_exception(mode)
     driver.session(mode) do |session|
-      expect {
+      expect do
         session.write_transaction do |tx|
           tx.run("CREATE (:Person {name: 'Thanos'})")
           tx.run('UNWIND range(0, 1) AS i RETURN 10/i')
           tx.success
         end
-      }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+      end.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     end
 
     driver.session do |session|
