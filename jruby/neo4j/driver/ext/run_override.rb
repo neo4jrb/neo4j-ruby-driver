@@ -12,14 +12,16 @@ module Neo4j
         # work around jruby issue https://github.com/jruby/jruby/issues/5603
         Struct.new('Wrapper', :object)
 
-        def write_transaction
-          check { super { |tx| Struct::Wrapper.new(yield(tx)) }.object }
+        %i[read write].each do |prefix|
+          define_method("#{prefix}_transaction") do |&block|
+            check { super { |tx| Struct::Wrapper.new(block.call(tx)) }.object }
+          end
         end
 
         # end work around
 
         def run(statement, parameters = {})
-          Neo4j::Driver::Internal::StatementValidator.validate!(parameters)
+          Neo4j::Driver::Internal::Validator.require_hash_parameters!(parameters)
           check do
             java_method(:run, [org.neo4j.driver.v1.Statement])
               .call(Neo4j::Driver::Statement.new(statement, to_neo(parameters)))

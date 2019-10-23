@@ -5,6 +5,7 @@ module Neo4j
     class AuthTokens
       class << self
         def basic(username, password)
+          Internal::Validator.require_non_nil_credentials!(username, password)
           Bolt::Auth.basic(username, password, nil)
         end
 
