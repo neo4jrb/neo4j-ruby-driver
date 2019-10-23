@@ -18,19 +18,9 @@ module Neo4j
             # Error set in connection
           when Bolt::Error::BOLT_CONNECTION_HAS_MORE_INFO, Bolt::Error::BOLT_STATUS_SET
             status = Bolt::Connection.status(bolt_connection)
-            error_ctx = status && Bolt::Status.get_error_context(status)
-            throw Exceptions::Neo4jException.new(
-              error_code,
-              "#{error_text || 'Unknown Bolt failure'} (code: #{error_code.to_s(16)}, " \
-           "text: #{Bolt::Error.get_string(error_code)}, context: #{error_ctx})"
-            )
+            unqualified_error(error_code, status, error_text)
           else
-            error_ctx = status && Bolt::Status.get_error_context(status)
-            throw Exceptions::Neo4jException.new(
-              error_code,
-              "#{error_text || 'Unknown Bolt failure'} (code: #{error_code.to_s(16)}, " \
-           "text: #{Bolt::Error.get_string(error_code)}, context: #{error_ctx})"
-            )
+            unqualified_error(error_code, status, error_text)
           end
         end
 
@@ -52,6 +42,15 @@ module Neo4j
         def throw(error)
           on_failure(error)
           raise error
+        end
+
+        def unqualified_error(error_code, status, error_text)
+          error_ctx = status && Bolt::Status.get_error_context(status)
+          throw Exceptions::Neo4jException.new(
+            error_code,
+            "#{error_text || 'Unknown Bolt failure'} (code: #{error_code.to_s(16)}, " \
+           "text: #{Bolt::Error.get_string(error_code)}, context: #{error_ctx})"
+          )
         end
       end
     end
