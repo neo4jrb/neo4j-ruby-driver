@@ -15,6 +15,7 @@ module Neo4j
         auto_closable :driver
 
         def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = {})
+          raise Exceptions::AuthenticationException, 'Unsupported authentication token' unless auth_token
           config ||= Config.default_config
           # routing_settings = config.routing_settings
           # retry_settings = config.retry_settings

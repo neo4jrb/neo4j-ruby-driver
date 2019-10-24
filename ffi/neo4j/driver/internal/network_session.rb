@@ -65,6 +65,10 @@ module Neo4j
           bookmarks&.max
         end
 
+        def open?
+          @open.true?
+        end
+
         private
 
         def transaction(mode, config = nil)
@@ -102,7 +106,7 @@ module Neo4j
         end
 
         def ensure_session_is_open
-          return if @open.true?
+          return if open?
           raise Exceptions::ClientException,
                 'No more interaction with this session are allowed as the current session is already closed.'
         end
