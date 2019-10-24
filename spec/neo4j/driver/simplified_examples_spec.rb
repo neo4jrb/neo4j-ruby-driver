@@ -49,8 +49,8 @@ RSpec.describe Neo4j::Driver do
       expect do
         session.read_transaction do |tx|
           tx.run('MATCH (r) MATCH ()-[r]-() RETURN r')
-        end.to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
-      end
+        end
+      end.to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
     end
   end
 
