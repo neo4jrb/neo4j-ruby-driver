@@ -212,9 +212,9 @@ RSpec.describe 'SessionSpec' do
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
-  it 'Be Possible To Consume Result After Session Is Closed' do
-    result = session.run('UNWIND range(1, 20000) AS x RETURN x').list.collect { |l| l['x'] }
-    expect(result.size).to eq(20_000)
+  it 'is possible to consume result after session is closed' do
+    ints = session.run('UNWIND range(1, 20000) AS x RETURN x').map { |record| record[0] }
+    expect(ints.size).to eq(20_000)
   end
 
   it 'Propagate Failure From Summary' do
