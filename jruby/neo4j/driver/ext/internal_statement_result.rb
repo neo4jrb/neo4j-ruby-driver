@@ -7,7 +7,7 @@ module Neo4j
         include Enumerable
         include ExceptionCheckable
 
-        %i[has_next? next keys single consume summary].each do |method|
+        %i[has_next? next keys single consume summary peek].each do |method|
           define_method(method) do |*args, &block|
             check { super(*args, &block) }
           end

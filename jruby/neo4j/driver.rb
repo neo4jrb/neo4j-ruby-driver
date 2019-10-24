@@ -49,6 +49,7 @@ Java::OrgNeo4jDriverInternal::ExplicitTransaction.prepend Neo4j::Driver::Ext::Ru
 Java::OrgNeo4jDriverInternal::NetworkSession.prepend Neo4j::Driver::Ext::RunOverride
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
+Java::OrgNeo4jDriverV1::AuthTokens.singleton_class.prepend Neo4j::Driver::Ext::AuthTokens
 Java::OrgNeo4jDriverV1::GraphDatabase.singleton_class.prepend Neo4j::Driver::Ext::GraphDatabase
 Java::OrgNeo4jDriverV1::Statement.prepend Neo4j::Driver::Ext::Statement
 Java::OrgNeo4jDriverV1Exceptions::Neo4jException.include Neo4j::Driver::Ext::ExceptionMapper

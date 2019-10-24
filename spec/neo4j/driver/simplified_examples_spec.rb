@@ -43,4 +43,34 @@ RSpec.describe Neo4j::Driver do
 
     expect(result.first).to eq 'John'
   end
+
+  it 'raises type mismatch error read_transaction' do
+    driver.session do |session|
+      expect do
+        session.read_transaction do |tx|
+          tx.run('MATCH (r) MATCH ()-[r]-() RETURN r')
+        end
+      end.to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
+    end
+  end
+
+  it 'raises type mismatch error in explicit transaction on close' do
+    driver.session do |session|
+      tx = session.begin_transaction
+      tx.run('MATCH (r) MATCH ()-[r]-() RETURN r')
+      expect(&tx.method(:close)).to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
+    end
+  end
+
+  %i[consume summary peek has_next? to_a keys single].each do |method|
+    it "raises type mismatch error in explicit transaction on #{method}" do
+      driver.session do |session|
+        tx = session.begin_transaction
+        expect { tx.run('MATCH (r) MATCH ()-[r]-() RETURN r').send(method) }
+          .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
+      ensure
+        expect { tx.close }.not_to raise_error
+      end
+    end
+  end
 end
