@@ -212,9 +212,9 @@ RSpec.describe 'SessionSpec' do
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
   end
 
-  it 'Be Possible To Consume Result After Session Is Closed' do
-    result = session.run('UNWIND range(1, 20000) AS x RETURN x').list.collect { |l| l['x'] }
-    expect(result.size).to eq(20_000)
+  it 'is possible to consume result after session is closed' do
+    ints = session.run('UNWIND range(1, 20000) AS x RETURN x').map { |record| record[0] }
+    expect(ints.size).to eq(20_000)
   end
 
   it 'Propagate Failure From Summary' do
@@ -272,8 +272,8 @@ RSpec.describe 'SessionSpec' do
     result = session.run(query)
     summary = result.summary
     expect(summary.statement.text).to eq(query)
-    expect(summary.statement_type.name).to eq('READ_ONLY')
-    records = result.list
+    expect(summary.statement_type).to eq(Neo4j::Driver::Summary::StatementType::READ_ONLY)
+    records = result.to_a
     expect(records.size).to eq(record_count)
     records.each_with_index do |record, index|
       expect(record[0]).to eq(index + 1)
@@ -284,7 +284,7 @@ RSpec.describe 'SessionSpec' do
     record_count = 11_333
     result = session.run('UNWIND range(1, 11333) AS x RETURN x')
     session.close
-    records = result.list
+    records = result.to_a
     expect(records.size).to eq(record_count)
     records.each_with_index do |record, index|
       expect(record[0]).to eq(index + 1)
@@ -294,9 +294,9 @@ RSpec.describe 'SessionSpec' do
   it 'Allow To Consume Records Slowly And Close Session' do
     result = session.run('UNWIND range(10000, 0, -1) AS x RETURN 10 / x')
     10.times do
-      expect(result.has_next?).to eq(true)
-      expect(result.next).to be_truthy
-      sleep(10)
+      expect(result).to have_next
+      expect(result.next).to be_present
+      sleep(0.05)
     end
     expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException
   end
@@ -304,11 +304,11 @@ RSpec.describe 'SessionSpec' do
   it 'Allow To Consume Records Slowly And Retrieve Summary' do
     result = session.run('UNWIND range(8000, 1, -1) AS x RETURN 42 / x')
     10.times do
-      expect(result.has_next?).to eq(true)
-      expect(result.next).to be_truthy
-      sleep(10)
+      expect(result).to have_next
+      expect(result.next).to be_present
+      sleep(0.05)
     end
-    expect(result.summary).to be_truthy
+    expect(result.summary).to be_present
   end
 
   # it 'shouldBeResponsiveToThreadInterruptWhenWaitingForResult' do
@@ -326,20 +326,20 @@ RSpec.describe 'SessionSpec' do
 
   it 'Allow Iterating Over Empty Result' do
     result = session.run('UNWIND [] AS x RETURN x')
-    expect(result.has_next?).to eq(false)
-    expect { result.next }.to raise_error Neo4j::Driver::Exceptions::NoSuchRecordException, 'No more records'
+    expect(result).not_to have_next
+    expect(&result.method(:next)).to raise_error Neo4j::Driver::Exceptions::NoSuchRecordException, 'No more records'
   end
 
   it 'Allow Consuming Empty Result' do
     result = session.run('UNWIND [] AS x RETURN x')
     summary = result.consume
     expect(summary).to be_truthy
-    expect(summary.statement_type.name).to eq('READ_ONLY')
+    expect(summary.statement_type).to eq(Neo4j::Driver::Summary::StatementType::READ_ONLY)
   end
 
   it 'Allow List Empty Result' do
     result = session.run('UNWIND [] AS x RETURN x')
-    expect(result.list).to eq([])
+    expect(result).to be_none
   end
 
   it 'Consume' do
@@ -347,9 +347,9 @@ RSpec.describe 'SessionSpec' do
     result = session.run(query)
     summary = result.consume
     expect(summary.statement.text).to eq(query)
-    expect(summary.statement_type.name).to eq('READ_ONLY')
-    expect(result.has_next?).to eq(false)
-    expect(result.list).to eq([])
+    expect(summary.statement_type).to eq(Neo4j::Driver::Summary::StatementType::READ_ONLY)
+    expect(result).not_to have_next
+    expect(result.to_a).to be_empty
   end
 
   it 'Consume With Failure' do
@@ -357,8 +357,8 @@ RSpec.describe 'SessionSpec' do
     result = session.run(query)
     expect { result.consume }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     expect(result.summary.statement.text).to eq(query)
-    expect(result.has_next?).to eq(false)
-    expect(result.list).to eq([])
+    expect(result).not_to have_next
+    expect(result.to_a).to be_empty
   end
 
   it 'Not Allow Starting Multiple Transactions' do
@@ -406,8 +406,8 @@ RSpec.describe 'SessionSpec' do
         seen_resources += 1
       end
     end
-    expect(seen_resources).to eq(1000)
     expect(seen_properties).to eq(100)
+    expect(seen_resources).to eq(1000)
   end
 
   def count_nodes_with_id(id)
