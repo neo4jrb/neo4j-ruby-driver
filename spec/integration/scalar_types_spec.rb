@@ -1,87 +1,38 @@
 # frozen_string_literal: true
 
 RSpec.describe 'ScalarTypesSpec' do
-  shared_examples 'scalar type' do |value, exppected_value|
-    it "should return #{value}" do
+  [
+    1,
+    1.1,
+    ["'hello'", 'hello'],
+    true,
+    false,
+    ["[1,2,3]", [1, 2, 3]],
+    ["['hello']", ['hello']],
+    ['[]', []],
+    ["{k:'hello'}", { k: 'hello' }]
+  ].each do |value, exppected_value|
+    it "handles type #{value}" do
       driver.session do |session|
         result = session.run("RETURN #{value} as v")
-        expect(result.next['v']).to eq(exppected_value || value)
+        expect(result.single['v']).to eq(exppected_value || value)
       end
     end
   end
 
-  shared_examples 'scalar hash type' do |value|
-    it "should echo very long hash of #{value.class}" do
-      hash = 1000.times.collect { |i| [i.to_s.to_sym, value]}.to_h
-      encode_decode_value(hash)
+  [nil, 1, 1.1, 'hello', true].each do |value|
+    it "echos very long hash of #{value.class}" do
+      hash = 1000.times.collect { |i| [i.to_s.to_sym, value] }.to_h
+      verify_can_encode_and_decode(hash)
+    end
+
+    it "echos very long list of #{value.class}" do
+      verify_can_encode_and_decode(Array.new(1000, value))
     end
   end
-
-  shared_examples 'scalar array type' do |value|
-    it "should echo very long array of #{value.class}" do
-      encode_decode_value(Array.new(1000, value))
-    end
-  end
-
-
-  # respective java spec shouldHandleType
-  it_behaves_like 'scalar type', 1
-
-  it_behaves_like 'scalar type', -1
-
-  it_behaves_like 'scalar type', 1.1
-
-  # long interger not supported yet
-  #it_behaves_like 'scalar type', 9223372036854775808
-
-  it_behaves_like 'scalar type', "'Hello'", 'Hello'
-
-  it_behaves_like 'scalar type', true
-
-  it_behaves_like 'scalar type', false
-
-  it_behaves_like 'scalar type', [1, 2, 3], [1, 2, 3]
-
-  it_behaves_like 'scalar type', ['Hello'], ['Hello']
-
-  it_behaves_like 'scalar type', [], []
-
-  it_behaves_like 'scalar type', {}
-
-  it_behaves_like 'scalar type', "{k: 'Hello'}", k: 'Hello'
-
-  
-  # shouldEchoVeryLongMap
-  it_behaves_like 'scalar hash type', nil
-
-  it_behaves_like 'scalar hash type', 9223
-
-  # long interger not supported yet
-  # it_behaves_like 'scalar hash type', 9223372036854775808
-
-  it_behaves_like 'scalar hash type', 1.999
-
-  it_behaves_like 'scalar hash type', 'Hello'
-
-  it_behaves_like 'scalar hash type', true
-
-  
-  # shouldEchoVeryLongList
-  it_behaves_like 'scalar array type', nil
-
-  it_behaves_like 'scalar array type', 9223
-
-  # long interger not supported yet
-  # it_behaves_like 'scalar array type', 9223372036854775808
-
-  it_behaves_like 'scalar array type', 1.999
-
-  it_behaves_like 'scalar array type', 'Hello'
-
-  it_behaves_like 'scalar array type', true
 
   it 'echos very long string' do
-    encode_decode_value('*' * 10000)
+    verify_can_encode_and_decode('*' * 10000)
   end
 
   [
@@ -106,50 +57,54 @@ RSpec.describe 'ScalarTypesSpec' do
     'String',
     ''
   ].each do |value|
-    it "should echo scalar types #{value}" do
-      encode_decode_value(value)
+    it "echos scalar types #{value.inspect}" do
+      verify_can_encode_and_decode(value)
     end
   end
 
-  [
+  list_to_test = [
     [1, 2, 3, 4],
     [true, false],
     [1.1, 2.2, 3.3],
     ['a', 'b', 'c', '˚C'],
     [nil, nil],
-    [nil, true, '-17∂ßå®', 1.7976931348623157E+308, -9223372036854775808]
-    #ListValue( parameters( "a", 1, "b", true, "c", 1.1, "d", "˚C", "e", null ) )
-  ].each do |list|
-    it 'echos list' do
-      encode_decode_value(list)
+    [nil, true, '-17∂ßå®', 1.7976931348623157E+308, -9223372036854775808],
+    [{ a: 1, b: true, c: 1.1, d: '˚C', e: nil }]
+  ]
+
+  list_to_test.each do |list|
+    it "echos list #{list}" do
+      verify_can_encode_and_decode(list)
     end
   end
 
-  # it 'echos nested list' do
+  it 'echos nested list' do
+    verify_can_encode_and_decode(list_to_test)
+  end
 
-  # end
+  hash_to_test = [
+    { a: 1, b: 2, c: 3, d: 4 },
+    { a: true, b: false },
+    { a: 1.1, b: 2.2, c: 3.3 },
+    { b: 'a', c: 'b', d: 'c', e: '˚C' },
+    { a: nil },
+    { a: 1, b: true, c: 1.1, d: '˚C', e: nil }
+  ]
 
-  [
-     { a: 1, b: 2, c: 3, d: 4 },
-     { a: true, b: false },
-     { a: 1.1, b: 2.2, c: 3.3 },
-     { b: 'a', c: 'b', d: 'c', e: '˚C'},
-     { a: nil },
-     { a: 1, b: true, c: 1.1, d: '˚C', e: nil }
-  ].each do |hash|
+  hash_to_test.each do |hash|
     it "echos hash #{hash}" do
-      encode_decode_value(hash)
+      verify_can_encode_and_decode(hash)
     end
   end
 
-  # it 'should echo nested hash' do
-    
-  # end
+  it 'echos nested hash' do
+    verify_can_encode_and_decode(hash_to_test.map { |hash| [hash.to_s.to_sym, hash] }.to_h)
+  end
 
-  def encode_decode_value(var)
+  def verify_can_encode_and_decode(var)
     driver.session do |session|
-      result = session.run( 'RETURN {x} as y', x: var)
-      expect(result.next['y']).to eq(var)
+      result = session.run('RETURN {x} as y', x: var)
+      expect(result.single[:y]).to eq(var)
     end
   end
 end

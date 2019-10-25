@@ -54,7 +54,7 @@ module Neo4j
                 Bolt::Value.format_as_dictionary(value, object.size)
                 object.each_with_index do |(key, elem), index|
                   key = key.to_s
-                  Bolt::Dictionary.set_key(value, index, key, key.size)
+                  Bolt::Dictionary.set_key(value, index, key, key.bytesize)
                   to_neo(Bolt::Dictionary.value(value, index), elem)
                 end
               when Types::Path
