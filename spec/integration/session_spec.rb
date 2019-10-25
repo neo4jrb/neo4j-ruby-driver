@@ -293,13 +293,15 @@ RSpec.describe 'SessionSpec' do
   it 'Allow Consuming Records After Failure In Session Close' do
     session = driver.session
     result = session.run('CYPHER runtime=interpreted UNWIND [2, 4, 8, 0] AS x RETURN 32 / x')
-    expect(&session.method(:close)).to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+    expect(&session.method(:close)).to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
+      expect(error.code).to match /ArithmeticError/
+    end
     expect(result).to have_next
-    expect(result.next.values.first).to eq(16)
+    expect(result.next.first).to eq(16)
     expect(result).to have_next
-    expect(result.next.values.first).to eq(8)
+    expect(result.next.first).to eq(8)
     expect(result).to have_next
-    expect(result.next.values.first).to eq(4)
+    expect(result.next.first).to eq(4)
     expect(result).not_to have_next
   end
 
@@ -320,15 +322,15 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'Allow Accessing Records After Session Closed' do
-    driver.session do |session|
-      record_count = 11_333
-      result = session.run('UNWIND range(1, 11333) AS x RETURN x')
-      session.close
-      records = result.to_a
-      expect(records.size).to eq(record_count)
-      records.each_with_index do |record, index|
-        expect(record[0]).to eq(index + 1)
-      end
+    record_count = 11_333
+    query = "UNWIND range(1, #{record_count}) AS x RETURN 'Result-' + x"
+    result = driver.session do |session|
+      session.run(query)
+    end
+    records = result.to_a
+    expect(records.size).to eq(record_count)
+    records.each_with_index do |record, index|
+      expect(record[0]).to eq("Result-#{index + 1}")
     end
   end
 
@@ -463,11 +465,11 @@ RSpec.describe 'SessionSpec' do
       seen_resources = 0
       properties = session.run('MATCH (p:Property) RETURN p')
       while properties.has_next?
-        expect(properties.next).to be_truthy
+        expect(properties.next).to be_present
         seen_properties += 1
         resources = session.run('MATCH (r:Resource) RETURN r')
         while resources.has_next?
-          expect(resources.next).to be_truthy
+          expect(resources.next).to be_present
           seen_resources += 1
         end
       end
@@ -526,4 +528,5 @@ RSpec.describe 'SessionSpec' do
       expect(result['count(p)']).to be_zero
     end
   end
+
 end
