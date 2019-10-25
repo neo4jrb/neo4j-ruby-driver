@@ -20,7 +20,7 @@ module Neo4j
           end
 
           def consume
-            # @ignore_records = true
+            @ignore_records = true
             @records.clear
             finalize
             @summary
@@ -54,21 +54,23 @@ module Neo4j
 
             after_success(nil)
 
-            # @records.clear
             @failure = nil
           end
 
-          alias failure consume # it probably should be summary instead of consume to preserve the potentially yet
-                                # unused result set
+          alias failure summary
 
           def on_failure(error)
-            @finished = true
             summary
+            @finished = true
 
             after_failure(error)
 
-            @records.clear
             @failure = error
+          end
+
+          def finalize
+            summary unless @ignore_records
+            super
           end
 
           private
