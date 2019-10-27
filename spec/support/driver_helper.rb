@@ -9,6 +9,9 @@ class DriverHelper
     def uri
       DriverHelper.uri
     end
+    def basic_auth_token
+      DriverHelper.basic_auth_token
+    end
   end
 
   class << self
@@ -16,8 +19,12 @@ class DriverHelper
       ENV.fetch('NEO4J_BOLT_URL', 'bolt://127.0.0.1:7998')
     end
 
+    def basic_auth_token
+      Neo4j::Driver::AuthTokens.basic('neo4j', 'password')
+    end
+
     def driver
-      @driver ||= Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'))
+      @driver ||= Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token)
       # @driver ||= Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.none)
     end
   end

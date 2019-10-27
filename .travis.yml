@@ -4,6 +4,7 @@ sudo: false
 language: ruby
 jdk:
   - openjdk8
+  - openjdk11
 cache: bundler
 rvm:
   - jruby-9.2.8.0

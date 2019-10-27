@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'active_support/core_ext/hash/keys'
+require 'active_support/logger'
 require 'date'
 require 'loader'
 require 'neo4j-java-driver_jars'
@@ -37,6 +38,7 @@ end
 
 Loader.load
 
+ActiveSupport::Logger.prepend Neo4j::Driver::Ext::Logger
 Java::OrgNeo4jDriverInternal::InternalDriver.prepend Neo4j::Driver::Ext::InternalDriver
 Java::OrgNeo4jDriverInternal::InternalEntity.include Neo4j::Driver::Ext::MapAccessor
 Java::OrgNeo4jDriverInternal::InternalNode.prepend Neo4j::Driver::Ext::InternalNode
