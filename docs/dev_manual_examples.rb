@@ -268,7 +268,7 @@ end
 
 # Neo4j type	  Ruby type
 # null          nil
-# List          Array
+# List          Enumerable
 # Map           Hash
 # Boolean       TrueClass/FalseClass
 # Integer       Integer

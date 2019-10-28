@@ -29,15 +29,16 @@ end.spec gem_name do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
 
   dependency 'activesupport', '>= 0'
-  dependency 'zeitwerk', '>= 2.1.10'
   dependency 'ffaker', '>= 0', :dev
+  dependency 'hoe', '>= 0', :dev
+  dependency 'hoe-bundler', '>= 0', :dev
+  dependency 'hoe-gemspec', '>= 0', :dev
   dependency 'neo4j-rake_tasks', '>= 0.3.0', :dev
   dependency 'parallel', '>= 0', :dev
   dependency 'rake', '<13', :dev
   dependency 'rspec-its', '>= 0', :dev
-  dependency 'hoe', '>= 0', :dev
-  dependency 'hoe-bundler', '>= 0', :dev
-  dependency 'hoe-gemspec', '>= 0', :dev
+  dependency 'rspec-mocks', '>= 0', :dev
+  dependency 'zeitwerk', '>= 2.1.10'
 
   spec_extras[:require_paths] = ['lib', pdir]
 
