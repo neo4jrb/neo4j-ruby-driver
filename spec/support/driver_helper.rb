@@ -9,6 +9,7 @@ class DriverHelper
     def uri
       DriverHelper.uri
     end
+
     def basic_auth_token
       DriverHelper.basic_auth_token
     end
