@@ -20,7 +20,7 @@ module Neo4j
 
         def to_java_config(hash)
           hash&.reduce(Neo4j::Driver::Config.build) { |object, key_value| object.send(*config_method(*key_value)) }
-              &.to_config
+            &.to_config
         end
 
         def config_method(key, value)
@@ -36,6 +36,9 @@ module Neo4j
             value = load_balancing_strategy(value)
           when /Time(out)?$/i
             unit = java.util.concurrent.TimeUnit::SECONDS
+          when 'logger'
+            method = :with_logging
+            value = logging(value)
           end
           [method, value, unit].compact
         end
@@ -49,6 +52,20 @@ module Neo4j
           else
             raise ArgumentError
           end
+        end
+
+        def logging(logger)
+          Class.new do
+            include Neo4j::Driver::Logging
+
+            def initialize(logger)
+              @log = logger
+            end
+
+            def get_log(_name)
+              @log
+            end
+          end.new(logger)
         end
       end
     end
