@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 RSpec.describe 'SessionSpec' do
-
   it 'knows session is closed' do
     session = driver.session
     session.close
@@ -141,11 +140,11 @@ RSpec.describe 'SessionSpec' do
           raise Neo4j::Driver::Exceptions::IllegalStateException
         end
       end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
-      val = driver.session do |session|
-        session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)").single[0]
-      end
-      expect(val).to eq(0)
     end
+    val = driver.session do |session|
+      session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)").single[0]
+    end
+    expect(val).to eq(0)
   end
 
   it 'rolls back read transaction when marked both success and failure' do
@@ -294,7 +293,7 @@ RSpec.describe 'SessionSpec' do
     session = driver.session
     result = session.run('CYPHER runtime=interpreted UNWIND [2, 4, 8, 0] AS x RETURN 32 / x')
     expect(&session.method(:close)).to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
-      expect(error.code).to match /ArithmeticError/
+      expect(error.code).to match(/ArithmeticError/)
     end
     expect(result).to have_next
     expect(result.next.first).to eq(16)
@@ -528,5 +527,4 @@ RSpec.describe 'SessionSpec' do
       expect(result['count(p)']).to be_zero
     end
   end
-
 end
