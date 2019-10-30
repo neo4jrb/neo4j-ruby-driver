@@ -22,7 +22,7 @@ RSpec.describe 'ScalarTypesSpec' do
 
   [nil, 1, 1.1, 'hello', true].each do |value|
     it "echos very long hash of #{value.class}" do
-      hash = 1000.times.collect { |i| [i.to_s.to_sym, value] }.to_h
+      hash = Array.new(1000) { |i| [i.to_s.to_sym, value] }.to_h
       verify_can_encode_and_decode(hash)
     end
 
@@ -32,7 +32,7 @@ RSpec.describe 'ScalarTypesSpec' do
   end
 
   it 'echos very long string' do
-    verify_can_encode_and_decode('*' * 10000)
+    verify_can_encode_and_decode('*' * 10_000)
   end
 
   [
@@ -43,11 +43,11 @@ RSpec.describe 'ScalarTypesSpec' do
     -17,
     -129,
     129,
-    2147483647,
-    -2147483648,
-    -13244323234,
-    9223372036854775807,
-    -9223372036854775808,
+    2_147_483_647,
+    -2_147_483_648,
+    -13_244_323_234,
+    9_223_372_036_854_775_807,
+    -9_223_372_036_854_775_808,
     1.7976931348623157E+308,
     2.2250738585072014e-308,
     0.0,
@@ -68,7 +68,7 @@ RSpec.describe 'ScalarTypesSpec' do
     [1.1, 2.2, 3.3],
     ['a', 'b', 'c', '˚C'],
     [nil, nil],
-    [nil, true, '-17∂ßå®', 1.7976931348623157E+308, -9223372036854775808],
+    [nil, true, '-17∂ßå®', 1.7976931348623157E+308, -9_223_372_036_854_775_808],
     [{ a: 1, b: true, c: 1.1, d: '˚C', e: nil }]
   ]
 
