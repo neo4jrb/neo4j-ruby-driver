@@ -6,7 +6,7 @@ jdk:
   - openjdk8
 cache: bundler
 rvm:
-  - jruby-9.2.8.0
+  - jruby-9.2.9.0
   - 2.6.5
 before_install: bin/setup
 before_script:
@@ -35,8 +35,6 @@ matrix:
     - jdk: openjdk11
       env: NEO4J_VERSION=enterprise-3.5.12
     - jdk: openjdk11
-      env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
-    - rvm: jruby-9.2.7.0
       env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
     - env: NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
 after_failure:

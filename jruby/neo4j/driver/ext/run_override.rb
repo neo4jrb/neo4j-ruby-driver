@@ -24,7 +24,7 @@ module Neo4j
           Neo4j::Driver::Internal::Validator.require_hash_parameters!(parameters)
           check do
             java_method(:run, [org.neo4j.driver.v1.Statement])
-              .call(Neo4j::Driver::Statement.new(statement, to_neo(parameters)))
+              .call(Neo4j::Driver::Statement.new(statement, to_neo(parameters) || {}))
           end
         end
 
