@@ -38,7 +38,6 @@ end
 
 Loader.load
 
-ActiveSupport::Logger.prepend Neo4j::Driver::Ext::Logger
 Java::OrgNeo4jDriverInternal::InternalDriver.prepend Neo4j::Driver::Ext::InternalDriver
 Java::OrgNeo4jDriverInternal::InternalEntity.include Neo4j::Driver::Ext::MapAccessor
 Java::OrgNeo4jDriverInternal::InternalNode.prepend Neo4j::Driver::Ext::InternalNode

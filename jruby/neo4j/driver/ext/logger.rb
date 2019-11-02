@@ -3,8 +3,19 @@
 module Neo4j
   module Driver
     module Ext
-      module Logger
-        # include org.neo4j.driver.v1.Logger
+      class Logger
+        include org.neo4j.driver.v1.Logger
+        include org.neo4j.driver.v1.Logging
+
+        delegate :debug?, to: :@active_support_logger
+
+        def initialize(active_support_logger)
+          @active_support_logger = active_support_logger
+        end
+
+        def get_log(_name)
+          self
+        end
 
         def error(*args)
           add(::Logger::ERROR, format(*args))
@@ -33,6 +44,10 @@ module Neo4j
         end
 
         private
+
+        def add(level, *args)
+          @active_support_logger.add(level) { format(*args) }
+        end
 
         def format(*args)
           args.unshift('%s%n%s') if args.last.is_a? java.lang.Throwable

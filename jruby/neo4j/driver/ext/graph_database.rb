@@ -38,7 +38,7 @@ module Neo4j
             unit = java.util.concurrent.TimeUnit::SECONDS
           when 'logger'
             method = :with_logging
-            value = logging(value)
+            value = Neo4j::Driver::Ext::Logger.new(value)
           end
           [method, value, unit].compact
         end
@@ -52,20 +52,6 @@ module Neo4j
           else
             raise ArgumentError
           end
-        end
-
-        def logging(logger)
-          Class.new do
-            include Neo4j::Driver::Logging
-
-            def initialize(logger)
-              @log = logger
-            end
-
-            def get_log(_name)
-              @log
-            end
-          end.new(logger)
         end
       end
     end
