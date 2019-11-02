@@ -73,4 +73,18 @@ RSpec.describe Neo4j::Driver do
       end
     end
   end
+
+  it 'raise exception on delete without detach', ffi: false do
+    driver.session do |session|
+      session.write_transaction do |tx|
+        tx.run('CREATE (:Label)-[:REL]->()')
+      end
+      expect do
+        session.write_transaction do |tx|
+          tx.run('MATCH (l:Label) DELETE l')
+        end
+      end.to raise_error(Neo4j::Driver::Exceptions::ClientException, /Cannot delete/)
+      # Neo4j::Driver::Exceptions::ClientException: Cannot delete node<6>, because it still has relationships. To delete this node, you must first delete its relationships.
+    end
+  end
 end
