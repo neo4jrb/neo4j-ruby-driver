@@ -36,7 +36,7 @@ matrix:
       env: NEO4J_VERSION=enterprise-3.5.12
     - jdk: openjdk11
       rvm: jruby-9.2.8.0
-      env: NEO4J_VERSION=enterprise-3.5.12
+      env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
     - jdk: openjdk11
       env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
     - env: NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
