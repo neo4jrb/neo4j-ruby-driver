@@ -4,6 +4,7 @@ sudo: false
 language: ruby
 jdk:
   - openjdk8
+  - openjdk11
 cache: bundler
 rvm:
   - jruby-9.2.9.0
@@ -28,18 +29,23 @@ env:
   matrix:
     - NEO4J_VERSION=enterprise-3.5.12
     - NEO4J_VERSION=enterprise-3.4.16
+    - NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
+    - NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
 matrix:
   include:
     - rvm: 2.5.7
       env: NEO4J_VERSION=community-3.5.12
     - jdk: openjdk11
-      env: NEO4J_VERSION=enterprise-3.5.12
-    - jdk: openjdk11
       rvm: jruby-9.2.8.0
       env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
-    - jdk: openjdk11
+  exclude:
+    - rvm: 2.6.5
       env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
-    - env: NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
+    - rvm: 2.6.5
+      env: NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
+  allow_failures:
+    - jdk: openjdk11
+      rvm: jruby-9.2.9.0
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
   - cat ./db/neo4j/development/logs/debug.log
