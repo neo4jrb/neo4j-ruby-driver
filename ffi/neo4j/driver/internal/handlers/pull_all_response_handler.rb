@@ -57,7 +57,10 @@ module Neo4j
             @failure = nil
           end
 
-          alias failure summary
+          def failure
+            summary
+            super
+          end
 
           def on_failure(error)
             summary
