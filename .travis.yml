@@ -7,13 +7,15 @@ jdk:
   - openjdk11
 python:
   - 3.7
+virtualenv:
+  system_site_packages: true
 cache: bundler
 rvm:
   - jruby-9.2.9.0
   - 2.6.5
 install:
-  - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-  - python3 get-pip.py
+#  - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+#  - python3 get-pip.py
   - python3 -m pip install install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
 before_install: bin/setup
 before_script:
