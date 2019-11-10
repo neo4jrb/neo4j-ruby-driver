@@ -19,7 +19,7 @@ rvm:
 install:
 #  - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 #  - python3 get-pip.py
-  - python3 -m pip install install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
+  - python3 -m pip3 install install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
 before_install: bin/setup
 before_script:
   - "travis_retry bundle exec rake neo4j:install[$NEO4J_VERSION] --trace"
