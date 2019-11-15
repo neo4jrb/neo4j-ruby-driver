@@ -16,6 +16,7 @@ install:
   - python3 -m pip install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
 before_install: bin/setup
 before_script:
+  - find ~ -name neoctrl-install
   - ~/bin/neoctrl-install $NEO4J_EDITION_FLAG $NEO4J_VERSION servers
   - if [ -n "$NEO4J_EDITION_FLAG" ]; then NEO4J_EDITION=enterprise; else NEO4J_EDITION=community; fi
   - NEO4J_DIR=servers/neo4j-$NEO4J_EDITION-$NEO4J_VERSION
