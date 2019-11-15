@@ -3,7 +3,7 @@
 require 'csv'
 RSpec.describe 'LoadCsv' do
   let(:iris_class_names) { %w[Iris-setosa Iris-versicolor Iris-virginica] }
-  let(:file_path) { 'db/neo4j/development/import/file.csv' }
+  let(:file_path) { '/tmp/file.csv' }
   let(:iris_data) do
                     %w[sepal_length,sepal_width,petal_length,petal_width,class_name
                      5.1,3.5,1.4,0.2,Iris-setosa
@@ -182,7 +182,7 @@ RSpec.describe 'LoadCsv' do
                            " petal_length: l.petal_length, petal_width: l.petal_width})\n"\
                            'CREATE (c)<-[:HAS_CLASS]-(s) '\
                            'RETURN count(*) AS c',
-                           csv_file_url: 'file:///file.csv')
+                           csv_file_url: 'file:///tmp/file.csv')
       expect(result.next['c']).to eq(150)
       expect(result.has_next?).to be_falsey
     end
