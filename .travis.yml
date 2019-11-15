@@ -6,66 +6,54 @@ python:
   - 3.7
 jdk:
   - openjdk8
-#  - openjdk11
-#addons:
-#  apt:
-#    packages:
-#      - "python3"
-#      - "python3-pip"
-#virtualenv:
-#  system_site_packages: true
+  - openjdk11
 cache: bundler
 rvm:
   - jruby-9.2.9.0
-#  - 2.6.5
+  - 2.6.5
 install:
-#  - curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-#  - python3 get-pip.py --user
-#  - python3 -m pip install -U pip
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user
   - python3 -m pip install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
-#before_install: bin/setup
-#before_script:
-#  - "travis_retry bundle exec rake neo4j:install[$NEO4J_VERSION] --trace"
-#  - "bundle exec rake neo4j:config[development,7474] --trace"
-#  - "if [ -f ./db/neo4j/development/conf/neo4j-wrapper.conf ]; then WRAPPER=-wrapper; fi"
-#  - "echo 'dbms.memory.pagecache.size=600m' >> ./db/neo4j/development/conf/neo4j.conf"
-#  - "echo 'dbms.memory.heap.max_size=600m' >> ./db/neo4j/development/conf/neo4j$WRAPPER.conf"
-#  - "echo 'dbms.memory.heap.initial_size=600m' >> ./db/neo4j/development/conf/neo4j$WRAPPER.conf"
-#  - "./db/neo4j/development/bin/neo4j-admin set-initial-password password"
-#  - "bundle exec rake neo4j:enable_auth neo4j:start --trace"
-#  - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.4/seabolt-1.7.4-Linux-ubuntu-16.04.tar.gz | tar -xz"
-#  - "while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done"
+before_install: bin/setup
+before_script:
+  - ~/bin/neoctrl-install $NEO4J_EDITION_FLAG $NEO4J_VERSION servers
+  - if [ -n "$NEO4J_EDITION_FLAG" ]; then NEO4J_EDITION=enterprise; else NEO4J_EDITION=community; fi
+  - NEO4J_DIR=servers/neo4j-$NEO4J_EDITION-$NEO4J_VERSION
+  - ~/bin/neoctrl-configure $NEO4J_DIR dbms.memory.pagecache.size=600m dbms.memory.heap.max_size=600m dbms.memory.heap.initial_size=600m dbms.connectors.default_listen_address=::
+  - ~/bin/neoctrl-set-initial-password password $NEO4J_DIR
+  - ~/bin/neoctrl-start $NEO4J_DIR
+  - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.4/seabolt-1.7.4-Linux-ubuntu-16.04.tar.gz | tar -xz"
 env:
   global:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
+    - NEO4J_EDITION_FLAG=-e
     - NEO4J_BOLT_URL="bolt://127.0.0.1:7472"
     - SEABOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
   matrix:
-    - NEO4J_VERSION=enterprise-3.5.12
-#    - NEO4J_VERSION=enterprise-3.4.16
-#    - NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
-#    - NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
-#matrix:
-#  include:
-#    - rvm: 2.5.7
-#      env: NEO4J_VERSION=community-3.5.12
-#    - jdk: openjdk11
-#      rvm: jruby-9.2.8.0
-#      env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
-#  exclude:
-#    - rvm: 2.6.5
-#      env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
-#    - rvm: 2.6.5
-#      env: NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
-#    - jdk: openjdk11
-#      env: NEO4J_VERSION=enterprise-3.4.16
-#    - jdk: openjdk11
-#      env: NEO4J_VERSION=enterprise-3.4.16 SEABOLT_LIB=
-#  allow_failures:
-#    - jdk: openjdk11
-#      rvm: jruby-9.2.9.0
-#      env: NEO4J_VERSION=enterprise-3.5.12 SEABOLT_LIB=
+    - NEO4J_VERSION=3.5.12
+    - NEO4J_VERSION=3.4.16
+    - NEO4J_VERSION=3.5.12 SEABOLT_LIB=
+    - NEO4J_VERSION=3.4.16 SEABOLT_LIB=
+matrix:
+  include:
+    - rvm: 2.5.7
+      env: NEO4J_VERSION=3.5.12 NEO4J_EDITION_FLAG=
+    - jdk: openjdk11
+      rvm: jruby-9.2.8.0
+      env: NEO4J_VERSION=3.5.12 SEABOLT_LIB=
+  exclude:
+    - rvm: 2.6.5
+      env: NEO4J_VERSION=3.5.12 SEABOLT_LIB=
+    - rvm: 2.6.5
+      env: NEO4J_VERSION=3.4.16 SEABOLT_LIB=
+    - jdk: openjdk11
+      env: NEO4J_VERSION=3.4.16
+    - jdk: openjdk11
+      env: NEO4J_VERSION=-3.4.16 SEABOLT_LIB=
+  allow_failures:
+    - jdk: openjdk11
+      rvm: jruby-9.2.9.0
+      env: NEO4J_VERSION=3.5.12 SEABOLT_LIB=
 after_failure:
   - cat ./db/neo4j/development/logs/neo4j.log
   - cat ./db/neo4j/development/logs/debug.log
