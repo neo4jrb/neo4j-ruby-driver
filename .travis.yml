@@ -19,8 +19,7 @@ before_install:
   - neoctrl-install $NEO4J_EDITION_FLAG $NEO4J_VERSION servers
   - if [ -n "$NEO4J_EDITION_FLAG" ]; then NEO4J_EDITION=enterprise; else NEO4J_EDITION=community; fi
   - NEO4J_DIR=servers/neo4j-$NEO4J_EDITION-$NEO4J_VERSION
-  - neoctrl-configure $NEO4J_DIR dbms.memory.pagecache.size=600m dbms.memory.heap.max_size=600m dbms.memory.heap.initial_size=600m dbms.directories.import=
-#    dbms.connectors.default_listen_address='::'
+  - "neoctrl-configure $NEO4J_DIR dbms.memory.pagecache.size=600m dbms.memory.heap.max_size=600m dbms.memory.heap.initial_size=600m dbms.directories.import= dbms.connectors.default_listen_address=::"
 install:
   - neoctrl-set-initial-password password $NEO4J_DIR
   - neoctrl-start $NEO4J_DIR
@@ -53,7 +52,7 @@ matrix:
     - jdk: openjdk11
       env: NEO4J_VERSION=3.4.16
     - jdk: openjdk11
-      env: NEO4J_VERSION=-3.4.16 SEABOLT_LIB=
+      env: NEO4J_VERSION=3.4.16 SEABOLT_LIB=
   allow_failures:
     - jdk: openjdk11
       rvm: jruby-9.2.9.0
