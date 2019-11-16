@@ -10,6 +10,10 @@ class DriverHelper
       DriverHelper.uri
     end
 
+    def port
+      DriverHelper.port
+    end
+
     def basic_auth_token
       DriverHelper.basic_auth_token
     end
@@ -18,6 +22,10 @@ class DriverHelper
   class << self
     def uri
       ENV.fetch('NEO4J_BOLT_URL', 'bolt://127.0.0.1:7998')
+    end
+
+    def port
+      uri.split(':').last
     end
 
     def basic_auth_token

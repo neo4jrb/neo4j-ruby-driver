@@ -14,6 +14,8 @@ module Neo4j
           raise Neo4j::Driver::Exceptions::UntrustedServerException, e.message
         rescue Java::JavaLang::IllegalStateException => e
           raise Neo4j::Driver::Exceptions::IllegalStateException, e.message
+        rescue Java::JavaLang::IllegalArgumentException => e
+          raise ArgumentError, e.message
         end
       end
     end
