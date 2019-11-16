@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
 require 'csv'
+require 'tempfile'
+
 RSpec.describe 'LoadCsv' do
   let(:iris_class_names) { %w[Iris-setosa Iris-versicolor Iris-virginica] }
-  let(:file_path) { "#{ENV['NEO4J_DIR']}/import/file.csv" }
+  let(:file_path) { Tempfile.new(%w[file .csv]).path }
   let(:iris_data) do
                     %w[sepal_length,sepal_width,petal_length,petal_width,class_name
                      5.1,3.5,1.4,0.2,Iris-setosa
@@ -171,8 +173,6 @@ RSpec.describe 'LoadCsv' do
     end
   end
 
-  after { File.delete(file_path) if File.exist?(file_path) }
-
   it 'loads CSV' do
     driver.session do |session|
       result = session.run("USING PERIODIC COMMIT 40\n"\
@@ -182,7 +182,7 @@ RSpec.describe 'LoadCsv' do
                            " petal_length: l.petal_length, petal_width: l.petal_width})\n"\
                            'CREATE (c)<-[:HAS_CLASS]-(s) '\
                            'RETURN count(*) AS c',
-                           csv_file_url: 'file:///file.csv')
+                           csv_file_url: "file://#{file_path}")
       expect(result.next['c']).to eq(150)
       expect(result.has_next?).to be_falsey
     end
