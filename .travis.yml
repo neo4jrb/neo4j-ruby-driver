@@ -1,6 +1,6 @@
 ---
 os: linux
-arch: ppc64le
+arch: s390x
 dist: xenial
 sudo: false
 language: ruby
