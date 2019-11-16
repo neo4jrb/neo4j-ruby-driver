@@ -1,6 +1,6 @@
 ---
-#os: linux
-#arch: arm64
+os: linux
+arch: ppc64le
 dist: xenial
 sudo: false
 language: ruby
