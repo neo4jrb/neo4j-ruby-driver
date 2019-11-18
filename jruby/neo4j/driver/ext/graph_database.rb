@@ -12,7 +12,7 @@ module Neo4j
         def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = {})
           check do
             java_method(:driver, [java.lang.String, org.neo4j.driver.v1.AuthToken, org.neo4j.driver.v1.Config])
-              .call(uri, auth_token, to_java_config(config))
+              .call(uri.to_s, auth_token, to_java_config(config))
           end
         end
 

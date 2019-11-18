@@ -3,6 +3,13 @@ set -euo pipefail
 IFS=$'\n\t'
 set -vx
 
+#NEO4J_EDITION_FLAG=-e
+#NEO4J_VERSION=3.5.12
+#if [ -n "$NEO4J_EDITION_FLAG" ]; then NEO4J_EDITION=enterprise; else NEO4J_EDITION=community; fi
+#NEO4J_DIR=servers/neo4j-$NEO4J_EDITION-$NEO4J_VERSION
+#neoctrl-install $NEO4J_EDITION_FLAG $NEO4J_VERSION servers
+#neoctrl-configure $NEO4J_DIR dbms.directories.import=
+
 gem install rake -v 12.3.3
 gem install neo4j-rake_tasks
 gem install hoe
