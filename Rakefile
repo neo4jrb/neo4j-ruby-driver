@@ -35,7 +35,7 @@ end.spec gem_name do
   dependency 'hoe-gemspec', '>= 0', :dev
   dependency 'neo4j-rake_tasks', '>= 0.3.0', :dev
   dependency 'parallel', '>= 0', :dev
-  dependency 'rake', '<13', :dev
+  dependency 'rake', '>= 0', :dev
   dependency 'rspec-its', '>= 0', :dev
   dependency 'rspec-mocks', '>= 0', :dev
   dependency 'zeitwerk', '>= 2.1.10'

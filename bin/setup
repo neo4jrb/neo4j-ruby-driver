@@ -10,12 +10,12 @@ set -vx
 #neoctrl-install $NEO4J_EDITION_FLAG $NEO4J_VERSION servers
 #neoctrl-configure $NEO4J_DIR dbms.directories.import=
 
-gem install rake -v 12.3.3
+gem install rake
 gem install neo4j-rake_tasks
 gem install hoe
 gem install hoe-bundler
 gem install hoe-gemspec
-rake _12.3.3_ clean bundler:gemfile[,true] gem:spec
+rake clean bundler:gemfile[,true] gem:spec
 bundle update
 
 # Do any other automated setup that you need to do here
