@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe 'LoggingSpec', ffi: false do
+RSpec.describe 'LoggingSpec' do
   let(:logger) { ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG) }
 
   it 'log records debug and trace info' do

@@ -2,12 +2,13 @@
 
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', ENV['SEABOLT_LIB']&.length&.positive? ? 'ffi' : 'jruby')
 
+require 'active_support/logger'
 require 'ffaker'
 require 'neo4j_ruby_driver'
+require 'parallel'
+require 'rspec/its'
 require 'support/driver_helper'
 require 'support/neo4j_cleaner'
-require 'rspec/its'
-require 'parallel'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

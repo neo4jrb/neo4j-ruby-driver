@@ -5,6 +5,8 @@ module Bolt
     extend Bolt::Library
     attach_function :create, :BoltConfig_create, [], :auto_pointer
     attach_function :destroy, :BoltConfig_destroy, [:pointer], :void
+    attach_function :get_log, :BoltConfig_get_log, [:pointer], :pointer
+    attach_function :set_log, :BoltConfig_set_log, %i[pointer pointer], :int32
     attach_function :set_user_agent, :BoltConfig_set_user_agent, %i[pointer string], :int32
   end
 end

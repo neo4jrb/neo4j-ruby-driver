@@ -8,7 +8,7 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'handles nil config' do
-    driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'), nil)
+    driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'))
     session = driver.session
     session.close
     expect(session).not_to be_open

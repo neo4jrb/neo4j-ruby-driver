@@ -40,6 +40,7 @@ require 'active_support/core_ext/array/grouping'
 require 'concurrent/atomic/atomic_boolean'
 require 'concurrent/atomic/atomic_reference'
 require 'ffi'
+require 'fiddle'
 require 'loader'
 require 'recursive-open-struct'
 
