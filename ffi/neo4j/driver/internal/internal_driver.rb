@@ -11,8 +11,9 @@ module Neo4j
         delegate :verify_connectivity, to: :session_factory
         auto_closable :session
 
-        def initialize(session_factory)
+        def initialize(session_factory, logger)
           @session_factory = session_factory
+          @logger = logger # just a weak reference to prevent garbage collection
           @closed = Concurrent::AtomicBoolean.new(false)
         end
 

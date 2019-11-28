@@ -74,7 +74,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'raise exception on delete without detach', ffi: false do
+  it 'raise exception on delete without detach' do
     driver.session do |session|
       session.write_transaction do |tx|
         tx.run('CREATE (:Label)-[:REL]->()')
