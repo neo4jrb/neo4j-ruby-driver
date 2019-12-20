@@ -17,8 +17,11 @@ module Neo4j
             throw Exceptions::ServiceUnavailableException.new(error_code, 'unable to acquire connection')
             # Connection pool is full
           when Bolt::Error::BOLT_POOL_FULL
-            throw Exceptions::ClientException
-                    .new(error_code, "Unable to acquire connection from the pool within configured maximum time of #{@config[:connection_acquisition_timeout] * 1000}ms")
+            throw Exceptions::ClientException.new(
+              error_code,
+              'Unable to acquire connection from the pool within configured maximum time of ' \
+              "#{@config[:connection_acquisition_timeout] * 1000}ms"
+            )
             # Error set in connection
           when Bolt::Error::BOLT_CONNECTION_HAS_MORE_INFO, Bolt::Error::BOLT_STATUS_SET
             status = Bolt::Connection.status(bolt_connection)

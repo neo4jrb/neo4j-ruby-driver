@@ -25,9 +25,12 @@ module Bolt
     attach_function :get_max_pool_size, :BoltConfig_get_max_pool_size, [:pointer], :int32_t
     attach_function :set_max_pool_size, :BoltConfig_set_max_pool_size, %i[pointer int32_t], :int32_t
     attach_function :get_max_connection_life_time, :BoltConfig_get_max_connection_life_time, [:pointer], :int32_t
-    attach_function :set_max_connection_life_time, :BoltConfig_set_max_connection_life_time, %i[pointer int32_t], :int32_t
-    attach_function :get_max_connection_acquisition_time, :BoltConfig_get_max_connection_acquisition_time, [:pointer], :int32_t
-    attach_function :set_max_connection_acquisition_time, :BoltConfig_set_max_connection_acquisition_time, %i[pointer int32_t], :int32_t
+    attach_function :set_max_connection_life_time, :BoltConfig_set_max_connection_life_time, %i[pointer int32_t],
+                    :int32_t
+    attach_function :get_max_connection_acquisition_time, :BoltConfig_get_max_connection_acquisition_time, [:pointer],
+                    :int32_t
+    attach_function :set_max_connection_acquisition_time, :BoltConfig_set_max_connection_acquisition_time,
+                    %i[pointer int32_t], :int32_t
     attach_function :get_socket_options, :BoltConfig_get_socket_options, [:pointer], :pointer
     attach_function :set_socket_options, :BoltConfig_set_socket_options, %i[pointer pointer], :int32_t
   end

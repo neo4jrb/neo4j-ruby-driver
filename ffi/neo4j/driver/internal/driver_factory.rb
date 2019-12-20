@@ -48,7 +48,7 @@ module Neo4j
           config.each do |key, value|
             case key
             when :connection_timeout
-              check_error Bolt::SocketOptions.set_connect_timeout(socket_optios ||= Bolt::SocketOptions.create, value)
+              check_error Bolt::SocketOptions.set_connect_timeout(socket_options ||= Bolt::SocketOptions.create, value)
             end
           end
           check_error Bolt::Config.set_socket_options(bolt_config, socket_options) if socket_options

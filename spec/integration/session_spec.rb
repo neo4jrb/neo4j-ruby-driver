@@ -123,7 +123,8 @@ RSpec.describe 'SessionSpec' do
     work = RaisingWork.new("CREATE (:Person {name: 'Ronan'})", 1000)
     suppressed_errors = nil
     driver.session do |session|
-      expect { session.write_transaction(&work.to_proc) }.to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |e|
+      expect { session.write_transaction(&work.to_proc) }
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |e|
         expect(e.suppressed).to be_present
         suppressed_errors = e.suppressed.size
       end
@@ -141,7 +142,8 @@ RSpec.describe 'SessionSpec' do
     work = RaisingWork.new('MATCH (n) RETURN n.name', 1000)
     suppressed_errors = nil
     driver.session do |session|
-      expect { session.read_transaction(&work.to_proc) }.to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |e|
+      expect { session.read_transaction(&work.to_proc) }
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |e|
         expect(e.suppressed).to be_present
         suppressed_errors = e.suppressed.size
       end
@@ -291,64 +293,67 @@ RSpec.describe 'SessionSpec' do
     expect(val).to eq(0)
   end
 
-  it 'transaction run fails on deadlocks' do
-    node_id1 = 42
-    node_id2 = 4242
-    new_node_id1 = 1
-    new_node_id2 = 2
+  # This multi threaded scenario deadlocks outside of neo4j on MRI due to Global Interpreter Lock und so it never comes
+  # to the neo4j transaction deadlock which would be discovered and resolved by the neo4j server
+  if RUBY_PLATFORM == 'java'
+    it 'transaction run fails on deadlocks' do
+      node_id1 = 42
+      node_id2 = 4242
+      new_node_id1 = 1
+      new_node_id2 = 2
 
-    create_node_with_id(node_id1)
-    create_node_with_id(node_id2)
+      create_node_with_id(node_id1)
+      create_node_with_id(node_id2)
 
-    latch1 = Concurrent::CountDownLatch.new(1)
-    latch2 = Concurrent::CountDownLatch.new(1)
+      latch1 = Concurrent::CountDownLatch.new(1)
+      latch2 = Concurrent::CountDownLatch.new(1)
 
-    result1 = Concurrent::Promises.future do
-      driver.session do |session|
-        tx = session.begin_transaction
+      result1 = Concurrent::Promises.future do
+        driver.session do |session|
+          tx = session.begin_transaction
 
-        # lock first node
-        update_node_id(tx, node_id1, new_node_id1).consume
+          # lock first node
+          update_node_id(tx, node_id1, new_node_id1).consume
 
-        latch1.wait
-        latch2.count_down
+          latch1.wait
+          latch2.count_down
 
-        # lock second node
-        update_node_id(tx, node_id2, new_node_id1).consume
+          # lock second node
+          update_node_id(tx, node_id2, new_node_id1).consume
 
-        tx.success
+          tx.success
+        end
+        nil
       end
-      nil
-    end
 
-    result2 = Concurrent::Promises.future do
-      driver.session do |session|
-        tx = session.begin_transaction
+      result2 = Concurrent::Promises.future do
+        driver.session do |session|
+          tx = session.begin_transaction
 
-        # lock second node
-        update_node_id(tx, node_id2, new_node_id2).consume
+          # lock second node
+          update_node_id(tx, node_id2, new_node_id2).consume
 
-        latch1.count_down
-        latch2.wait
+          latch1.count_down
+          latch2.wait
 
-        # lock first node
-        update_node_id(tx, node_id1, new_node_id2).consume
+          # lock first node
+          update_node_id(tx, node_id1, new_node_id2).consume
 
-        tx.success
+          tx.success
+        end
+        nil
       end
-      nil
-    end
 
-    first_result_failed = assert_one_of_two_futures_fail_with_deadlock(result1, result2)
-    if first_result_failed
-      expect(count_nodes_with_id(new_node_id1)).to be_zero
-      expect(count_nodes_with_id(new_node_id2)).to eq 2
-    else
-      expect(count_nodes_with_id(new_node_id1)).to eq 2
-      expect(count_nodes_with_id(new_node_id2)).to be_zero
+      first_result_failed = assert_one_of_two_futures_fail_with_deadlock(result1, result2)
+      if first_result_failed
+        expect(count_nodes_with_id(new_node_id1)).to be_zero
+        expect(count_nodes_with_id(new_node_id2)).to eq 2
+      else
+        expect(count_nodes_with_id(new_node_id1)).to eq 2
+        expect(count_nodes_with_id(new_node_id2)).to be_zero
+      end
     end
   end
-
   it 'write transaction function retries deadlocks' do
     node_id1 = 42
     node_id2 = 4242
@@ -382,7 +387,7 @@ RSpec.describe 'SessionSpec' do
 
     result2 = Concurrent::Promises.future do
       driver.session do |session|
-        tx = session.write_transaction do |tx|
+        session.write_transaction do |tx|
           # lock second node
           update_node_id(tx, node_id2, new_node_id2).consume
 
@@ -515,7 +520,6 @@ RSpec.describe 'SessionSpec' do
       max_transaction_retry_time: 42 * 24 * 60 * 60, # retry for a really long time
     }
     Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, config) do |driver|
-
       max_pool_size.times { driver.session.begin_transaction }
 
       invocations = Concurrent::AtomicFixnum.new
@@ -848,12 +852,11 @@ RSpec.describe 'SessionSpec' do
       assert_deadlock_detected_error(e)
     end
 
-    return first_failed
+    first_failed
   end
 
   def assert_deadlock_detected_error(e)
     expect(e).to be_a Neo4j::Driver::Exceptions::TransientException
     expect(e.code).to eq 'Neo.TransientError.Transaction.DeadlockDetected'
   end
-
 end
