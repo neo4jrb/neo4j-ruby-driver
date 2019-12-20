@@ -14,7 +14,7 @@ module Neo4j
 
         %i[read write].each do |prefix|
           define_method("#{prefix}_transaction") do |&block|
-            check { super { |tx| Struct::Wrapper.new(block.call(tx)) }.object }
+            check { super { |tx| Struct::Wrapper.new(reverse_check { block.call(tx) }) }.object }
           end
         end
 

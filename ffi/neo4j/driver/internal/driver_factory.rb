@@ -13,7 +13,8 @@ module Neo4j
         def new_instance(uri, auth_token, routing_settings, retry_settings, config)
           uri = URI(uri)
           connector, logger = create_connector(uri, auth_token, config)
-          create_driver(uri.scheme, connector, logger, routing_settings).tap(&:verify_connectivity)
+          retry_logic = Retry::ExponentialBackoffRetryLogic.new(config[:max_transaction_retry_time], config[:logger])
+          create_driver(uri.scheme, connector, logger, routing_settings, retry_logic, config).tap(&:verify_connectivity)
         end
 
         private
@@ -22,17 +23,35 @@ module Neo4j
           address = Bolt::Address.create(host(uri).gsub(/^\[(.*)\]$/, '\\1'), port(uri).to_s)
           bolt_config = bolt_config(config)
           logger = InternalLogger.register(bolt_config, config[:logger])
+          set_socket_options(bolt_config, config)
           [Bolt::Connector.create(address, auth_token, bolt_config), logger]
         end
 
         def bolt_config(config)
           bolt_config = Bolt::Config.create
           config.each do |key, value|
-            # case key
-            # end
+            case key
+            when :max_connection_pool_size
+              check_error Bolt::Config.set_max_pool_size(bolt_config, value)
+            when :max_connection_life_time
+              check_error Bolt::Config.set_max_connection_life_time(bolt_config, value)
+            when :connection_acquisition_timeout
+              check_error Bolt::Config.set_max_connection_acquisition_time(bolt_config, value)
+            end
           end
           check_error Bolt::Config.set_user_agent(bolt_config, 'seabolt-cmake/1.7')
           bolt_config
+        end
+
+        def set_socket_options(bolt_config, config)
+          socket_options = nil
+          config.each do |key, value|
+            case key
+            when :connection_timeout
+              check_error Bolt::SocketOptions.set_connect_timeout(socket_optios ||= Bolt::SocketOptions.create, value)
+            end
+          end
+          check_error Bolt::Config.set_socket_options(bolt_config, socket_options) if socket_options
         end
 
         def host(uri)
@@ -44,12 +63,12 @@ module Neo4j
             DEFAULT_PORT
         end
 
-        def create_driver(scheme, connector, logger, routing_settings)
+        def create_driver(scheme, connector, logger, routing_settings, retry_logic, config)
           case scheme
           when BOLT_URI_SCHEME
             # assert_no_routing_context( uri, routing_settings )
             # return createDirectDriver( securityPlan, address, connectionPool, retryLogic, metrics, config );
-            create_direct_driver(connector, logger)
+            create_direct_driver(connector, logger, retry_logic, config)
           when BOLT_ROUTING_URI_SCHEME, NEO4J_URI_SCHEME
             # create_routing_driver( security_plan, address, connection_ool, eventExecutorGroup, routingSettings, retryLogic, metrics, config );
           else
@@ -57,9 +76,9 @@ module Neo4j
           end
         end
 
-        def create_direct_driver(connector, logger)
-          connection_provider = DirectConnectionProvider.new(connector)
-          session_factory = create_session_factory(connection_provider)
+        def create_direct_driver(connector, logger, retry_logic, config)
+          connection_provider = DirectConnectionProvider.new(connector, config)
+          session_factory = create_session_factory(connection_provider, retry_logic, config)
           InternalDriver.new(session_factory, logger)
         end
 

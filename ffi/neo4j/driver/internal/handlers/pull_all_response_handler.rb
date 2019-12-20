@@ -5,8 +5,6 @@ module Neo4j
     module Internal
       module Handlers
         class PullAllResponseHandler < ResponseHandler
-          include ErrorHandling
-
           delegate :bolt_connection, to: :connection
           delegate :statement_keys, to: :run_handler
           attr_reader :connection

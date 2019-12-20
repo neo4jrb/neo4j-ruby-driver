@@ -9,7 +9,7 @@ module Neo4j
 
         auto_closable :driver
 
-        def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = {})
+        def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = nil)
           check do
             java_method(:driver, [java.lang.String, org.neo4j.driver.v1.AuthToken, org.neo4j.driver.v1.Config])
               .call(uri.to_s, auth_token, to_java_config(config))

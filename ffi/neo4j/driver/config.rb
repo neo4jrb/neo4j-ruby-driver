@@ -2,7 +2,7 @@
 
 module Neo4j
   module Driver
-    class Config
+    class Config < Hash
       class TrustStrategy
         class << self
           def trust_all_certificates; end

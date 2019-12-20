@@ -44,29 +44,111 @@ RSpec.describe 'SessionSpec' do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE)
   end
 
-  # it 'retries read transaction until success' do
+  class RaisingWork
+    attr_reader :invoked
 
-  # end
+    def initialize(query, failures)
+      @query = query
+      @failures = failures
+      @invoked = 0
+    end
 
-  # it 'retries write transaction until success' do
+    def execute(tx)
+      result = tx.run(@query)
+      raise Neo4j::Driver::Exceptions::ServiceUnavailableException if (@invoked += 1) <= @failures
+      tx.success
+      result.single
+    end
 
-  # end
+    def to_proc
+      method(:execute)
+    end
+  end
 
-  # it 'retries read transaction until failure' do
+  it 'retries read transaction until success' do
+    driver.session do |session|
+      session.run("CREATE (:Person {name: 'Bruce Banner'})")
+    end
 
-  # end
+    work = RaisingWork.new('MATCH (n) RETURN n.name', 2)
 
-  # it 'retries write transaction until failure' do
+    driver.session do |session|
+      record = session.read_transaction(&work.to_proc)
+      expect(record[0]).to eq 'Bruce Banner'
+    end
 
-  # end
+    expect(work.invoked).to eq 3
+  end
 
-  # it 'collects write transaction retry errors' do
+  it 'retries write transaction until success' do
+    work = RaisingWork.new("CREATE (p:Person {name: 'Hulk'}) RETURN p", 2)
+    driver.session do |session|
+      record = session.write_transaction(&work.to_proc)
+      expect(record[0][:name]).to eq 'Hulk'
+    end
 
-  # end
+    driver.session do |session|
+      record = session.run("MATCH (p: Person {name: 'Hulk'}) RETURN count(p)").single
+      expect(record[0]).to eq 1
+    end
 
-  # it 'collects read transaction retry errors' do
+    expect(work.invoked).to eq 3
+  end
 
-  # end
+  it 'retries read transaction until failure' do
+    work = RaisingWork.new('MATCH (n) RETURN n.name', 3)
+    driver.session do |session|
+      expect { session.read_transaction(&work.to_proc) }
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
+    end
+
+    expect(work.invoked).to eq 3
+  end
+
+  it 'retries write transaction until failure' do
+    work = RaisingWork.new("CREATE (:Person {name: 'Ronan'})", 3)
+    driver.session do |session|
+      expect { session.read_transaction(&work.to_proc) }
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
+    end
+
+    driver.session do |session|
+      result = session.run("MATCH (p:Person {name: 'Ronan'}) RETURN count(p)")
+      expect(result.single[0]).to eq 0
+    end
+    expect(work.invoked).to eq 3
+  end
+
+  it 'collects write transaction retry errors' do
+    work = RaisingWork.new("CREATE (:Person {name: 'Ronan'})", 1000)
+    suppressed_errors = nil
+    driver.session do |session|
+      expect { session.write_transaction(&work.to_proc) }.to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |e|
+        expect(e.suppressed).to be_present
+        suppressed_errors = e.suppressed.size
+      end
+    end
+
+    driver.session do |session|
+      result = session.run("MATCH (p:Person {name: 'Ronan'}) RETURN count(p)")
+      expect(result.single[0]).to be_zero
+    end
+
+    expect(work.invoked).to eq suppressed_errors + 1
+  end
+
+  it 'collects read transaction retry errors' do
+    work = RaisingWork.new('MATCH (n) RETURN n.name', 1000)
+    suppressed_errors = nil
+    driver.session do |session|
+      expect { session.read_transaction(&work.to_proc) }.to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |e|
+        expect(e.suppressed).to be_present
+        suppressed_errors = e.suppressed.size
+      end
+    end
+
+    expect(work.invoked).to eq suppressed_errors + 1
+  end
 
   it 'commits read transaction without success' do
     session = driver.session
@@ -209,17 +291,156 @@ RSpec.describe 'SessionSpec' do
     expect(val).to eq(0)
   end
 
-  # it 'transactionRunShouldFailOnDeadlocks' do
+  it 'transaction run fails on deadlocks' do
+    node_id1 = 42
+    node_id2 = 4242
+    new_node_id1 = 1
+    new_node_id2 = 2
 
-  # end
+    create_node_with_id(node_id1)
+    create_node_with_id(node_id2)
 
-  # it 'writeTransactionFunctionShouldRetryDeadlocks' do
+    latch1 = Concurrent::CountDownLatch.new(1)
+    latch2 = Concurrent::CountDownLatch.new(1)
 
-  # end
+    result1 = Concurrent::Promises.future do
+      driver.session do |session|
+        tx = session.begin_transaction
 
-  # it 'shouldExecuteTransactionWorkInCallerThread' do
+        # lock first node
+        update_node_id(tx, node_id1, new_node_id1).consume
 
-  # end
+        latch1.wait
+        latch2.count_down
+
+        # lock second node
+        update_node_id(tx, node_id2, new_node_id1).consume
+
+        tx.success
+      end
+      nil
+    end
+
+    result2 = Concurrent::Promises.future do
+      driver.session do |session|
+        tx = session.begin_transaction
+
+        # lock second node
+        update_node_id(tx, node_id2, new_node_id2).consume
+
+        latch1.count_down
+        latch2.wait
+
+        # lock first node
+        update_node_id(tx, node_id1, new_node_id2).consume
+
+        tx.success
+      end
+      nil
+    end
+
+    first_result_failed = assert_one_of_two_futures_fail_with_deadlock(result1, result2)
+    if first_result_failed
+      expect(count_nodes_with_id(new_node_id1)).to be_zero
+      expect(count_nodes_with_id(new_node_id2)).to eq 2
+    else
+      expect(count_nodes_with_id(new_node_id1)).to eq 2
+      expect(count_nodes_with_id(new_node_id2)).to be_zero
+    end
+  end
+
+  it 'write transaction function retries deadlocks' do
+    node_id1 = 42
+    node_id2 = 4242
+    node_id3 = 424242
+    new_node_id1 = 1
+    new_node_id2 = 2
+
+    create_node_with_id(node_id1)
+    create_node_with_id(node_id2)
+
+    latch1 = Concurrent::CountDownLatch.new(1)
+    latch2 = Concurrent::CountDownLatch.new(1)
+
+    result1 = Concurrent::Promises.future do
+      driver.session do |session|
+        tx = session.begin_transaction
+
+        # lock first node
+        update_node_id(tx, node_id1, new_node_id1).consume
+
+        latch1.wait
+        latch2.count_down
+
+        # lock second node
+        update_node_id(tx, node_id2, new_node_id1).consume
+
+        tx.success
+      end
+      nil
+    end
+
+    result2 = Concurrent::Promises.future do
+      driver.session do |session|
+        tx = session.write_transaction do |tx|
+          # lock second node
+          update_node_id(tx, node_id2, new_node_id2).consume
+
+          latch1.count_down
+          latch2.wait
+
+          # lock first node
+          update_node_id(tx, node_id1, new_node_id2).consume
+
+          create_node_with_id(node_id3)
+
+          nil
+        end
+      end
+      nil
+    end
+
+    first_result_failed = false
+    begin
+      # first future may:
+      # 1) succeed, when it's tx was able to grab both locks and tx in other future was
+      #    terminated because of a deadlock
+      # 2) fail, when it's tx was terminated because of a deadlock
+      expect(result1.value!(20)).to be_nil
+    rescue Neo4j::Driver::Exceptions::TransientException
+      first_result_failed = true
+    end
+
+    # second future can't fail because deadlocks are retried
+    expect(result2.value!(20)).to be_nil
+
+    if first_result_failed
+      # tx with retries was successful and updated ids
+      expect(count_nodes_with_id(new_node_id1)).to be_zero
+      expect(count_nodes_with_id(new_node_id2)).to eq 2
+    else
+      # tx without retries was successful and updated ids
+      # tx with retries did not manage to find nodes because their ids were updated
+      expect(count_nodes_with_id(new_node_id1)).to eq 2
+      expect(count_nodes_with_id(new_node_id2)).to be_zero
+    end
+    # tx with retries was successful and created an additional node
+    expect(count_nodes_with_id(node_id3)).to eq 1
+  end
+
+  it 'executes transaction work in caller thread' do
+    max_failures = 3
+    caller_thread = Thread.current
+    failures = 0
+    result = driver.session do |session|
+      session.read_transaction do
+        expect(Thread.current).to eq caller_thread
+        raise Neo4j::Driver::Exceptions::ServiceUnavailableException, 'Oh no' if (failures += 1) < max_failures
+        'Hello'
+      end
+    end
+    expect(result).to eq 'Hello'
+  end
 
   it 'propagate failure when closed' do
     driver.session do |session|
@@ -286,8 +507,25 @@ RSpec.describe 'SessionSpec' do
     end
   end
 
-  # it 'shouldNotRetryOnConnectionAcquisitionTimeout' do
-  # end
+  it 'does not retry on connection acquisition timeout' do
+    max_pool_size = 3
+    config = {
+      max_connection_pool_size: max_pool_size,
+      connection_acquisition_timeout: 0,
+      max_transaction_retry_time: 42 * 24 * 60 * 60, # retry for a really long time
+    }
+    Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, config) do |driver|
+
+      max_pool_size.times { driver.session.begin_transaction }
+
+      invocations = Concurrent::AtomicFixnum.new
+      expect { driver.session.write_transaction { invocations.increment } }
+        .to raise_error Neo4j::Driver::Exceptions::ClientException,
+                        'Unable to acquire connection from the pool within configured maximum time of 0ms'
+      # work should never be invoked
+      expect(invocations.value).to be_zero
+    end
+  end
 
   it 'Allow Consuming Records After Failure In Session Close' do
     session = driver.session
@@ -357,13 +595,69 @@ RSpec.describe 'SessionSpec' do
     end
   end
 
-  # it 'shouldBeResponsiveToThreadInterruptWhenWaitingForResult' do
+  #it 'is responsive to thread interrupt when waiting for result' do
+  #  driver.session do |session1|
+  #    session2 = driver.session
+  #
+  #    session1.run("CREATE (:Person {name: 'Beta Ray Bill'})").consume
+  #
+  #    tx = session1.begin_transaction
+  #    tx.run("MATCH (n:Person {name: 'Beta Ray Bill'}) SET n.hammer = 'Mjolnir'").consume
+  #
+  #    # now 'Beta Ray Bill' node is locked
+  #
+  #    # setup other thread to interrupt current thread when it blocks
+  #    thread = Thread.current
+  #    Concurrent::Promises.future do
+  #      # spin until given thread moves to WAITING state
+  #      begin
+  #        sleep(0.5)
+  #      end until thread.status == 'sleep'
+  #      thread.wakeup
+  #    end
+  #
+  #    expect { session2.run("MATCH (n:Person {name: 'Beta Ray Bill'}) SET n.hammer = 'Stormbreaker'").consume }
+  #      .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |error|
+  #      error.message =~ /Connection to the database terminated/
+  #      error.message =~ /Thread interrupted/
+  #    end
+  #  ensure
+  #    session2&.close
+  #  end
+  #end
 
-  # end
+  it 'allows long running query with connect timeout' do
+    session1 = driver.session
+    session2 = driver.session
 
-  # it 'shouldAllowLongRunningQueryWithConnectTimeout' do
+    session1.run("CREATE (:Avenger {name: 'Hulk'})").consume
 
-  # end
+    tx = session1.begin_transaction
+    tx.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.power = 100 RETURN a").consume
+
+    # Hulk node is now locked
+
+    latch = Concurrent::CountDownLatch.new(1)
+    update_future = Concurrent::Promises.future do
+      latch.count_down
+      session2.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.weight = 1000 RETURN a.power").single.first
+    end
+
+    latch.wait
+    # sleep more than connection timeout
+    sleep(3 + 1)
+    # verify that query is still executing and has not failed because of the read timeout
+    expect(update_future).not_to be_resolved
+
+    tx.success
+    tx.close
+
+    hulk_power = update_future.value!(10)
+    expect(hulk_power).to eq 100
+  ensure
+    session1&.close
+    session2&.close
+  end
 
   it 'Allow Returning Null From Transaction Function' do
     driver.session do |session|
@@ -527,4 +821,39 @@ RSpec.describe 'SessionSpec' do
       expect(result['count(p)']).to be_zero
     end
   end
+
+  def create_node_with_id(id)
+    driver.session do |session|
+      session.run('CREATE (n {id: {id}})', id: id)
+    end
+  end
+
+  def update_node_id(statement_runner, current_id, new_id)
+    statement_runner.run('MATCH (n {id: {current_id}}) SET n.id = {new_id}', current_id: current_id, new_id: new_id)
+  end
+
+  def assert_one_of_two_futures_fail_with_deadlock(future1, future2)
+    first_failed = false
+    begin
+      expect(future1.value!(20)).to be_nil
+    rescue Exception => e
+      assert_deadlock_detected_error(e)
+      first_failed = true
+    end
+
+    begin
+      expect(future2.value!(20)).to be_nil
+    rescue Exception => e
+      expect(first_failed).to be false
+      assert_deadlock_detected_error(e)
+    end
+
+    return first_failed
+  end
+
+  def assert_deadlock_detected_error(e)
+    expect(e).to be_a Neo4j::Driver::Exceptions::TransientException
+    expect(e.code).to eq 'Neo.TransientError.Transaction.DeadlockDetected'
+  end
+
 end
