@@ -4,12 +4,12 @@ module Neo4j
   module Driver
     module Internal
       module Retry
-        DEFAULT_MAX_RETRY_TIME = 30
-        INITIAL_RETRY_DELAY = 1
-        RETRY_DELAY_MULTIPLIER = 2.0
-        RETRY_DELAY_JITTER_FACTOR = 0.2
-
         class ExponentialBackoffRetryLogic
+          DEFAULT_MAX_RETRY_TIME = 30
+          INITIAL_RETRY_DELAY = 1
+          RETRY_DELAY_MULTIPLIER = 2.0
+          RETRY_DELAY_JITTER_FACTOR = 0.2
+
           def initialize(max_retry_time = nil, logger = nil)
             @max_retry_time = max_retry_time || DEFAULT_MAX_RETRY_TIME
             @log = logger

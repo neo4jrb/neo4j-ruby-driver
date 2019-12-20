@@ -30,8 +30,6 @@ module Neo4j
           case exception
           when Neo4j::Driver::Exceptions::ServiceUnavailableException
             ServiceUnavailableException
-          else
-            nil
           end
         end
 
