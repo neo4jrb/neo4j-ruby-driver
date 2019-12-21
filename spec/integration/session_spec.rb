@@ -353,84 +353,85 @@ RSpec.describe 'SessionSpec' do
         expect(count_nodes_with_id(new_node_id2)).to be_zero
       end
     end
-  end
-  it 'write transaction function retries deadlocks' do
-    node_id1 = 42
-    node_id2 = 4242
-    node_id3 = 424242
-    new_node_id1 = 1
-    new_node_id2 = 2
 
-    create_node_with_id(node_id1)
-    create_node_with_id(node_id2)
+    it 'write transaction function retries deadlocks' do
+      node_id1 = 42
+      node_id2 = 4242
+      node_id3 = 424242
+      new_node_id1 = 1
+      new_node_id2 = 2
 
-    latch1 = Concurrent::CountDownLatch.new(1)
-    latch2 = Concurrent::CountDownLatch.new(1)
+      create_node_with_id(node_id1)
+      create_node_with_id(node_id2)
 
-    result1 = Concurrent::Promises.future do
-      driver.session do |session|
-        tx = session.begin_transaction
+      latch1 = Concurrent::CountDownLatch.new(1)
+      latch2 = Concurrent::CountDownLatch.new(1)
 
-        # lock first node
-        update_node_id(tx, node_id1, new_node_id1).consume
-
-        latch1.wait
-        latch2.count_down
-
-        # lock second node
-        update_node_id(tx, node_id2, new_node_id1).consume
-
-        tx.success
-      end
-      nil
-    end
-
-    result2 = Concurrent::Promises.future do
-      driver.session do |session|
-        session.write_transaction do |tx|
-          # lock second node
-          update_node_id(tx, node_id2, new_node_id2).consume
-
-          latch1.count_down
-          latch2.wait
+      result1 = Concurrent::Promises.future do
+        driver.session do |session|
+          tx = session.begin_transaction
 
           # lock first node
-          update_node_id(tx, node_id1, new_node_id2).consume
+          update_node_id(tx, node_id1, new_node_id1).consume
 
-          create_node_with_id(node_id3)
+          latch1.wait
+          latch2.count_down
 
-          nil
+          # lock second node
+          update_node_id(tx, node_id2, new_node_id1).consume
+
+          tx.success
         end
+        nil
       end
-      nil
-    end
 
-    first_result_failed = false
-    begin
-      # first future may:
-      # 1) succeed, when it's tx was able to grab both locks and tx in other future was
-      #    terminated because of a deadlock
-      # 2) fail, when it's tx was terminated because of a deadlock
-      expect(result1.value!(20)).to be_nil
-    rescue Neo4j::Driver::Exceptions::TransientException
-      first_result_failed = true
-    end
+      result2 = Concurrent::Promises.future do
+        driver.session do |session|
+          session.write_transaction do |tx|
+            # lock second node
+            update_node_id(tx, node_id2, new_node_id2).consume
 
-    # second future can't fail because deadlocks are retried
-    expect(result2.value!(20)).to be_nil
+            latch1.count_down
+            latch2.wait
 
-    if first_result_failed
-      # tx with retries was successful and updated ids
-      expect(count_nodes_with_id(new_node_id1)).to be_zero
-      expect(count_nodes_with_id(new_node_id2)).to eq 2
-    else
-      # tx without retries was successful and updated ids
-      # tx with retries did not manage to find nodes because their ids were updated
-      expect(count_nodes_with_id(new_node_id1)).to eq 2
-      expect(count_nodes_with_id(new_node_id2)).to be_zero
+            # lock first node
+            update_node_id(tx, node_id1, new_node_id2).consume
+
+            create_node_with_id(node_id3)
+
+            nil
+          end
+        end
+        nil
+      end
+
+      first_result_failed = false
+      begin
+        # first future may:
+        # 1) succeed, when it's tx was able to grab both locks and tx in other future was
+        #    terminated because of a deadlock
+        # 2) fail, when it's tx was terminated because of a deadlock
+        expect(result1.value!(20)).to be_nil
+      rescue Neo4j::Driver::Exceptions::TransientException
+        first_result_failed = true
+      end
+
+      # second future can't fail because deadlocks are retried
+      expect(result2.value!(20)).to be_nil
+
+      if first_result_failed
+        # tx with retries was successful and updated ids
+        expect(count_nodes_with_id(new_node_id1)).to be_zero
+        expect(count_nodes_with_id(new_node_id2)).to eq 2
+      else
+        # tx without retries was successful and updated ids
+        # tx with retries did not manage to find nodes because their ids were updated
+        expect(count_nodes_with_id(new_node_id1)).to eq 2
+        expect(count_nodes_with_id(new_node_id2)).to be_zero
+      end
+      # tx with retries was successful and created an additional node
+      expect(count_nodes_with_id(node_id3)).to eq 1
     end
-    # tx with retries was successful and created an additional node
-    expect(count_nodes_with_id(node_id3)).to eq 1
   end
 
   it 'executes transaction work in caller thread' do
