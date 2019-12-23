@@ -631,37 +631,39 @@ RSpec.describe 'SessionSpec' do
   #  end
   #end
 
-  it 'allows long running query with connect timeout' do
-    session1 = driver.session
-    session2 = driver.session
+  if RUBY_PLATFORM == 'java'
+    it 'allows long running query with connect timeout' do
+      session1 = driver.session
+      session2 = driver.session
 
-    session1.run("CREATE (:Avenger {name: 'Hulk'})").consume
+      session1.run("CREATE (:Avenger {name: 'Hulk'})").consume
 
-    tx = session1.begin_transaction
-    tx.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.power = 100 RETURN a").consume
+      tx = session1.begin_transaction
+      tx.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.power = 100 RETURN a").consume
 
-    # Hulk node is now locked
+      # Hulk node is now locked
 
-    latch = Concurrent::CountDownLatch.new(1)
-    update_future = Concurrent::Promises.future do
-      latch.count_down
-      session2.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.weight = 1000 RETURN a.power").single.first
+      latch = Concurrent::CountDownLatch.new(1)
+      update_future = Concurrent::Promises.future do
+        latch.count_down
+        session2.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.weight = 1000 RETURN a.power").single.first
+      end
+
+      latch.wait
+      # sleep more than connection timeout
+      sleep(3 + 1)
+      # verify that query is still executing and has not failed because of the read timeout
+      expect(update_future).not_to be_resolved
+
+      tx.success
+      tx.close
+
+      hulk_power = update_future.value!(10)
+      expect(hulk_power).to eq 100
+    ensure
+      session1&.close
+      session2&.close
     end
-
-    latch.wait
-    # sleep more than connection timeout
-    sleep(3 + 1)
-    # verify that query is still executing and has not failed because of the read timeout
-    expect(update_future).not_to be_resolved
-
-    tx.success
-    tx.close
-
-    hulk_power = update_future.value!(10)
-    expect(hulk_power).to eq 100
-  ensure
-    session1&.close
-    session2&.close
   end
 
   it 'Allow Returning Null From Transaction Function' do
