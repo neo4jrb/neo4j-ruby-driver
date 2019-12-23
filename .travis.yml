@@ -32,20 +32,20 @@ env:
     - SEABOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
     - PATH=$PATH:~/.local/bin
   matrix:
-    - NEO4J_VERSION=3.5.13
+    - NEO4J_VERSION=3.5.14
     - NEO4J_VERSION=3.4.17
-    - NEO4J_VERSION=3.5.13 SEABOLT_LIB=
+    - NEO4J_VERSION=3.5.14 SEABOLT_LIB=
     - NEO4J_VERSION=3.4.17 SEABOLT_LIB=
 matrix:
   include:
     - rvm: 2.5.7
-      env: NEO4J_VERSION=3.5.13 NEO4J_EDITION_FLAG=
+      env: NEO4J_VERSION=3.5.14 NEO4J_EDITION_FLAG=
     - jdk: openjdk11
       rvm: jruby-9.2.8.0
-      env: NEO4J_VERSION=3.5.13 SEABOLT_LIB=
+      env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
   exclude:
     - rvm: 2.6.5
-      env: NEO4J_VERSION=3.5.13 SEABOLT_LIB=
+      env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
     - rvm: 2.6.5
       env: NEO4J_VERSION=3.4.17 SEABOLT_LIB=
     - jdk: openjdk11
@@ -55,7 +55,7 @@ matrix:
   allow_failures:
     - jdk: openjdk11
       rvm: jruby-9.2.9.0
-      env: NEO4J_VERSION=3.5.13 SEABOLT_LIB=
+      env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
 after_failure:
   - cat $NEO4J_DIR/logs/neo4j.log
   - cat $NEO4J_DIR/logs/debug.log
