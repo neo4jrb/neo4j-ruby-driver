@@ -295,41 +295,98 @@ RSpec.describe 'SessionSpec' do
 
   # This multi threaded scenario deadlocks outside of neo4j on MRI due to Global Interpreter Lock und so it never comes
   # to the neo4j transaction deadlock which would be discovered and resolved by the neo4j server
-  if RUBY_PLATFORM == 'java'
-    it 'transaction run fails on deadlocks' do
-      node_id1 = 42
-      node_id2 = 4242
-      new_node_id1 = 1
-      new_node_id2 = 2
+  it 'transaction run fails on deadlocks', concurrency: true do
+    node_id1 = 42
+    node_id2 = 4242
+    new_node_id1 = 1
+    new_node_id2 = 2
 
-      create_node_with_id(node_id1)
-      create_node_with_id(node_id2)
+    create_node_with_id(node_id1)
+    create_node_with_id(node_id2)
 
-      latch1 = Concurrent::CountDownLatch.new(1)
-      latch2 = Concurrent::CountDownLatch.new(1)
+    latch1 = Concurrent::CountDownLatch.new(1)
+    latch2 = Concurrent::CountDownLatch.new(1)
 
-      result1 = Concurrent::Promises.future do
-        driver.session do |session|
-          tx = session.begin_transaction
+    result1 = Concurrent::Promises.future do
+      driver.session do |session|
+        tx = session.begin_transaction
 
-          # lock first node
-          update_node_id(tx, node_id1, new_node_id1).consume
+        # lock first node
+        update_node_id(tx, node_id1, new_node_id1).consume
 
-          latch1.wait
-          latch2.count_down
+        latch1.wait
+        latch2.count_down
 
-          # lock second node
-          update_node_id(tx, node_id2, new_node_id1).consume
+        # lock second node
+        update_node_id(tx, node_id2, new_node_id1).consume
 
-          tx.success
-        end
-        nil
+        tx.success
       end
+      nil
+    end
 
-      result2 = Concurrent::Promises.future do
-        driver.session do |session|
-          tx = session.begin_transaction
+    result2 = Concurrent::Promises.future do
+      driver.session do |session|
+        tx = session.begin_transaction
 
+        # lock second node
+        update_node_id(tx, node_id2, new_node_id2).consume
+
+        latch1.count_down
+        latch2.wait
+
+        # lock first node
+        update_node_id(tx, node_id1, new_node_id2).consume
+
+        tx.success
+      end
+      nil
+    end
+
+    first_result_failed = assert_one_of_two_futures_fail_with_deadlock(result1, result2)
+    if first_result_failed
+      expect(count_nodes_with_id(new_node_id1)).to be_zero
+      expect(count_nodes_with_id(new_node_id2)).to eq 2
+    else
+      expect(count_nodes_with_id(new_node_id1)).to eq 2
+      expect(count_nodes_with_id(new_node_id2)).to be_zero
+    end
+  end
+
+  it 'write transaction function retries deadlocks', concurrency: true do
+    node_id1 = 42
+    node_id2 = 4242
+    node_id3 = 424242
+    new_node_id1 = 1
+    new_node_id2 = 2
+
+    create_node_with_id(node_id1)
+    create_node_with_id(node_id2)
+
+    latch1 = Concurrent::CountDownLatch.new(1)
+    latch2 = Concurrent::CountDownLatch.new(1)
+
+    result1 = Concurrent::Promises.future do
+      driver.session do |session|
+        tx = session.begin_transaction
+
+        # lock first node
+        update_node_id(tx, node_id1, new_node_id1).consume
+
+        latch1.wait
+        latch2.count_down
+
+        # lock second node
+        update_node_id(tx, node_id2, new_node_id1).consume
+
+        tx.success
+      end
+      nil
+    end
+
+    result2 = Concurrent::Promises.future do
+      driver.session do |session|
+        session.write_transaction do |tx|
           # lock second node
           update_node_id(tx, node_id2, new_node_id2).consume
 
@@ -339,99 +396,40 @@ RSpec.describe 'SessionSpec' do
           # lock first node
           update_node_id(tx, node_id1, new_node_id2).consume
 
-          tx.success
-        end
-        nil
-      end
+          create_node_with_id(node_id3)
 
-      first_result_failed = assert_one_of_two_futures_fail_with_deadlock(result1, result2)
-      if first_result_failed
-        expect(count_nodes_with_id(new_node_id1)).to be_zero
-        expect(count_nodes_with_id(new_node_id2)).to eq 2
-      else
-        expect(count_nodes_with_id(new_node_id1)).to eq 2
-        expect(count_nodes_with_id(new_node_id2)).to be_zero
+          nil
+        end
       end
+      nil
     end
 
-    it 'write transaction function retries deadlocks' do
-      node_id1 = 42
-      node_id2 = 4242
-      node_id3 = 424242
-      new_node_id1 = 1
-      new_node_id2 = 2
-
-      create_node_with_id(node_id1)
-      create_node_with_id(node_id2)
-
-      latch1 = Concurrent::CountDownLatch.new(1)
-      latch2 = Concurrent::CountDownLatch.new(1)
-
-      result1 = Concurrent::Promises.future do
-        driver.session do |session|
-          tx = session.begin_transaction
-
-          # lock first node
-          update_node_id(tx, node_id1, new_node_id1).consume
-
-          latch1.wait
-          latch2.count_down
-
-          # lock second node
-          update_node_id(tx, node_id2, new_node_id1).consume
-
-          tx.success
-        end
-        nil
-      end
-
-      result2 = Concurrent::Promises.future do
-        driver.session do |session|
-          session.write_transaction do |tx|
-            # lock second node
-            update_node_id(tx, node_id2, new_node_id2).consume
-
-            latch1.count_down
-            latch2.wait
-
-            # lock first node
-            update_node_id(tx, node_id1, new_node_id2).consume
-
-            create_node_with_id(node_id3)
-
-            nil
-          end
-        end
-        nil
-      end
-
-      first_result_failed = false
-      begin
-        # first future may:
-        # 1) succeed, when it's tx was able to grab both locks and tx in other future was
-        #    terminated because of a deadlock
-        # 2) fail, when it's tx was terminated because of a deadlock
-        expect(result1.value!(20)).to be_nil
-      rescue Neo4j::Driver::Exceptions::TransientException
-        first_result_failed = true
-      end
-
-      # second future can't fail because deadlocks are retried
-      expect(result2.value!(20)).to be_nil
-
-      if first_result_failed
-        # tx with retries was successful and updated ids
-        expect(count_nodes_with_id(new_node_id1)).to be_zero
-        expect(count_nodes_with_id(new_node_id2)).to eq 2
-      else
-        # tx without retries was successful and updated ids
-        # tx with retries did not manage to find nodes because their ids were updated
-        expect(count_nodes_with_id(new_node_id1)).to eq 2
-        expect(count_nodes_with_id(new_node_id2)).to be_zero
-      end
-      # tx with retries was successful and created an additional node
-      expect(count_nodes_with_id(node_id3)).to eq 1
+    first_result_failed = false
+    begin
+      # first future may:
+      # 1) succeed, when it's tx was able to grab both locks and tx in other future was
+      #    terminated because of a deadlock
+      # 2) fail, when it's tx was terminated because of a deadlock
+      expect(result1.value!(20)).to be_nil
+    rescue Neo4j::Driver::Exceptions::TransientException
+      first_result_failed = true
     end
+
+    # second future can't fail because deadlocks are retried
+    expect(result2.value!(20)).to be_nil
+
+    if first_result_failed
+      # tx with retries was successful and updated ids
+      expect(count_nodes_with_id(new_node_id1)).to be_zero
+      expect(count_nodes_with_id(new_node_id2)).to eq 2
+    else
+      # tx without retries was successful and updated ids
+      # tx with retries did not manage to find nodes because their ids were updated
+      expect(count_nodes_with_id(new_node_id1)).to eq 2
+      expect(count_nodes_with_id(new_node_id2)).to be_zero
+    end
+    # tx with retries was successful and created an additional node
+    expect(count_nodes_with_id(node_id3)).to eq 1
   end
 
   it 'executes transaction work in caller thread' do
@@ -631,39 +629,37 @@ RSpec.describe 'SessionSpec' do
   #  end
   #end
 
-  if RUBY_PLATFORM == 'java'
-    it 'allows long running query with connect timeout' do
-      session1 = driver.session
-      session2 = driver.session
+  it 'allows long running query with connect timeout', concurrency: true do
+    session1 = driver.session
+    session2 = driver.session
 
-      session1.run("CREATE (:Avenger {name: 'Hulk'})").consume
+    session1.run("CREATE (:Avenger {name: 'Hulk'})").consume
 
-      tx = session1.begin_transaction
-      tx.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.power = 100 RETURN a").consume
+    tx = session1.begin_transaction
+    tx.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.power = 100 RETURN a").consume
 
-      # Hulk node is now locked
+    # Hulk node is now locked
 
-      latch = Concurrent::CountDownLatch.new(1)
-      update_future = Concurrent::Promises.future do
-        latch.count_down
-        session2.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.weight = 1000 RETURN a.power").single.first
-      end
-
-      latch.wait
-      # sleep more than connection timeout
-      sleep(3 + 1)
-      # verify that query is still executing and has not failed because of the read timeout
-      expect(update_future).not_to be_resolved
-
-      tx.success
-      tx.close
-
-      hulk_power = update_future.value!(10)
-      expect(hulk_power).to eq 100
-    ensure
-      session1&.close
-      session2&.close
+    latch = Concurrent::CountDownLatch.new(1)
+    update_future = Concurrent::Promises.future do
+      latch.count_down
+      session2.run("MATCH (a:Avenger {name: 'Hulk'}) SET a.weight = 1000 RETURN a.power").single.first
     end
+
+    latch.wait
+    # sleep more than connection timeout
+    sleep(3 + 1)
+    # verify that query is still executing and has not failed because of the read timeout
+    expect(update_future).not_to be_resolved
+
+    tx.success
+    tx.close
+
+    hulk_power = update_future.value!(10)
+    expect(hulk_power).to eq 100
+  ensure
+    session1&.close
+    session2&.close
   end
 
   it 'Allow Returning Null From Transaction Function' do
