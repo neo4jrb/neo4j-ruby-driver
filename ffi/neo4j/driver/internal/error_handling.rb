@@ -15,6 +15,13 @@ module Neo4j
             # Connection refused
           when Bolt::Error::BOLT_CONNECTION_REFUSED
             throw Exceptions::ServiceUnavailableException.new(error_code, 'unable to acquire connection')
+            # Connection pool is full
+          when Bolt::Error::BOLT_POOL_FULL
+            throw Exceptions::ClientException.new(
+              error_code,
+              'Unable to acquire connection from the pool within configured maximum time of ' \
+              "#{@config[:connection_acquisition_timeout] * 1000}ms"
+            )
             # Error set in connection
           when Bolt::Error::BOLT_CONNECTION_HAS_MORE_INFO, Bolt::Error::BOLT_STATUS_SET
             status = Bolt::Connection.status(bolt_connection)
@@ -35,6 +42,21 @@ module Neo4j
           yield status
         ensure
           check_status(status)
+        end
+
+        def new_neo4j_error(code:, message:)
+          case code.split('.')[1]
+          when 'ClientError'
+            if code.casecmp('Neo.ClientError.Security.Unauthorized').zero?
+              Exceptions::AuthenticationException
+            else
+              Exceptions::ClientException
+            end
+          when 'TransientError'
+            Exceptions::TransientException
+          else
+            Exceptions::DatabaseException
+          end.new(code, message)
         end
 
         private

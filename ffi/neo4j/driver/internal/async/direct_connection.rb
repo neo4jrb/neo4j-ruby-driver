@@ -10,8 +10,9 @@ module Neo4j
           attr_reader :protocol
           attr_reader :bolt_connection
 
-          def initialize(connector, mode)
+          def initialize(connector, mode, config)
             @connector = connector
+            @config = config
             @bolt_connection = with_status { |status| Bolt::Connector.acquire(@connector, mode, status) }
 
             # @protocol = Messaging::BoltProtocol.for_version(Bolt::Connection.server(bolt_connection).first)

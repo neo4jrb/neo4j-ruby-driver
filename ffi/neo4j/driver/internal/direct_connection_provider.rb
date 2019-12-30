@@ -6,12 +6,13 @@ module Neo4j
       class DirectConnectionProvider
         include ErrorHandling
 
-        def initialize(connector)
+        def initialize(connector, config)
           @connector = connector
+          @config = config
         end
 
         def acquire_connection(mode)
-          Async::DirectConnection.new(@connector, mode)
+          Async::DirectConnection.new(@connector, mode, @config)
         end
 
         def verify_connectivity

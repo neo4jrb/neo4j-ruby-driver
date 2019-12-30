@@ -17,6 +17,12 @@ module Neo4j
         rescue Java::JavaLang::IllegalArgumentException => e
           raise ArgumentError, e.message
         end
+
+        def reverse_check
+          yield
+        rescue StandardError => e
+          raise(e.cause || ExceptionMapper.reverse_exception_class(e)&.new('') || e)
+        end
       end
     end
   end

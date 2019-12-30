@@ -15,12 +15,7 @@ module Neo4j
           @open = Concurrent::AtomicBoolean.new(true)
           @connection_provider = connection_provider
           @mode = mode
-          # @retry_logic = retry_logic
-          @retry_logic = Class.new do
-            def retry
-              yield
-            end
-          end.new
+          @retry_logic = retry_logic
         end
 
         def run(statement, parameters = {}, config = nil)
