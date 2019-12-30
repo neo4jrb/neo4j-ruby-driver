@@ -35,7 +35,7 @@ module Neo4j
             else
               return if previous&.failure
               @failure = Value::ValueAdapter.to_ruby(Bolt::Connection.failure(bolt_connection))
-              raise new_neo4j_error(@failure)
+              raise new_neo4j_error(**@failure)
             end
           end
 
