@@ -162,7 +162,6 @@ RSpec.describe 'Parameters' do
 
     context 'sends and receives long list of longs' do
       let(:value) do
-        d = Time.now
         MAX_INTEGER = 2 ** 63 - 1
         Array.new(LONG_VALUE_SIZE) { rand(MAX_INTEGER) }
       end
