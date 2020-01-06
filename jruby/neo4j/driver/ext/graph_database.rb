@@ -7,13 +7,17 @@ module Neo4j
         extend AutoClosable
         include ExceptionCheckable
 
-        auto_closable :driver
+        auto_closable :driver, :routing_driver
 
         def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = nil)
           check do
             java_method(:driver, [java.lang.String, org.neo4j.driver.v1.AuthToken, org.neo4j.driver.v1.Config])
               .call(uri.to_s, auth_token, to_java_config(config))
           end
+        end
+
+        def routing_driver(routing_uris, auth_token, config)
+          check { super(routing_uris.map { |uri| java.net.URI.create(uri.to_s) }, auth_token, to_java_config(config)) }
         end
 
         private

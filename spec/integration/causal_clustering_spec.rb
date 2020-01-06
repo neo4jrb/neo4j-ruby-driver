@@ -17,8 +17,9 @@ RSpec.describe 'CausalClusteringSpec' do
     expect(count).to eq 1
   end
 
-  it '...' do
-
+  it 'executes reads and writes when router is discovered' do
+    count = execute_write_and_read_through_bolt_on_first_available_address(cluster.any_read_replica, cluster.leader)
+    expect(count).to eq 1
   end
 
   it 'executes reads and writes when driver supplied with address of follower ' do
@@ -36,8 +37,22 @@ RSpec.describe 'CausalClusteringSpec' do
     end
   end
 
+  def execute_write_and_read_through_bolt_on_first_available_address(*members)
+    discover_driver(members.map(&:routing_uri)) do |driver|
+      in_expirable_session do
+        driver.session(Neo4j::Driver::AccessMode::WRITE, &method(:execute_write_and_read))
+      end
+    end
+  end
+
   def create_driver(bolt_uri, &block)
     Neo4j::Driver::GraphDatabase.driver(bolt_uri, default_auth_token, &block)
+  end
+
+  def discover_driver(routing_uris, &block)
+    Neo4j::Driver::GraphDatabase.routing_driver(routing_uris, default_auth_token,
+                                                logger: ActiveSupport::Logger.new(IO::NULL), encryption: false,
+                                                &block)
   end
 
   def execute_write_and_read(session)

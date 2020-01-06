@@ -27,6 +27,11 @@ RSpec.shared_context "cluster_extension" do
     end
   end
 
+  after(:example) do
+    #cluster.start_offline_members
+    cluster.delete_data
+  end
+
   after(:context) do
     break unless Neo4j::Driver::Util::CC::SharedCluster.exists?
     Neo4j::Driver::Util::CC::SharedCluster.stop
