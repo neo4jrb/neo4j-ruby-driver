@@ -9,21 +9,29 @@ module Neo4j
             # Identifies a successful operation which is defined as 0
           when Bolt::Error::BOLT_SUCCESS # 0
             nil
+
             # Permission denied
           when Bolt::Error::BOLT_PERMISSION_DENIED # 7
             throw Exceptions::AuthenticationException.new(error_code, 'Permission denied')
+
             # Connection refused
-          when Bolt::Error::BOLT_CONNECTION_REFUSED
+          when Bolt::Error::BOLT_CONNECTION_REFUSED # 11
             throw Exceptions::ServiceUnavailableException.new(error_code, 'unable to acquire connection')
+
             # Connection pool is full
-          when Bolt::Error::BOLT_POOL_FULL
+          when Bolt::Error::BOLT_POOL_FULL # 0x600
             throw Exceptions::ClientException.new(
               error_code,
               'Unable to acquire connection from the pool within configured maximum time of ' \
               "#{@config[:connection_acquisition_timeout] * 1000}ms"
             )
+
+            # Routing table retrieval failed
+          when Bolt::Error::BOLT_ROUTING_UNABLE_TO_RETRIEVE_ROUTING_TABLE # 0x800
+            throw Exceptions::ServiceUnavailableException.new(error_code, Bolt::Error.get_string(error_code))
+
             # Error set in connection
-          when Bolt::Error::BOLT_CONNECTION_HAS_MORE_INFO, Bolt::Error::BOLT_STATUS_SET
+          when Bolt::Error::BOLT_CONNECTION_HAS_MORE_INFO, Bolt::Error::BOLT_STATUS_SET # 0xFFE, 0xFFF
             status = Bolt::Connection.status(bolt_connection)
             unqualified_error(error_code, status, error_text)
           else
@@ -71,7 +79,7 @@ module Neo4j
           throw Exceptions::Neo4jException.new(
             error_code,
             "#{error_text || 'Unknown Bolt failure'} (code: #{error_code.to_s(16)}, " \
-           "text: #{Bolt::Error.get_string(error_code)}, context: #{error_ctx})"
+            "text: #{Bolt::Error.get_string(error_code)}, context: #{error_ctx})"
           )
         end
       end

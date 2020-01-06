@@ -3,6 +3,10 @@
 module Bolt
   module Config
     extend Bolt::Library
+
+    BOLT_SCHEME_DIRECT = 0
+    BOLT_SCHEME_NEO4J = 1
+
     typedef :int32_t, :bolt_scheme
     typedef :int32_t, :bolt_transport
 
