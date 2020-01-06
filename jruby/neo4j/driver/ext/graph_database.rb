@@ -36,8 +36,6 @@ module Neo4j
               method = :without_encryption
               value = nil
             end
-          when 'load_balancing_strategy'
-            value = load_balancing_strategy(value)
           when /Time(out)?$/i
             unit = java.util.concurrent.TimeUnit::SECONDS
           when 'logger'
@@ -45,17 +43,6 @@ module Neo4j
             value = Neo4j::Driver::Ext::Logger.new(value)
           end
           [method, value, unit].compact
-        end
-
-        def load_balancing_strategy(value)
-          case value
-          when :least_connected
-            Config::LoadBalancingStrategy::LEAST_CONNECTED
-          when :round_robin
-            Config::LoadBalancingStrategy::ROUND_ROBIN
-          else
-            raise ArgumentError
-          end
         end
       end
     end

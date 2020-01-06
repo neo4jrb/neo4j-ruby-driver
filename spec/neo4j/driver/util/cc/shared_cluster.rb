@@ -33,7 +33,7 @@ module Neo4j
                 ClusterControl.install_cluster(neo4j_version, cores, read_replicas, password, port, path)
                 debug("Downloaded cluster at `#{path}`.")
               end
-              @cluster = Cluster.new(path, password);
+              @cluster = Cluster.new(path, password)
             end
 
             def start
@@ -48,7 +48,7 @@ module Neo4j
             def stop
               assert_cluster_exists
               ClusterControl.stop_cluster(@cluster.path)
-              debug( "Cluster at `#{@cluster.path}` stopped.")
+              debug("Cluster at `#{@cluster.path}` stopped.")
             end
 
             private
@@ -56,7 +56,7 @@ module Neo4j
             def parse_start_command_output(output)
               output.split("\n").reject(&:empty?).map do |line|
                 parts = line.split.drop(1)
-                raise ArgumentError, "Wrong start command output found. " \
+                raise ArgumentError, 'Wrong start command output found. ' \
                   "Expected to have 'http_uri bolt_uri path' on each nonempty line. " \
                   "Command output: \n#{output}" if parts.length != 2
                 ClusterMember.new(*parts)

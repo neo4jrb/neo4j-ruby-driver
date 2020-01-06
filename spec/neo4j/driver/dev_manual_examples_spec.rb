@@ -92,12 +92,6 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example Load balancing strategy' do
-      let(:config) { { load_balancing_strategy: :least_connected } }
-
-      it { is_expected.to be true }
-    end
-
     context 'Example 2.11. Max retry time' do
       let(:config) { { max_transaction_retry_time: 15 * 1000 } } # 15 seconds
 

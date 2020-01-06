@@ -3,7 +3,7 @@
 require 'neo4j/driver/util/cc/cluster_control'
 require 'neo4j/driver/util/cc/shared_cluster'
 
-RSpec.shared_context "cluster_extension" do
+RSpec.shared_context 'cluster_extension' do
   USER = 'neo4j'
   PASSWORD = 'password'
   CLUSTER_DIR = File.absolute_path('db/neo4j/test-cluster')
@@ -27,8 +27,8 @@ RSpec.shared_context "cluster_extension" do
     end
   end
 
-  after(:example) do
-    #cluster.start_offline_members
+  after do
+    # cluster.start_offline_members
     cluster.delete_data
   end
 
