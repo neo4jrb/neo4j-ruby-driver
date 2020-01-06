@@ -96,13 +96,6 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
                                              connection_timeout: 15 * 1000) # 15 seconds
 
 ######################################
-# Example Load balancing strategy
-######################################
-
-driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
-                                             load_balancing_strategy: :least_connected)
-
-######################################
 # Example 2.11. Max retry time
 ######################################
 

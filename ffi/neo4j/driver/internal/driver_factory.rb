@@ -10,20 +10,23 @@ module Neo4j
         NEO4J_URI_SCHEME = 'neo4j'
         DEFAULT_PORT = 7687
 
-        def new_instance(uri, auth_token, routing_settings, retry_settings, config)
+        def new_instance(uri, auth_token, config)
           uri = URI(uri)
-          connector, logger = create_connector(uri, auth_token, config)
+          routing_context = routing_context(uri)
+          connector, logger = create_connector(uri, auth_token, routing_context, config)
           retry_logic = Retry::ExponentialBackoffRetryLogic.new(config[:max_transaction_retry_time], config[:logger])
-          create_driver(uri.scheme, connector, logger, routing_settings, retry_logic, config).tap(&:verify_connectivity)
+          create_driver(connector, logger, retry_logic, config).tap(&:verify_connectivity)
         end
 
         private
 
-        def create_connector(uri, auth_token, config)
+        def create_connector(uri, auth_token, routing_context, config)
           address = Bolt::Address.create(host(uri).gsub(/^\[(.*)\]$/, '\\1'), port(uri).to_s)
           bolt_config = bolt_config(config)
           logger = InternalLogger.register(bolt_config, config[:logger])
           set_socket_options(bolt_config, config)
+          set_routing_context(bolt_config, routing_context)
+          set_scheme(bolt_config, uri, routing_context)
           [Bolt::Connector.create(address, auth_token, bolt_config), logger]
         end
 
@@ -54,6 +57,17 @@ module Neo4j
           check_error Bolt::Config.set_socket_options(bolt_config, socket_options) if socket_options
         end
 
+        def routing_context(uri)
+          query = uri.query
+          return if query.blank?
+          URI.decode_www_form(query).to_h
+        end
+
+        def set_routing_context(bolt_config, routing_context)
+          value = Bolt::Value.create
+          check_error Bolt::Config.set_routing_context(bolt_config, Value::ValueAdapter.to_neo(value, routing_context))
+        end
+
         def host(uri)
           uri.host.tap { |host| raise ArgumentError, "Invalid address format `#{uri}`" unless host }
         end
@@ -63,20 +77,30 @@ module Neo4j
             DEFAULT_PORT
         end
 
-        def create_driver(scheme, connector, logger, routing_settings, retry_logic, config)
+        def set_scheme(bolt_config, uri, routing_context)
+          check_error Bolt::Config.set_scheme(bolt_config, scheme(uri, routing_context))
+        end
+
+        def scheme(uri, routing_context)
+          scheme = uri.scheme
           case scheme
           when BOLT_URI_SCHEME
-            # assert_no_routing_context( uri, routing_settings )
-            # return createDirectDriver( securityPlan, address, connectionPool, retryLogic, metrics, config );
-            create_direct_driver(connector, logger, retry_logic, config)
+            assert_no_routing_context(uri, routing_context)
+            Bolt::Config::BOLT_SCHEME_DIRECT
           when BOLT_ROUTING_URI_SCHEME, NEO4J_URI_SCHEME
-            # create_routing_driver( security_plan, address, connection_ool, eventExecutorGroup, routingSettings, retryLogic, metrics, config );
+            Bolt::Config::BOLT_SCHEME_NEO4J
           else
             raise Exceptions::ClientException, "Unsupported URI scheme: #{scheme}"
           end
         end
 
-        def create_direct_driver(connector, logger, retry_logic, config)
+        def assert_no_routing_context(uri, routing_context)
+          if routing_context
+            raise ArgumentError, "Routing parameters are not supported with scheme 'bolt'. Given URI: '#{uri}'"
+          end
+        end
+
+        def create_driver(connector, logger, retry_logic, config)
           connection_provider = DirectConnectionProvider.new(connector, config)
           session_factory = create_session_factory(connection_provider, retry_logic, config)
           InternalDriver.new(session_factory, logger)
