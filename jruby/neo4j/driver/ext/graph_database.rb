@@ -37,7 +37,8 @@ module Neo4j
               value = nil
             end
           when /Time(out)?$/i
-            unit = java.util.concurrent.TimeUnit::SECONDS
+            value = Driver::Internal::DurationNormalizer.milliseconds(value)
+            unit = java.util.concurrent.TimeUnit::MILLISECONDS
           when 'logger'
             method = :with_logging
             value = Neo4j::Driver::Ext::Logger.new(value)

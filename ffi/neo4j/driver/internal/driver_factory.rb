@@ -37,9 +37,10 @@ module Neo4j
             when :max_connection_pool_size
               check_error Bolt::Config.set_max_pool_size(bolt_config, value)
             when :max_connection_life_time
-              check_error Bolt::Config.set_max_connection_life_time(bolt_config, value)
+              check_error Bolt::Config.set_max_connection_life_time(bolt_config, DurationNormalizer.milliseconds(value))
             when :connection_acquisition_timeout
-              check_error Bolt::Config.set_max_connection_acquisition_time(bolt_config, value)
+              check_error Bolt::Config.set_max_connection_acquisition_time(bolt_config,
+                                                                           DurationNormalizer.milliseconds(value))
             end
           end
           check_error Bolt::Config.set_user_agent(bolt_config, 'seabolt-cmake/1.7')
@@ -51,7 +52,8 @@ module Neo4j
           config.each do |key, value|
             case key
             when :connection_timeout
-              check_error Bolt::SocketOptions.set_connect_timeout(socket_options ||= Bolt::SocketOptions.create, value)
+              check_error Bolt::SocketOptions.set_connect_timeout(socket_options ||= Bolt::SocketOptions.create,
+                                                                  DurationNormalizer.milliseconds(value))
             end
           end
           check_error Bolt::Config.set_socket_options(bolt_config, socket_options) if socket_options
