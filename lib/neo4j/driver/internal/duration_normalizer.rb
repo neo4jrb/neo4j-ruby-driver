@@ -16,6 +16,10 @@ module Neo4j
             [months_i, days_i, seconds_i, nonanoseconds.round]
           end
 
+          def milliseconds(duration)
+            duration.in_milliseconds.round
+          end
+
           private
 
           def divmod(number, factor)

@@ -516,7 +516,7 @@ RSpec.describe 'SessionSpec' do
     config = {
       max_connection_pool_size: max_pool_size,
       connection_acquisition_timeout: 0,
-      max_transaction_retry_time: 42 * 24 * 60 * 60, # retry for a really long time
+      max_transaction_retry_time: 42.days, # retry for a really long time
     }
     Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, config) do |driver|
       max_pool_size.times { driver.session.begin_transaction }

@@ -84,23 +84,23 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
-                                             max_connection_lifetime: 3 * 60 * 60 * 1000, # 3 hours
+                                             max_connection_lifetime: 30.minutes,
                                              max_connection_pool_size: 50,
-                                             connection_acquisition_timeout: 2 * 60 * 1000) # 120 seconds
+                                             connection_acquisition_timeout: 2.minutes)
 
 ######################################
 # Example 2.10. Connection timeout
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
-                                             connection_timeout: 15 * 1000) # 15 seconds
+                                             connection_timeout: 15.seconds)
 
 ######################################
 # Example 2.11. Max retry time
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
-                                             max_transaction_retry_time: 15 * 1000) # 15 seconds
+                                             max_transaction_retry_time: 15.seconds)
 
 ######################################
 # Example 2.12. Service unavailable

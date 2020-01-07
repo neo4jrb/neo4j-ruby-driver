@@ -5,8 +5,8 @@ module Neo4j
     module Internal
       module Retry
         class ExponentialBackoffRetryLogic
-          DEFAULT_MAX_RETRY_TIME = 30
-          INITIAL_RETRY_DELAY = 1
+          DEFAULT_MAX_RETRY_TIME = 30.seconds
+          INITIAL_RETRY_DELAY = 1.second
           RETRY_DELAY_MULTIPLIER = 2.0
           RETRY_DELAY_JITTER_FACTOR = 0.2
 
@@ -29,10 +29,10 @@ module Neo4j
                 if elapsed_time < @max_retry_time
                   delay_with_jitter = compute_delay_with_jitter(next_delay)
                   @log&.warn("Transaction failed and will be retried in #{delay_with_jitter}ms", error)
-                  sleep(delay_with_jitter) # verify time units
+                  sleep(delay_with_jitter)
                   next_delay *= RETRY_DELAY_MULTIPLIER
                   (errors ||= []) << error
-                  next
+                  retry
                 end
               end
               add_suppressed(error, errors)

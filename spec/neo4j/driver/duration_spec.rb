@@ -87,9 +87,7 @@ RSpec.describe ActiveSupport::Duration do
     context 'when 0.9 years' do
       let(:duration) { 'P0.9Y' }
 
-      # it { is_expected.to eq result }
-      # Bug in neo4j
-      it { is_expected.to be_within(1e-9).of(described_class.years(BigDecimal('0.9'))) }
+      it { is_expected.to eq result }
 
       it 'has 10 months' do
         expect(result.parts[:months]).to eq 10

@@ -23,7 +23,7 @@ module Neo4j
             throw Exceptions::ClientException.new(
               error_code,
               'Unable to acquire connection from the pool within configured maximum time of ' \
-              "#{@config[:connection_acquisition_timeout] * 1000}ms"
+              "#{DurationNormalizer.milliseconds(@config[:connection_acquisition_timeout])}ms"
             )
 
             # Routing table retrieval failed

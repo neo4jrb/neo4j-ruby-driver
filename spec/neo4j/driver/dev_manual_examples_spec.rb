@@ -78,22 +78,22 @@ RSpec.describe Neo4j::Driver do
 
     context 'Example 2.9. Connection pool management' do
       let(:config) do
-        { max_connection_lifetime: 3 * 60 * 60 * 1000, # 3 hours
+        { max_connection_lifetime: 30.minutes,
           max_connection_pool_size: 50,
-          connection_acquisition_timeout: 2 * 60 * 1000 } # 120 seconds
+          connection_acquisition_timeout: 2.minutes }
       end
 
       it { is_expected.to be true }
     end
 
     context 'Example 2.10. Connection timeout' do
-      let(:config) { { connection_timeout: 15 * 1000 } } # 15 seconds
+      let(:config) { { connection_timeout: 15.seconds } }
 
       it { is_expected.to be true }
     end
 
     context 'Example 2.11. Max retry time' do
-      let(:config) { { max_transaction_retry_time: 15 * 1000 } } # 15 seconds
+      let(:config) { { max_transaction_retry_time: 15.seconds } }
 
       it { is_expected.to be true }
     end
