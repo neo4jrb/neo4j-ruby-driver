@@ -95,7 +95,7 @@ module Neo4j
         def details(error_code, status)
           details = {
             code: error_code.to_s(16),
-            error: Bolt::Error.get_string(error_code),
+            error: Bolt::Error.get_string(error_code)
           }
           return details unless status
           details.merge(state: Bolt::Status.get_state(status),
