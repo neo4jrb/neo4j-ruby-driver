@@ -14,6 +14,7 @@ module Neo4j
             self.path = path
             self.password = password
             @drivers = {}
+            @offline_members = []
           end
 
           def members=(members)
@@ -40,6 +41,10 @@ module Neo4j
             read_replicas.sample
           end
 
+          def cores
+            @members.values - read_replicas
+          end
+
           def close
             @drivers.values.each(&:close)
           end
@@ -54,7 +59,43 @@ module Neo4j
             @members.each_key { |bolt_uri| count_nodes(driver(bolt_uri), bookmark) }
           end
 
+          def stop(member)
+            remove_offline_member(member)
+            SharedCluster.stop_member(member)
+            wait_for_members_to_be_online
+          end
+
+          def kill(member)
+            remove_offline_member(member)
+            SharedCluster.kill_member(member)
+            wait_for_members_to_be_online
+          end
+
+          def start(member)
+            add_offline_member(member)
+            SharedCluster.start_member(member)
+            wait_for_members_to_be_online
+          end
+
+          def start_offline_members
+            @offline_members.each(&method(:start))
+            wait_for_members_to_be_online
+          end
+
           private
+
+          def wait_for_members_to_be_online
+          end
+
+          def remove_offline_member(member)
+            raise ArgumentError, "Unknown cluster member #{member}" unless @members.delete(member.bolt_uri)
+            @offline_members << member
+          end
+
+          def add_offline_member(member)
+            raise ArgumentError, "Cluster member is not offline: #{member}" unless @offline_members.delete(member)
+            @members[member.bolt_uri] = member
+          end
 
           def members_with_role(role)
             @members.values_at(*find_cluster_overview(driver_to_any_core)[role])

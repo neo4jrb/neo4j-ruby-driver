@@ -4,7 +4,7 @@ module Neo4j
   module Driver
     module Internal
       module ErrorHandling
-        def check_error(error_code, status = nil, error_text = nil)
+        def check_error(error_code, status = nil)
           case error_code
             # Identifies a successful operation which is defined as 0
           when Bolt::Error::BOLT_SUCCESS # 0
@@ -28,14 +28,17 @@ module Neo4j
 
             # Routing table retrieval failed
           when Bolt::Error::BOLT_ROUTING_UNABLE_TO_RETRIEVE_ROUTING_TABLE # 0x800
-            throw Exceptions::ServiceUnavailableException.new(error_code, Bolt::Error.get_string(error_code))
+            throw Exceptions::ServiceUnavailableException.new(
+              error_code,
+              'Could not perform discovery. No routing servers available.'
+            )
 
             # Error set in connection
           when Bolt::Error::BOLT_CONNECTION_HAS_MORE_INFO, Bolt::Error::BOLT_STATUS_SET # 0xFFE, 0xFFF
             status = Bolt::Connection.status(bolt_connection)
-            unqualified_error(error_code, status, error_text)
+            unqualified_error(error_code, status)
           else
-            unqualified_error(error_code, status, error_text)
+            unqualified_error(error_code, status)
           end
         end
 
@@ -69,18 +72,35 @@ module Neo4j
 
         private
 
+        def exception_class(state)
+          case state
+          when Bolt::Status::BOLT_CONNECTION_STATE_DEFUNCT
+            Exceptions::SessionExpiredException
+          else
+            Exceptions::Neo4jException
+          end
+        end
+
         def throw(error)
           on_failure(error)
           raise error
         end
 
-        def unqualified_error(error_code, status, error_text)
-          error_ctx = status && Bolt::Status.get_error_context(status)
-          throw Exceptions::Neo4jException.new(
-            error_code,
-            "#{error_text || 'Unknown Bolt failure'} (code: #{error_code.to_s(16)}, " \
-            "text: #{Bolt::Error.get_string(error_code)}, context: #{error_ctx})"
-          )
+        def unqualified_error(error_code, status)
+          details = details(error_code, status)
+          throw exception_class(details[:state]).new(error_code,
+                                                     details.map { |key, value| "#{key}: `#{value}`" }.join(', '))
+        end
+
+        def details(error_code, status)
+          details = {
+            code: error_code.to_s(16),
+            error: Bolt::Error.get_string(error_code),
+          }
+          return details unless status
+          details.merge(state: Bolt::Status.get_state(status),
+                        error: Bolt::Status.get_error(status),
+                        error_context: Bolt::Status.get_error_context(status))
         end
       end
     end

@@ -3,6 +3,16 @@
 module Bolt
   module Status
     extend Bolt::Library
+    # Not connected
+    BOLT_CONNECTION_STATE_DISCONNECTED = 0
+    # Connected but not authenticated
+    BOLT_CONNECTION_STATE_CONNECTED = 1
+    # Connected and authenticated
+    BOLT_CONNECTION_STATE_READY = 2
+    # Recoverable failure
+    BOLT_CONNECTION_STATE_FAILED = 3
+    # Unrecoverable failure
+    BOLT_CONNECTION_STATE_DEFUNCT = 4
 
     typedef :int32, :bolt_connection_state
 
