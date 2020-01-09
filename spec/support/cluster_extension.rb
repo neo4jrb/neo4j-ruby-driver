@@ -14,21 +14,24 @@ RSpec.shared_context 'cluster_extension' do
   READ_REPLICA_COUNT = 2
 
   let(:default_auth_token) { Neo4j::Driver::AuthTokens.basic(USER, PASSWORD) }
-  let(:cluster) { Neo4j::Driver::Util::CC::SharedCluster.get }
+
+  def cluster
+    Neo4j::Driver::Util::CC::SharedCluster.get
+  end
 
   before(:context) do
     expect(Neo4j::Driver::Util::CC::ClusterControl).to be_boltkit_available
     if Neo4j::Driver::Util::CC::SharedCluster.exists?
-      cluster.delete_data
     else
       Neo4j::Driver::Util::CC::SharedCluster.install(NEO4J_VERSION, CORE_COUNT, READ_REPLICA_COUNT, PASSWORD,
                                                      INITIAL_PORT, CLUSTER_DIR)
       Neo4j::Driver::Util::CC::SharedCluster.start
     end
+    cluster.delete_data
   end
 
   after do
-    # cluster.start_offline_members
+    cluster.start_offline_members
     cluster.delete_data
   end
 

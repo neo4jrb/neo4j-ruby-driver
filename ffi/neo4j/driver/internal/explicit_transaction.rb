@@ -17,6 +17,7 @@ module Neo4j
 
         def begin(initial_bookmarks, config)
           chain @protocol.begin_transaction(@connection, initial_bookmarks, config)
+          finalize if initial_bookmarks.present?
           self
         rescue StandardError => e
           @connection.release

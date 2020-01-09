@@ -45,10 +45,28 @@ module Neo4j
               debug("Cluster started: #{members}.")
             end
 
+            def start_member(member)
+              assert_cluster_exists
+              ClusterControl.start_cluster_member(member.path)
+              debug("Cluster member at `#{member.path}` started.")
+            end
+
             def stop
               assert_cluster_exists
               ClusterControl.stop_cluster(@cluster.path)
               debug("Cluster at `#{@cluster.path}` stopped.")
+            end
+
+            def stop_member(member)
+              assert_cluster_exists
+              ClusterControl.stop_cluster_member(member.path)
+              debug("Cluster member at `#{member.path}` stopped.")
+            end
+
+            def kill_member(member)
+              assert_cluster_exists
+              ClusterControl.kill_cluster_member(member.path)
+              debug("Cluster member at `#{member.path}` killed.")
             end
 
             private

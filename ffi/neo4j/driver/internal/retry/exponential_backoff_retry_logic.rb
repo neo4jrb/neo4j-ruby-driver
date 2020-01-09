@@ -19,8 +19,8 @@ module Neo4j
             next_delay = INITIAL_RETRY_DELAY
             start_time = nil
             errors = nil
-            loop do
-              return yield
+            begin
+              yield
             rescue Exceptions::Neo4jException => error
               if can_retry_on?(error)
                 curr_time = current_time
@@ -28,7 +28,7 @@ module Neo4j
                 elapsed_time = curr_time - start_time
                 if elapsed_time < @max_retry_time
                   delay_with_jitter = compute_delay_with_jitter(next_delay)
-                  @log&.warn("Transaction failed and will be retried in #{delay_with_jitter}ms", error)
+                  @log&.warn { "Transaction failed and will be retried in #{delay_with_jitter}ms\n#{error}" }
                   sleep(delay_with_jitter)
                   next_delay *= RETRY_DELAY_MULTIPLIER
                   (errors ||= []) << error
