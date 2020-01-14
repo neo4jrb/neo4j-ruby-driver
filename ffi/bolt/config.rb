@@ -8,6 +8,10 @@ module Bolt
     BOLT_SCHEME_NEO4J = 1
 
     typedef :int32_t, :bolt_scheme
+
+    BOLT_TRANSPORT_PLAINTEXT = 0
+    BOLT_TRANSPORT_ENCRYPTED = 1
+
     typedef :int32_t, :bolt_transport
 
     attach_function :create, :BoltConfig_create, [], :auto_pointer

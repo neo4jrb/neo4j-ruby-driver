@@ -21,7 +21,7 @@ module Neo4j
           unless auth_token.is_a? FFI::Pointer
             raise Exceptions::AuthenticationException, 'Unsupported authentication token'
           end
-          config ||= Config.default_config
+          config = Config.default_config.merge(config || {})
 
           Internal::DriverFactory.new.new_instance(uri, auth_token, config)
         end

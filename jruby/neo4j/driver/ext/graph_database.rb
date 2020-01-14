@@ -42,6 +42,9 @@ module Neo4j
           when 'logger'
             method = :with_logging
             value = Neo4j::Driver::Ext::Logger.new(value)
+          when 'resolver'
+            proc = value
+            value = ->(address) { java.util.HashSet.new(proc.call(address)) }
           end
           [method, value, unit].compact
         end
