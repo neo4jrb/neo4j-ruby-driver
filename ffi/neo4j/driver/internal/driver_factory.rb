@@ -13,9 +13,9 @@ module Neo4j
         def new_instance(uri, auth_token, config)
           uri = URI(uri)
           routing_context = routing_context(uri)
-          connector, logger = create_connector(uri, auth_token, routing_context, config)
+          connector, logger, resolver = create_connector(uri, auth_token, routing_context, config)
           retry_logic = Retry::ExponentialBackoffRetryLogic.new(config[:max_transaction_retry_time], config[:logger])
-          create_driver(connector, logger, retry_logic, config).tap(&:verify_connectivity)
+          create_driver(connector, logger, resolver, retry_logic, config).tap(&:verify_connectivity)
         end
 
         private
@@ -27,7 +27,8 @@ module Neo4j
           set_socket_options(bolt_config, config)
           set_routing_context(bolt_config, routing_context)
           set_scheme(bolt_config, uri, routing_context)
-          [Bolt::Connector.create(address, auth_token, bolt_config), logger]
+          resolver = InternalResolver.register(bolt_config, config[:resolver])
+          [Bolt::Connector.create(address, auth_token, bolt_config), logger, resolver]
         end
 
         def bolt_config(config)
@@ -41,6 +42,11 @@ module Neo4j
             when :connection_acquisition_timeout
               check_error Bolt::Config.set_max_connection_acquisition_time(bolt_config,
                                                                            DurationNormalizer.milliseconds(value))
+            when :encryption
+              check_error Bolt::Config.set_transport(
+                bolt_config,
+                value ? Bolt::Config::BOLT_TRANSPORT_ENCRYPTED : Bolt::Config::BOLT_TRANSPORT_PLAINTEXT
+              )
             end
           end
           check_error Bolt::Config.set_user_agent(bolt_config, 'seabolt-cmake/1.7')
@@ -102,10 +108,10 @@ module Neo4j
           end
         end
 
-        def create_driver(connector, logger, retry_logic, config)
+        def create_driver(connector, logger, resolver, retry_logic, config)
           connection_provider = DirectConnectionProvider.new(connector, config)
           session_factory = create_session_factory(connection_provider, retry_logic, config)
-          InternalDriver.new(session_factory, logger)
+          InternalDriver.new(session_factory, logger, resolver)
         end
 
         def create_session_factory(connection_provider, retry_logic = nil, config = nil)
