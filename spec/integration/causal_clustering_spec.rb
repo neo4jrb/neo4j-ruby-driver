@@ -162,9 +162,7 @@ RSpec.describe 'CausalClusteringSpec' do
     Neo4j::Driver::GraphDatabase.driver(
       'neo4j://wrong:9999',
       basic_auth_token,
-      resolver: ->(_address) {
-        [Neo4j::Driver::Net::ServerAddress.of(uri.host, uri.port)]
-      }
+      resolver: ->(_address) { [Neo4j::Driver::Net::ServerAddress.of(uri.host, uri.port)] }
     ) do |driver|
       driver.session { |session| expect(session.run('RETURN 1').single.first).to eq 1 }
     end

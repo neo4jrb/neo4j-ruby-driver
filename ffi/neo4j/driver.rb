@@ -28,6 +28,8 @@ if RUBY_PLATFORM.match?(/java/)
         module Value
         end
       end
+      module Net
+      end
       module Summary
       end
       module Types
