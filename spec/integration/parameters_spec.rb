@@ -27,7 +27,7 @@ RSpec.describe 'Parameters' do
 
     it 'is able to set and return Date property' do
       test_property Date.today
-      result = session.run("match(n) return n.value").single
+      result = session.run('match(n) return n.value').single
       expect(result.as_map['n.value']).to be_a(Date) if result.respond_to?(:as_map)
     end
     # skiped, no such types in ruby
