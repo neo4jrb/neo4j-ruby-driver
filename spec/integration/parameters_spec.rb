@@ -15,7 +15,7 @@ RSpec.describe 'Parameters' do
   end
 
   context "is able to set and return property" do
-    let(:query) { 'CREATE (a {value:{value}}) RETURN a.value' }
+    let(:query) { 'CREATE (a {value: $value}) RETURN a.value' }
 
     def parameter_processor(value)
       value
@@ -81,11 +81,11 @@ RSpec.describe 'Parameters' do
 
   it 'handles large strings' do
     big_string = 'abcd' * 2560
-    expect(session.run('RETURN {p} AS p', p: big_string).peek[:p]).to eq big_string
+    expect(session.run('RETURN $p AS p', p: big_string).peek[:p]).to eq big_string
   end
 
   context 'is able to set and return property within map' do
-    let(:query) { 'CREATE (a {value:{value}.v}) RETURN a.value' }
+    let(:query) { 'CREATE (a {value: $value.v}) RETURN a.value' }
 
     def parameter_processor(value)
       { v: value }
@@ -114,7 +114,7 @@ RSpec.describe 'Parameters' do
 
     shared_examples 'raises exception' do
       specify do
-        expect { session.run('RETURN {a}', a: value).consume }
+        expect { session.run('RETURN $a', a: value).consume }
           .to raise_error Neo4j::Driver::Exceptions::ClientException,
                           /^Unable to convert #{value.class.name} to Neo4j Value./
       end

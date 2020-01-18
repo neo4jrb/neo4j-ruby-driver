@@ -8,7 +8,7 @@ RSpec.describe 'CausalClusteringSpec' do
 
   DEFAULT_TIMEOUT = 120
 
-  delegate :leader, to: :cluster
+  delegate :leader, :version3?, to: :cluster
 
   def new_session(mode)
     driver.session(mode)
@@ -19,7 +19,9 @@ RSpec.describe 'CausalClusteringSpec' do
     expect(count).to eq 1
   end
 
+  # DisabledOnNeo4jWith( BOLT_V4 )
   it 'executes reads and writes when router is discovered' do
+    skip "Not applicable to V4" unless version3?
     count = execute_write_and_read_through_bolt_on_first_available_address(cluster.any_read_replica, leader)
     expect(count).to eq 1
   end
@@ -31,6 +33,7 @@ RSpec.describe 'CausalClusteringSpec' do
 
   # DisabledOnNeo4jWith( BOLT_V4 )
   it 'session creation fails if calling discovery procedure on edge server' do
+    skip "Not applicable to V4" unless version3?
     read_replica = cluster.any_read_replica
     expect { create_driver(read_replica.routing_uri) }
       .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException,
@@ -162,6 +165,7 @@ RSpec.describe 'CausalClusteringSpec' do
     Neo4j::Driver::GraphDatabase.driver(
       'neo4j://wrong:9999',
       basic_auth_token,
+      encryption: false,
       resolver: ->(_address) { [Neo4j::Driver::Net::ServerAddress.of(uri.host, uri.port)] }
     ) do |driver|
       driver.session { |session| expect(session.run('RETURN 1').single.first).to eq 1 }
@@ -187,7 +191,7 @@ RSpec.describe 'CausalClusteringSpec' do
   end
 
   def create_driver(bolt_uri, config = config_without_logging, &block)
-    Neo4j::Driver::GraphDatabase.driver(bolt_uri, default_auth_token, &block)
+    Neo4j::Driver::GraphDatabase.driver(bolt_uri, default_auth_token, config, &block)
   end
 
   def config_without_logging

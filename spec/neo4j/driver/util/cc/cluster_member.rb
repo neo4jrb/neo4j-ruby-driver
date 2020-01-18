@@ -6,7 +6,8 @@ module Neo4j
       module CC
         class ClusterMember
           SIMPLE_SCHEME = 'bolt://'
-          ROUTING_SCHEME = 'bolt+routing://'
+          #ROUTING_SCHEME = 'bolt+routing://'
+          ROUTING_SCHEME = 'neo4j://'
 
           attr_accessor :bolt_uri, :path
 

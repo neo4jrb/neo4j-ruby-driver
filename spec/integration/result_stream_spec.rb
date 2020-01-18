@@ -20,7 +20,7 @@ RSpec.describe 'ResultStream' do
 
   it 'gives helpful failure message when access non existing field' do
     driver.session do |session|
-      res = session.run('CREATE (n:Person {name:{name}}) RETURN n', name: 'Tom Hanks')
+      res = session.run('CREATE (n:Person {name: $name}) RETURN n', name: 'Tom Hanks')
       single = res.single
       expect(single[:m]).to be_nil
     end
@@ -28,7 +28,7 @@ RSpec.describe 'ResultStream' do
 
   it 'gives helpful failure message when access non existing property on node' do
     driver.session do |session|
-      res = session.run('CREATE (n:Person {name:{name}}) RETURN n', name: 'Tom Hanks')
+      res = session.run('CREATE (n:Person {name: $name}) RETURN n', name: 'Tom Hanks')
       record = res.single
       expect(record[:n][:age]).to be_nil
     end
@@ -36,7 +36,7 @@ RSpec.describe 'ResultStream' do
 
   it 'does not return null keys on empty result' do
     driver.session do |session|
-      res = session.run('CREATE (n:Person {name:{name}})', name: 'Tom Hanks')
+      res = session.run('CREATE (n:Person {name: $name})', name: 'Tom Hanks')
       expect(res.keys).not_to be_nil
       expect(res.keys).to be_empty
     end

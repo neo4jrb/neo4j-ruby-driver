@@ -6,8 +6,8 @@ require 'neo4j/driver/util/cc/shared_cluster'
 RSpec.shared_context 'cluster_extension' do
   USER = 'neo4j'
   PASSWORD = 'password'
-  CLUSTER_DIR = File.absolute_path('db/neo4j/test-cluster')
-  NEO4J_VERSION = ENV['NEO4J_VERSION'] || '3.5.14'
+  CLUSTER_DIR = File.absolute_path('db/neo4j/test-cluster2')
+  NEO4J_VERSION = ENV['NEO4J_VERSION'] || '4.0.0'
   INITIAL_PORT = 20_000
 
   CORE_COUNT = 3

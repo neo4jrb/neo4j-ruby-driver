@@ -22,7 +22,7 @@ RSpec.describe Neo4j::Driver do
 
     after { driver2.close }
 
-    let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
+    let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, { encryption: false }.merge(config)) }
     let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
     let(:config) { {} }
 

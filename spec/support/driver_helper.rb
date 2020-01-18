@@ -2,26 +2,8 @@
 
 class DriverHelper
   module Helper
-    def driver
-      DriverHelper.driver
-    end
-
     def uri
-      DriverHelper.uri
-    end
-
-    def port
-      DriverHelper.port
-    end
-
-    def basic_auth_token
-      DriverHelper.basic_auth_token
-    end
-  end
-
-  class << self
-    def uri
-      ENV.fetch('NEO4J_BOLT_URL', 'bolt://127.0.0.1:7998')
+      ENV.fetch('NEO4J_BOLT_URL', 'bolt://127.0.0.1:7687')
     end
 
     def port
@@ -33,14 +15,15 @@ class DriverHelper
     end
 
     def driver
-      @driver ||= Neo4j::Driver::GraphDatabase.driver(
+      @@driver ||= Neo4j::Driver::GraphDatabase.driver(
         uri, basic_auth_token,
         max_transaction_retry_time: 2,
         connection_timeout: 3,
-        # logger: ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG)
-        # logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::DEBUG)
+        encryption: false
+      # logger: ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG)
+      # logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::DEBUG)
       )
-      # @driver ||= Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.none)
+      # @@driver ||= Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.none)
     end
   end
 end
