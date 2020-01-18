@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-class DriverHelper
+module DriverHelper
   module Helper
+    mattr_accessor :single_driver
+
     def uri
       ENV.fetch('NEO4J_BOLT_URL', 'bolt://127.0.0.1:7687')
     end
@@ -15,7 +17,7 @@ class DriverHelper
     end
 
     def driver
-      @@driver ||= Neo4j::Driver::GraphDatabase.driver(
+      self.single_driver ||= Neo4j::Driver::GraphDatabase.driver(
         uri, basic_auth_token,
         max_transaction_retry_time: 2,
         connection_timeout: 3,

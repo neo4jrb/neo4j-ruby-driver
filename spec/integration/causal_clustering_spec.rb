@@ -21,7 +21,7 @@ RSpec.describe 'CausalClusteringSpec' do
 
   # DisabledOnNeo4jWith( BOLT_V4 )
   it 'executes reads and writes when router is discovered' do
-    skip "Not applicable to V4" unless version3?
+    skip 'Not applicable to V4' unless version3?
     count = execute_write_and_read_through_bolt_on_first_available_address(cluster.any_read_replica, leader)
     expect(count).to eq 1
   end
@@ -33,7 +33,7 @@ RSpec.describe 'CausalClusteringSpec' do
 
   # DisabledOnNeo4jWith( BOLT_V4 )
   it 'session creation fails if calling discovery procedure on edge server' do
-    skip "Not applicable to V4" unless version3?
+    skip 'Not applicable to V4' unless version3?
     read_replica = cluster.any_read_replica
     expect { create_driver(read_replica.routing_uri) }
       .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException,
