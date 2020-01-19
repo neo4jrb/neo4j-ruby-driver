@@ -35,8 +35,6 @@ env:
     - NEO4J_VERSION=4.0.0 SEABOLT_LIB=
     - NEO4J_VERSION=3.5.14
     - NEO4J_VERSION=3.5.14 SEABOLT_LIB=
-    - NEO4J_VERSION=3.4.17
-    - NEO4J_VERSION=3.4.17 SEABOLT_LIB=
 matrix:
   include:
     - rvm: 2.5.7
