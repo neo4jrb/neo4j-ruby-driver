@@ -45,6 +45,15 @@ matrix:
     - jdk: openjdk11
       rvm: jruby-9.2.8.0
       env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
+    - jdk: openjdk11
+      rvm: 2.7.0
+      env: NEO4J_VERSION=4.0.0
+    - jdk: openjdk11
+      rvm: jruby-9.2.9.0
+      env: NEO4J_VERSION=4.0.0
+    - jdk: openjdk11
+      rvm: jruby-9.2.8.0
+      env: NEO4J_VERSION=4.0.0 SEABOLT_LIB=
   exclude:
     - rvm: 2.7.0
       env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=

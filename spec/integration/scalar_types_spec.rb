@@ -103,7 +103,7 @@ RSpec.describe 'ScalarTypesSpec' do
 
   def verify_can_encode_and_decode(var)
     driver.session do |session|
-      result = session.run('RETURN {x} as y', x: var)
+      result = session.run('RETURN $x as y', x: var)
       expect(result.single[:y]).to eq(var)
     end
   end
