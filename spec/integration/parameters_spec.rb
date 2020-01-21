@@ -25,11 +25,6 @@ RSpec.describe 'Parameters' do
       test_property true
     end
 
-    it 'is able to set and return Date property' do
-      test_property Date.today
-      result = session.run('match(n) return n').single
-      expect(result[:n].properties[:value]).to be_a(Date)
-    end
     # skiped, no such types in ruby
     # shouldBeAbleToSetAndReturnByteProperty
     # shouldBeAbleToSetAndReturnShortProperty
