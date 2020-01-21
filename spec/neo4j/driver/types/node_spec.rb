@@ -9,7 +9,9 @@ RSpec.describe Neo4j::Driver::Types::Node do
   ensure
     session&.close
   end
+
   let(:date) { Date.today }
+
   it { is_expected.to be_a_kind_of described_class }
   its(:labels) { is_expected.to eq(%i[Person]) }
   its(:id) { is_expected.to be_a(Integer) }
