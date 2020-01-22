@@ -7,4 +7,4 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Fixed
 
-- The data types of properties were in JAVA type in case of objects retunred in query for jRuby.
+- values Node#properties were not properly converted from java to ruby
