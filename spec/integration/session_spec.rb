@@ -8,7 +8,8 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'handles nil config' do
-    driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'))
+    driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'),
+                                                 encryption: false)
     session = driver.session
     session.close
     expect(session).not_to be_open
@@ -16,7 +17,7 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'handles nil AuthToken' do
-    expect { Neo4j::Driver::GraphDatabase.driver(uri, nil) {} }
+    expect { Neo4j::Driver::GraphDatabase.driver(uri, nil, encryption: false) {} }
       .to raise_error Neo4j::Driver::Exceptions::AuthenticationException
   end
 
@@ -517,6 +518,7 @@ RSpec.describe 'SessionSpec' do
       max_connection_pool_size: max_pool_size,
       connection_acquisition_timeout: 0,
       max_transaction_retry_time: 42.days, # retry for a really long time
+      encryption: false
     }
     Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, config) do |driver|
       max_pool_size.times { driver.session.begin_transaction }
@@ -776,7 +778,7 @@ RSpec.describe 'SessionSpec' do
 
   def count_nodes_with_id(id)
     driver.session do |session|
-      session.run('MATCH (n {id: {id}}) RETURN count(n)', id: id).single[0]
+      session.run('MATCH (n {id: $id}) RETURN count(n)', id: id).single[0]
     end
   end
 
@@ -827,12 +829,12 @@ RSpec.describe 'SessionSpec' do
 
   def create_node_with_id(id)
     driver.session do |session|
-      session.run('CREATE (n {id: {id}})', id: id)
+      session.run('CREATE (n {id: $id})', id: id)
     end
   end
 
   def update_node_id(statement_runner, current_id, new_id)
-    statement_runner.run('MATCH (n {id: {current_id}}) SET n.id = {new_id}', current_id: current_id, new_id: new_id)
+    statement_runner.run('MATCH (n {id: $current_id}) SET n.id = $new_id', current_id: current_id, new_id: new_id)
   end
 
   def assert_one_of_two_futures_fail_with_deadlock(future1, future2)

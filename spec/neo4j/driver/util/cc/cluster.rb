@@ -82,6 +82,10 @@ module Neo4j
             wait_for_members_to_be_online
           end
 
+          def version3?
+            ENV['NEO4J_VERSION']&.send(:<, '4')
+          end
+
           private
 
           def wait_for_members_to_be_online
@@ -120,14 +124,18 @@ module Neo4j
 
           def core_member?(driver)
             driver.session(AccessMode::READ) do |session|
-              %w[LEADER FOLLOWER].include?(session.run('CALL dbms.cluster.role()').single.first)
+              %w[LEADER FOLLOWER].include?(
+                session.run("CALL dbms.cluster.role(#{'$database' unless version3?})", database: 'neo4j')
+                  .single.first
+              )
             end
           end
 
           def find_cluster_overview(driver)
             driver.session(AccessMode::WRITE) do |session|
               session.run('CALL dbms.cluster.overview()').each_with_object({}) do |record, hash|
-                (hash[record[:role]] ||= []) << record[:addresses].first
+                # Version 3.x.x || Version 4.x.x
+                (hash[record[:role] || record[:databases][:neo4j]] ||= []) << record[:addresses].first
               end
             end
           end

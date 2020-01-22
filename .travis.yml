@@ -5,7 +5,6 @@ language: ruby
 python:
   - 3.7
 jdk:
-  - openjdk8
   - openjdk11
 cache: bundler
 rvm:
@@ -32,31 +31,36 @@ env:
     - SEABOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
     - PATH=$PATH:~/.local/bin
   matrix:
+    - NEO4J_VERSION=4.0.0
+    - NEO4J_VERSION=4.0.0 SEABOLT_LIB=
     - NEO4J_VERSION=3.5.14
-    - NEO4J_VERSION=3.4.17
     - NEO4J_VERSION=3.5.14 SEABOLT_LIB=
-    - NEO4J_VERSION=3.4.17 SEABOLT_LIB=
 matrix:
-  include:
-    - rvm: 2.5.7
-      env: NEO4J_VERSION=3.5.14 NEO4J_EDITION_FLAG=
-    - rvm: 2.6.5
-      env: NEO4J_VERSION=3.5.14 NEO4J_EDITION_FLAG=
-    - jdk: openjdk11
-      rvm: jruby-9.2.8.0
-      env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
   exclude:
     - rvm: 2.7.0
-      env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
+      env: NEO4J_VERSION=4.0.0 SEABOLT_LIB=
     - rvm: 2.7.0
-      env: NEO4J_VERSION=3.4.17 SEABOLT_LIB=
-    - jdk: openjdk11
+      env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
+  include:
+    - rvm: 2.5.7
+      env: NEO4J_VERSION=4.0.0 NEO4J_EDITION_FLAG=
+    - rvm: 2.6.5
+      env: NEO4J_VERSION=4.0.0 NEO4J_EDITION_FLAG=
+    - rvm: jruby-9.2.8.0
+      env: NEO4J_VERSION=4.0.0 SEABOLT_LIB=
+    - rvm: jruby-9.2.8.0
+      env: NEO4J_VERSION=4.0.0 SEABOLT_LIB=
+    - jdk: openjdk8
+      rvm: 2.7.0
       env: NEO4J_VERSION=3.4.17
-    - jdk: openjdk11
+    - jdk: openjdk8
+      env: NEO4J_VERSION=3.4.17
+    - jdk: openjdk8
       env: NEO4J_VERSION=3.4.17 SEABOLT_LIB=
   allow_failures:
-    - jdk: openjdk11
-      rvm: jruby-9.2.9.0
+    - rvm: jruby-9.2.9.0
+      env: NEO4J_VERSION=4.0.0 SEABOLT_LIB=
+    - rvm: jruby-9.2.9.0
       env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
 after_failure:
   - cat $NEO4J_DIR/logs/neo4j.log

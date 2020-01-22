@@ -164,7 +164,7 @@ RSpec.describe 'LoadCsv' do
   before do
     driver.session do |session|
       iris_class_names.each do |class_name|
-        session.run('CREATE (c:Class {name: {class_name}}) RETURN c', class_name: class_name).consume
+        session.run('CREATE (c:Class {name: $class_name}) RETURN c', class_name: class_name).consume
       end
     end
     CSV.open(file_path, 'wb') do |csv|
@@ -181,7 +181,7 @@ RSpec.describe 'LoadCsv' do
   it 'loads CSV' do
     driver.session do |session|
       result = session.run("USING PERIODIC COMMIT 40\n"\
-                           "LOAD CSV WITH HEADERS FROM {csv_file_url} AS l\n"\
+                           "LOAD CSV WITH HEADERS FROM $csv_file_url AS l\n"\
                            "MATCH (c:Class {name: l.class_name})\n"\
                            'CREATE (s:Sample {sepal_length: l.sepal_length, sepal_width: l.sepal_width,'\
                            " petal_length: l.petal_length, petal_width: l.petal_width})\n"\
