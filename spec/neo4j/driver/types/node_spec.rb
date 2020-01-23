@@ -16,4 +16,7 @@ RSpec.describe Neo4j::Driver::Types::Node do
   its(:labels) { is_expected.to eq(%i[Person]) }
   its(:id) { is_expected.to be_a(Integer) }
   its(:properties) { is_expected.to eq(name: 'John', created: date) }
+  it 'properties types should be correct' do
+    expect(subject.properties[:created]).to be_a(date.class)
+  end
 end
