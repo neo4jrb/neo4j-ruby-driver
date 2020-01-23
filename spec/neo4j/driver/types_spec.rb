@@ -67,6 +67,20 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to eq param }
   end
 
+  context "when Date in a map" do
+    let(:param) { { date: Date.today } }
+
+    it { is_expected.to eq param }
+    its('values.first') { is_expected.to be_a Date }
+  end
+
+  context "when Date in a list" do
+    let(:param) { [ Date.today ] }
+
+    it { is_expected.to eq param }
+    its(:first) { is_expected.to be_a Date }
+  end
+
   WGS_84_CRS_CODE = 4326
   CARTESIAN_3D_CRS_CODE = 9157
   DELTA = 0.00001
