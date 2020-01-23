@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Neo4j::Driver::Types::Node do
-  subject do
+  subject(:node) do
     session = driver.session
     session.write_transaction do |tx|
       tx.run('CREATE (p:Person{name: "John", created: $date}) RETURN p', date: date).single.first
@@ -17,6 +17,6 @@ RSpec.describe Neo4j::Driver::Types::Node do
   its(:id) { is_expected.to be_a(Integer) }
   its(:properties) { is_expected.to eq(name: 'John', created: date) }
   it 'properties types should be correct' do
-    expect(subject.properties[:created]).to be_a(date.class)
+    expect(node.properties[:created]).to be_a(date.class)
   end
 end
