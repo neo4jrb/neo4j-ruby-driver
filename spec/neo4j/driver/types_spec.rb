@@ -61,10 +61,24 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to match(/^string$/) }
   end
 
-  context "when long String" do
+  context 'when long String' do
     let(:param) { 'a' * 30 }
 
     it { is_expected.to eq param }
+  end
+
+  context 'when Date in a map' do
+    let(:param) { { date: Date.today } }
+
+    it { is_expected.to eq param }
+    its('values.first') { is_expected.to be_a Date }
+  end
+
+  context 'when Date in a list' do
+    let(:param) { [Date.today] }
+
+    it { is_expected.to eq param }
+    its(:first) { is_expected.to be_a Date }
   end
 
   WGS_84_CRS_CODE = 4326

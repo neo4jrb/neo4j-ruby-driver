@@ -4,9 +4,9 @@ module Neo4j
   module Driver
     module Ext
       module MapAccessor
-        def properties
-          as_map(&:as_ruby_object).to_hash.symbolize_keys
-        end
+        include MapConverter
+
+        alias properties to_hash
 
         def [](key)
           get(key.to_s).as_ruby_object
