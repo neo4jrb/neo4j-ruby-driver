@@ -6,7 +6,7 @@ module Bolt
     include Bolt::AutoReleasable
 
     def self.extended(mod)
-      mod.ffi_lib ENV['SEABOLT_LIB']
+      mod.ffi_lib 'libseabolt17'
     end
   end
 end

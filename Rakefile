@@ -7,7 +7,7 @@ Hoe.plugin :bundler
 Hoe.plugin :gemspec
 
 def ffi?
-  ENV['SEABOLT_LIB']&.length&.positive?
+  ENV['driver'] != 'java'
 end
 
 def pdir

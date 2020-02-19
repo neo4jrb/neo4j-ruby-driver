@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', ENV['SEABOLT_LIB']&.length&.positive? ? 'ffi' : 'jruby')
+$LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', ENV['driver'] == 'java' ? 'jruby' : 'ffi')
 
 require 'active_support/logger'
 require 'ffaker'
