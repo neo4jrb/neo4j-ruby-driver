@@ -1,6 +1,5 @@
 ---
 dist: xenial
-sudo: false
 language: ruby
 python:
   - 3.7
@@ -21,26 +20,26 @@ before_install:
 install:
   - neoctrl-set-initial-password password $NEO4J_DIR
   - neoctrl-start $NEO4J_DIR
-  - "curl -L https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.4/seabolt-1.7.4-Linux-ubuntu-16.04.tar.gz | tar -xz"
+  - wget https://github.com/neo4j-drivers/seabolt/releases/download/v1.7.4/seabolt-1.7.4-Linux-ubuntu-16.04.deb
+  - sudo dpkg -i seabolt-1.7.4-Linux-ubuntu-16.04.deb
 before_script: bin/setup
 env:
   global:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
     - NEO4J_EDITION_FLAG=-e
     - NEO4J_BOLT_URL="bolt://127.0.0.1:7687"
-    - SEABOLT_LIB=./seabolt-1.7.4-Linux-ubuntu-16.04/usr/local/lib/libseabolt17.so
     - PATH=$PATH:~/.local/bin
   matrix:
     - NEO4J_VERSION=4.0.0
-    - NEO4J_VERSION=4.0.0 SEABOLT_LIB=
+    - NEO4J_VERSION=4.0.0 driver=java
     - NEO4J_VERSION=3.5.14
-    - NEO4J_VERSION=3.5.14 SEABOLT_LIB=
+    - NEO4J_VERSION=3.5.14 driver=java
 matrix:
   exclude:
     - rvm: 2.7.0
-      env: NEO4J_VERSION=4.0.0 SEABOLT_LIB=
+      env: NEO4J_VERSION=4.0.0 driver=java
     - rvm: 2.7.0
-      env: NEO4J_VERSION=3.5.14 SEABOLT_LIB=
+      env: NEO4J_VERSION=3.5.14 driver=java
   include:
     - rvm: 2.5.7
       env: NEO4J_VERSION=4.0.0 NEO4J_EDITION_FLAG=
@@ -52,7 +51,7 @@ matrix:
     - jdk: openjdk8
       env: NEO4J_VERSION=3.4.17
     - jdk: openjdk8
-      env: NEO4J_VERSION=3.4.17 SEABOLT_LIB=
+      env: NEO4J_VERSION=3.4.17 driver=java
 after_failure:
   - cat $NEO4J_DIR/logs/neo4j.log
   - cat $NEO4J_DIR/logs/debug.log
