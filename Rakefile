@@ -2,7 +2,6 @@
 
 require 'rubygems'
 require 'hoe'
-require 'neo4j/rake_tasks'
 
 Hoe.plugin :bundler
 Hoe.plugin :gemspec
@@ -27,13 +26,13 @@ HOE = Class.new(Hoe) do
   end
 end.spec gem_name do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
+  require_ruby_version '>= 2.5'
 
   dependency 'activesupport', '>= 0'
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
   dependency 'hoe-bundler', '>= 0', :dev
   dependency 'hoe-gemspec', '>= 0', :dev
-  dependency 'neo4j-rake_tasks', '>= 0.3.0', :dev
   dependency 'parallel', '>= 0', :dev
   dependency 'rake', '>= 0', :dev
   dependency 'rspec-its', '>= 0', :dev

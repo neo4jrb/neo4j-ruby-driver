@@ -11,7 +11,6 @@ set -vx
 #neoctrl-configure $NEO4J_DIR dbms.directories.import=
 
 gem install rake
-gem install neo4j-rake_tasks
 gem install hoe
 gem install hoe-bundler
 gem install hoe-gemspec

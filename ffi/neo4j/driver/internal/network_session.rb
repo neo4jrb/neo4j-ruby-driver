@@ -27,12 +27,12 @@ module Neo4j
           )
         end
 
-        def read_transaction(&block)
-          transaction(Neo4j::Driver::AccessMode::READ, &block)
+        def read_transaction(config = nil, &block)
+          transaction(Neo4j::Driver::AccessMode::READ, config, &block)
         end
 
-        def write_transaction(&block)
-          transaction(Neo4j::Driver::AccessMode::WRITE, &block)
+        def write_transaction(config = nil, &block)
+          transaction(Neo4j::Driver::AccessMode::WRITE, config, &block)
         end
 
         def close

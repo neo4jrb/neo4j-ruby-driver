@@ -64,9 +64,18 @@ FFI based same as above but with SEABOLT_LIB variable set (e.g. on Mac OSX):
      
 Please note that seabolt has to be installed separately: https://github.com/neo4j-drivers/seabolt      
 
-In order to run test by running `rake spec` you may have to set your own `NEO4J_BOLT_URL` URI or it will
-fallback to `bolt://localhost:7687`.
-    
+## Testing
+
+To run the tests the following tools need to be installed:
+
+    $ brew install python
+    $ wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user
+    $ python3 -m pip install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
+    $ neoctrl-install -e 4.0.0 servers
+    $ neoctrl-configure servers/neo4j-enterprise-4.0.0 dbms.directories.import=
+    $ neoctrl-set-initial-password password servers/neo4j-enterprise-4.0.0
+    $ neoctrl-start servers/neo4j-enterprise-4.0.0
+
 ## Contributing
 
 Suggestions, improvements, bug reports and pull requests are welcome on GitHub at https://github.com/neo4jrb/neo4j-ruby-driver.
