@@ -26,13 +26,13 @@ Or install it yourself as:
     
 ### neo4j-ruby-driver
 
-As a prerequisite [seabolt](https://github.com/neo4j-drivers/seabolt) must be installed.
+As a prerequisite seabolt must be installed.
  
 On macOS
 
     $ brew install michael-simons/homebrew-seabolt/seabolt 
     
-On other systems please follow the instructions to install either from package or source. Make sure the libseabolt17 ends up in a system lib path e.g. /usr/local/lib
+On other systems please follow the instructions to install [seabolt](https://github.com/neo4j-drivers/seabolt) either from package or source. Make sure the libseabolt17 ends up in a system lib path e.g. /usr/local/lib
  
 Add this line to your application's Gemfile:
 
