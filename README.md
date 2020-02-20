@@ -67,8 +67,6 @@ FFI based same as above but with driver variable set:
 
     $ bin/setup 
      
-Please note that seabolt has to be installed separately: https://github.com/neo4j-drivers/seabolt      
-
 ## Testing
 
 To run the tests the following tools need to be installed:
