@@ -8,6 +8,7 @@ jdk:
 cache: bundler
 rvm:
   - jruby-9.2.10.0
+  - jruby-9.2.9.0
   - 2.7.0
 before_install:
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user
