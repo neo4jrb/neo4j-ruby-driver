@@ -61,11 +61,11 @@ This gem includes 2 different implementations: java driver based and another one
 
 For java driver based:
 
-    $ bin/setup
+    $ driver=java bin/setup
     
-FFI based same as above but with SEABOLT_LIB variable set (e.g. on Mac OSX):
+FFI based same as above but with driver variable set:
 
-    $ SEABOLT_LIB=~/seabolt/build/dist/lib/libseabolt17.dylib bin/setup 
+    $ bin/setup 
      
 Please note that seabolt has to be installed separately: https://github.com/neo4j-drivers/seabolt      
 
