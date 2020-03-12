@@ -10,6 +10,13 @@ module Neo4j
       end
 
       class << self
+        # How can following Java config options be expressed in seabolt:
+        # withLeakedSessionsLogging
+        # withConnectionLivenessCheckTimeout
+        # withTrustStrategy TRUST_ALL_CERTIFICATES, TRUST_CUSTOM_CA_SIGNED_CERTIFICATES, TRUST_SYSTEM_CA_SIGNED_CERTIFICATE
+        # and in the reverse what those seabolt options correspond to in java:
+        # BoltConfig_set_user_agent
+
         def default_config
           {
              logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::ERROR), # :set_log
@@ -23,7 +30,7 @@ module Neo4j
              connection_timeout: 30.seconds, # BoltSocketOptions_set_connect_timeout
              max_transaction_retry_time: Internal::Retry::ExponentialBackoffRetryLogic::DEFAULT_MAX_RETRY_TIME,
              #resolver: nil # :set_address_resolver
-             # ?????? BoltSocketOptions_set_keep_alive
+             keep_alive: true, # BoltSocketOptions_set_keep_alive
              # ???? BoltConfig_set_user_agent
           }
         end

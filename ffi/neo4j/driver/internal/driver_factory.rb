@@ -54,15 +54,17 @@ module Neo4j
         end
 
         def set_socket_options(bolt_config, config)
-          socket_options = nil
+          socket_options = Bolt::SocketOptions.create
           config.each do |key, value|
             case key
             when :connection_timeout
-              check_error Bolt::SocketOptions.set_connect_timeout(socket_options ||= Bolt::SocketOptions.create,
+              check_error Bolt::SocketOptions.set_connect_timeout(socket_options,
                                                                   DurationNormalizer.milliseconds(value))
+            when :keep_alive
+              check_error Bolt::SocketOptions.set_keep_alive(socket_options, value ? 1 : 0)
             end
           end
-          check_error Bolt::Config.set_socket_options(bolt_config, socket_options) if socket_options
+          check_error Bolt::Config.set_socket_options(bolt_config, socket_options)
         end
 
         def routing_context(uri)
