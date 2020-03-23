@@ -18,6 +18,7 @@
 .env
 .idea/
 db/
+servers/
 
 neo4j-java-driver_jars.rb
 Gemfile

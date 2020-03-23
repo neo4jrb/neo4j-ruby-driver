@@ -72,12 +72,11 @@ FFI based same as above but with driver variable set:
 To run the tests the following tools need to be installed:
 
     $ brew install python
-    $ wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user
-    $ python3 -m pip install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
-    $ neoctrl-install -e 4.0.0 servers
-    $ neoctrl-configure servers/neo4j-enterprise-4.0.0 dbms.directories.import=
-    $ neoctrl-set-initial-password password servers/neo4j-enterprise-4.0.0
-    $ neoctrl-start servers/neo4j-enterprise-4.0.0
+    $ pip3 install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
+    $ neoctrl-install -e 4.0.2 servers
+    $ neoctrl-configure servers/neo4j-enterprise-4.0.2 dbms.directories.import= dbms.default_listen_address=::
+    $ neoctrl-set-initial-password password servers/neo4j-enterprise-4.0.2
+    $ neoctrl-start servers/neo4j-enterprise-4.0.2
 
 ## Contributing
 
