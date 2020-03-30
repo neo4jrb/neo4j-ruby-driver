@@ -54,3 +54,5 @@ module Neo4j
 end
 
 Loader.load
+
+Neo4j::Driver::Transaction = Neo4j::Driver::Internal::ExplicitTransaction

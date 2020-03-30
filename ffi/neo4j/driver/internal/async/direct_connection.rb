@@ -30,6 +30,7 @@ module Neo4j
               )
             end
             set_bookmarks(:set_run_bookmarks, boomarks_holder.bookmarks)
+            set_config(:set_run, config)
             register(run_handler, Bolt::Connection.load_run_request(bolt_connection))
             register(pull_handler, Bolt::Connection.load_pull_request(bolt_connection, -1))
             flush
@@ -42,6 +43,7 @@ module Neo4j
           def begin(bookmarks, config, begin_handler)
             check_error Bolt::Connection.clear_begin(bolt_connection)
             set_bookmarks(:set_begin_bookmarks, bookmarks)
+            set_config(:set_begin, config)
             register(begin_handler, Bolt::Connection.load_begin_request(bolt_connection))
           end
 
@@ -81,6 +83,21 @@ module Neo4j
             value = Bolt::Value.create
             Value::ValueAdapter.to_neo(value, bookmarks)
             check_error Bolt::Connection.send(method, bolt_connection, value)
+          end
+
+          def set_config(method_prefix, config)
+            return unless config
+            config.each do |key, value|
+              case key
+              when :timeout
+                check_error Bolt::Connection.send("#{method_prefix}_tx_timeout", bolt_connection,
+                                                  DurationNormalizer.milliseconds(value))
+              when :metadata
+                bolt_value = Bolt::Value.create
+                Value::ValueAdapter.to_neo(bolt_value, value)
+                check_error Bolt::Connection.send("#{method_prefix}_tx_metadata", bolt_connection, bolt_value)
+              end
+            end
           end
         end
       end

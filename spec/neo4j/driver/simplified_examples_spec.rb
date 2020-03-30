@@ -88,4 +88,18 @@ RSpec.describe Neo4j::Driver do
       # Neo4j::Driver::Exceptions::ClientException: Cannot delete node<6>, because it still has relationships. To delete this node, you must first delete its relationships.
     end
   end
+
+  it 'accepts transaction config' do
+    driver.session do |session|
+      session.read_transaction(timeout: 1.minute, metadata: {a: 1, b: 'string'}) do |tx|
+        expect(tx.run('RETURN 1').single.first).to eq 1
+      end
+    end
+  end
+
+  it 'accepts run config' do
+    driver.session do |session|
+      expect(session.run('RETURN 1', {}, timeout: 1.minute, metadata: {a: 1, b: 'string'}).single.first).to eq 1
+    end
+  end
 end

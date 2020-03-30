@@ -18,7 +18,7 @@ module Neo4j
           @retry_logic = retry_logic
         end
 
-        def run(statement, parameters = {}, config = nil)
+        def run(statement, parameters = {}, config = {})
           ensure_session_is_open
           ensure_no_open_tx_before_running_query
           acquire_connection(@mode)
@@ -27,11 +27,11 @@ module Neo4j
           )
         end
 
-        def read_transaction(config = nil, &block)
+        def read_transaction(**config, &block)
           transaction(Neo4j::Driver::AccessMode::READ, config, &block)
         end
 
-        def write_transaction(config = nil, &block)
+        def write_transaction(**config, &block)
           transaction(Neo4j::Driver::AccessMode::WRITE, config, &block)
         end
 
@@ -49,11 +49,8 @@ module Neo4j
           @connection&.release
         end
 
-        def begin_transaction(mode = @mode, config = nil)
-          ensure_session_is_open
-          ensure_no_open_tx_before_starting_tx
-          acquire_connection(mode)
-          @transaction = ExplicitTransaction.new(@connection, self).begin(bookmarks, config)
+        def begin_transaction(**config)
+          private_begin_transaction(@mode, config)
         end
 
         def last_bookmark
@@ -66,9 +63,16 @@ module Neo4j
 
         private
 
-        def transaction(mode, config = nil)
+        def private_begin_transaction(mode, config)
+          ensure_session_is_open
+          ensure_no_open_tx_before_starting_tx
+          acquire_connection(mode)
+          @transaction = ExplicitTransaction.new(@connection, self).begin(bookmarks, config)
+        end
+
+        def transaction(mode, config)
           @retry_logic.retry do
-            tx = begin_transaction(mode, config)
+            tx = private_begin_transaction(mode, config)
             result = yield tx
             tx.success
             result

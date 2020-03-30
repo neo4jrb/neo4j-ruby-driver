@@ -30,7 +30,7 @@ env:
     - NEO4J_BOLT_URL="bolt://127.0.0.1:7687"
     - PATH=$PATH:~/.local/bin
   matrix:
-    - NEO4J_VERSION=4.0.1
+    - NEO4J_VERSION=4.0.2
     - NEO4J_VERSION=3.5.16
 matrix:
   include:

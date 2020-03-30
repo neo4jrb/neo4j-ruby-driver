@@ -9,6 +9,8 @@ module Neo4j
   module Driver
     include_package 'org.neo4j.driver.v1'
 
+    Transaction = Java::OrgNeo4jDriverInternal::ExplicitTransaction
+
     module Net
       include_package 'org.neo4j.driver.v1.net'
     end
@@ -45,8 +47,8 @@ Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
 Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::InternalRelationship
 Java::OrgNeo4jDriverInternal::InternalStatementResult.prepend Neo4j::Driver::Ext::InternalStatementResult
-Java::OrgNeo4jDriverInternal::ExplicitTransaction.prepend Neo4j::Driver::Ext::RunOverride
-Java::OrgNeo4jDriverInternal::NetworkSession.prepend Neo4j::Driver::Ext::RunOverride
+Java::OrgNeo4jDriverInternal::ExplicitTransaction.prepend Neo4j::Driver::Ext::ExplicitTransaction
+Java::OrgNeo4jDriverInternal::NetworkSession.prepend Neo4j::Driver::Ext::NetworkSession
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
 Java::OrgNeo4jDriverV1::AuthTokens.singleton_class.prepend Neo4j::Driver::Ext::AuthTokens
