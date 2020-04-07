@@ -9,6 +9,8 @@ module Neo4j
   module Driver
     include_package 'org.neo4j.driver.v1'
 
+    Record = Java::OrgNeo4jDriverInternal::InternalRecord
+    StatementResult = Java::OrgNeo4jDriverInternal::InternalStatementResult
     Transaction = Java::OrgNeo4jDriverInternal::ExplicitTransaction
 
     module Net

@@ -12,9 +12,9 @@ RSpec.describe 'ResultStream' do
   it 'has field names in result' do
     driver.session do |session|
       res = session.run("CREATE (n:TestNode {name:'test'}) RETURN n")
-      expect(res.keys).to eq ['n']
+      expect(res.keys).to eq [:n]
       expect(res.single).not_to be_nil
-      expect(res.keys).to eq ['n']
+      expect(res.keys).to eq [:n]
     end
   end
 
@@ -48,7 +48,7 @@ RSpec.describe 'ResultStream' do
       expect(&res1.method(:consume)).to raise_error Neo4j::Driver::Exceptions::ClientException
       res2 = session.run('RETURN 1')
       expect(res2).to have_next
-      expect(res2.keys).to eq ['1']
+      expect(res2.keys).to eq [:'1']
       record = res2.next
       expect(record.values).to eq [1]
       expect(record[0]).to eq 1

@@ -49,7 +49,7 @@ module Neo4j
               )
             end
           end
-          check_error Bolt::Config.set_user_agent(bolt_config, 'seabolt-cmake/1.7')
+          check_error Bolt::Config.set_user_agent(bolt_config, "neo4j-ruby-driver #{Neo4j::Driver::VERSION}")
           bolt_config
         end
 

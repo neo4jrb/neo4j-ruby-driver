@@ -4,12 +4,20 @@ module Neo4j
   module Driver
     module Ext
       module InternalRecord
+        include MapConverter
+        include InternalKeys
+
         def values
           java_send(:values).map(&:as_ruby_object)
         end
 
         define_method(:[]) do |key|
-          java_method(:get, [key.is_a?(Integer) ? Java::int : java.lang.String]).call(key).as_ruby_object
+          case key
+          when Integer
+            java_method(:get, [Java::int]).call(key)
+          else
+            java_method(:get, [java.lang.String]).call(key.to_s)
+          end.as_ruby_object
         end
 
         def first
