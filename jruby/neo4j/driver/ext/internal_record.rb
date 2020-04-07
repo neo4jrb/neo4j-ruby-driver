@@ -11,7 +11,7 @@ module Neo4j
           java_send(:values).map(&:as_ruby_object)
         end
 
-        define_method(:[]) do |key|
+        def [](key)
           case key
           when Integer
             java_method(:get, [Java::int]).call(key)

@@ -30,6 +30,5 @@ RSpec.configure do |config|
   config.around { |example| cleaning(&example.method(:run)) }
 
   config.filter_run_excluding auth: :none
-  config.filter_run_excluding ffi: false if ENV['SEABOLT_LIB']&.length&.positive?
   config.filter_run_excluding concurrency: true unless RUBY_PLATFORM == 'java'
 end
