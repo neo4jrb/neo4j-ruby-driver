@@ -48,7 +48,7 @@ RSpec.describe 'ResultStream' do
       expect(&res1.method(:consume)).to raise_error Neo4j::Driver::Exceptions::ClientException
       res2 = session.run('RETURN 1')
       expect(res2).to have_next
-      expect(res2.keys).to eq ['1']
+      expect(res2.keys).to eq [:'1']
       record = res2.next
       expect(record.values).to eq [1]
       expect(record[0]).to eq 1
