@@ -806,7 +806,7 @@ RSpec.describe 'SessionSpec' do
     end
     driver.session do |session|
       result = session.run('MATCH (s:Shield) RETURN s.material').next
-      expect(result[:'s.material']).to eq('Vibranium')
+      expect(result['s.material']).to eq('Vibranium')
     end
   end
 
