@@ -6,7 +6,7 @@ module Neo4j
       module MapAccessor
         include MapConverter
 
-        alias properties to_hash
+        alias properties to_h
 
         def [](key)
           get(key.to_s).as_ruby_object

@@ -6,8 +6,9 @@ module Neo4j
       module InternalStatementResult
         include Enumerable
         include ExceptionCheckable
+        include InternalKeys
 
-        %i[has_next? next keys single consume summary peek].each do |method|
+        %i[has_next? next single consume summary peek].each do |method|
           define_method(method) do |*args, &block|
             check { super(*args, &block) }
           end

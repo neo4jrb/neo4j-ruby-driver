@@ -40,4 +40,12 @@ RSpec.describe 'StatementResult' do
       end
     end
   end
+
+  it 'sets keys' do
+    driver.session do |session|
+      result = session.run('RETURN 1 AS n')
+      expect(result.keys).to eq [:n]
+      expect(result.first.keys).to eq [:n]
+    end
+  end
 end

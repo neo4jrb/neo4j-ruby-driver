@@ -13,8 +13,12 @@ module Neo4j
         end
 
         def [](key)
-          field_index = key.is_a?(Integer) ? key : @keys.index(key.to_s)
+          field_index = key.is_a?(Integer) ? key : @keys.index(key.to_sym)
           @values[field_index] if field_index
+        end
+
+        def to_h
+          keys.zip(values).to_h
         end
       end
     end

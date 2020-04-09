@@ -11,7 +11,7 @@ module Neo4j
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::LIST
             values(&:itself).map(&:as_ruby_object)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::MAP
-            to_hash
+            to_h
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE
             date = as_local_date
             Date.new(date.year, date.month_value, date.day_of_month)

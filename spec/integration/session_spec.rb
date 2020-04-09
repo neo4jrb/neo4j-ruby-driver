@@ -790,7 +790,7 @@ RSpec.describe 'SessionSpec' do
     driver.session(mode) do |session|
       names = session.read_transaction do |tx|
         tx.run('MATCH (p:Person) RETURN p.name AS name').collect do |result|
-          result['name']
+          result[:name]
         end
       end
       expect(names).to contain_exactly('Tony Stark', 'Steve Rogers')
