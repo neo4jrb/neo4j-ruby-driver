@@ -11,6 +11,10 @@ module Neo4j
           @id = id
           @properties = properties
         end
+
+        def ==(other)
+          self.class == other.class && id == other.id
+        end
       end
     end
   end
