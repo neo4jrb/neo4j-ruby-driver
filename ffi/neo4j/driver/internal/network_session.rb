@@ -84,7 +84,7 @@ module Neo4j
           end
         end
 
-        def acquire_connection(mode = @mode)
+        def acquire_connection(mode)
           # make sure previous result is fully consumed and connection is released back to the pool
           @result&.failure
 
@@ -94,7 +94,7 @@ module Neo4j
           #   3) previous result failed and error has been consumed
 
           raise Exceptions::IllegalStateException, 'Existing open connection detected' if @connection&.open?
-          @connection = @connection_provider.acquire_connection(@mode)
+          @connection = @connection_provider.acquire_connection(mode)
         end
 
         def close_transaction_and_release_connection

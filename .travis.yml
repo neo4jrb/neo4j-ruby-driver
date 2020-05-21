@@ -27,26 +27,26 @@ env:
   global:
     - JRUBY_OPTS="-J-Xmx1024m -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -Xcompile.mode=OFF"
     - NEO4J_EDITION_FLAG=-e
-    - NEO4J_BOLT_URL="bolt://127.0.0.1:7687"
+    - NEO4J_BOLT_URL="neo4j://127.0.0.1:7687"
     - PATH=$PATH:~/.local/bin
   matrix:
-    - NEO4J_VERSION=4.0.3
-    - NEO4J_VERSION=3.5.16
+    - NEO4J_VERSION=4.0.4
+    - NEO4J_VERSION=3.5.18
 matrix:
   include:
-    - env: NEO4J_VERSION=4.0.3 driver=java
-    - env: NEO4J_VERSION=3.5.16 driver=java
+    - env: NEO4J_VERSION=4.0.4 driver=java
+    - env: NEO4J_VERSION=3.5.18 driver=java
     - jdk: openjdk8
-      env: NEO4J_VERSION=3.4.17
+      env: NEO4J_VERSION=3.4.18
     - jdk: openjdk8
-      env: NEO4J_VERSION=3.4.17 driver=java
+      env: NEO4J_VERSION=3.4.18 driver=java
     - rvm: 2.5.8
-      env: NEO4J_VERSION=4.0.3 NEO4J_EDITION_FLAG=
+      env: NEO4J_VERSION=4.0.4 NEO4J_EDITION_FLAG=
     - rvm: 2.6.6
-      env: NEO4J_VERSION=4.0.3 NEO4J_EDITION_FLAG=
+      env: NEO4J_VERSION=4.0.4 NEO4J_EDITION_FLAG=
     - jdk: openjdk8
       rvm: 2.7.1
-      env: NEO4J_VERSION=3.4.17
+      env: NEO4J_VERSION=3.4.18
 after_failure:
   - cat $NEO4J_DIR/logs/neo4j.log
   - cat $NEO4J_DIR/logs/debug.log
