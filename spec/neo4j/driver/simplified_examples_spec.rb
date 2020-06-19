@@ -89,10 +89,6 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  def version34?
-    ENV['NEO4J_VERSION']&.send(:<, '3.5')
-  end
-
   it 'accepts transaction config' do
     skip 'Not applicable to V3.4' if version34?
     driver.session do |session|

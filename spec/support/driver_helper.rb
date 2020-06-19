@@ -27,5 +27,9 @@ module DriverHelper
       )
       # @@driver ||= Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.none)
     end
+
+    def version34?
+      ENV['NEO4J_VERSION']&.send(:<, '3.5')
+    end
   end
 end
