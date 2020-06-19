@@ -44,7 +44,7 @@ module Neo4j
           scheme = (uris.map(&method(:URI)).map(&:scheme) - VALID_ROUTING_SCHEMES).first
           return unless scheme
           raise ArgumentError,
-                "Illegal URI scheme, expected URI scheme '#{scheme}' to be among [#{VALID_ROUTING_SCHEMES.join ', '}]"
+                "Illegal URI scheme, expected URI scheme '#{scheme}' to be among '[#{VALID_ROUTING_SCHEMES.join ', '}]'"
         end
       end
     end

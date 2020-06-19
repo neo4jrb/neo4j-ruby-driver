@@ -8,6 +8,8 @@ module Neo4j
       module CC
         class Cluster
           include Neo4j::Driver::Util::TestUtil
+          include DriverHelper::Helper
+
           attr_accessor :path, :password
 
           def initialize(path, password)
@@ -80,10 +82,6 @@ module Neo4j
           def start_offline_members
             @offline_members.each(&method(:start))
             wait_for_members_to_be_online
-          end
-
-          def version3?
-            ENV['NEO4J_VERSION']&.send(:<, '4')
           end
 
           private

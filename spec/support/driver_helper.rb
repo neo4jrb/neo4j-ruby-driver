@@ -31,5 +31,9 @@ module DriverHelper
     def version34?
       ENV['NEO4J_VERSION']&.send(:<, '3.5')
     end
+
+    def version3?
+      ENV['NEO4J_VERSION']&.send(:<, '4')
+    end
   end
 end
