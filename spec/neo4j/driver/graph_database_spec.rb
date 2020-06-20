@@ -30,7 +30,7 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
   end
 
   describe '.routing_driver', version: '>=4' do
-    let(:routing_uris) { ['neo4j://bad_host:7687', 'neo4j://[::1]:9999', url] }
+    let(:routing_uris) { ['neo4j://badhost:7687', 'neo4j://[::1]:9999', url] }
     subject do
       Neo4j::Driver::GraphDatabase.routing_driver(routing_uris, basic_auth_token, encryption: false,
                                                   &method(:simple_query))
