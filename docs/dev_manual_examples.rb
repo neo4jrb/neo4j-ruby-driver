@@ -30,57 +30,61 @@ driver.close
 # Example 2.3. Custom Address Resolver
 ######################################
 
-# with_resource yields the receiver and calls its close method after the block execution
-
 private
 
-def create_driver(virtual_uri, user, password, *addresses)
+def create_driver(virtual_uri, user, password, *addresses, &block)
   config = { resolver: -> { addresses } }
-  Neo4j::Driver::GraphDatabase.driver(virtual_uri, Neo4j::Driver::AuthTokens.basic(user, password), config)
+  Neo4j::Driver::GraphDatabase.driver(virtual_uri, Neo4j::Driver::AuthTokens.basic(user, password), config, &block)
 end
 
 def add_person(name)
   username = 'neo4j'
   password = 'some password'
   create_driver('bolt+routing://x.acme.com', username, password, ServerAddress.of('a.acme.com', 7676),
-                ServerAddress.of('b.acme.com', 8787), ServerAddress.of('c.acme.com', 9898)).with_resource do |driver|
+                ServerAddress.of('b.acme.com', 8787), ServerAddress.of('c.acme.com', 9898)) do |driver|
     driver.session { |session| session.run('CREATE (a:Person {name: $name})', name: name) }
   end
 end
 
 ######################################
-# Example 2.4. Basic authentication
-######################################
-
-driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
-
-######################################
-# Example 2.5. Kerberos authentication
-######################################
-
-driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.kerberos(ticket))
-
-######################################
-# Example 2.6. Custom authentication
-######################################
-
-driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.custom(principal, credentials, realm,
-                                                                                   scheme, parameters))
-######################################
-# Example 2.7. Unencrypted
+# Example 2.4. Unencrypted
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: false)
 
 ######################################
-# Example 2.8. Trust
+# Example 2.5. Trust
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates)
 
 ######################################
-# Example 2.9. Connection pool management
+# Example 2.6. Connecting to a service
+######################################
+
+# TODO
+
+######################################
+# Example 2.7. Basic authentication
+######################################
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
+
+######################################
+# Example 2.8. Kerberos authentication
+######################################
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.kerberos(ticket))
+
+######################################
+# Example 2.9. Custom authentication
+######################################
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.custom(principal, credentials, realm,
+                                                                                   scheme, parameters))
+######################################
+# Example 2.10. Connection pool management
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
@@ -89,21 +93,21 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
                                              connection_acquisition_timeout: 2.minutes)
 
 ######################################
-# Example 2.10. Connection timeout
+# Example 2.11. Connection timeout
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              connection_timeout: 15.seconds)
 
 ######################################
-# Example 2.11. Max retry time
+# Example 2.12. Max retry time
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              max_transaction_retry_time: 15.seconds)
 
 ######################################
-# Example 2.12. Service unavailable
+# Example 2.13. Service unavailable
 ######################################
 
 def add_item
