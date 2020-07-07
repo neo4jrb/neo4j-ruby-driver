@@ -7,6 +7,7 @@ jdk:
   - openjdk11
 cache: bundler
 rvm:
+  - jruby-9.2.12.0
   - jruby-9.2.11.1
   - 2.7.1
 before_install:
