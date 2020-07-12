@@ -12,7 +12,7 @@ module Neo4j
         end
 
         def count_nodes(driver, bookmark)
-          driver.session(bookmark) do |session|
+          driver.session(bookmarks: bookmark) do |session|
             session.read_transaction { |tx| tx.run('MATCH (n) RETURN count(n)').single.first }
           end
         end

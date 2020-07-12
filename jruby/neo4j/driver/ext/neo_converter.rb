@@ -23,7 +23,7 @@ module Neo4j
               *Driver::Internal::DurationNormalizer.normalize(object)
             )
           when Types::Point
-            Java::OrgNeo4jDriverV1::Values.point(object.srid, *object.coordinates)
+            Java::OrgNeo4jDriver::Values.point(object.srid, *object.coordinates)
           when Types::OffsetTime
             Java::JavaTime::OffsetTime.of(object.hour, object.min, object.sec,
                                           object.nsec, Java::JavaTime::ZoneOffset.of_total_seconds(object.utc_offset))

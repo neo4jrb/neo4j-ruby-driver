@@ -121,16 +121,16 @@ module Neo4j
           end
 
           def core_member?(driver)
-            driver.session(AccessMode::READ) do |session|
+            driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ) do |session|
               %w[LEADER FOLLOWER].include?(
-                session.run("CALL dbms.cluster.role(#{'$database' unless version3?})", database: 'neo4j')
+                session.run("CALL dbms.cluster.role(#{'$database' if version?('>=4')})", database: 'neo4j')
                   .single.first
               )
             end
           end
 
           def find_cluster_overview(driver)
-            driver.session(AccessMode::WRITE) do |session|
+            driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE) do |session|
               session.run('CALL dbms.cluster.overview()').each_with_object({}) do |record, hash|
                 # Version 3.x.x || Version 4.x.x
                 (hash[record[:role] || record[:databases][:neo4j]] ||= []) << record[:addresses].first

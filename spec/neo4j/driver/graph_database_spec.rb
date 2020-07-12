@@ -23,7 +23,7 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
       it { is_expected.to eq 1 }
     end
 
-    context 'when bolt+routing', version: '>=4' do
+    context 'when bolt+routing', version: '<4.1' do
       let(:scheme) { 'bolt+routing' }
       it { is_expected.to eq 1 }
     end
@@ -39,9 +39,7 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
     context 'when bolt' do
       let(:scheme) { 'bolt' }
       it 'is not routing scheme' do
-        expect { subject }
-          .to raise_error ArgumentError,
-                          "Illegal URI scheme, expected URI scheme 'bolt' to be among '[bolt+routing, neo4j]'"
+        expect { subject }.to raise_error ArgumentError, /^Illegal URI scheme, expected .*neo4j.*'$/
       end
     end
 
@@ -50,7 +48,7 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
       it { is_expected.to eq 1 }
     end
 
-    context 'when bolt+routing' do
+    context 'when bolt+routing', version: '<4.1' do
       let(:scheme) { 'bolt+routing' }
       it { is_expected.to eq 1 }
     end

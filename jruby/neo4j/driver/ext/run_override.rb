@@ -14,7 +14,7 @@ module Neo4j
 
         def to_statement(text, parameters)
           Neo4j::Driver::Internal::Validator.require_hash_parameters!(parameters)
-          Neo4j::Driver::Statement.new(text, to_neo(parameters || {}))
+          Neo4j::Driver::Query.new(text, to_neo(parameters || {}))
         end
       end
     end

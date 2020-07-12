@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Ext
-      module Statement
+      module Query
         def parameters
           super.as_ruby_object
         end

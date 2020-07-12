@@ -56,5 +56,5 @@ end
 Loader.load
 
 Neo4j::Driver::Record = Neo4j::Driver::Internal::InternalRecord
-Neo4j::Driver::StatementResult = Neo4j::Driver::Internal::InternalStatementResult
-Neo4j::Driver::Transaction = Neo4j::Driver::Internal::ExplicitTransaction
+Neo4j::Driver::Result = Neo4j::Driver::Internal::InternalResult
+Neo4j::Driver::Transaction = Neo4j::Driver::Internal::InternalTransaction

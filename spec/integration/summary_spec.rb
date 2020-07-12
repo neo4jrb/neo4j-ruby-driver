@@ -8,10 +8,9 @@ RSpec.describe 'Summary' do
       result = session.run(statement_text, statement_parameters)
       expect(result).to have_next
       summary = result.consume
-      expect(result).not_to have_next
-      expect(summary.statement_type).to eq Neo4j::Driver::Summary::StatementType::READ_ONLY
-      expect(summary.statement.text).to eq statement_text
-      expect(summary.statement.parameters).to eq statement_parameters
+      expect(summary.query_type).to eq Neo4j::Driver::Summary::QueryType::READ_ONLY
+      expect(summary.query.text).to eq statement_text
+      expect(summary.query.parameters).to eq statement_parameters
       expect(summary).not_to have_plan
       expect(summary).not_to have_profile
       expect(summary).to eq result.consume
@@ -51,16 +50,16 @@ RSpec.describe 'Summary' do
 
   it 'contain correct statement type' do
     driver.session do |session|
-      expect(session.run('MATCH (n) RETURN 1').consume.statement_type)
-        .to eq Neo4j::Driver::Summary::StatementType::READ_ONLY
-      expect(session.run('CREATE (n)').consume.statement_type)
-        .to eq Neo4j::Driver::Summary::StatementType::WRITE_ONLY
-      expect(session.run('CREATE (n) RETURN (n)').consume.statement_type)
-        .to eq Neo4j::Driver::Summary::StatementType::READ_WRITE
-      expect(session.run('CREATE INDEX ON :User(p)').consume.statement_type)
-        .to eq Neo4j::Driver::Summary::StatementType::SCHEMA_WRITE
-      expect(session.run('DROP INDEX ON :User(p)').consume.statement_type)
-        .to eq Neo4j::Driver::Summary::StatementType::SCHEMA_WRITE
+      expect(session.run('MATCH (n) RETURN 1').consume.query_type)
+        .to eq Neo4j::Driver::Summary::QueryType::READ_ONLY
+      expect(session.run('CREATE (n)').consume.query_type)
+        .to eq Neo4j::Driver::Summary::QueryType::WRITE_ONLY
+      expect(session.run('CREATE (n) RETURN (n)').consume.query_type)
+        .to eq Neo4j::Driver::Summary::QueryType::READ_WRITE
+      expect(session.run('CREATE INDEX ON :User(p)').consume.query_type)
+        .to eq Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
+      expect(session.run('DROP INDEX ON :User(p)').consume.query_type)
+        .to eq Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
     end
   end
 

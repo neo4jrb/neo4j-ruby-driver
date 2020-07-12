@@ -17,7 +17,7 @@ RSpec.describe 'Bookmark' do
     bookmark
   end
 
-  it 'receives bookmark on successfull commit' do
+  it 'receives bookmark on successfull commit', version: '<4.1' do
     driver.session do |session|
       preamble(session)
       expect(session.last_bookmark).to start_with('neo4j:bookmark:v1:tx')
@@ -25,8 +25,8 @@ RSpec.describe 'Bookmark' do
   end
 
   it 'raises for invalid bookmark' do
-    invalid_bookmark = 'hi, this is an invalid bookmark'
-    expect { driver.session(invalid_bookmark, &:begin_transaction) }
+    invalid_bookmark = Neo4j::Driver::Bookmark.from(['hi, this is an invalid bookmark'])
+    expect { driver.session(bookmarks: invalid_bookmark, &:begin_transaction) }
       .to raise_error Neo4j::Driver::Exceptions::ClientException
   end
 
@@ -35,7 +35,7 @@ RSpec.describe 'Bookmark' do
       bookmark = preamble(session)
       session.begin_transaction do |tx|
         tx.run('CREATE (a:Person)')
-        tx.failure
+        tx.rollback
       end
       expect(session.last_bookmark).to eq bookmark
     end
@@ -46,8 +46,7 @@ RSpec.describe 'Bookmark' do
       bookmark = preamble(session)
       tx = session.begin_transaction
       tx.run('RETURN')
-      tx.success
-      expect { tx.close }.to raise_error Neo4j::Driver::Exceptions::ClientException
+      expect { tx.commit }.to raise_error Neo4j::Driver::Exceptions::ClientException
       expect(session.last_bookmark).to eq bookmark
     end
   end
@@ -87,12 +86,13 @@ RSpec.describe 'Bookmark' do
   # end
 
   it 'creates session with initial bookmark' do
-    bookmark = 'TheBookmark'
-    expect(driver.session(bookmark, &:last_bookmark)).to eq bookmark
+    bookmark = Neo4j::Driver::Bookmark.from(Set['TheBookmark'])
+    expect(driver.session(bookmarks: bookmark, &:last_bookmark)).to eq bookmark
   end
 
   it 'creates session with AccessMode and initial bookmark' do
-    bookmark = 'TheBookmark'
-    expect(driver.session(Neo4j::Driver::AccessMode::WRITE, bookmark, &:last_bookmark)).to eq bookmark
+    bookmark = Neo4j::Driver::Bookmark.from(Set['TheBookmark'])
+    expect(driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: bookmark, &:last_bookmark))
+      .to eq bookmark
   end
 end

@@ -165,7 +165,7 @@ def add_person(name)
   driver.session(Neo4j::Driver::AccessMode::WRITE) do |session|
     tx = session.begin_transaction
     tx.run('CREATE (a:Person {name: $name})', name: name)
-    tx.success
+    tx.commit
   ensure
     tx&.close
   end

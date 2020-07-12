@@ -1,14 +1,15 @@
 # frozen_string_literal: true
 
-java_import org.neo4j.driver.v1.exceptions.AuthenticationException
-java_import org.neo4j.driver.v1.exceptions.ClientException
-java_import org.neo4j.driver.v1.exceptions.DatabaseException
-java_import org.neo4j.driver.v1.exceptions.ProtocolException
-java_import org.neo4j.driver.v1.exceptions.SecurityException
-java_import org.neo4j.driver.v1.exceptions.ServiceUnavailableException
-java_import org.neo4j.driver.v1.exceptions.SessionExpiredException
-java_import org.neo4j.driver.v1.exceptions.TransientException
-java_import org.neo4j.driver.v1.exceptions.UntrustedServerException
+java_import org.neo4j.driver.exceptions.AuthenticationException
+java_import org.neo4j.driver.exceptions.ClientException
+java_import org.neo4j.driver.exceptions.DatabaseException
+java_import org.neo4j.driver.exceptions.ProtocolException
+java_import org.neo4j.driver.exceptions.ResultConsumedException
+java_import org.neo4j.driver.exceptions.SecurityException
+java_import org.neo4j.driver.exceptions.ServiceUnavailableException
+java_import org.neo4j.driver.exceptions.SessionExpiredException
+java_import org.neo4j.driver.exceptions.TransientException
+java_import org.neo4j.driver.exceptions.UntrustedServerException
 
 module Neo4j
   module Driver
@@ -39,6 +40,8 @@ module Neo4j
           case exception
           when AuthenticationException
             Neo4j::Driver::Exceptions::AuthenticationException
+          when ResultConsumedException
+            Neo4j::Driver::Exceptions::ResultConsumedException
           when ClientException
             Neo4j::Driver::Exceptions::ClientException
           when DatabaseException

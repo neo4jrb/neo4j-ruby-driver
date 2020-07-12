@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Internal
-      class NetworkSession
+      class InternalSession
         include BookmarksHolder
         include ErrorHandling
         extend AutoClosable
@@ -23,7 +23,7 @@ module Neo4j
           ensure_no_open_tx_before_running_query
           acquire_connection(@mode)
           @result = @connection.protocol.run_in_auto_commit_transaction(
-            @connection, Statement.new(statement, parameters), self, config
+            @connection, Query.new(statement, parameters), self, config
           )
         end
 
@@ -67,17 +67,17 @@ module Neo4j
           ensure_session_is_open
           ensure_no_open_tx_before_starting_tx
           acquire_connection(mode)
-          @transaction = ExplicitTransaction.new(@connection, self).begin(bookmarks, config)
+          @transaction = InternalTransaction.new(@connection, self).begin(bookmarks, config)
         end
 
         def transaction(mode, config)
           @retry_logic.retry do
             tx = private_begin_transaction(mode, config)
             result = yield tx
-            tx.success
+            tx.commit
             result
           rescue StandardError => e
-            tx&.failure
+            tx&.rollback
             raise e
           ensure
             tx&.close

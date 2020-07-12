@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Internal
-      class ExplicitTransaction
+      class InternalTransaction
         include ErrorHandling
 
         delegate :finalize, to: :@handler
@@ -27,14 +27,14 @@ module Neo4j
         def run(query, parameters = {})
           ensure_can_run_queries
           @result&.failure
-          @result = @protocol.run_in_explicit_transaction(@connection, Statement.new(query, parameters), self)
+          @result = @protocol.run_in_explicit_transaction(@connection, Query.new(query, parameters), self)
         end
 
-        def success
+        def commit
           @state = :marked_success if @state == :active
         end
 
-        def failure
+        def rollback
           @state = :marked_failed if %i[active marked_success].include? @state
         end
 
@@ -45,11 +45,11 @@ module Neo4j
         def close
           case @state
           when :marked_success
-            commit
+            _commit
           when :committed, :rolled_back
             nil
           else
-            rollback
+            _rollback
           end
         end
 
@@ -66,7 +66,7 @@ module Neo4j
 
         private
 
-        def commit
+        def _commit
           case @state
           when :committed
             nil
@@ -94,7 +94,7 @@ module Neo4j
           @session.bookmarks = @connection.last_bookmark
         end
 
-        def rollback
+        def _rollback
           case @state
           when :committed
             raise ClientException, "Can't rollback, transaction has been committed"

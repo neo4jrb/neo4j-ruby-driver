@@ -2,7 +2,7 @@
 
 module Neo4j
   module Driver
-    class Statement
+    class Query
       attr_reader :text, :parameters
 
       def initialize(text, parameters = nil)

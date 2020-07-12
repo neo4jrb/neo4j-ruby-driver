@@ -11,7 +11,7 @@ RSpec.describe 'DirectDriverSpec' do
 
   it 'rejects invalid address' do
     expect { Neo4j::Driver::GraphDatabase.driver('*', basic_auth_token, encryption: false) }
-      .to raise_error ArgumentError, 'Invalid address format `*`'
+      .to raise_error ArgumentError, 'Scheme must not be null'
   end
 
   it 'registers single server' do

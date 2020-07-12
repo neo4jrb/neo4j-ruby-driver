@@ -63,7 +63,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  %i[consume summary peek has_next? to_a keys single].each do |method|
+  %i[consume peek has_next? to_a keys single].each do |method|
     it "raises type mismatch error in explicit transaction on #{method}" do
       driver.session do |session|
         tx = session.begin_transaction
@@ -89,8 +89,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'accepts transaction config' do
-    skip 'Not applicable to V3.4' if version34?
+  it 'accepts transaction config', version: '>=3.5' do
     driver.session do |session|
       session.read_transaction(timeout: 1.minute, metadata: {a: 1, b: 'string'}) do |tx|
         expect(tx.run('RETURN 1').single.first).to eq 1
@@ -98,8 +97,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'accepts run config' do
-    skip 'Not applicable to V3.4' if version34?
+  it 'accepts run config', version: '>=3.5' do
     driver.session do |session|
       expect(session.run('RETURN 1', {}, timeout: 1.minute, metadata: {a: 1, b: 'string'}).single.first).to eq 1
     end

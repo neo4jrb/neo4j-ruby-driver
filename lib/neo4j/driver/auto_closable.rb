@@ -12,8 +12,8 @@ module Neo4j
       def with_block_definer(methods)
         Module.new do
           methods.each do |method|
-            define_method(method) do |*args, &block|
-              closable = super(*args)
+            define_method(method) do |*args, **kwargs, &block|
+              closable = super(*args, **kwargs)
               if block
                 begin
                   block.arity.zero? ? closable.instance_eval(&block) : block.call(closable)

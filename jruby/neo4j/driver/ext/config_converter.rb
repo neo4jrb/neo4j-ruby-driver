@@ -8,8 +8,8 @@ module Neo4j
 
         private
 
-        def to_java_config(builder_class, hash)
-          hash&.reduce(builder_class.builder) { |object, key_value| object.send(*config_method(*key_value)) }&.build
+        def to_java_config(builder_class, **hash)
+          hash.reduce(builder_class.builder) { |object, key_value| object.send(*config_method(*key_value)) }.build
         end
 
         def config_method(key, value)
@@ -32,6 +32,8 @@ module Neo4j
           when 'resolver'
             proc = value
             value = ->(address) { java.util.HashSet.new(proc.call(address)) }
+          when 'bookmarks'
+            return [method, *value]
           else
             value = to_neo(value, skip_unknown: true)
           end

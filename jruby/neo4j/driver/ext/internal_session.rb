@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Ext
-      module NetworkSession
+      module InternalSession
         extend AutoClosable
         include ConfigConverter
         include ExceptionCheckable
@@ -26,7 +26,7 @@ module Neo4j
 
         def run(statement, parameters = {}, config = {})
           check do
-            java_method(:run, [org.neo4j.driver.v1.Statement, org.neo4j.driver.v1.TransactionConfig])
+            java_method(:run, [org.neo4j.driver.Query, org.neo4j.driver.TransactionConfig])
               .call(to_statement(statement, parameters), to_java_config(Neo4j::Driver::TransactionConfig, config))
           end
         end

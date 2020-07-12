@@ -63,7 +63,7 @@ RSpec.describe 'ResultStream' do
     rescue Neo4j::Driver::Exceptions::ClientException
       # ignore
     ensure
-      summary = res.summary
+      summary = res.consume
       expect(summary).not_to be_nil
       expect(summary.server.address).to eq uri.split('//').last
       expect(summary.counters.nodes_created).to eq 0
@@ -76,35 +76,12 @@ RSpec.describe 'ResultStream' do
       expect do
         session.begin_transaction do |tx|
           result = tx.run('UNWIND [1,2,0] AS x RETURN 10/x')
-          tx.success
+          tx.commit
         end
       end.to raise_error Neo4j::Driver::Exceptions::ClientException
 
       expect(result).not_to be_nil
-      expect(result.summary.counters.nodes_created).to eq 0
-    end
-  end
-
-  it 'buffers records after summary' do
-    driver.session do |session|
-      result = session.run('UNWIND [1,2] AS a RETURN a')
-      summary = result.summary
-      expect(summary).not_to be_nil
-      expect(summary.server.address).to eq uri.split('//').last
-      expect(summary.counters.nodes_created).to eq 0
-      expect(result.next[:a]).to eq 1
-      expect(result.next[:a]).to eq 2
-    end
-  end
-
-  it 'discards records after consume' do
-    driver.session do |session|
-      result = session.run('UNWIND [1,2] AS a RETURN a')
-      summary = result.consume
-      expect(summary).not_to be_nil
-      expect(summary.server.address).to eq uri.split('//').last
-      expect(summary.counters.nodes_created).to eq 0
-      expect(result).not_to have_next
+      expect(result.consume.counters.nodes_created).to eq 0
     end
   end
 

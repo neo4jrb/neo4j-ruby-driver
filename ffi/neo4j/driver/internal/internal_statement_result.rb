@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Internal
-      class InternalStatementResult
+      class InternalResult
         include Enumerable
 
         delegate :consume, :failure, :summary, :finalize, to: :@pull_all_handler

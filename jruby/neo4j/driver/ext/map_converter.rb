@@ -5,7 +5,7 @@ module Neo4j
     module Ext
       module MapConverter
         def to_h
-          java_method(:asMap, [org.neo4j.driver.v1.util.Function]).call(&:itself).to_hash
+          java_method(:asMap, [java.util.function.Function]).call(&:itself).to_hash
             .transform_values!(&:as_ruby_object).symbolize_keys!
         end
       end

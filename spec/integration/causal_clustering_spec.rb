@@ -8,7 +8,7 @@ RSpec.describe 'CausalClusteringSpec' do
 
   DEFAULT_TIMEOUT = 120
 
-  delegate :leader, :version3?, to: :cluster
+  delegate :leader, :version?, to: :cluster
 
   def new_session(mode)
     driver.session(mode)
@@ -20,8 +20,7 @@ RSpec.describe 'CausalClusteringSpec' do
   end
 
   # DisabledOnNeo4jWith( BOLT_V4 )
-  it 'executes reads and writes when router is discovered' do
-    skip 'Not applicable to V4' unless version3?
+  it 'executes reads and writes when router is discovered', version: '<4' do
     count = execute_write_and_read_through_bolt_on_first_available_address(cluster.any_read_replica, leader)
     expect(count).to eq 1
   end
@@ -32,8 +31,7 @@ RSpec.describe 'CausalClusteringSpec' do
   end
 
   # DisabledOnNeo4jWith( BOLT_V4 )
-  it 'session creation fails if calling discovery procedure on edge server' do
-    skip 'Not applicable to V4' unless version3?
+  it 'session creation fails if calling discovery procedure on edge server', version: '<4' do
     read_replica = cluster.any_read_replica
     expect { create_driver(read_replica.routing_uri) }
       .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException,
@@ -46,14 +44,14 @@ RSpec.describe 'CausalClusteringSpec' do
       bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
         session.begin_transaction do |tx|
           tx.run('CREATE (p:Person {name: $name })', name: 'Alistair')
-          tx.success
+          tx.commit
         end
         session.last_bookmark
       end
 
       expect(bookmark).to be_present
 
-      driver.session(bookmark) do |session|
+      driver.session(bookmarks: bookmark) do |session|
         session.begin_transaction do |tx|
           record = tx.run('MATCH (n:Person) RETURN COUNT(*) AS count').next
           expect(record[:count]).to eq 1
@@ -69,10 +67,10 @@ RSpec.describe 'CausalClusteringSpec' do
       end
 
       bookmark = nil
-      driver.session(Neo4j::Driver::AccessMode::READ) do |session|
+      driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ) do |session|
         session.begin_transaction do |tx|
           tx.run('MATCH (n:Person) RETURN COUNT(*) AS count').next
-          tx.success
+          tx.commit
         end
 
         bookmark = session.last_bookmark
@@ -83,7 +81,7 @@ RSpec.describe 'CausalClusteringSpec' do
       in_expirable_session(driver, create_writable_session(bookmark)) do |session|
         session.begin_transaction do |tx|
           tx.run('CREATE (p:Person {name: $name })', name: 'Alistair')
-          tx.success
+          tx.commit
         end
       end
 
@@ -99,12 +97,12 @@ RSpec.describe 'CausalClusteringSpec' do
   #end
 
   it 'begin transaction raises for invalid bookmark' do
-    invalid_bookmark = 'hi, this is an invalid bookmark'
+    invalid_bookmark = Neo4j::Driver::Bookmark.from(Set['hi, this is an invalid bookmark'])
 
     create_driver(leader.bolt_uri) do |driver|
-      driver.session(invalid_bookmark) do |session|
+      driver.session(bookmarks: invalid_bookmark) do |session|
         expect { session.begin_transaction }
-          .to raise_error Neo4j::Driver::Exceptions::ClientException, Regexp.new(invalid_bookmark)
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, Regexp.new(invalid_bookmark.to_set.first)
       end
     end
   end
@@ -118,23 +116,21 @@ RSpec.describe 'CausalClusteringSpec' do
       cluster.stop(leader)
 
       tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr')
-      tx1.success
-
-      expect(&tx1.method(:close)).to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
+      expect(&tx1.method(:commit)).to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
       session1.close
 
       bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
         session.begin_transaction do |tx|
           tx.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr')
-          tx.success
+          tx.commit
         end
         session.last_bookmark
       end
 
-      driver.session(Neo4j::Driver::AccessMode::READ, bookmark) do |session2|
+      driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ, bookmarks: bookmark) do |session2|
         session2.begin_transaction do |tx2|
           record = tx2.run('MATCH (n:Person) RETURN COUNT(*) AS count').next
-          tx2.success
+          tx2.commit
           expect(record[:count]).to eq 1
         end
       end
@@ -187,11 +183,13 @@ RSpec.describe 'CausalClusteringSpec' do
   end
 
   def create_writable_session(bookmark = nil)
-    ->(driver, &block) { driver.session(Neo4j::Driver::AccessMode::WRITE, bookmark, &block) }
+    ->(driver, &block) do
+      driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: bookmark, &block)
+    end
   end
 
   def create_driver(bolt_uri, config = config_without_logging, &block)
-    Neo4j::Driver::GraphDatabase.driver(bolt_uri, default_auth_token, config, &block)
+    Neo4j::Driver::GraphDatabase.driver(bolt_uri, default_auth_token, **config, &block)
   end
 
   def config_without_logging

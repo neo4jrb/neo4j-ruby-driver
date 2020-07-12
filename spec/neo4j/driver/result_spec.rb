@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe 'StatementResult' do
+RSpec.describe 'Result' do
   describe '#single' do
     subject do
       driver.session { |session| session.run("UNWIND [#{items}] as r RETURN r").single.first }
