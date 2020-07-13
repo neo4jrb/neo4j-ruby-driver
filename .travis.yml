@@ -36,6 +36,7 @@ env:
     - NEO4J_VERSION=3.5.19
 matrix:
   include:
+    - env: NEO4J_VERSION=4.1.0 driver=java
     - env: NEO4J_VERSION=4.0.6 driver=java
     - env: NEO4J_VERSION=3.5.19 driver=java
     - jdk: openjdk8
