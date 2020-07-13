@@ -461,7 +461,7 @@ RSpec.describe 'SessionSpec' do
     end
   end
 
-  it 'does not propate failure when streaming is cancelled' do
+  it 'does not propagate failure when streaming is cancelled', version: '>=4' do
     driver.session do |session|
       session.run('UNWIND range(20000, 0, -1) AS x RETURN 10 / x')
     end
@@ -478,7 +478,7 @@ RSpec.describe 'SessionSpec' do
     driver.session do |session|
       result = session.run('RETURN Wrong')
       expect { result.consume }.to raise_error Neo4j::Driver::Exceptions::ClientException do |error|
-        error.code.match? /SyntaxError/
+        expect(error.code).to match /SyntaxError/
       end
       expect(result.consume).to be_present
     end
@@ -577,7 +577,9 @@ RSpec.describe 'SessionSpec' do
         expect(result.next).to be_present
         sleep(0.05)
       end
-      expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, /ArithmeticError/
+      expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException do |error|
+        expect(error.code).to match /ArithmeticError/
+      end
     end
   end
 

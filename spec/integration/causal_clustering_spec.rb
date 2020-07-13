@@ -33,9 +33,11 @@ RSpec.describe 'CausalClusteringSpec' do
   # DisabledOnNeo4jWith( BOLT_V4 )
   it 'session creation fails if calling discovery procedure on edge server', version: '<4' do
     read_replica = cluster.any_read_replica
-    expect { create_driver(read_replica.routing_uri) }
-      .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException,
-                      'Could not perform discovery. No routing servers available.'
+    create_driver(read_replica.routing_uri) do |driver|
+      expect(&driver.method(:verify_connectivity))
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException,
+                        'Could not perform discovery. No routing servers available.'
+    end
   end
 
   # Ensure that Bookmarks work with single instances using a driver created using a bolt[not+routing] URI.
@@ -102,7 +104,7 @@ RSpec.describe 'CausalClusteringSpec' do
     create_driver(leader.bolt_uri) do |driver|
       driver.session(bookmarks: invalid_bookmark) do |session|
         expect { session.begin_transaction }
-        .to raise_error Neo4j::Driver::Exceptions::ClientException, Regexp.new(invalid_bookmark.to_set.first)
+          .to raise_error Neo4j::Driver::Exceptions::ClientException, Regexp.new(invalid_bookmark.to_set.first)
       end
     end
   end
