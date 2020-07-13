@@ -23,7 +23,7 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
       it { is_expected.to eq 1 }
     end
 
-    context 'when bolt+routing', version: '<4.1' do
+    context 'when bolt+routing', version: '<4' do
       let(:scheme) { 'bolt+routing' }
       it { is_expected.to eq 1 }
     end
@@ -47,7 +47,7 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
       it { is_expected.to eq 1 }
     end
 
-    context 'when bolt+routing', version: '<4.1' do
+    context 'when bolt+routing', version: '<4' do
       let(:scheme) { 'bolt+routing' }
       it { is_expected.to eq 1 }
     end
