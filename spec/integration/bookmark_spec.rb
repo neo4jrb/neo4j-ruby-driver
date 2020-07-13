@@ -20,8 +20,16 @@ RSpec.describe 'Bookmark' do
   it 'receives bookmark on successfull commit', version: '<4.1' do
     driver.session do |session|
       preamble(session)
-      expect(session.last_bookmark).to start_with('neo4j:bookmark:v1:tx')
+      expect_bookmark_to_contains_single_value(session.last_bookmark, 'neo4j:bookmark:v1:tx')
     end
+  end
+
+  def expect_bookmark_to_contains_single_value(bookmark, value)
+    expect(boomark).to be_present
+    expect(bookmark).to be_a Neo4j::Driver::Bookmark
+    set = bookmark.to_set
+    expect(set.size).to eq 1
+    expect(set.first).to start_with(value)
   end
 
   it 'raises for invalid bookmark' do
