@@ -8,7 +8,6 @@ jdk:
 cache: bundler
 rvm:
   - jruby-9.2.12.0
-  - jruby-9.2.11.1
   - 2.7.1
 before_install:
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user
@@ -41,8 +40,6 @@ matrix:
     - env: NEO4J_VERSION=3.5.19 driver=java
     - jdk: openjdk8
       env: NEO4J_VERSION=3.4.18
-    - jdk: openjdk8
-      env: NEO4J_VERSION=3.4.18 driver=java
     - rvm: 2.5.8
       env: NEO4J_VERSION=4.0.6 NEO4J_EDITION_FLAG=
     - rvm: 2.6.6

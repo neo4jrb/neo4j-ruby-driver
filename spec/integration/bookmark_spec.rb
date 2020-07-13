@@ -25,7 +25,7 @@ RSpec.describe 'Bookmark' do
   end
 
   def expect_bookmark_to_contains_single_value(bookmark, value)
-    expect(boomark).to be_present
+    expect(bookmark).to be_present
     expect(bookmark).to be_a Neo4j::Driver::Bookmark
     set = bookmark.to_set
     expect(set.size).to eq 1
