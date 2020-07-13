@@ -161,7 +161,6 @@ RSpec.describe 'CausalClusteringSpec' do
     Neo4j::Driver::GraphDatabase.driver(
       'neo4j://wrong:9999',
       basic_auth_token,
-      encryption: false,
       resolver: ->(_address) { [Neo4j::Driver::Net::ServerAddress.of(uri.host, uri.port)] }
     ) do |driver|
       driver.session { |session| expect(session.run('RETURN 1').single.first).to eq 1 }
@@ -193,7 +192,7 @@ RSpec.describe 'CausalClusteringSpec' do
   end
 
   def config_without_logging
-    { logger: ActiveSupport::Logger.new(IO::NULL), encryption: false }
+    { logger: ActiveSupport::Logger.new(IO::NULL) }
   end
 
   def discover_driver(routing_uris, &block)

@@ -22,7 +22,7 @@ RSpec.describe Neo4j::Driver do
 
     after { driver2.close }
 
-    let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, { encryption: false }.merge(config)) }
+    let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
     let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
     let(:config) { {} }
 
@@ -65,7 +65,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'Example 2.7. Unencrypted' do
-      let(:config) { { encryption: false } }
+      let(:config) { {} }
 
       it { is_expected.to be true }
     end
@@ -109,7 +109,7 @@ RSpec.describe Neo4j::Driver do
 
     it 'raises exception' do
       expect do
-        add_item(Neo4j::Driver::GraphDatabase.driver('bolt://localhost:9999', max_transaction_retry_time: 0))
+        Neo4j::Driver::GraphDatabase.driver('bolt://localhost:9999', max_transaction_retry_time: 0, &method(:add_item))
       end.to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
     end
   end

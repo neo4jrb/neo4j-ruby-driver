@@ -8,8 +8,7 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'handles nil config' do
-    driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'),
-                                                 encryption: false)
+    driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic('neo4j', 'password'))
     session = driver.session
     session.close
     expect(session).not_to be_open
@@ -17,8 +16,9 @@ RSpec.describe 'SessionSpec' do
   end
 
   it 'handles nil AuthToken' do
-    expect { Neo4j::Driver::GraphDatabase.driver(uri, nil, encryption: false).verify_connectivity }
-      .to raise_error Neo4j::Driver::Exceptions::AuthenticationException
+    Neo4j::Driver::GraphDatabase.driver(uri, nil) do |driver|
+      expect(&driver.method(:verify_connectivity)).to raise_error Neo4j::Driver::Exceptions::AuthenticationException
+    end
   end
 
   it 'executes read transaction in read session' do
@@ -526,8 +526,7 @@ RSpec.describe 'SessionSpec' do
     config = {
       max_connection_pool_size: max_pool_size,
       connection_acquisition_timeout: 0,
-      max_transaction_retry_time: 42.days, # retry for a really long time
-      encryption: false
+      max_transaction_retry_time: 42.days # retry for a really long time
     }
     Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, config) do |driver|
       max_pool_size.times { driver.session.begin_transaction }

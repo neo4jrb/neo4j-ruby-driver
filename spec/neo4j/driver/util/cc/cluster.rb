@@ -115,7 +115,6 @@ module Neo4j
           def driver(bolt_uri)
             @drivers[bolt_uri] ||= GraphDatabase.driver(bolt_uri, AuthTokens.basic('neo4j', password),
                                                         logger: ActiveSupport::Logger.new(IO::NULL),
-                                                        encryption: false,
                                                         max_connection_pool_size: 1,
                                                         connection_liveness_check_timeout: 0)
           end

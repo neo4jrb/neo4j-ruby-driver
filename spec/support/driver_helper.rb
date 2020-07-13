@@ -20,8 +20,7 @@ module DriverHelper
       self.single_driver ||= Neo4j::Driver::GraphDatabase.driver(
         uri, basic_auth_token,
         max_transaction_retry_time: 2,
-        connection_timeout: 3,
-        encryption: false
+        connection_timeout: 3
       # logger: ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG)
       # logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::DEBUG)
       )
