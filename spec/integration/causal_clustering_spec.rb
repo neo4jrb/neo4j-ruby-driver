@@ -36,7 +36,8 @@ RSpec.describe 'CausalClusteringSpec' do
     create_driver(read_replica.routing_uri) do |driver|
       expect(&driver.method(:verify_connectivity))
         .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException,
-                        'Could not perform discovery. No routing servers available.'
+                        'Unable to connect to database management service, ensure the database is running and that ' \
+                        'there is a working network connection to it.'
     end
   end
 
