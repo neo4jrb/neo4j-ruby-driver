@@ -24,7 +24,12 @@ module Neo4j
           end
 
           def leader
-            members_with_role('LEADER').first
+            10.times do |i|
+              leader = members_with_role('LEADER').first
+              return leader if leader
+              puts "failed attemps: #{i}. Wating 10 sec...."
+              sleep 10
+            end
           end
 
           def followers

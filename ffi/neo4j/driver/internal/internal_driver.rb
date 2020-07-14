@@ -22,7 +22,7 @@ module Neo4j
 
         def session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: Bookmark.new)
           assert_open
-          session_factory.new_instance(default_access_mode, [bookmarks].flatten.map(&:to_set).map(&:first))
+          session_factory.new_instance(default_access_mode, [bookmarks].flatten.compact.map(&:to_set).map(&:first))
         end
 
         def close

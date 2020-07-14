@@ -127,14 +127,14 @@ module Neo4j
           reason =
             case @state
             when :committed
-              'Cannot run more statements in this transaction, it has been committed'
+              'Cannot run more queries in this transaction, it has been committed'
             when :rolled_back
-              'Cannot run more statements in this transaction, it has been rolled back'
+              'Cannot run more queries in this transaction, it has been rolled back'
             when :marked_failed
-              'Cannot run more statements in this transaction, it has been marked for failure. ' \
+              'Cannot run more queries in this transaction, it has been marked for failure. ' \
             'Please either rollback or close this transaction'
             when :terminated
-              'Cannot run more statements in this transaction, ' \
+              'Cannot run more queries in this transaction, ' \
             'it has either experienced an fatal error or was explicitly terminated'
             end
 
