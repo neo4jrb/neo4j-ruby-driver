@@ -20,8 +20,9 @@ module Neo4j
           @resolver = resolver
         end
 
-        def session(*args)
-          new_session(*Neo4j::Driver::Internal::RubySignature.session(args))
+        def session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: Bookmark.new)
+          assert_open
+          session_factory.new_instance(default_access_mode, [bookmarks].flatten.map(&:to_set).map(&:first))
         end
 
         def close
@@ -30,11 +31,6 @@ module Neo4j
         end
 
         private
-
-        def new_session(mode, bookmarks)
-          assert_open
-          session_factory.new_instance(mode, bookmarks)
-        end
 
         def assert_open
           raise Exceptions::IllegalStateException, 'This driver instance has already been closed' if @closed.true?

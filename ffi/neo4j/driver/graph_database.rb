@@ -17,20 +17,21 @@ module Neo4j
 
         auto_closable :driver, :routing_driver
 
-        def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, config = nil)
+        def driver(uri, auth_token = nil, **config)
+          auth_token ||= Neo4j::Driver::AuthTokens.none
           unless auth_token.is_a? FFI::Pointer
             raise Exceptions::AuthenticationException, 'Unsupported authentication token'
           end
-          config = Config.default_config.merge(config || {})
+          config = Config.default_config.merge(config)
 
           Internal::DriverFactory.new.new_instance(uri, auth_token, config)
         end
 
-        def routing_driver(routing_uris, auth_toke, config)
+        def routing_driver(routing_uris, auth_toke, **config)
           assert_routing_uris(routing_uris)
 
           routing_uris.each do |uri|
-            return driver(uri, auth_toke, config)
+            return driver(uri, auth_toke, **config)
           rescue Exceptions::ServiceUnavailableException => e
             # log.warn("Unable to create routing driver for URI: #{uri}", e)
           end

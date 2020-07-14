@@ -54,7 +54,7 @@ module Neo4j
         end
 
         def last_bookmark
-          bookmarks&.max
+          Bookmark.from([*bookmarks&.max])
         end
 
         def open?

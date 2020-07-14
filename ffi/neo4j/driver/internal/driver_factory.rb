@@ -15,7 +15,7 @@ module Neo4j
           routing_context = routing_context(uri)
           connector, logger, resolver = create_connector(uri, auth_token, routing_context, config)
           retry_logic = Retry::ExponentialBackoffRetryLogic.new(config[:max_transaction_retry_time], config[:logger])
-          create_driver(connector, logger, resolver, retry_logic, config).tap(&:verify_connectivity)
+          create_driver(connector, logger, resolver, retry_logic, config)
         end
 
         private
@@ -99,6 +99,8 @@ module Neo4j
             Bolt::Config::BOLT_SCHEME_DIRECT
           when BOLT_ROUTING_URI_SCHEME, NEO4J_URI_SCHEME
             Bolt::Config::BOLT_SCHEME_NEO4J
+          when nil
+            raise ArgumentError, 'Scheme must not be null'
           else
             raise Exceptions::ClientException, "Unsupported URI scheme: #{scheme}"
           end
