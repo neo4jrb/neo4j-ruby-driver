@@ -31,11 +31,40 @@ module Neo4j
         end
 
         def commit
-          @state = :marked_success if @state == :active
+          case @state
+          when :committed
+            raise Exceptions::ClientException, "Can't commit, transaction has been committed"
+          when :rolled_back
+            raise Exceptions::ClientException, "Can't commit, transaction has been rolled back"
+          when :active
+            begin
+              do_commit
+                # handleCommitOrRollback( error )
+            ensure
+              transaction_closed(:committed)
+            end
+          else
+            nil
+          end
         end
 
         def rollback
-          @state = :marked_failed if %i[active marked_success].include? @state
+          case @state
+          when :committed
+            raise Exceptions::ClientException, "Can't rollback, transaction has been committed"
+          when :rolled_back
+            raise Exceptions::ClientException, "Can't rollback, transaction has been rolled back"
+          when :active
+            begin
+              do_rollback
+                # resultCursors.retrieveNotConsumedError()
+                # handleCommitOrRollback( error )
+            ensure
+              transaction_closed(:rolled_back)
+            end
+          else
+            nil
+          end
         end
 
         def mark_terminated
@@ -43,18 +72,13 @@ module Neo4j
         end
 
         def close
-          case @state
-          when :marked_success
-            _commit
-          when :committed, :rolled_back
-            nil
-          else
-            _rollback
-          end
+          rollback if open?
+        ensure
+          transaction_closed(:rolled_back)
         end
 
         def open?
-          !%i[committed rolled_back].include? @state
+          %i[active terminated].include? @state
         end
 
         def chain(*handlers)
@@ -66,60 +90,20 @@ module Neo4j
 
         private
 
-        def _commit
-          case @state
-          when :committed
-            nil
-          when :rolled_back
-            raise Exceptions::ClientExceptiom, "Can't commit, transaction has been rolled back"
-          else
-            begin
-              do_commit
-              # handleCommitOrRollback( error )
-            ensure
-              transaction_closed(:committed)
-            end
-          end
-        end
-
         def do_commit
-          if @state == :terminated
-            raise Exceptions::ClientException, "Transaction can't be committed. " \
-          'It has been rolled back either because of an error or explicit termination'
-          end
-
           # @session.bookmarks = @protocol.commit_transaction(@connection)
           chain @protocol.commit_transaction(@connection)
           finalize
           @session.bookmarks = @connection.last_bookmark
         end
 
-        def _rollback
-          case @state
-          when :committed
-            raise ClientException, "Can't rollback, transaction has been committed"
-          when :rolled_back
-            nil
-          else
-            begin
-              do_rollback
-              # resultCursors.retrieveNotConsumedError()
-              # handleCommitOrRollback( error )
-            ensure
-              transaction_closed(:rolled_back)
-            end
-          end
-        end
-
         def do_rollback
-          return if @state == :terminated
-
           chain @protocol.rollback_transaction(@connection)
           finalize
         end
 
         def transaction_closed(new_state)
-          @state = new_state
+          @state = new_state unless @state == :committed
           @session.release_connection
         end
 
@@ -130,9 +114,6 @@ module Neo4j
               'Cannot run more queries in this transaction, it has been committed'
             when :rolled_back
               'Cannot run more queries in this transaction, it has been rolled back'
-            when :marked_failed
-              'Cannot run more queries in this transaction, it has been marked for failure. ' \
-            'Please either rollback or close this transaction'
             when :terminated
               'Cannot run more queries in this transaction, ' \
             'it has either experienced an fatal error or was explicitly terminated'

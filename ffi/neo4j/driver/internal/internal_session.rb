@@ -47,6 +47,7 @@ module Neo4j
 
         def release_connection
           @connection&.release
+          @connection = nil
         end
 
         def begin_transaction(**config)
@@ -74,11 +75,8 @@ module Neo4j
           @retry_logic.retry do
             tx = private_begin_transaction(mode, config)
             result = yield tx
-            tx.commit
+            tx.commit if tx.open?
             result
-          rescue StandardError => e
-            tx&.rollback
-            raise e
           ensure
             tx&.close
           end
