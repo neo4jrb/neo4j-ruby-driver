@@ -28,7 +28,7 @@ module Neo4j
       Relationship = Java::OrgNeo4jDriverInternal::InternalRelationship
     end
 
-    # Workaround for missing zeitwerk support in jruby-9.2.8.0
+    # Workaround for missing zeitwerk support as of jruby-9.2.13.0
     module Ext
       module Internal
         module Summary
