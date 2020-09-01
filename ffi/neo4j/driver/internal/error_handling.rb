@@ -82,7 +82,11 @@ module Neo4j
         end
 
         def throw(error)
-          on_failure(error)
+          if @failure
+            error.add_suppressed(@failure)
+          else
+            on_failure(error)
+          end
           raise error
         end
 

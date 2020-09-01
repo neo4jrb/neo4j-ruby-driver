@@ -61,12 +61,11 @@ module Neo4j
           end
 
           def on_failure(error)
+            @failure = error
             summary
             @finished = true
 
             after_failure(error)
-
-            @failure = error
           end
 
           def finalize
