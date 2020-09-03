@@ -2,7 +2,7 @@
 dist: xenial
 language: ruby
 python:
-  - 3.7
+  - 3.8
 jdk:
   - openjdk11
 cache: bundler
@@ -30,19 +30,19 @@ env:
     - NEO4J_BOLT_URL="bolt://127.0.0.1:7687"
     - PATH=$PATH:~/.local/bin
   matrix:
-    - NEO4J_VERSION=4.0.7
-    - NEO4J_VERSION=3.5.20
+    - NEO4J_VERSION=4.0.8
+    - NEO4J_VERSION=3.5.21
 matrix:
   include:
     - env: NEO4J_VERSION=4.1.1 driver=java
-    - env: NEO4J_VERSION=4.0.7 driver=java
-    - env: NEO4J_VERSION=3.5.20 driver=java
+    - env: NEO4J_VERSION=4.0.8 driver=java
+    - env: NEO4J_VERSION=3.5.21 driver=java
     - jdk: openjdk8
       env: NEO4J_VERSION=3.4.18
     - rvm: 2.5.8
-      env: NEO4J_VERSION=4.0.7 NEO4J_EDITION_FLAG=
+      env: NEO4J_VERSION=4.0.8 NEO4J_EDITION_FLAG=
     - rvm: 2.6.6
-      env: NEO4J_VERSION=4.0.7 NEO4J_EDITION_FLAG=
+      env: NEO4J_VERSION=4.0.8 NEO4J_EDITION_FLAG=
     - jdk: openjdk8
       rvm: 2.7.1
       env: NEO4J_VERSION=3.4.18
