@@ -20,8 +20,13 @@ module Neo4j
 
         def reverse_check
           yield
-        rescue StandardError => e
-          raise(e.cause || ExceptionMapper.reverse_exception_class(e)&.new('') || e)
+        rescue Neo4j::Driver::Exceptions::ServiceUnavailableException => e
+          raise(e.cause || org.neo4j.driver.v1.exceptions.ServiceUnavailableException.new(e.message))
+        rescue Neo4j::Driver::Exceptions::Neo4jException,
+          Neo4j::Driver::Exceptions::NoSuchRecordException,
+          Neo4j::Driver::Exceptions::UntrustedServerException,
+          Neo4j::Driver::Exceptions::IllegalStateException => e
+          raise(e.cause || e)
         end
       end
     end

@@ -26,13 +26,6 @@ module Neo4j
           [code, message, self, suppressed.map(&method(:mapped_exception))]
         end
 
-        def self.reverse_exception_class(exception)
-          case exception
-          when Neo4j::Driver::Exceptions::ServiceUnavailableException
-            ServiceUnavailableException
-          end
-        end
-
         private
 
         def mapped_exception_class(exception)
