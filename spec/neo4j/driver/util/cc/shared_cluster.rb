@@ -40,6 +40,7 @@ module Neo4j
               assert_cluster_exists
               output = ClusterControl.start_cluster(@cluster.path)
               members = parse_start_command_output(output)
+              # sleep(10)
 
               @cluster.members = members
               debug("Cluster started: #{members}.")
