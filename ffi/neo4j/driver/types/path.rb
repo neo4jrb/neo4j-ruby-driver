@@ -4,7 +4,7 @@ module Neo4j
   module Driver
     module Types
       class Path < Array
-        attr_reader :modes, :relationships
+        attr_reader :nodes, :relationships
 
         class Segment
           attr_reader :start_node, :relationship, :end_node
