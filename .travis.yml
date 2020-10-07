@@ -31,12 +31,12 @@ env:
     - PATH=$PATH:~/.local/bin
   matrix:
     - NEO4J_VERSION=4.0.8
-    - NEO4J_VERSION=3.5.21
+    - NEO4J_VERSION=3.5.22
 matrix:
   include:
     - env: NEO4J_VERSION=4.1.1 driver=java
     - env: NEO4J_VERSION=4.0.8 driver=java
-    - env: NEO4J_VERSION=3.5.21 driver=java
+    - env: NEO4J_VERSION=3.5.22 driver=java
     - jdk: openjdk8
       env: NEO4J_VERSION=3.4.18
     - rvm: 2.5.8

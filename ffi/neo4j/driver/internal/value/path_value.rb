@@ -13,7 +13,7 @@ module Neo4j
               nodes = [prev_node] # Start node is always 0, and isn't encoded in the sequence
               rels = []
               path = Types::Path.new(nodes, rels)
-              sequence.in_groups_of(2) do |node_idx, rel_idx|
+              sequence.in_groups_of(2) do |rel_idx, node_idx|
                 node = uniq_nodes[node_idx]
                 nodes << node
                 rel = uniq_rels[rel_idx.abs - 1] # -1 because rel idx are 1-indexed
