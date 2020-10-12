@@ -17,10 +17,8 @@ module Neo4j
           unit = nil
           case key.to_s
           when 'encryption'
-            unless value
-              method = :without_encryption
-              value = nil
-            end
+            method = :without_encryption unless value
+            value = nil
           when 'timeout'
             value = java.time.Duration.ofMillis(Driver::Internal::DurationNormalizer.milliseconds(value))
           when /time(out)?$/
