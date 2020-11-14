@@ -1,6 +1,17 @@
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', ENV['driver'] == 'java' ? 'jruby' : 'ffi')
+$LOAD_PATH.unshift File.join(
+  File.dirname(__FILE__),
+  '..',
+  case ENV['driver']
+  when 'java'
+    'jruby'
+  when 'ruby'
+    'ruby'
+  else
+    'ffi'
+  end
+)
 
 require 'active_support/logger'
 require 'ffaker'

@@ -8,7 +8,7 @@ jdk:
 cache: bundler
 rvm:
   - jruby-9.2.13.0
-  - 2.7.1
+#  - 2.7.1
 before_install:
   - wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py --user
   - python3 -m pip install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
@@ -30,22 +30,23 @@ env:
     - NEO4J_BOLT_URL="bolt://127.0.0.1:7687"
     - PATH=$PATH:~/.local/bin
   matrix:
-    - NEO4J_VERSION=4.0.8
-    - NEO4J_VERSION=3.5.22
+    - NEO4J_VERSION=4.1.4 driver=ruby
+    - NEO4J_VERSION=4.0.8 driver=ruby
+    - NEO4J_VERSION=3.5.22 driver=ruby
 matrix:
   include:
-    - env: NEO4J_VERSION=4.1.3 driver=java
+    - env: NEO4J_VERSION=4.1.4 driver=java
     - env: NEO4J_VERSION=4.0.8 driver=java
     - env: NEO4J_VERSION=3.5.22 driver=java
-    - jdk: openjdk8
-      env: NEO4J_VERSION=3.4.18
-    - rvm: 2.5.8
-      env: NEO4J_VERSION=4.0.8 NEO4J_EDITION_FLAG=
-    - rvm: 2.6.6
-      env: NEO4J_VERSION=4.0.8 NEO4J_EDITION_FLAG=
-    - jdk: openjdk8
-      rvm: 2.7.1
-      env: NEO4J_VERSION=3.4.18
+#    - jdk: openjdk8
+#      env: NEO4J_VERSION=3.4.18
+#    - rvm: 2.5.8
+#      env: NEO4J_VERSION=4.0.8 NEO4J_EDITION_FLAG=
+#    - rvm: 2.6.6
+#      env: NEO4J_VERSION=4.0.8 NEO4J_EDITION_FLAG=
+#    - jdk: openjdk8
+#      rvm: 2.7.1
+#      env: NEO4J_VERSION=3.4.18
 after_failure:
   - cat $NEO4J_DIR/logs/neo4j.log
   - cat $NEO4J_DIR/logs/debug.log
