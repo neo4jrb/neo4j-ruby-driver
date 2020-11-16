@@ -81,8 +81,8 @@ module Neo4j::Driver::Internal
       end
 
       def driver(type, securityPlan, address, connectionProvider, retryLogic, metricsProvider, config)
-        sessionFactory = constructor_send(org.neo4j.driver.internal.SessionFactoryImpl, connectionProvider, retryLogic, config)
-        InternalDriver.new(securityPlan, sessionFactory, metricsProvider, config.logging).tap do |driver|
+        session_factory = SessionFactoryImpl.new(connectionProvider, retryLogic, config)
+        InternalDriver.new(securityPlan, session_factory, metricsProvider, config.logging).tap do |driver|
           log = config.logging.get_log(org.neo4j.driver.Driver.name)
           log.info("#{type} driver instance %s created for server address %s", driver.object_id, address)
         end

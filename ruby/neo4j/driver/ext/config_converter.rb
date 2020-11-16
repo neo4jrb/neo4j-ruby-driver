@@ -30,8 +30,6 @@ module Neo4j
           when 'resolver'
             proc = value
             value = ->(address) { java.util.HashSet.new(proc.call(address)) }
-          when 'bookmarks'
-            return [method, *value]
           else
             value = to_neo(value, skip_unknown: true)
           end
