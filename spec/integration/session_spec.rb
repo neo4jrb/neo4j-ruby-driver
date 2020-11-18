@@ -110,7 +110,7 @@ RSpec.describe 'SessionSpec' do
   it 'retries write transaction until failure' do
     work = RaisingWork.new("CREATE (:Person {name: 'Ronan'})", 3)
     driver.session do |session|
-      expect { session.read_transaction(&work.to_proc) }
+      expect { session.write_transaction(&work.to_proc) }
         .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
     end
 

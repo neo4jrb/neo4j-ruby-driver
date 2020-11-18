@@ -18,7 +18,7 @@ module Neo4j::Driver
       end
 
       def session(**session_config)
-        org.neo4j.driver.internal.InternalSession.new(new_session(**session_config))
+        InternalSession.new(new_session(**session_config))
       end
 
       def rx_session(**session_config)
