@@ -12,23 +12,22 @@ module Neo4j::Driver
       def driver(uri, auth_token = nil, **config)
         check do
           uri = URI(uri)
-          config = to_java_config(org.neo4j.driver.Config, config)
+          config = Config.new(**config)
 
           Internal::DriverFactory.new_instance(
             uri,
             auth_token || org.neo4j.driver.AuthTokens.none,
-            config.routing_settings,
-            config.retry_settings,
+            config.java_config.routing_settings,
+            config[:max_transaction_retry_time],
             config,
-            config.security_settings.create_security_plan(uri.scheme)
+            config.java_config.security_settings.create_security_plan(uri.scheme)
           )
         end
       end
 
       def routing_driver(routing_uris, auth_toke, **config)
-
         assert_routing_uris(routing_uris)
-        log = create_logger(config)
+        log = Config.new(**config)[:logger]
 
         routing_uris.each do |uri|
           driver = driver(uri, auth_toke, **config)
@@ -59,10 +58,6 @@ module Neo4j::Driver
           raise ArgumentError,
                 "Illegal URI scheme, expected '#{Internal::Scheme::NEO4J_URI_SCHEME}' in '#{uri}'"
         end
-      end
-
-      def create_logger(**config)
-        to_java_config(org.neo4j.driver.Config, config).logging.get_log(name)
       end
     end
   end

@@ -4,15 +4,15 @@ module Neo4j::Driver::Internal
       include Scheme
 
       def new_instance(uri, authToken, routingSettings, retrySettings, config, securityPlan, eventLoopGroup = nil)
-        bootstrap = org.neo4j.driver.internal.async.connection.BootstrapFactory.newBootstrap(eventLoopGroup || config.eventLoopThreads)
+        bootstrap = org.neo4j.driver.internal.async.connection.BootstrapFactory.newBootstrap(eventLoopGroup || config.java_config.eventLoopThreads)
         java_uri = java.net.URI.create(uri.to_s)
 
         address = org.neo4j.driver.internal.BoltServerAddress.new(java_uri)
         newRoutingSettings = routingSettings.withRoutingContext(org.neo4j.driver.internal.cluster.RoutingContext.new(java_uri))
 
-        org.neo4j.driver.internal.shaded.io.netty.util.internal.logging.InternalLoggerFactory.setDefaultFactory(org.neo4j.driver.internal.logging.NettyLogging.new(config.logging))
+        org.neo4j.driver.internal.shaded.io.netty.util.internal.logging.InternalLoggerFactory.setDefaultFactory(org.neo4j.driver.internal.logging.NettyLogging.new(config.java_config.logging))
         eventExecutorGroup = bootstrap.config.group
-        retryLogic = org.neo4j.driver.internal.retry.ExponentialBackoffRetryLogic.new(retrySettings, eventExecutorGroup, createClock, config.logging)
+        retryLogic = Retry::ExponentialBackoffRetryLogic.new(retrySettings, config[:logger])
 
         metricsProvider = createDriverMetrics(config, createClock)
         connectionPool = createConnectionPool(authToken, securityPlan, bootstrap, metricsProvider, config,
@@ -25,21 +25,21 @@ module Neo4j::Driver::Internal
 
       def createConnectionPool(authToken, securityPlan, bootstrap, metricsProvider, config, ownsEventLoopGroup, routingContext)
         clock = createClock
-        settings = org.neo4j.driver.internal.ConnectionSettings.new(authToken, config.userAgent, config.connectionTimeoutMillis)
+        settings = org.neo4j.driver.internal.ConnectionSettings.new(authToken, config.java_config.userAgent, config.java_config.connectionTimeoutMillis)
         connector = createConnector(settings, securityPlan, config, clock, routingContext)
-        poolSettings = org.neo4j.driver.internal.async.pool.PoolSettings.new(config.maxConnectionPoolSize,
-                                                                             config.connectionAcquisitionTimeoutMillis, config.maxConnectionLifetimeMillis,
-                                                                             config.idleTimeBeforeConnectionTest
+        poolSettings = org.neo4j.driver.internal.async.pool.PoolSettings.new(config.java_config.maxConnectionPoolSize,
+                                                                             config.java_config.connectionAcquisitionTimeoutMillis, config.java_config.maxConnectionLifetimeMillis,
+                                                                             config.java_config.idleTimeBeforeConnectionTest
         )
-        org.neo4j.driver.internal.async.pool.ConnectionPoolImpl.new(connector, bootstrap, poolSettings, metricsProvider.metricsListener, config.logging, clock, ownsEventLoopGroup)
+        org.neo4j.driver.internal.async.pool.ConnectionPoolImpl.new(connector, bootstrap, poolSettings, metricsProvider.metricsListener, config.java_config.logging, clock, ownsEventLoopGroup)
       end
 
       def createDriverMetrics(config, clock)
-        config.isMetricsEnabled ? org.neo4j.driver.internal.metrics.InternalMetricsProvider.new(clock, config.logging) : org.neo4j.driver.internal.metrics.MetricsProvider::METRICS_DISABLED_PROVIDER
+        config.java_config.isMetricsEnabled ? org.neo4j.driver.internal.metrics.InternalMetricsProvider.new(config.java_config, config.logging) : org.neo4j.driver.internal.metrics.MetricsProvider::METRICS_DISABLED_PROVIDER
       end
 
       def createResolver(config)
-        config.resolver || ->(address) { java.util.HashSet.new([address]) }
+        config[:resolver] || ->(address) { [address] }
       end
 
       def assertNoRoutingContext(uri, routingSettings)
@@ -50,7 +50,7 @@ module Neo4j::Driver::Internal
       end
 
       def createConnector(settings, securityPlan, config, clock, routingContext)
-        org.neo4j.driver.internal.async.connection.ChannelConnectorImpl.new(settings, securityPlan, config.logging, clock, routingContext)
+        org.neo4j.driver.internal.async.connection.ChannelConnectorImpl.new(settings, securityPlan, config.java_config.logging, clock, routingContext)
       end
 
       def createDriver(uri, securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
@@ -82,18 +82,18 @@ module Neo4j::Driver::Internal
 
       def driver(type, securityPlan, address, connectionProvider, retryLogic, metricsProvider, config)
         session_factory = SessionFactoryImpl.new(connectionProvider, retryLogic, config)
-        InternalDriver.new(securityPlan, session_factory, metricsProvider, config.logging).tap do |driver|
-          log = config.logging.get_log(org.neo4j.driver.Driver.name)
-          log.info("#{type} driver instance %s created for server address %s", driver.object_id, address)
+        InternalDriver.new(securityPlan, session_factory, metricsProvider, config[:logger]).tap do |driver|
+          log = config[:logger]
+          log.info { "#{type} driver instance #{driver.object_id} created for server address #{address}" }
         end
       end
 
       def createLoadBalancer(address, connectionPool, eventExecutorGroup, config, routingSettings)
-        loadBalancingStrategy = org.neo4j.driver.internal.cluster.loadbalancing.LeastConnectedLoadBalancingStrategy.new(connectionPool, config.logging)
-        resolver = createResolver(config)
+        loadBalancingStrategy = org.neo4j.driver.internal.cluster.loadbalancing.LeastConnectedLoadBalancingStrategy.new(connectionPool, config.java_config.logging)
+        resolver = ->(address) { java.util.HashSet.new(createResolver(config).call(address)) }
         org.neo4j.driver.internal.cluster.loadbalancing.LoadBalancer.new(
           address, routingSettings, connectionPool, eventExecutorGroup, createClock,
-          config.logging, loadBalancingStrategy, resolver)
+          config.java_config.logging, loadBalancingStrategy, resolver)
       end
 
       def createClock

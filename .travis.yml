@@ -30,11 +30,13 @@ env:
     - NEO4J_BOLT_URL="bolt://127.0.0.1:7687"
     - PATH=$PATH:~/.local/bin
   matrix:
+    - NEO4J_VERSION=4.2.1 driver=ruby
     - NEO4J_VERSION=4.1.4 driver=ruby
     - NEO4J_VERSION=4.0.8 driver=ruby
     - NEO4J_VERSION=3.5.22 driver=ruby
 matrix:
   include:
+    - env: NEO4J_VERSION=4.2.1 driver=java
     - env: NEO4J_VERSION=4.1.4 driver=java
     - env: NEO4J_VERSION=4.0.8 driver=java
     - env: NEO4J_VERSION=3.5.22 driver=java

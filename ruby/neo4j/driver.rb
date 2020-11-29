@@ -9,6 +9,8 @@ require 'neo4j-ruby-driver_jars'
 module Neo4j
   module Driver
     module Internal
+      module Retry
+      end
     end
     module Net
     end

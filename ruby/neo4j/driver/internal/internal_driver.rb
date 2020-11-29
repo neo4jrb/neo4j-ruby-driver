@@ -9,12 +9,12 @@ module Neo4j::Driver
       delegate :metrics, :metrics_enabled?, to: :metrics_provider
       auto_closable :session
 
-      def initialize(security_plan, session_factory, metrics_provider, logging)
+      def initialize(security_plan, session_factory, metrics_provider, logger)
         @closed = Concurrent::AtomicBoolean.new(false)
         @security_plan = security_plan
         @session_factory = session_factory
         @metrics_provider = metrics_provider
-        @log = logging.get_log(self.class.name)
+        @log = logger
       end
 
       def session(**session_config)
@@ -40,7 +40,7 @@ module Neo4j::Driver
 
       def close_async
         return org.neo4j.driver.internal.util.Futures.completedWithNull unless @closed.make_true
-        @log.info('Closing driver instance %s', object_id)
+        @log.info { "Closing driver instance #{object_id}" }
         session_factory.close
       end
 
