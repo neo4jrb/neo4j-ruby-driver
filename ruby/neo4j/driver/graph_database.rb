@@ -34,7 +34,7 @@ module Neo4j::Driver
           begin
             return driver.tap(&:verify_connectivity)
           rescue Exceptions::ServiceUnavailableException => e
-            log.warn("Unable to create routing driver for URI: #{uri}", e)
+            log.warn { "Unable to create routing driver for URI: #{uri}\n#{e}" }
             close_driver(driver, uri, log)
           rescue Exception => e
             close_driver(driver, uri, log)
