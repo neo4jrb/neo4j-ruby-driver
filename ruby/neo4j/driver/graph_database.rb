@@ -50,13 +50,12 @@ module Neo4j::Driver
       def close_driver(driver, uri, log)
         driver.close
       rescue StandardError => close_error
-        log.warn("Unable to close driver towards URI: " + uri, close_error)
+        log.warn { "Unable to close driver towards URI: #{uri}\n#{close_error}" }
       end
 
       def assert_routing_uris(uris)
         uris.find { |uri| URI(uri).scheme != Internal::Scheme::NEO4J_URI_SCHEME }&.tap do |uri|
-          raise ArgumentError,
-                "Illegal URI scheme, expected '#{Internal::Scheme::NEO4J_URI_SCHEME}' in '#{uri}'"
+          raise ArgumentError, "Illegal URI scheme, expected '#{Internal::Scheme::NEO4J_URI_SCHEME}' in '#{uri}'"
         end
       end
     end

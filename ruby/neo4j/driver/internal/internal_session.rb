@@ -41,7 +41,7 @@ module Neo4j::Driver
           tx = Futures.blockingGet(session.beginTransactionAsync(to_java_config(org.neo4j.driver.TransactionConfig, config))) do
             org.neo4j.driver.internal.terminateConnectionOnThreadInterrupt("Thread interrupted while starting a transaction")
           end
-          org.neo4j.driver.internal.InternalTransaction.new(tx)
+          InternalTransaction.new(tx)
         end
       end
 
@@ -79,7 +79,7 @@ module Neo4j::Driver
         tx = Futures.blockingGet(session.beginTransactionAsync(mode, to_java_config(org.neo4j.driver.TransactionConfig, config))) do
           terminateConnectionOnThreadInterrupt("Thread interrupted while starting a transaction")
         end
-        org.neo4j.driver.internal.InternalTransaction.new(tx)
+        InternalTransaction.new(tx)
       end
 
       def terminateConnectionOnThreadInterrupt(reason)
