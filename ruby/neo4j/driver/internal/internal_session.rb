@@ -24,7 +24,7 @@ module Neo4j::Driver
 
           # query executed, it is safe to obtain a connection in a blocking way
           connection = Futures.getNow(session.connectionAsync)
-          org.neo4j.driver.internal.InternalResult.new(connection, cursor)
+          InternalResult.new(connection, cursor)
         end
       end
 

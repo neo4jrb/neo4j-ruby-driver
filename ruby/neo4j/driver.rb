@@ -35,7 +35,7 @@ module Neo4j
     include_package 'org.neo4j.driver'
 
     Record = Java::OrgNeo4jDriverInternal::InternalRecord
-    Result = Java::OrgNeo4jDriverInternal::InternalResult
+    Result = Neo4j::Driver::Internal::InternalResult
     Transaction = Neo4j::Driver::Internal::InternalTransaction
 
     module Net
@@ -65,7 +65,6 @@ Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::StartEndN
 Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
 Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::InternalRelationship
-Java::OrgNeo4jDriverInternal::InternalResult.prepend Neo4j::Driver::Ext::InternalResult
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
 Java::OrgNeo4jDriverExceptions::Neo4jException.include Neo4j::Driver::Ext::ExceptionMapper
