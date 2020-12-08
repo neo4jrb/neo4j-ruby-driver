@@ -67,6 +67,12 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to eq param }
   end
 
+  context 'when Symbol' do
+    let(:param) { :symbol }
+
+    it { is_expected.to match(/^symbol$/) }
+  end
+
   context 'when Date in a map' do
     let(:param) { { date: Date.today } }
 

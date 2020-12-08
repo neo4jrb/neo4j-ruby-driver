@@ -50,6 +50,9 @@ module Neo4j
               when String
                 object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
                 Bolt::Value.format_as_string(value, object, object.bytesize)
+              when Symbol
+                object = object.to_s.encode(Encoding::UTF_8)
+                Bolt::Value.format_as_string(value, object, object.bytesize)
               when Hash
                 Bolt::Value.format_as_dictionary(value, object.size)
                 object.each_with_index do |(key, elem), index|
