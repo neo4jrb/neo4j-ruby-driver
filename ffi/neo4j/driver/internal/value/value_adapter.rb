@@ -48,8 +48,12 @@ module Neo4j
               when Types::Bytes
                 Bolt::Value.format_as_bytes(value, object, object.size)
               when String
-                object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
-                Bolt::Value.format_as_string(value, object, object.bytesize)
+                if object.encoding == Encoding::ASCII_8BIT
+                  Bolt::Value.format_as_bytes(value, object, object.size)
+                else
+                  object = object.encode(Encoding::UTF_8) unless object.encoding == Encoding::UTF_8
+                  Bolt::Value.format_as_string(value, object, object.bytesize)
+                end
               when Hash
                 Bolt::Value.format_as_dictionary(value, object.size)
                 object.each_with_index do |(key, elem), index|
