@@ -20,6 +20,13 @@ RSpec.describe Neo4j::Driver do
 
       it { is_expected.to eq param }
     end
+
+    context 'when DateTime' do
+      let(:date) { '2018-04-05 11:00' }
+      let(:param) { DateTime.parse(date) }
+
+      it { is_expected.to eq param }
+    end
   end
 
   describe 'cypher functions' do

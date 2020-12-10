@@ -63,6 +63,8 @@ module Neo4j
                 object = object.to_a
                 Bolt::Value.format_as_list(value, object.size)
                 object.each_with_index { |elem, index| to_neo(Bolt::List.value(value, index), elem) }
+              when DateTime
+                TimeWithZoneOffsetValue.to_neo(value, object)
               when Date
                 DateValue.to_neo(value, object)
               when ActiveSupport::Duration
