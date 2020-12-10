@@ -118,4 +118,12 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to be_a Neo4j::Driver::Types::Bytes }
     its(:encoding) { is_expected.to eq Encoding::ASCII_8BIT }
   end
+
+  context 'when unknown type' do
+    let(:param) { Class.new }
+
+    it 'raises an exception' do
+      expect { subject }.to raise_error(StandardError)
+    end
+  end
 end
