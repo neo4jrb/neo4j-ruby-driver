@@ -270,18 +270,21 @@ end
 # Boolean       TrueClass/FalseClass
 # Integer       Integer
 # Float         Float
-# String        String
+# String        String (Symbol)*
 # ByteArray     Neo4j::Driver::Types::Bytes
 # Date          Date
 # Time          Neo4j::Driver::Types::OffsetTime
 # LocalTime     Neo4j::Driver::Types::LocalTime
-# DateTime      Time/ActiveSupport::TimeWithZone
+# DateTime      Time/ActiveSupport::TimeWithZone (DateTime)*
 # LocalDateTime Neo4j::Driver::Types::LocalDateTime
 # Duration      ActiveSupport::Duration
 # Point         Neo4j::Driver::Types::Point
 # Node          Neo4j::Driver::Types::Node
 # Relationship  Neo4j::Driver::Types::Relationship
 # Path          Neo4j::Driver::Types::Path
+
+# * A Symbol passed as a parameter will always be implicitly converted to String
+# * A ruby DateTime passed as a parameter will always be implicitly converted to Time
 
 ######################################
 # Example 4.2. Consuming the stream

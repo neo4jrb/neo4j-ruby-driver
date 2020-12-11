@@ -58,13 +58,20 @@ RSpec.describe Neo4j::Driver do
   context 'when String' do
     let(:param) { 'string' }
 
-    it { is_expected.to match(/^string$/) }
+    it { is_expected.to eq param }
   end
 
   context 'when long String' do
     let(:param) { 'a' * 30 }
 
     it { is_expected.to eq param }
+  end
+
+  context 'when Symbol' do
+    let(:param) { :symbol }
+
+    it { is_expected.to be_a String }
+    it { is_expected.to eq 'symbol' }
   end
 
   context 'when Date in a map' do
@@ -117,5 +124,13 @@ RSpec.describe Neo4j::Driver do
     it { is_expected.to eq param }
     it { is_expected.to be_a Neo4j::Driver::Types::Bytes }
     its(:encoding) { is_expected.to eq Encoding::ASCII_8BIT }
+  end
+
+  context 'when unknown type' do
+    let(:param) { Class.new }
+
+    it 'raises an exception' do
+      expect { subject }.to raise_error(StandardError)
+    end
   end
 end

@@ -15,9 +15,16 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq param }
     end
 
-    context 'when Time' do
+    context 'when DateTime as Time' do
       let(:param) { Time.now.in_time_zone(TZInfo::Timezone.get('UTC')).change(zone: '+07:00') }
 
+      it { is_expected.to eq param }
+    end
+
+    context 'when DateTime as DateTime' do
+      let(:param) { DateTime.now }
+
+      it { is_expected.to be_a Time }
       it { is_expected.to eq param }
     end
   end

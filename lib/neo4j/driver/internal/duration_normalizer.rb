@@ -6,7 +6,8 @@ module Neo4j
       module DurationNormalizer
         class << self
           def normalize(object)
-            parts = object.parts
+            parts = object.parts.to_h
+            parts.default = 0
             months_i, months_remainder_seconds = divmod(months(parts), ActiveSupport::Duration::SECONDS_PER_MONTH)
             months_days, months_remainder_seconds =
               months_remainder_seconds.divmod(ActiveSupport::Duration::SECONDS_PER_DAY)

@@ -94,7 +94,7 @@ module Neo4j
               nil
             end
           rescue StandardError => e
-            on_failure(e)
+            on_failure(e) unless @failure
             raise e
           end
         end
