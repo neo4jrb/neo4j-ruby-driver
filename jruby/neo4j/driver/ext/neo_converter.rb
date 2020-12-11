@@ -36,6 +36,8 @@ module Neo4j
             to_zoned_date_time(object, object.formatted_offset)
           when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
+          when Symbol
+            object.to_s
           when nil, true, false, Integer, Float, String
             object
           else

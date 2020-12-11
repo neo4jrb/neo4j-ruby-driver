@@ -58,7 +58,7 @@ RSpec.describe Neo4j::Driver do
   context 'when String' do
     let(:param) { 'string' }
 
-    it { is_expected.to match(/^string$/) }
+    it { is_expected.to eq param }
   end
 
   context 'when long String' do
@@ -70,7 +70,8 @@ RSpec.describe Neo4j::Driver do
   context 'when Symbol' do
     let(:param) { :symbol }
 
-    it { is_expected.to match(/^symbol$/) }
+    it { is_expected.to be_a String }
+    it { is_expected.to eq 'symbol' }
   end
 
   context 'when Date in a map' do
