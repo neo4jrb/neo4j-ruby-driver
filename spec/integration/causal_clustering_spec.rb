@@ -3,7 +3,7 @@
 require 'timeout'
 require 'support/cluster_extension'
 
-RSpec.describe 'CausalClusteringSpec' do
+RSpec.describe 'CausalClusteringSpec', causal: true do
   include_context 'cluster_extension'
 
   DEFAULT_TIMEOUT = 120

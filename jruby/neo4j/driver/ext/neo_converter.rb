@@ -16,8 +16,6 @@ module Neo4j
             object.map(&method(:to_neo))
           when Types::Bytes
             object.to_java_bytes
-          when Date
-            Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(
               *Driver::Internal::DurationNormalizer.normalize(object)
@@ -34,8 +32,10 @@ module Neo4j
                                              object.nsec)
           when ActiveSupport::TimeWithZone
             to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
-          when Time
+          when Time, DateTime
             to_zoned_date_time(object, object.formatted_offset)
+          when Date
+            Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when nil, true, false, Integer, Float, String
             object
           else

@@ -63,8 +63,6 @@ module Neo4j
                 object = object.to_a
                 Bolt::Value.format_as_list(value, object.size)
                 object.each_with_index { |elem, index| to_neo(Bolt::List.value(value, index), elem) }
-              when Date
-                DateValue.to_neo(value, object)
               when ActiveSupport::Duration
                 DurationValue.to_neo(value, object)
               when Neo4j::Driver::Types::Point
@@ -84,8 +82,10 @@ module Neo4j
                 LocalDateTimeValue.to_neo(value, object)
               when ActiveSupport::TimeWithZone
                 TimeWithZoneIdValue.to_neo(value, object)
-              when Time
+              when Time, DateTime
                 TimeWithZoneOffsetValue.to_neo(value, object)
+              when Date
+                DateValue.to_neo(value, object)
               else
                 Exceptions::ClientException.unable_to_convert(object)
               end
