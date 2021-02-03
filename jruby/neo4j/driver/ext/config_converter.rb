@@ -9,7 +9,7 @@ module Neo4j
         private
 
         def to_java_config(builder_class, **hash)
-          hash.reduce(builder_class.builder) { |object, key_value| object.send(*config_method(*key_value)) }.build
+          hash.compact.reduce(builder_class.builder) { |object, key_value| object.send(*config_method(*key_value)) }.build
         end
 
         def config_method(key, value)

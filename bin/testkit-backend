@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+set -vx
+
+(cd testkit-backend; bin/testkit-backend)
+# Do any other automated setup that you need to do here

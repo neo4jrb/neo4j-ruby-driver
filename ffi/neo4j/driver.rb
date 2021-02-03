@@ -39,7 +39,6 @@ if RUBY_PLATFORM.match?(/java/)
 end
 # End workaround
 
-require 'active_support/concern'
 require 'active_support/core_ext/array/grouping'
 require 'active_support/logger'
 require 'concurrent/atomic/atomic_boolean'
