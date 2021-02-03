@@ -48,7 +48,7 @@ jobs:
           NEO4J_EDITION_FLAG: -e
           NEO4J_EDITION: enterprise
           NEO4J_VERSION: 4.0.11
-          NEO4J_DIR: servers/neo4j-$NEO4J_EDITION-$NEO4J_VERSION
+          NEO4J_DIR: servers/neo4j-enterprise-4.0.11
 
       - name: Install dependencies
         run: bin/setup
