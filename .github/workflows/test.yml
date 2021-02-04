@@ -57,3 +57,5 @@ jobs:
         run: bin/setup
       - name: Run tests
         run: bundle exec rspec
+        env:
+          NEO4J_VERSION: ${{ matrix.neo4j }}
