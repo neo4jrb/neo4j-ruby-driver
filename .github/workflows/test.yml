@@ -31,8 +31,7 @@ jobs:
         with:
           python-version: '3.8.x'
       - uses: BSFishy/pip-action@v1
-          packages: 'git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit'
-          extra: --user
+          packages: git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
       - name: Setup Env
         run: |
           echo "$HOME/.local/bin" >> $GITHUB_PATH
