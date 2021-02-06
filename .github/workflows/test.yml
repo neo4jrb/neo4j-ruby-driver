@@ -36,6 +36,9 @@ jobs:
       NEO4J_EDITION_FLAG: -e
       NEO4J_VERSION: ${{ matrix.neo4j }}
       driver: ${{ matrix.driver }}
+      dbms.memory: 600m
+          pagecache:
+            size:
     steps:
       - uses: actions/checkout@v2
 
