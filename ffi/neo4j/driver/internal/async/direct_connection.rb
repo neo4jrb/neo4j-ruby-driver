@@ -22,7 +22,7 @@ module Neo4j
 
           def write_and_flush(statement, parameters, boomarks_holder, config, run_handler, pull_handler)
             check_error Bolt::Connection.clear_run(bolt_connection)
-            check_error Bolt::Connection.set_run_cypher(bolt_connection, statement, statement.size, parameters.size)
+            check_error Bolt::Connection.set_run_cypher(bolt_connection, statement, statement.bytesize, parameters.size)
             parameters.each_with_index do |(name, object), index|
               name = name.to_s
               Value::ValueAdapter.to_neo(
