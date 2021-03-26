@@ -16,7 +16,8 @@ jobs:
       matrix:
         ruby: [ jruby-9.2.16.0 ]
         neo4j: [ 3.5.27, 4.0.11, 4.1.8, 4.2.4 ]
-        driver: [ java, ruby ]
+#        driver: [ java, ruby ]
+        driver: [ java ]
     env:
       NEO4J_EDITION_FLAG: -e
       NEO4J_VERSION: ${{ matrix.neo4j }}
