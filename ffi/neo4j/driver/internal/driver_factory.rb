@@ -22,12 +22,13 @@ module Neo4j
 
         def create_connector(uri, auth_token, routing_context, config)
           bolt_config = bolt_config(config)
+          address = Bolt::Address.create(host(uri).gsub(/^\[(.*)\]$/, '\\1'), port(uri).to_s)
+          # callbacks from C to ruby used in logger may cause deadlocks on MRI
+          logger = InternalLogger.register(bolt_config, config[:logger]) if RUBY_PLATFORM.match?(/java/)
           set_socket_options(bolt_config, config)
           set_routing_context(bolt_config, routing_context)
           set_scheme(bolt_config, uri, routing_context)
           resolver = InternalResolver.register(bolt_config, config[:resolver])
-          address = Bolt::Address.create(host(uri).gsub(/^\[(.*)\]$/, '\\1'), port(uri).to_s)
-          logger = InternalLogger.register(bolt_config, config[:logger])
           [Bolt::Connector.create(address, auth_token, bolt_config), logger, resolver]
         end
 
