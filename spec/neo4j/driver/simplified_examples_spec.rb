@@ -90,7 +90,7 @@ RSpec.describe Neo4j::Driver do
 
   it 'accepts transaction config', version: '>=3.5' do
     driver.session do |session|
-      session.read_transaction(timeout: 1.minute, metadata: {a: 1, b: 'string'}) do |tx|
+      session.read_transaction(timeout: 1.minute, metadata: { a: 1, b: 'string' }) do |tx|
         expect(tx.run('RETURN 1').single.first).to eq 1
       end
     end
@@ -98,7 +98,21 @@ RSpec.describe Neo4j::Driver do
 
   it 'accepts run config', version: '>=3.5' do
     driver.session do |session|
-      expect(session.run('RETURN 1', {}, timeout: 1.minute, metadata: {a: 1, b: 'string'}).single.first).to eq 1
+      expect(session.run('RETURN 1', {}, timeout: 1.minute, metadata: { a: 1, b: 'string' }).single.first).to eq 1
+    end
+  end
+
+  describe 'multibyte characters' do
+    it 'accepts in query' do
+      driver.session do |session|
+        expect(session.run('RETURN "Düsseldorf"').single.first).to eq 'Düsseldorf'
+      end
+    end
+
+    it 'accepts in parameter' do
+      driver.session do |session|
+        expect(session.run('RETURN $Straße', Straße: 'Münchener').single.first).to eq 'Münchener'
+      end
     end
   end
 end
