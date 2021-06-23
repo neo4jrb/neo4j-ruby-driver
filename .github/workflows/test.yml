@@ -2,9 +2,9 @@ name: Test
 
 on:
   push:
-    branches: [ master, 4.2 ]
+    branches: [ master, 4.2, 4.3 ]
   pull_request:
-    branches: [ master, 4.2 ]
+    branches: [ master, 4.2, 4.3 ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
