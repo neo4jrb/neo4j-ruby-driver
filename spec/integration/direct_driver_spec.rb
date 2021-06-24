@@ -2,7 +2,6 @@
 
 RSpec.describe 'DirectDriverSpec' do
   it 'allows IPv6 address' do
-    skip 'IPv6 not supported on travis' if ENV['CI'] == 'true'
     Neo4j::Driver::GraphDatabase
       .driver("bolt://[::1]:#{port}", basic_auth_token) do |driver|
       # verifying address is implementation dependent and goes beyond integration testing
@@ -21,7 +20,6 @@ RSpec.describe 'DirectDriverSpec' do
   end
 
   it 'connects IPv6 uri' do
-    skip 'IPv6 not supported on travis' if ENV['CI'] == 'true'
     Neo4j::Driver::GraphDatabase
       .driver("bolt://[::1]:#{port}", basic_auth_token) do |driver|
       driver.session do |session|

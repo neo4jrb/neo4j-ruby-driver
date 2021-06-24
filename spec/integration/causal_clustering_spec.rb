@@ -118,8 +118,8 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
       # gracefully stop current leader to force re-election
       cluster.stop(leader)
 
-      tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr')
-      expect(&tx1.method(:commit)).to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
+      expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
+        .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
       session1.close
 
       bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
