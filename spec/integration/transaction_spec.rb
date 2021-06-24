@@ -74,9 +74,9 @@ RSpec.describe 'Transaction' do
     end
   end
 
-  it 'rolls back tx if error without consume' do
+  it 'Rolls back Transaction After Failed Run And Commit And Session Successfully Begins New Transaction' do
     tx = session.begin_transaction
-    tx.run('invalid') # send run, pull_al
+    expect { tx.run('invalid') }.to raise_error Neo4j::Driver::Exceptions::ClientException
     expect(&tx.method(:commit)).to raise_error Neo4j::Driver::Exceptions::ClientException
 
     session.begin_transaction do |another_tx|
@@ -89,7 +89,7 @@ RSpec.describe 'Transaction' do
       session.begin_transaction do |tx|
         result = tx.run('invalid')
         tx.commit
-        result.cosume
+        result.consume
       end
     end.to raise_error Neo4j::Driver::Exceptions::ClientException
 
@@ -98,13 +98,11 @@ RSpec.describe 'Transaction' do
     end
   end
 
-  it 'propagates failure from summary' do
+  it 'fails run' do
     session.begin_transaction do |tx|
-      result = tx.run('RETURN Wrong')
-      expect(&result.method(:consume)).to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
+      expect { tx.run('RETURN Wrong') }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
         expect(error.code).to match /SyntaxError/
       end
-      expect(result.consume).to be_present
     end
   end
 

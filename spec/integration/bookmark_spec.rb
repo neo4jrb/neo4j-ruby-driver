@@ -53,8 +53,7 @@ RSpec.describe 'Bookmark' do
     driver.session do |session|
       bookmark = preamble(session)
       tx = session.begin_transaction
-      tx.run('RETURN')
-      expect { tx.commit }.to raise_error Neo4j::Driver::Exceptions::ClientException
+      expect { tx.run('RETURN') }.to raise_error Neo4j::Driver::Exceptions::ClientException
       expect(session.last_bookmark).to eq bookmark
     end
   end

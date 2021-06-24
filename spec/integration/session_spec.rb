@@ -454,10 +454,9 @@ RSpec.describe 'SessionSpec' do
     expect(result).to eq 'Hello'
   end
 
-  it 'propagate failure when closed' do
+  it 'Throws Run Failure Immediately And Closes Successfully' do
     driver.session do |session|
-      session.run('RETURN 10 / 0')
-      expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+      expect { session.run('RETURN 10 / 0') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     end
   end
 
@@ -467,38 +466,27 @@ RSpec.describe 'SessionSpec' do
     end
   end
 
-  it 'is possible to consume result after session is closed' do
+  it 'is not possible to consume result after session is closed' do
+    result = driver.session do |session|
+      session.run('UNWIND range(1, 20000) AS x RETURN x')
+    end
+    expect { result.map { |record| record[0] } }.to raise_error Neo4j::Driver::Exceptions::ResultConsumedException
+  end
+
+  it 'Throw Run Failure Immediately After Multiple Successful Runs And Close Successfully' do
     driver.session do |session|
-      ints = session.run('UNWIND range(1, 20000) AS x RETURN x').map { |record| record[0] }
-      expect(ints.size).to eq(20_000)
+      session.run('CREATE ()')
+      session.run('CREATE ()')
+      expect { session.run('RETURN 10 / 0') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     end
   end
 
-  it 'propagate failure from summary' do
-    driver.session do |session|
-      result = session.run('RETURN Wrong')
-      expect { result.consume }.to raise_error Neo4j::Driver::Exceptions::ClientException do |error|
-        expect(error.code).to match /SyntaxError/
-      end
-      expect(result.consume).to be_present
-    end
-  end
-
-  it 'Throw From Close When Previous Error Not Consumed' do
+  it 'Throw Run Failure Immediately And Accept Subsequent Run' do
     driver.session do |session|
       session.run('CREATE ()')
       session.run('CREATE ()')
-      session.run('RETURN 10 / 0')
-      expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
-    end
-  end
-
-  it 'Throw From Run When Previous Error Not Consumed' do
-    driver.session do |session|
+      expect { session.run('RETURN 10 / 0') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
       session.run('CREATE ()')
-      session.run('CREATE ()')
-      session.run('RETURN 10 / 0')
-      expect { session.run('CREATE ()') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     end
   end
 

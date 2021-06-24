@@ -57,20 +57,10 @@ RSpec.describe Neo4j::Driver do
   it 'raises type mismatch error in explicit transaction on close' do
     driver.session do |session|
       tx = session.begin_transaction
-      tx.run('MATCH (r) MATCH ()-[r]-() RETURN r')
-      expect(&tx.method(:close)).to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
-    end
-  end
-
-  %i[consume peek has_next? to_a keys single].each do |method|
-    it "raises type mismatch error in explicit transaction on #{method}" do
-      driver.session do |session|
-        tx = session.begin_transaction
-        expect { tx.run('MATCH (r) MATCH ()-[r]-() RETURN r').send(method) }
-          .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
-      ensure
-        expect { tx.close }.not_to raise_error
-      end
+      expect { tx.run('MATCH (r) MATCH ()-[r]-() RETURN r') }
+        .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
+    ensure
+      expect { tx.close }.not_to raise_error
     end
   end
 
