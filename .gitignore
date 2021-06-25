@@ -15,6 +15,7 @@
 *.jar
 *.gem
 *.gemspec
+*.crt
 .env
 .idea/
 db/
