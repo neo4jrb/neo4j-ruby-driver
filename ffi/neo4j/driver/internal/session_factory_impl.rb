@@ -20,7 +20,7 @@ module Neo4j
         private
 
         def create_session(connection_provider, retry_logic, mode, logging = nil)
-          NetworkSession.new(connection_provider, mode, retry_logic, logging)
+          InternalSession.new(connection_provider, mode, retry_logic, logging)
         end
       end
     end

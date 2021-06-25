@@ -39,7 +39,6 @@ if RUBY_PLATFORM.match?(/java/)
 end
 # End workaround
 
-require 'active_support/concern'
 require 'active_support/core_ext/array/grouping'
 require 'active_support/logger'
 require 'concurrent/atomic/atomic_boolean'
@@ -57,5 +56,5 @@ end
 Loader.load
 
 Neo4j::Driver::Record = Neo4j::Driver::Internal::InternalRecord
-Neo4j::Driver::StatementResult = Neo4j::Driver::Internal::InternalStatementResult
-Neo4j::Driver::Transaction = Neo4j::Driver::Internal::ExplicitTransaction
+Neo4j::Driver::Result = Neo4j::Driver::Internal::InternalResult
+Neo4j::Driver::Transaction = Neo4j::Driver::Internal::InternalTransaction

@@ -22,7 +22,7 @@ RSpec.describe Neo4j::Driver do
 
     after { driver2.close }
 
-    let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, { encryption: false }.merge(config)) }
+    let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, config) }
     let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
     let(:config) { {} }
 
@@ -65,7 +65,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'Example 2.7. Unencrypted' do
-      let(:config) { { encryption: false } }
+      let(:config) { {} }
 
       it { is_expected.to be true }
     end
@@ -108,14 +108,15 @@ RSpec.describe Neo4j::Driver do
     end
 
     it 'raises exception' do
-      expect { add_item(Neo4j::Driver::GraphDatabase.driver('bolt://localhost:9999')) }
-        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
+      expect do
+        Neo4j::Driver::GraphDatabase.driver('bolt://localhost:9999', max_transaction_retry_time: 0, &method(:add_item))
+      end.to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
     end
   end
 
   context '3. Sessions and transactions' do
     subject(:name) do
-      driver.session(Neo4j::Driver::AccessMode::READ) do |session|
+      driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ) do |session|
         session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
       end
     end
@@ -159,10 +160,10 @@ RSpec.describe Neo4j::Driver do
 
     context '3.2.3. Explicit transactions' do
       def add_person(name)
-        driver.session(Neo4j::Driver::AccessMode::WRITE) do |session|
+        driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE) do |session|
           tx = session.begin_transaction
           tx.run('CREATE (a:Person {name: $name})', name: name)
-          tx.success
+          tx.commit
         ensure
           tx&.close
         end
@@ -211,7 +212,7 @@ RSpec.describe Neo4j::Driver do
       saved_bookmarks = []
 
       # Create the first person and employment relationship.
-      driver.session(Neo4j::Driver::AccessMode::WRITE) do |session1|
+      driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE) do |session1|
 
         session1.write_transaction { |tx| add_company(tx, 'Wayne Enterprises') }
         session1.write_transaction { |tx| add_person(tx, 'Alice') }
@@ -221,7 +222,7 @@ RSpec.describe Neo4j::Driver do
       end
 
       # Create the second person and employment relationship.
-      driver.session(Neo4j::Driver::AccessMode::WRITE) do |session2|
+      driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE) do |session2|
         session2.write_transaction { |tx| add_company(tx, 'LexCorp') }
         session2.write_transaction { |tx| add_person(tx, 'Bob') }
         session2.write_transaction { |tx| employ(tx, 'Bob', 'LexCorp') }
@@ -230,7 +231,7 @@ RSpec.describe Neo4j::Driver do
       end
 
       # Create a friendship between the two people created above.
-      driver.session(Neo4j::Driver::AccessMode::WRITE, *saved_bookmarks) do |session3|
+      driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: saved_bookmarks) do |session3|
         session3.write_transaction { |tx| make_friends(tx, 'Alice', 'Bob') }
 
         session3.read_transaction(&method(:print_friends))

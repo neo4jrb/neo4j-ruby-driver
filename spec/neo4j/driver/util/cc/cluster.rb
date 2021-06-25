@@ -24,7 +24,12 @@ module Neo4j
           end
 
           def leader
-            members_with_role('LEADER').first
+            10.times do |i|
+              leader = members_with_role('LEADER').first
+              return leader if leader
+              puts "failed attemps: #{i}. Wating 10 sec...."
+              sleep 10
+            end
           end
 
           def followers
@@ -115,22 +120,21 @@ module Neo4j
           def driver(bolt_uri)
             @drivers[bolt_uri] ||= GraphDatabase.driver(bolt_uri, AuthTokens.basic('neo4j', password),
                                                         logger: ActiveSupport::Logger.new(IO::NULL),
-                                                        encryption: false,
                                                         max_connection_pool_size: 1,
                                                         connection_liveness_check_timeout: 0)
           end
 
           def core_member?(driver)
-            driver.session(AccessMode::READ) do |session|
+            driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ) do |session|
               %w[LEADER FOLLOWER].include?(
-                session.run("CALL dbms.cluster.role(#{'$database' unless version3?})", database: 'neo4j')
+                session.run("CALL dbms.cluster.role(#{'$database' if version?('>=4')})", database: 'neo4j')
                   .single.first
               )
             end
           end
 
           def find_cluster_overview(driver)
-            driver.session(AccessMode::WRITE) do |session|
+            driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE) do |session|
               session.run('CALL dbms.cluster.overview()').each_with_object({}) do |record, hash|
                 # Version 3.x.x || Version 4.x.x
                 (hash[record[:role] || record[:databases][:neo4j]] ||= []) << record[:addresses].first

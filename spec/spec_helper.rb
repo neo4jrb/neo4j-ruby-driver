@@ -1,6 +1,17 @@
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', ENV['driver'] == 'java' ? 'jruby' : 'ffi')
+$LOAD_PATH.unshift File.join(
+  File.dirname(__FILE__),
+  '..',
+  case ENV['driver']
+  when 'java'
+    'jruby'
+  when 'ruby'
+    'ruby'
+  else
+    'ffi'
+  end
+)
 
 require 'active_support/logger'
 require 'ffaker'
@@ -30,6 +41,6 @@ RSpec.configure do |config|
   config.around { |example| cleaning(&example.method(:run)) }
 
   config.filter_run_excluding auth: :none
-  config.filter_run_excluding version: '>=4' if version3?
+  config.filter_run_excluding version: method(:not_version?)
   config.filter_run_excluding concurrency: true unless RUBY_PLATFORM == 'java'
 end

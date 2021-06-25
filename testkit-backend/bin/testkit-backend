@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require "testkit/backend"
+
+Testkit::Backend::Runner.new(9876).run

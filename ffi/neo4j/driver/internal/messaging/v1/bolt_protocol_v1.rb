@@ -32,7 +32,7 @@ module Neo4j
                 pull_all_handler = new_pull_all_handler(statement, run_handler, connection, tx)
 
                 connection.write_and_flush(query, params, run_handler, pull_all_handler)
-                InternalStatementResult.new(run_handler, pull_all_handler)
+                InternalResult.new(run_handler, pull_all_handler)
               end
 
               def new_pull_all_handler(statement, run_handler, connection, tx)

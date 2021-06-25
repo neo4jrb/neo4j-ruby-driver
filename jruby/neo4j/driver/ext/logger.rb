@@ -4,8 +4,8 @@ module Neo4j
   module Driver
     module Ext
       class Logger
-        include org.neo4j.driver.v1.Logger
-        include org.neo4j.driver.v1.Logging
+        include org.neo4j.driver.Logger
+        include org.neo4j.driver.Logging
 
         delegate :debug?, to: :@active_support_logger
 

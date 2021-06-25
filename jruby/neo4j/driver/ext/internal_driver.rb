@@ -5,12 +5,18 @@ module Neo4j
     module Ext
       module InternalDriver
         extend AutoClosable
+        include ConfigConverter
+        include ExceptionCheckable
 
         auto_closable :session
 
-        def session(*args)
-          java_method(:session, [org.neo4j.driver.v1.AccessMode, java.lang.Iterable])
-            .call(*Neo4j::Driver::Internal::RubySignature.session(args))
+        def session(**session_config)
+          java_method(:session, [org.neo4j.driver.SessionConfig])
+            .call(to_java_config(Neo4j::Driver::SessionConfig, session_config))
+        end
+
+        def verify_connectivity
+          check { super }
         end
       end
     end

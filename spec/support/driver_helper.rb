@@ -20,20 +20,19 @@ module DriverHelper
       self.single_driver ||= Neo4j::Driver::GraphDatabase.driver(
         uri, basic_auth_token,
         max_transaction_retry_time: 2,
-        connection_timeout: 3,
-        encryption: false
+        connection_timeout: 3
       # logger: ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG)
       # logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::DEBUG)
       )
       # @@driver ||= Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.none)
     end
 
-    def version34?
-      ENV['NEO4J_VERSION']&.send(:<, '3.5')
+    def version?(requirement)
+      Gem::Requirement.create(requirement).satisfied_by?(Gem::Version.new(ENV['NEO4J_VERSION']))
     end
 
-    def version3?
-      ENV['NEO4J_VERSION']&.send(:<, '4')
+    def not_version?(requirement)
+      !version?(requirement)
     end
   end
 end

@@ -37,8 +37,7 @@ RSpec.describe Neo4j::Driver do
   it 'Driver with block and fetching before session close' do
     username = 'neo4j'
     password = 'password'
-    result = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(username, password),
-                                                 encryption: false) do |driver|
+    result = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(username, password)) do |driver|
       driver.session { |session| session.run('CREATE (a:Person {name: $name}) RETURN a.name', name: 'John').single }
     end
 
@@ -58,20 +57,10 @@ RSpec.describe Neo4j::Driver do
   it 'raises type mismatch error in explicit transaction on close' do
     driver.session do |session|
       tx = session.begin_transaction
-      tx.run('MATCH (r) MATCH ()-[r]-() RETURN r')
-      expect(&tx.method(:close)).to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
-    end
-  end
-
-  %i[consume summary peek has_next? to_a keys single].each do |method|
-    it "raises type mismatch error in explicit transaction on #{method}" do
-      driver.session do |session|
-        tx = session.begin_transaction
-        expect { tx.run('MATCH (r) MATCH ()-[r]-() RETURN r').send(method) }
-          .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
-      ensure
-        expect { tx.close }.not_to raise_error
-      end
+      expect { tx.run('MATCH (r) MATCH ()-[r]-() RETURN r') }
+        .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
+    ensure
+      expect { tx.close }.not_to raise_error
     end
   end
 
@@ -89,8 +78,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'accepts transaction config' do
-    skip 'Not applicable to V3.4' if version34?
+  it 'accepts transaction config', version: '>=3.5' do
     driver.session do |session|
       session.read_transaction(timeout: 1.minute, metadata: { a: 1, b: 'string' }) do |tx|
         expect(tx.run('RETURN 1').single.first).to eq 1
@@ -98,8 +86,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'accepts run config' do
-    skip 'Not applicable to V3.4' if version34?
+  it 'accepts run config', version: '>=3.5' do
     driver.session do |session|
       expect(session.run('RETURN 1', {}, timeout: 1.minute, metadata: { a: 1, b: 'string' }).single.first).to eq 1
     end

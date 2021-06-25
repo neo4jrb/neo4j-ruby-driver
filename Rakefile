@@ -6,16 +6,19 @@ require 'hoe'
 Hoe.plugin :bundler
 Hoe.plugin :gemspec
 
-def ffi?
-  ENV['driver'] != 'java'
-end
-
 def pdir
-  ffi? ? 'ffi' : 'jruby'
+  case ENV['driver']
+  when 'java'
+    'jruby'
+  when 'ruby'
+    'ruby'
+  else
+    'ffi'
+  end
 end
 
 def gem_name
-  ffi? ? 'neo4j-ruby-driver' : 'neo4j-java-driver'
+  ENV['driver'] == 'java' ? 'neo4j-java-driver' : 'neo4j-ruby-driver'
 end
 
 HOE = Class.new(Hoe) do
@@ -43,14 +46,14 @@ end.spec gem_name do
 
   self.clean_globs += %w[Gemfile Gemfile.lock *.gemspec lib/org lib/*_jars.rb]
 
-  if ffi?
+  if pdir == 'ffi'
     dependency 'ffi', '>= 0'
     dependency 'recursive-open-struct', '>= 0'
   else
     dependency 'jar-dependencies', '>= 0'
     dependency 'ruby-maven', '>= 0', :dev
 
-    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 1.7.5' }
+    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 4.3.2' }
     spec_extras[:platform] = 'java'
   end
 end

@@ -10,7 +10,7 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
   let(:url) { URI::Generic.build(scheme: scheme, host: URI(uri).host, port: port).to_s }
   describe '.driver' do
     subject do
-      Neo4j::Driver::GraphDatabase.driver(url, basic_auth_token, encryption: false, &method(:simple_query))
+      Neo4j::Driver::GraphDatabase.driver(url, basic_auth_token, &method(:simple_query))
     end
 
     context 'when bolt' do
@@ -22,36 +22,23 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
       let(:scheme) { 'neo4j' }
       it { is_expected.to eq 1 }
     end
-
-    context 'when bolt+routing', version: '>=4' do
-      let(:scheme) { 'bolt+routing' }
-      it { is_expected.to eq 1 }
-    end
   end
 
   describe '.routing_driver', version: '>=4' do
-    let(:routing_uris) { ['neo4j://badhost:7687', 'neo4j://[::1]:9999', url] }
+    let(:routing_uris) { [ url] }
     subject do
-      Neo4j::Driver::GraphDatabase.routing_driver(routing_uris, basic_auth_token, encryption: false,
-                                                  &method(:simple_query))
+      Neo4j::Driver::GraphDatabase.routing_driver(routing_uris, basic_auth_token, &method(:simple_query))
     end
 
     context 'when bolt' do
       let(:scheme) { 'bolt' }
       it 'is not routing scheme' do
-        expect { subject }
-          .to raise_error ArgumentError,
-                          "Illegal URI scheme, expected URI scheme 'bolt' to be among '[bolt+routing, neo4j]'"
+        expect { subject }.to raise_error ArgumentError, /^Illegal URI scheme, expected .*neo4j.*'$/
       end
     end
 
     context 'when neo4j' do
       let(:scheme) { 'neo4j' }
-      it { is_expected.to eq 1 }
-    end
-
-    context 'when bolt+routing' do
-      let(:scheme) { 'bolt+routing' }
       it { is_expected.to eq 1 }
     end
   end

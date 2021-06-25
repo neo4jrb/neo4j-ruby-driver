@@ -5,11 +5,11 @@ module Neo4j
     module Internal
       module Summary
         class InternalResultSummary
-          attr_reader :server, :counters, :statement, :result_available_after, :result_consumed_after
+          attr_reader :server, :counters, :query, :result_available_after, :result_consumed_after
           delegate :notifications, :profile, to: :@metadata
 
           def initialize(statement, result_available_after, bolt_connection)
-            @statement = statement
+            @query = statement
             @result_available_after = result_available_after
             @server = InternalServerInfo.new(bolt_connection)
             @metadata = RecursiveOpenStruct.new(
@@ -51,7 +51,7 @@ module Neo4j
           def translate_key(key)
             case key
             when :type
-              :statement_type
+              :query_type
             when :args
               :arguments
             when :rows

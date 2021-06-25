@@ -44,8 +44,7 @@ RSpec.describe 'ResultStream' do
 
   it 'is able to reuse session after failure' do
     driver.session do |session|
-      res1 = session.run('INVALID')
-      expect(&res1.method(:consume)).to raise_error Neo4j::Driver::Exceptions::ClientException
+      expect{session.run('INVALID')}.to raise_error Neo4j::Driver::Exceptions::ClientException
       res2 = session.run('RETURN 1')
       expect(res2).to have_next
       expect(res2.keys).to eq [:'1']
@@ -56,69 +55,24 @@ RSpec.describe 'ResultStream' do
     end
   end
 
-  it 'is able to access summary after failure' do
-    driver.session do |session|
-      res = session.run('INVALID')
-      res.consume
-    rescue Neo4j::Driver::Exceptions::ClientException
-      # ignore
-    ensure
-      summary = res.summary
-      expect(summary).not_to be_nil
-      expect(summary.server.address).to eq uri.split('//').last
-      expect(summary.counters.nodes_created).to eq 0
-    end
-  end
-
   it 'is able to access summary after transaction failure' do
     driver.session do |session|
       result = nil
       expect do
         session.begin_transaction do |tx|
           result = tx.run('UNWIND [1,2,0] AS x RETURN 10/x')
-          tx.success
+          tx.commit
         end
       end.to raise_error Neo4j::Driver::Exceptions::ClientException
 
       expect(result).not_to be_nil
-      expect(result.summary.counters.nodes_created).to eq 0
-    end
-  end
-
-  it 'buffers records after summary' do
-    driver.session do |session|
-      result = session.run('UNWIND [1,2] AS a RETURN a')
-      summary = result.summary
-      expect(summary).not_to be_nil
-      expect(summary.server.address).to eq uri.split('//').last
-      expect(summary.counters.nodes_created).to eq 0
-      expect(result.next[:a]).to eq 1
-      expect(result.next[:a]).to eq 2
-    end
-  end
-
-  it 'discards records after consume' do
-    driver.session do |session|
-      result = session.run('UNWIND [1,2] AS a RETURN a')
-      summary = result.consume
-      expect(summary).not_to be_nil
-      expect(summary.server.address).to eq uri.split('//').last
-      expect(summary.counters.nodes_created).to eq 0
-      expect(result).not_to have_next
-    end
-  end
-
-  it 'has no elements after failure' do
-    driver.session do |session|
-      result = session.run('INVALID')
-      expect(&result.method(:has_next?)).to raise_error Neo4j::Driver::Exceptions::ClientException
-      expect(result).not_to have_next
+      expect(result.consume.counters.nodes_created).to eq 0
     end
   end
 
   it 'is an empty list after failure' do
     driver.session do |session|
-      result = session.run('UNWIND (0, 1) as i RETURN 10 / i')
+      result = session.run('UNWIND [0, 1] as i RETURN 10 / i')
       expect(&result.method(:to_a)).to raise_error Neo4j::Driver::Exceptions::ClientException
       expect(result.to_a).to be_empty
     end

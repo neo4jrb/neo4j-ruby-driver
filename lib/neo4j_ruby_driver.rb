@@ -13,6 +13,7 @@ if RUBY_PLATFORM.match?(/java/)
 end
 # End workaround
 
+require 'active_support/concern'
 require 'active_support/core_ext/hash/indifferent_access'
 require 'active_support/core_ext/numeric/time'
 require 'active_support/duration'

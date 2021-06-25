@@ -5,7 +5,7 @@ RSpec.describe 'LoggingSpec', concurrency: true do
 
   it 'log records debug and trace info' do
     expect(logger).to receive(:add).at_least(:twice)
-    Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, logger: logger, encryption: false) do |driver|
+    Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, logger: logger) do |driver|
       driver.session do |session|
         session.run("CREATE (a {name:'Cat'})")
       end

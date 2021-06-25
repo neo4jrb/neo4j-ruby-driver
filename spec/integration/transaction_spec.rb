@@ -8,7 +8,7 @@ RSpec.describe 'Transaction' do
     session.begin_transaction do |tx|
       tx.run('CREATE (n:FirstNode)')
       tx.run('CREATE (n:SecondNode)')
-      tx.success
+      tx.commit
     end
     expect(session.run('MATCH (n) RETURN count(n)').single['count(n)']).to eq 2
   end
@@ -42,7 +42,7 @@ RSpec.describe 'Transaction' do
 
   it 'is closed after commit' do
     tx = session.begin_transaction
-    tx.success
+    tx.commit
     tx.close
 
     expect(tx).not_to be_open
@@ -61,7 +61,7 @@ RSpec.describe 'Transaction' do
   it 'handles failure after closing transaction' do
     tx = session.begin_transaction
     tx.run('CREATE (n) RETURN n').consume
-    tx.success
+    tx.commit
     tx.close
 
     expect { session.run('CREAT (n) RETURN n').consume }.to raise_error Neo4j::Driver::Exceptions::ClientException
@@ -70,15 +70,14 @@ RSpec.describe 'Transaction' do
   it 'handles nil Record/Value/Map parameters' do
     session.begin_transaction do |tx|
       tx.run('CREATE (n:FirstNode)', nil)
-      tx.success
+      tx.commit
     end
   end
 
-  it 'rolls back tx if error without consume' do
+  it 'Rolls back Transaction After Failed Run And Commit And Session Successfully Begins New Transaction' do
     tx = session.begin_transaction
-    tx.run('invalid') # send run, pull_al
-    tx.success
-    expect(&tx.method(:close)).to raise_error Neo4j::Driver::Exceptions::ClientException
+    expect { tx.run('invalid') }.to raise_error Neo4j::Driver::Exceptions::ClientException
+    expect(&tx.method(:commit)).to raise_error Neo4j::Driver::Exceptions::ClientException
 
     session.begin_transaction do |another_tx|
       expect(another_tx.run('RETURN 1').single['1']).to eq 1
@@ -89,8 +88,8 @@ RSpec.describe 'Transaction' do
     expect do
       session.begin_transaction do |tx|
         result = tx.run('invalid')
-        tx.success
-        result.cosume
+        tx.commit
+        result.consume
       end
     end.to raise_error Neo4j::Driver::Exceptions::ClientException
 
@@ -99,13 +98,11 @@ RSpec.describe 'Transaction' do
     end
   end
 
-  it 'propagates failure from summary' do
+  it 'fails run' do
     session.begin_transaction do |tx|
-      result = tx.run('RETURN Wrong')
-      expect(&result.method(:summary)).to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
+      expect { tx.run('RETURN Wrong') }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
         expect(error.code).to match /SyntaxError/
       end
-      expect(result.summary).to be_present
     end
   end
 
@@ -122,10 +119,9 @@ RSpec.describe 'Transaction' do
         expect(error.code).to match /SyntaxError/
       end
       expect { tx.run('CREATE (:OtherNode)').consume }
-        .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more statements in this transaction/)
+        .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more queries in this transaction/)
       expect { tx.run('RETURN 42').consume }
-        .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more statements in this transaction/)
-      tx.success
+        .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more queries in this transaction/)
     end
 
     expect(count_nodes_by_label(:Node)).to be_zero
@@ -143,7 +139,7 @@ RSpec.describe 'Transaction' do
         tx.run('CREATE (:Node3)')
         tx.run('CREATE (:Node4)')
 
-        tx.success
+        tx.commit
       end
     end.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
       expect(error.code).to match /SyntaxError/
