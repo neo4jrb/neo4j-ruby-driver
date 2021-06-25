@@ -6,6 +6,6 @@ module Testkit::Backend::Messages
       end
     end
 
-    CypherBool = CypherInt = CypherNull = CypherInt = CypherFloat = CypherString = CypherValue
+    CypherBool = CypherNull = CypherInt = CypherFloat = CypherString = CypherValue
   end
 end
