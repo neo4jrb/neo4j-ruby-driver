@@ -50,7 +50,8 @@ module Neo4j::Driver::Internal
       end
 
       def createConnector(settings, securityPlan, config, clock, routingContext)
-        org.neo4j.driver.internal.async.connection.ChannelConnectorImpl.new(settings, securityPlan, config.java_config.logging, clock, routingContext)
+        org.neo4j.driver.internal.async.connection.ChannelConnectorImpl.new(
+          settings, securityPlan, config.java_config.logging, clock, routingContext, getDomainNameResolver)
       end
 
       def createDriver(uri, securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
@@ -93,7 +94,7 @@ module Neo4j::Driver::Internal
         resolver = ->(address) { java.util.HashSet.new(createResolver(config).call(address)) }
         org.neo4j.driver.internal.cluster.loadbalancing.LoadBalancer.new(
           address, routingSettings, connectionPool, eventExecutorGroup, createClock,
-          config.java_config.logging, loadBalancingStrategy, resolver)
+          config.java_config.logging, loadBalancingStrategy, resolver, getDomainNameResolver)
       end
 
       def createClock
@@ -104,6 +105,12 @@ module Neo4j::Driver::Internal
         org.neo4j.driver.internal.util.Futures.blockingGet(connectionPool.close)
       rescue Exception => closeError
         org.neo4j.driver.internal.util.ErrorUtil.addSuppressed(mainError, closeError)
+      end
+
+      protected
+
+      def getDomainNameResolver()
+        org.neo4j.driver.internal.DefaultDomainNameResolver.getInstance()
       end
     end
   end

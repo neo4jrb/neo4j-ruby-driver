@@ -36,7 +36,7 @@ module Neo4j::Driver
 
       def run(query, parameters = {})
         check do
-          cursor = org.neo4j.driver.internal.util.Futures.blockingGet(@tx.runAsync(to_statement(query, parameters), false)) do
+          cursor = org.neo4j.driver.internal.util.Futures.blockingGet(@tx.runAsync(to_statement(query, parameters))) do
             terminateConnectionOnThreadInterrupt("Thread interrupted while running query in transaction")
           end
           InternalResult.new(@tx.connection, cursor)
