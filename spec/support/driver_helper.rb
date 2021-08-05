@@ -13,7 +13,7 @@ module DriverHelper
     end
 
     def basic_auth_token
-      Neo4j::Driver::AuthTokens.basic(ENV.fetch('TEST_NEO4J_USER', 'neo4j'), ENV.fetch('TEST_NEO4J_PASS', 'password'))
+      Neo4j::Driver::AuthTokens.basic(ENV.fetch('TEST_NEO4J_USER', 'neo4j'), ENV.fetch('TEST_NEO4J_PASS', 'pass'))
     end
 
     def driver
