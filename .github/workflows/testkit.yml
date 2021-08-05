@@ -1,0 +1,92 @@
+# This is a basic workflow to help you get started with Actions
+
+name: TestKit
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "testkit"
+  testkit:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        ruby: [ jruby-9.2.19.0 ]
+        neo4j: [ 4.1.9 ]
+        driver: [ java ]
+    env:
+      NEO4J_EDITION_FLAG: -e
+      NEO4J_VERSION: ${{ matrix.neo4j }}
+      driver: ${{ matrix.driver }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: driver
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java-version || 11 }}
+
+      - name: Install dependencies
+        run: driver/bin/setup
+
+      - name: Read required TestKit version from driver repo
+        id: testkit_vars
+        run: echo ::set-output name=testkit_version_ref::$(cat driver/.testkit_version | xargs)
+
+      - name: Checkout TestKit (testing tool)
+        uses: actions/checkout@v2
+        with:
+          repository: neo4j-drivers/testkit
+          path: testkit
+          ref: ${{ steps.testkit_vars.outputs.testkit_version_ref }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          # install docker
+          sudo apt-get install \
+            apt-transport-https \
+            ca-certificates \
+            curl \
+            gnupg \
+            lsb-release
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install docker-ce docker-ce-cli containerd.io
+          # Python (needed for dummy driver and TestKit)
+          sudo apt-get install python3 python3-pip
+      # Runs a single command using the runners shell
+      - name: Run TestKit
+        env:
+          # to learn what these variables do, see https://github.com/neo4j-drivers/testkit
+          TEST_DRIVER_NAME: java
+          TEST_DRIVER_REPO: ${{ github.workspace }}/driver
+          TEST_RUN_ALL_TESTS: "true"
+        run: |
+          cd testkit
+          # everything from --run-only-selected is to reduce the number of tests run in this
+          # demonstation setup. In a real setup, you most likely don't want this.
+          python3 main.py --tests TESTKIT_TESTS STUB_TESTS \
+            --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back \
+            --configs 4.1-enterprise

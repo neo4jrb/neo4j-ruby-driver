@@ -5,7 +5,7 @@ module DriverHelper
     mattr_accessor :single_driver
 
     def uri
-      ENV.fetch('NEO4J_BOLT_URL', 'bolt://127.0.0.1:7687')
+      "bolt://#{ENV.fetch('TEST_NEO4J_HOST', '127.0.0.1')}:#{ENV.fetch('TEST_NEO4J_PORT', 7687)}"
     end
 
     def port
@@ -13,7 +13,7 @@ module DriverHelper
     end
 
     def basic_auth_token
-      Neo4j::Driver::AuthTokens.basic('neo4j', 'password')
+      Neo4j::Driver::AuthTokens.basic(ENV.fetch('TEST_NEO4J_USER', 'neo4j'), ENV.fetch('TEST_NEO4J_PASS', 'password'))
     end
 
     def driver
