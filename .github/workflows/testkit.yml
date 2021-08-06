@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         ruby: [ jruby-9.2.19.0 ]
-        neo4j: [ 4.1.9 ]
+        neo4j: [ 4.3.2 ]
         driver: [ java ]
     env:
       NEO4J_EDITION_FLAG: -e
@@ -89,4 +89,4 @@ jobs:
           # demonstation setup. In a real setup, you most likely don't want this.
           python3 main.py --tests TESTKIT_TESTS STUB_TESTS \
             --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back \
-            --configs 4.1-enterprise
+            --configs 4.3-enterprise
