@@ -75,8 +75,26 @@ To run the tests the following tools need to be installed:
     $ pip3 install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
     $ neoctrl-install -e 4.0.2 servers
     $ neoctrl-configure servers/neo4j-enterprise-4.0.2 dbms.directories.import= dbms.default_listen_address=::
-    $ neoctrl-set-initial-password password servers/neo4j-enterprise-4.0.2
+    $ neoctrl-set-initial-password pass servers/neo4j-enterprise-4.0.2
     $ neoctrl-start servers/neo4j-enterprise-4.0.2
+
+To run the test using ruby driver:
+```console
+$ driver=ruby bin/setup
+$ driver=ruby rspec spec
+```
+
+To run the test using java driver:
+```console
+$ driver=java bin/setup
+$ driver=java rspec spec
+```
+
+In case of heap space memory error (`org.neo4j.driver.exceptions.DatabaseException: Java heap space`), you should limit the dbms memory, for example:
+
+```console
+$ neoctrl-configure servers/neo4j-enterprise-4.0.2 dbms.memory.pagecache.size=600m dbms.memory.heap.max_size=600m dbms.memory.heap.initial_size=600m dbms.directories.import= dbms.connectors.default_listen_address=::
+```
 
 ## Contributing
 
