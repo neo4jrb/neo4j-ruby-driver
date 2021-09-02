@@ -19,9 +19,8 @@ RSpec.shared_context 'cluster_extension' do
 
   before(:context) do
     expect(Neo4j::Driver::Util::CC::ClusterControl).to be_boltkit_available
-    if Neo4j::Driver::Util::CC::SharedCluster.exists?
-    else
-      Neo4j::Driver::Util::CC::SharedCluster.install(NEO4J_VERSION, CORE_COUNT, READ_REPLICA_COUNT, PASSWORD,
+    unless Neo4j::Driver::Util::CC::SharedCluster.exists?
+      Neo4j::Driver::Util::CC::SharedCluster.install(NEO4J_VERSION, CORE_COUNT, READ_REPLICA_COUNT, neo4j_password,
                                                      INITIAL_PORT, CLUSTER_DIR)
       Neo4j::Driver::Util::CC::SharedCluster.start
     end
