@@ -21,7 +21,7 @@ module DriverHelper
     end
 
     def neo4j_password
-      ENV.fetch('TEST_NEO4J_PASS', 'password')
+      ENV.fetch('TEST_NEO4J_PASS', 'pass')
     end
 
     def driver
