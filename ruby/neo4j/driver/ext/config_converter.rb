@@ -31,6 +31,8 @@ module Neo4j
           when 'resolver'
             proc = value
             value = ->(address) { java.util.HashSet.new(proc.call(address)) }
+          when 'trust_strategy'
+            value = Java::OrgNeo4jDriver::Config::TrustStrategy.trust_all_certificates
           else
             value = to_neo(value, skip_unknown: true)
           end
