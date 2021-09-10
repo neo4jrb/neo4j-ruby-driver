@@ -55,7 +55,7 @@ module Neo4j::Driver::Internal
       end
 
       def createDriver(uri, securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
-        if routing_scheme?(uri.scheme.downcase)
+        if Scheme.routing_scheme?(uri.scheme.downcase)
           createRoutingDriver(securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
         else
           assertNoRoutingContext(uri, routingSettings)
