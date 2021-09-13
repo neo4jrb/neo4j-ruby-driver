@@ -12,12 +12,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-18.04
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
         ruby: [ jruby-9.2.19.0 ]
         neo4j: [ 3.5.29, 4.0.12, 4.1.10, 4.2.9, 4.3.3 ]
         driver: [ java, ruby ]
-#        driver: [ java ]
+        experimental: [false]
+        include:
+          - ruby: 3.0.2
+            neo4j: 4.3.3
+            driver: ruby
+            experimental: true
     env:
       NEO4J_EDITION_FLAG: -e
       NEO4J_VERSION: ${{ matrix.neo4j }}
