@@ -49,7 +49,7 @@ end.spec gem_name do
   if pdir == 'ffi'
     dependency 'ffi', '>= 0'
     dependency 'recursive-open-struct', '>= 0'
-  else
+  elsif pdir == 'jruby'
     dependency 'jar-dependencies', '>= 0'
     dependency 'ruby-maven', '>= 0', :dev
 
