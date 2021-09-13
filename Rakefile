@@ -49,8 +49,9 @@ end.spec gem_name do
   if pdir == 'ffi'
     dependency 'ffi', '>= 0'
     dependency 'recursive-open-struct', '>= 0'
-  elsif pdir == 'ruby'
-  else
+  # TO DO: change this condition from `RUBY_PLATFORM.match?(/java/)` to elsif `pdir == 'jruby'`
+  # after we have removed all java classes dependency from ruby driver
+  elsif RUBY_PLATFORM.match?(/java/)
     dependency 'jar-dependencies', '>= 0'
     dependency 'ruby-maven', '>= 0', :dev
 
