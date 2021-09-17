@@ -20,7 +20,7 @@ module Neo4j::Driver
             config.java_config.routing_settings,
             config[:max_transaction_retry_time],
             config,
-            config.java_config.security_settings.create_security_plan(uri.scheme)
+            config[:security_settings].create_security_plan(uri.scheme)
           )
         end
       end

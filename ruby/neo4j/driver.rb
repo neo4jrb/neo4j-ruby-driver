@@ -3,7 +3,7 @@
 require 'active_support/core_ext/hash/keys'
 require 'date'
 require 'loader'
-require 'neo4j-ruby-driver_jars'
+require 'neo4j-ruby-driver_jars' if RUBY_PLATFORM.match?(/java/)
 
 # Workaround for missing zeitwerk support as of jruby-9.2.13.0
 module Neo4j
