@@ -13,7 +13,7 @@ module Neo4j::Driver::Internal
     STRICT = :strict
 
     def self.requires_revocation_checking?(revocation_strategy)
-      return revocation_strategy == STRICT || revocation_strategy == VERIFY_IF_PRESENT
+      revocation_strategy == STRICT || revocation_strategy == VERIFY_IF_PRESENT
     end
   end
 end

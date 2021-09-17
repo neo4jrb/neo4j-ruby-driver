@@ -54,7 +54,7 @@ module Neo4j::Driver
       end
 
       def assert_routing_uris(uris)
-        uris.find { |uri| URI(uri).scheme != Internal::Scheme::NEO4J_URI_SCHEME }&.tap do |uri|
+        uris.find { |uri| URI(uri).scheme != Neo4j::Driver::Internal::Scheme::NEO4J_URI_SCHEME }&.tap do |uri|
           raise ArgumentError, "Illegal URI scheme, expected '#{Internal::Scheme::NEO4J_URI_SCHEME}' in '#{uri}'"
         end
       end
