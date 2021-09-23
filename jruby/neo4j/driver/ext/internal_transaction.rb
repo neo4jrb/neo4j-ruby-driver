@@ -15,9 +15,9 @@ module Neo4j
           check { super }
         end
 
-        # def rollback
-        #   check { super }
-        # end
+        def rollback
+          check { super }
+        end
       end
     end
   end
