@@ -40,6 +40,12 @@ module Neo4j
             Neo4j::Driver::Exceptions::AuthenticationException
           when AuthorizationExpiredException
             Neo4j::Driver::Exceptions::AuthorizationExpiredException
+          when FatalDiscoveryException
+            Neo4j::Driver::Exceptions::FatalDiscoveryException
+          when ResultConsumedException
+            Neo4j::Driver::Exceptions::ResultConsumedException
+          when TransactionNestingException
+            Neo4j::Driver::Exceptions::TransactionNestingException
           when ClientException
             Neo4j::Driver::Exceptions::ClientException
           when ConnectionReadTimeoutException
@@ -48,20 +54,14 @@ module Neo4j
             Neo4j::Driver::Exceptions::DatabaseException
           when DiscoveryException
             Neo4j::Driver::Exceptions::DiscoveryException
-          when FatalDiscoveryException
-            Neo4j::Driver::Exceptions::FatalDiscoveryException
           when ProtocolException
             Neo4j::Driver::Exceptions::ProtocolException
-          when ResultConsumedException
-            Neo4j::Driver::Exceptions::ResultConsumedException
           when SecurityException
             Neo4j::Driver::Exceptions::SecurityException
           when ServiceUnavailableException
             Neo4j::Driver::Exceptions::ServiceUnavailableException
           when SessionExpiredException
             Neo4j::Driver::Exceptions::SessionExpiredException
-          when TransactionNestingException
-            Neo4j::Driver::Exceptions::TransactionNestingException
           when TransientException
             Neo4j::Driver::Exceptions::TransientException
           else
