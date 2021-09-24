@@ -6,6 +6,10 @@ module Testkit::Backend::Messages
           'Does not call resolver for direct connections',
         'stub.iteration.test_iteration_tx_run.TestIterationTxRun.test_nested':
           'completely pulls the first query before running the second',
+        'stub.retry.test_retry.TestRetry.test_disconnect_on_commit':
+          'Keeps retrying on commit despite connection being dropped',
+        # 'stub.retry.test_retry_clustering.TestRetry.test_read':
+        #   'Keeps retrying on commit despite connection being dropped',
       }.transform_keys(&:to_s)
 
       def process

@@ -22,6 +22,9 @@ module Testkit::Backend::Messages
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
       puts e
       named_entity('DriverError', id: e.object_id, errorType: e.class.name, msg: e.message, code: e.code)
+    rescue Neo4j::Driver::Exceptions::IllegalStateException, ArgumentError => e
+      puts e
+      named_entity('DriverError', id: e.object_id, errorType: e.class.name, msg: e.message)
     rescue StandardError => e
       puts e
       named_entity('BackendError', msg: e.message)

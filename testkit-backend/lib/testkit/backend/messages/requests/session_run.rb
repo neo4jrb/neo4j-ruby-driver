@@ -16,7 +16,7 @@ module Testkit::Backend::Messages
       private
 
       def to_config
-        { metadata: txMeta, timeout: data[:timeout]&.yield_self { |it| it * 1e-3 } }
+        { metadata: txMeta, timeout: timeout_duration }
       end
     end
   end

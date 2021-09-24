@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Exceptions
-      class AuthenticationException < SecurityException
+      class DiscoveryException < Neo4jException
       end
     end
   end
