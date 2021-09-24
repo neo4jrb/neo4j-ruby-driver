@@ -39,8 +39,8 @@ module Testkit
 
         @selector.deregister(client_socket)
         client_socket.close
-        puts e
-        puts e.backtrace
+        # puts e
+        # puts e.backtrace
         # raise e
       end
     end
