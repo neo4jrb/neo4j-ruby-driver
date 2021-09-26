@@ -29,7 +29,7 @@ HOE = Class.new(Hoe) do
   end
 end.spec gem_name do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
-  require_ruby_version '>= 2.5'
+  require_ruby_version '>= 2.6'
 
   dependency 'activesupport', '>= 0'
   dependency 'ffaker', '>= 0', :dev
