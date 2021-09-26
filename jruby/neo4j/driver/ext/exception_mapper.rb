@@ -20,22 +20,19 @@ module Neo4j
         java_import org.neo4j.driver.exceptions.TransientException
         java_import org.neo4j.driver.exceptions.UntrustedServerException
 
-        def reraise
-          raise mapped_exception(self)
-        end
-
         def mapped_exception(exception)
-          mapped_exception_class(exception)&.new(*exception.arguments) || exception
+          mapped_neo4j_exception_class(exception)&.new(*arguments(exception)) ||
+            mapped_runtime_exception_class(exception)&.new(exception.message) || exception
         end
 
-        def arguments
-          [code, message, suppressed.map(&method(:mapped_exception))]
+        def arguments(e)
+          [e.code, e.message, e.suppressed.map(&method(:mapped_exception))]
         end
 
         private
 
-        def mapped_exception_class(exception)
-          case exception
+        def mapped_neo4j_exception_class(exception_class)
+          case exception_class
           when AuthenticationException
             Neo4j::Driver::Exceptions::AuthenticationException
           when AuthorizationExpiredException
@@ -64,6 +61,21 @@ module Neo4j
             Neo4j::Driver::Exceptions::SessionExpiredException
           when TransientException
             Neo4j::Driver::Exceptions::TransientException
+          else
+            nil
+          end
+        end
+
+        def mapped_runtime_exception_class(exception_class)
+          case exception_class
+          when Java::OrgNeo4jDriverExceptions::NoSuchRecordException
+            Neo4j::Driver::Exceptions::NoSuchRecordException
+          when Java::OrgNeo4jDriverExceptions::UntrustedServerException
+            Neo4j::Driver::Exceptions::UntrustedServerException
+          when Java::JavaLang::IllegalStateException
+            Neo4j::Driver::Exceptions::IllegalStateException
+          when Java::JavaLang::IllegalArgumentException
+            ArgumentError
           else
             nil
           end

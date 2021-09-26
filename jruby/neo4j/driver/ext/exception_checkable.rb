@@ -4,18 +4,12 @@ module Neo4j
   module Driver
     module Ext
       module ExceptionCheckable
+        include ExceptionMapper
+
         def check
           yield
-        rescue Java::OrgNeo4jDriverExceptions::Neo4jException => e
-          e.reraise
-        rescue Java::OrgNeo4jDriverExceptions::NoSuchRecordException => e
-          raise Neo4j::Driver::Exceptions::NoSuchRecordException, e.message
-        rescue Java::OrgNeo4jDriverExceptions::UntrustedServerException => e
-          raise Neo4j::Driver::Exceptions::UntrustedServerException, e.message
-        rescue Java::JavaLang::IllegalStateException => e
-          raise Neo4j::Driver::Exceptions::IllegalStateException, e.message
-        rescue Java::JavaLang::IllegalArgumentException => e
-          raise ArgumentError, e.message
+        rescue Java::JavaLang::RuntimeException => e
+          raise mapped_exception(e)
         end
 
         def reverse_check
