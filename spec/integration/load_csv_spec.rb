@@ -3,7 +3,7 @@
 require 'csv'
 require 'tempfile'
 
-RSpec.describe 'LoadCsv' do
+RSpec.describe 'LoadCsv', csv: true do
   let(:iris_class_names) { %w[Iris-setosa Iris-versicolor Iris-virginica] }
   let(:file) { Tempfile.new(%w[file .csv]) }
   let(:file_path) { file.path }

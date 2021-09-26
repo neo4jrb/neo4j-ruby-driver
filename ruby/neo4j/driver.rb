@@ -20,6 +20,10 @@ module Neo4j
     end
     module Ext
       module Internal
+        module Async
+        end
+        module Cursor
+        end
         module Summary
         end
       end
@@ -28,7 +32,11 @@ module Neo4j
 end
 # End workaround
 
-Loader.load
+Loader.load do |loader|
+  jruby_dir = File.expand_path('jruby', File.dirname(File.dirname(__dir__)))
+  loader.push_dir(jruby_dir)
+  loader.ignore(File.expand_path('neo4j/driver.rb', jruby_dir))
+end
 
 module Neo4j
   module Driver
@@ -65,6 +73,7 @@ Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::StartEndN
 Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
 Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::InternalRelationship
+Java::OrgNeo4jDriverInternalAsync::InternalAsyncSession.prepend Neo4j::Driver::Ext::Internal::Async::InternalAsyncSession
+# Java::OrgNeo4jDriverInternalCursor::DisposableAsyncResultCursor.prepend Neo4j::Driver::Ext::Internal::Cursor::DisposableAsyncResultCursor
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
-Java::OrgNeo4jDriverExceptions::Neo4jException.include Neo4j::Driver::Ext::ExceptionMapper

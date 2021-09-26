@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        ruby: [ jruby-9.2.19.0 ]
+        ruby: [ jruby-9.2.19.0, jruby-9.3.0.0 ]
         neo4j: [ 3.5.29, 4.0.12, 4.1.10, 4.2.11, 4.3.4 ]
         driver: [ java, ruby ]
 #        driver: [ java ]
@@ -55,4 +55,4 @@ jobs:
       - name: Install dependencies
         run: bin/setup
       - name: Run tests
-        run: bundle exec rspec
+        run: bundle exec rspec -t ~async
