@@ -98,7 +98,7 @@ module Neo4j::Driver::Internal
       end
 
       def createClock
-        Java::OrgNeo4jDriverInternalUtil::Clock.SYSTEM
+        Java::OrgNeo4jDriverInternalUtil::Clock::SYSTEM
       end
 
       def closeConnectionPoolAndSuppressError(connectionPool, mainError)
