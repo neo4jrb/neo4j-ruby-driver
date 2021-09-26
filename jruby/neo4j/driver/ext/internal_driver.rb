@@ -17,7 +17,7 @@ module Neo4j
         end
 
         def async_session(**session_config)
-          java_method(:async_session, [org.neo4j.driver.SessionConfig])
+          java_method(:asyncSession, [org.neo4j.driver.SessionConfig])
             .call(to_java_config(Neo4j::Driver::SessionConfig, session_config))
         end
 
