@@ -5,6 +5,8 @@ require 'date'
 require 'loader'
 require 'neo4j-java-driver_jars'
 
+Loader.load
+
 module Neo4j
   module Driver
     include_package 'org.neo4j.driver'
@@ -27,23 +29,8 @@ module Neo4j
       Path = Java::OrgNeo4jDriverInternal::InternalPath
       Relationship = Java::OrgNeo4jDriverInternal::InternalRelationship
     end
-
-    # Workaround for missing zeitwerk support as of jruby-9.2.13.0
-    module Ext
-      module Internal
-        module Async
-        end
-        module Cursor
-        end
-        module Summary
-        end
-      end
-    end
-    # End workaround
   end
 end
-
-Loader.load
 
 Java::OrgNeo4jDriver::AuthTokens.singleton_class.prepend Neo4j::Driver::Ext::AuthTokens
 Java::OrgNeo4jDriver::Bookmark.singleton_class.prepend Neo4j::Driver::Ext::Bookmark::ClassMethods

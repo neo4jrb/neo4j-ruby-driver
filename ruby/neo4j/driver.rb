@@ -5,33 +5,6 @@ require 'date'
 require 'loader'
 require 'neo4j-ruby-driver_jars'
 
-# Workaround for missing zeitwerk support as of jruby-9.2.13.0
-module Neo4j
-  module Driver
-    module Internal
-      module Retry
-      end
-    end
-    module Net
-    end
-    module Summary
-    end
-    module Types
-    end
-    module Ext
-      module Internal
-        module Async
-        end
-        module Cursor
-        end
-        module Summary
-        end
-      end
-    end
-  end
-end
-# End workaround
-
 Loader.load do |loader|
   jruby_dir = File.expand_path('jruby', File.dirname(File.dirname(__dir__)))
   loader.push_dir(jruby_dir)
