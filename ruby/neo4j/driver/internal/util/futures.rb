@@ -22,7 +22,7 @@ module Neo4j::Driver
 
                 # run the interrupt handler and ignore if it throws
                 # need to wait for IO thread to actually finish, can't simply re-rethrow
-                yield rescue nil
+                yield if block_given? rescue nil
               rescue java.util.concurrent.ExecutionException => e
                 org.neo4j.driver.internal.util.ErrorUtil.rethrowAsyncException(e);
               end

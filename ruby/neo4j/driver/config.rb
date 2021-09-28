@@ -12,7 +12,7 @@ module Neo4j
       TrustStrategy = Java::OrgNeo4jDriver::Config::TrustStrategy
 
       def initialize(**config)
-        merge!(self.class.default_config).merge!(config).merge!(java_config: to_java_config(org.neo4j.driver.Config, config))
+        merge!(self.class.default_config).merge!(config.compact).merge!(java_config: to_java_config(org.neo4j.driver.Config, config))
       end
 
       def java_config

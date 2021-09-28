@@ -5,4 +5,4 @@ gemspec
 
 gem "rake", "~> 12.0"
 gem "rspec", "~> 3.0"
-gem "neo4j-#{RUBY_PLATFORM == 'java' ? 'java' : 'ruby'}-driver", path: '..'
+gem "neo4j-#{ENV['driver'] == 'java' ? 'java' : 'ruby'}-driver", path: '..'

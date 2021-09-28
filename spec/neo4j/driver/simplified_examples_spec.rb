@@ -105,4 +105,10 @@ RSpec.describe Neo4j::Driver do
       end
     end
   end
+
+  it 'session accepts nil fetch_size' do
+    driver.session(fetch_size: nil) do |session|
+      expect(session.run('RETURN 1').next.first).to eq 1
+    end
+  end
 end

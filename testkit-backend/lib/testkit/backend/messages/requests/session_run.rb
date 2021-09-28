@@ -9,9 +9,9 @@ module Testkit::Backend::Messages
         fetch(sessionId).run(cypher, to_params, to_config)
       end
 
-      def response
-        Responses::Result.new(to_object)
-      end
+      # def response
+      #   Responses::Result.new(to_object)
+      # end
 
       private
 

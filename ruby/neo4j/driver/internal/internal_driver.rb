@@ -58,12 +58,12 @@ module Neo4j::Driver
       end
 
       def verify_connectivity
-        check { org.neo4j.driver.internal.util.Futures.blockingGet(verify_connectivity_async) }
+        Util::Futures.blocking_get(verify_connectivity_async)
       end
 
       def new_session(**config)
         assert_open!
-        session_factory.new_instance(**config)
+        session_factory.new_instance(**config.compact)
       ensure
         # session does not immediately acquire connection, it is fine to just throw
         assert_open!
