@@ -172,7 +172,8 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
 
   it 'routing tables' do
     create_driver(leader.routing_uri) do |driver|
-      expect(driver.session_factory.connection_provider.routing_tables.routers.to_a.size).to eq 3
+      expect(driver.session_factory.connection_provider.routing_table_registry.routing_table_handler(nil).routing_table
+                   .routers.to_a.size).to eq 3
     end
   end
 
