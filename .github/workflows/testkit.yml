@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      max-parallel: 1
+#      max-parallel: 1
       matrix:
         driver: [ java, ruby ]
 
@@ -37,7 +37,7 @@ jobs:
       - name: Checkout TestKit (testing tool)
         uses: actions/checkout@v2
         with:
-          repository: neo4j-drivers/testkit
+          repository: klobuczek/testkit
           path: testkit
           ref: ${{ steps.testkit_vars.outputs.testkit_version_ref }}
 

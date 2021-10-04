@@ -170,6 +170,12 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
     end
   end
 
+  it 'routing tables' do
+    create_driver(leader.routing_uri) do |driver|
+      expect(driver.session_factory.connection_provider.routing_tables.routers.to_a.size).to eq 3
+    end
+  end
+
   private
 
   def execute_write_and_read_through_bolt(member)
