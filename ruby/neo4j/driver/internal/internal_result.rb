@@ -48,9 +48,7 @@ module Neo4j::Driver
       private
 
       def blocking_get(stage)
-        check do
-          org.neo4j.driver.internal.util.Futures.blockingGet(stage, &method(:terminate_connection_on_thread_interrupt))
-        end
+          Util::Futures.blocking_get(stage, &method(:terminate_connection_on_thread_interrupt))
       end
 
       def terminate_connection_on_thread_interrupt

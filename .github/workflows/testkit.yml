@@ -20,34 +20,16 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
-#    strategy:
-#      matrix:
-#        ruby: [ jruby-9.2.19.0 ]
-#        neo4j: [ 4.3.2 ]
-#        driver: [ java ]
-#    env:
-#      NEO4J_EDITION_FLAG: -e
-#      NEO4J_VERSION: ${{ matrix.neo4j }}
-#      driver: ${{ matrix.driver }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        driver: [ java, ruby ]
 
     steps:
       - uses: actions/checkout@v2
         with:
           path: driver
 
-#      - name: Set up Ruby
-#        uses: ruby/setup-ruby@v1
-#        with:
-#          ruby-version: ${{ matrix.ruby }}
-#
-#      - name: Set up Java
-#        uses: actions/setup-java@v1
-#        with:
-#          java-version: ${{ matrix.java-version || 11 }}
-#
-#      - name: Install dependencies
-#        run: bin/setup
-#
       - name: Read required TestKit version from driver repo
         id: testkit_vars
         run: echo ::set-output name=testkit_version_ref::$(cat driver/.testkit_version | xargs)
@@ -80,13 +62,13 @@ jobs:
       - name: Run TestKit
         env:
           # to learn what these variables do, see https://github.com/neo4j-drivers/testkit
-          TEST_DRIVER_NAME: java
+          TEST_DRIVER_NAME: ruby
           TEST_DRIVER_REPO: ${{ github.workspace }}/driver
           TEST_RUN_ALL_TESTS: "true"
+          TEST_DRIVER_PLATFORM: ${{ matrix.driver }}
         run: |
           cd testkit
           # everything from --run-only-selected is to reduce the number of tests run in this
           # demonstation setup. In a real setup, you most likely don't want this.
-          python3 main.py --tests TESTKIT_TESTS STUB_TESTS \
-            --configs 4.3-enterprise
-#            --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back \
+          python3 main.py --tests TESTKIT_TESTS
+          # --configs 4.3-enterprise --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back

@@ -28,7 +28,7 @@ module Neo4j
       end
 
       def initialize(**config)
-        merge!(self.class.default_config).merge!(config).merge!(java_config: to_java_config(org.neo4j.driver.Config, config))
+        merge!(self.class.default_config).merge!(config.compact).merge!(java_config: to_java_config(org.neo4j.driver.Config, config))
         init_security_and_trust_config(config)
       end
 

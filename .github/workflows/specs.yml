@@ -1,4 +1,4 @@
-name: Test
+name: Specs
 
 on:
   push:
@@ -13,11 +13,11 @@ jobs:
   test:
     runs-on: ubuntu-18.04
     strategy:
+      fail-fast: false
       matrix:
-        ruby: [ jruby-9.2.19.0 ]
-        neo4j: [ 3.5.29, 4.0.12, 4.1.10, 4.2.9, 4.3.3 ]
+        ruby: [ jruby-9.3.0.0 ]
+        neo4j: [ 3.5.29, 4.0.12, 4.1.10, 4.2.11, 4.3.4 ]
         driver: [ java, ruby ]
-#        driver: [ java ]
     env:
       NEO4J_EDITION_FLAG: -e
       NEO4J_VERSION: ${{ matrix.neo4j }}

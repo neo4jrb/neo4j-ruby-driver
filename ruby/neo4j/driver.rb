@@ -1,34 +1,16 @@
 # frozen_string_literal: true
 
 require 'active_support/core_ext/hash/keys'
+require 'active_support/logger'
 require 'date'
 require 'loader'
 require 'neo4j-ruby-driver_jars' if RUBY_PLATFORM.match?(/java/)
 
-# Workaround for missing zeitwerk support as of jruby-9.2.13.0
-module Neo4j
-  module Driver
-    module Internal
-      module Retry
-      end
-    end
-    module Net
-    end
-    module Summary
-    end
-    module Types
-    end
-    module Ext
-      module Internal
-        module Summary
-        end
-      end
-    end
-  end
+Loader.load do |loader|
+  jruby_dir = File.expand_path('jruby', File.dirname(File.dirname(__dir__)))
+  loader.push_dir(jruby_dir)
+  loader.ignore(File.expand_path('neo4j/driver.rb', jruby_dir))
 end
-# End workaround
-
-Loader.load
 
 module Neo4j
   module Driver
@@ -65,6 +47,7 @@ Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::StartEndN
 Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
 Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::InternalRelationship
+Java::OrgNeo4jDriverInternalAsync::InternalAsyncSession.prepend Neo4j::Driver::Ext::Internal::Async::InternalAsyncSession
+Java::OrgNeo4jDriverInternalCursor::DisposableAsyncResultCursor.prepend Neo4j::Driver::Ext::Internal::Cursor::DisposableAsyncResultCursor
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
-Java::OrgNeo4jDriverExceptions::Neo4jException.include Neo4j::Driver::Ext::ExceptionMapper

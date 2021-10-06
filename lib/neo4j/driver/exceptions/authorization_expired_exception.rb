@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Exceptions
-      class AuthenticationException < SecurityException
+      class AuthorizationExpiredException < SecurityException
       end
     end
   end

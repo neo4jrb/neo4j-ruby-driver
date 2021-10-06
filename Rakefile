@@ -29,7 +29,7 @@ HOE = Class.new(Hoe) do
   end
 end.spec gem_name do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
-  require_ruby_version '>= 2.5'
+  require_ruby_version '>= 2.6'
 
   dependency 'activesupport', '>= 0'
   dependency 'ffaker', '>= 0', :dev
@@ -53,7 +53,7 @@ end.spec gem_name do
     dependency 'jar-dependencies', '>= 0'
     dependency 'ruby-maven', '>= 0', :dev
 
-    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 4.3.2' }
+    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 4.3.4' }
     spec_extras[:platform] = 'java'
   end
 end

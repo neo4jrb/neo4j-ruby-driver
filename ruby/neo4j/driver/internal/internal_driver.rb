@@ -3,6 +3,7 @@ module Neo4j::Driver
     class InternalDriver
       extend AutoClosable
       include Ext::ExceptionCheckable
+      include Ext::AsyncConverter
 
       attr_reader :session_factory, :metrics_provider
       # delegate :verify_connectivity, to: :session_factory
@@ -22,11 +23,11 @@ module Neo4j::Driver
       end
 
       def rx_session(**session_config)
-        org.neo4j.driver.internal.InternalRxSession.new(new_session(**session_config))
+        org.neo4j.driver.internal.reactive.InternalRxSession.new(new_session(**session_config))
       end
 
       def async_session(**session_config)
-        org.neo4j.driver.internal.InternalAsyncSession.new(new_session(**session_config))
+        org.neo4j.driver.internal.async.InternalAsyncSession.new(new_session(**session_config))
       end
 
       def encrypted?
@@ -35,13 +36,13 @@ module Neo4j::Driver
       end
 
       def close
-        org.neo4j.driver.internal.util.Futures.blockingGet(close_async)
+        close_async.value!
       end
 
       def close_async
-        return org.neo4j.driver.internal.util.Futures.completedWithNull unless @closed.make_true
+        return Concurrent::Promises.fulfilled_future(nil) unless @closed.make_true
         @log.info { "Closing driver instance #{object_id}" }
-        session_factory.close
+        to_future(session_factory.close)
       end
 
       def verify_connectivity_async
@@ -57,12 +58,12 @@ module Neo4j::Driver
       end
 
       def verify_connectivity
-        check { org.neo4j.driver.internal.util.Futures.blockingGet(verify_connectivity_async) }
+        Util::Futures.blocking_get(verify_connectivity_async)
       end
 
       def new_session(**config)
         assert_open!
-        session_factory.new_instance(**config)
+        session_factory.new_instance(**config.compact)
       ensure
         # session does not immediately acquire connection, it is fine to just throw
         assert_open!

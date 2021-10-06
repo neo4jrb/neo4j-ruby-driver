@@ -9,4 +9,4 @@ if __name__ == "__main__":
     err = open("/artifacts/backenderr.log", "w")
     out = open("/artifacts/backendout.log", "w")
     subprocess.check_call(
-        ["bin/testkit-backend"], stdout=out, stderr=err)
+        ['env', 'driver=%s' % os.environ.get("TEST_DRIVER_PLATFORM", 'ruby'), "bin/testkit-backend"], stdout=out, stderr=err)
