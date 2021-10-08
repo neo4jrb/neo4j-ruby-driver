@@ -29,12 +29,6 @@ module Neo4j
         def cert_file_to_java
           java.io.File.new(cert_file.path)
         end
-
-        public TrustStrategy withHostnameVerification()
-        {
-            hostnameVerificationEnabled = true;
-            return this;
-        }
       end
 
       def initialize(**config)
