@@ -53,12 +53,19 @@ module Neo4j
             connection_acquisition_timeout: 1.minute, #:set_max_connection_acquisition_time
             encryption: false, # :set_transport
             connection_timeout: 30.seconds, # BoltSocketOptions_set_connect_timeout
+            idle_time_before_connection_test: -1,
             max_transaction_retry_time: Internal::Retry::ExponentialBackoffRetryLogic::DEFAULT_MAX_RETRY_TIME,
             #resolver: nil # :set_address_resolver
             keep_alive: true, # BoltSocketOptions_set_keep_alive
+            metrics_enabled: false,
             # ???? BoltConfig_set_user_agent
             fetch_size: 1000,
+            user_agent: "neo4j-java/#{driver_version}"
           }
+        end
+
+        def driver_version
+          Neo4j::Driver::VERSION
         end
       end
 
