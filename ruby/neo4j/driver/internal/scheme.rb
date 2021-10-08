@@ -5,6 +5,7 @@ module Neo4j::Driver::Internal::Scheme
   NEO4J_URI_SCHEME = 'neo4j'
   NEO4J_HIGH_TRUST_URI_SCHEME = 'neo4j+s'
   NEO4J_LOW_TRUST_URI_SCHEME = 'neo4j+ssc'
+
   def validate_scheme!(scheme)
     unless [BOLT_URI_SCHEME, BOLT_LOW_TRUST_URI_SCHEME, BOLT_HIGH_TRUST_URI_SCHEME, NEO4J_URI_SCHEME,
             NEO4J_LOW_TRUST_URI_SCHEME, NEO4J_HIGH_TRUST_URI_SCHEME].include?(scheme)
