@@ -27,7 +27,7 @@ module Neo4j::Driver::Internal
         clock = createClock
         settings = org.neo4j.driver.internal.ConnectionSettings.new(authToken, config[:user_agent], config[:connection_timeout].in_milliseconds)
         connector = createConnector(settings, securityPlan, config, clock, routingContext)
-        poolSettings = org.neo4j.driver.internal.async.pool.PoolSettings.new(config[:max_connection_pool_size].in_milliseconds,
+        poolSettings = org.neo4j.driver.internal.async.pool.PoolSettings.new(config[:max_connection_pool_size],
                                                                              config[:connection_acquisition_timeout].in_milliseconds,
                                                                              config[:max_connection_lifetime].in_milliseconds,
                                                                              config[:idle_time_before_connection_test].in_milliseconds
