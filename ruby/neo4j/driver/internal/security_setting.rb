@@ -2,6 +2,8 @@
 
 module Neo4j::Driver::Internal
   class SecuritySetting
+    include Scheme
+
     attr_reader :encrypted, :trust_strategy
     DEFAULT_ENCRYPTED = false
 
@@ -11,9 +13,9 @@ module Neo4j::Driver::Internal
     end
 
     def create_security_plan(uri_scheme)
-      Scheme.validate_scheme!(uri_scheme)
+      validate_scheme!(uri_scheme)
       begin
-        if Scheme.security_scheme?(uri_scheme)
+        if security_scheme?(uri_scheme)
           assert_security_settings_not_user_configured(uri_scheme)
           return create_security_plan_from_scheme(uri_scheme)
         else
@@ -25,7 +27,7 @@ module Neo4j::Driver::Internal
     end
 
     def create_security_plan_from_scheme(uri_scheme)
-      if Scheme.high_trust_scheme?(uri_scheme)
+      if high_trust_scheme?(uri_scheme)
         org.neo4j.driver.internal.security.SecurityPlanImpl.forSystemCASignedCertificates(true, RevocationStrategy.NO_CHECKS)
       else
         org.neo4j.driver.internal.security.SecurityPlanImpl.forAllCertificates(false, RevocationStrategy.NO_CHECKS)
@@ -52,7 +54,7 @@ module Neo4j::Driver::Internal
 
       case trust_strategy.strategy
       when Config::TrustStrategy::TRUST_CUSTOM_CA_SIGNED_CERTIFICATES
-        return org.neo4j.driver.internal.security.SecurityPlanImpl.forCustomCASignedCertificates(trust_strategy.certFile, hostname_verification_enabled, revocation_strategy)
+        return org.neo4j.driver.internal.security.SecurityPlanImpl.forCustomCASignedCertificates(trust_strategy.cert_file_to_java, hostname_verification_enabled, revocation_strategy)
       when Config::TrustStrategy::TRUST_SYSTEM_CA_SIGNED_CERTIFICATES
         return org.neo4j.driver.internal.security.SecurityPlanImpl.forSystemCASignedCertificates(hostname_verification_enabled, revocation_strategy)
       when Config::TrustStrategy::TRUST_ALL_CERTIFICATES

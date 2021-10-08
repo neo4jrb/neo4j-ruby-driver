@@ -25,11 +25,23 @@ module Neo4j
         def hostname_verification_enabled?
           hostname_verification_enabled
         end
+
+        def cert_file_to_java
+          java.io.File.new(cert_file.path)
+        end
+
+        public TrustStrategy withHostnameVerification()
+        {
+            hostnameVerificationEnabled = true;
+            return this;
+        }
       end
 
       def initialize(**config)
-        merge!(self.class.default_config).merge!(config.compact).merge!(java_config: to_java_config(org.neo4j.driver.Config, config))
         init_security_and_trust_config(config)
+        merge!(self.class.default_config).merge!(config.compact).merge!(
+          java_config: to_java_config(org.neo4j.driver.Config, config.tap { |hash| hash.delete(:trust_strategy) })
+        )
       end
 
       def java_config

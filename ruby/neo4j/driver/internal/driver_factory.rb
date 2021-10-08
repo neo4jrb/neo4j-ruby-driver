@@ -1,6 +1,8 @@
 module Neo4j::Driver::Internal
   class DriverFactory
     class << self
+      include Scheme
+
       def new_instance(uri, authToken, routingSettings, retrySettings, config, securityPlan, eventLoopGroup = nil)
         bootstrap = org.neo4j.driver.internal.async.connection.BootstrapFactory.newBootstrap(eventLoopGroup || config.java_config.eventLoopThreads)
         java_uri = java.net.URI.create(uri.to_s)
@@ -53,7 +55,7 @@ module Neo4j::Driver::Internal
       end
 
       def createDriver(uri, securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
-        if Scheme.routing_scheme?(uri.scheme.downcase)
+        if routing_scheme?(uri.scheme.downcase)
           createRoutingDriver(securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
         else
           assertNoRoutingContext(uri, routingSettings)
