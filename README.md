@@ -48,6 +48,8 @@ Or install it yourself as:
 
     $ gem install neo4j-ruby-driver
 
+Note: Seabolt has not been maintained for a while so the ruby driver will not work with more recent Neo4j versions (https://github.com/neo4jrb/neo4j-ruby-driver/issues/63#issuecomment-905394782)
+
 ## Usage
 
 Both drivers implement identical API and can be used interchangeably. The API is to highest possible degree consistent with the official java driver. 
