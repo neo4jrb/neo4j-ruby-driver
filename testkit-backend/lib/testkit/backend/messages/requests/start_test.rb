@@ -45,7 +45,17 @@ module Testkit::Backend::Messages
         /test_routing_v.*\.RoutingV.*\.test_should_revert_to_initial_router_if_known_router_throws_protocol_errors/,
         /test_routing_v.*\.RoutingV.*\.test_should_successfully_check_if_support_for_multi_db_is_available/,
         /test_routing_v.*\.RoutingV.*\.test_should_use_resolver_during_rediscovery_when_existing_routers_fail/,
+        /test_routing_v.*\.RoutingV.*\.test_should_fail_when_driver_closed_using_session_run/,
+        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_session_run/,
+        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_session_run_with_default_db_driver/,
+        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_tx_function/,
+        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_tx_run/,
+        /test_routing_v.*\.RoutingV.*\.test_should_write_successfully_on_writer_using_session_run/,
+        /test_routing_v.*\.RoutingV.*\.test_should_write_successfully_on_writer_using_tx_function/,
+        /test_routing_v.*\.RoutingV.*\.test_should_write_successfully_on_writer_using_tx_run/,
         /test_versions\.TestProtocolVersions\.test_should_reject_server_using_verify_connectivity_bolt_3x0/,
+        /test_versions\.TestProtocolVersions\.test_obtain_summary_twice/, #
+        /test_versions\.TestProtocolVersions\.test_server_address_in_summary/, #
       ]
 
       def process
