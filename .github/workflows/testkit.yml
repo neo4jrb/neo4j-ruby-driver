@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      max-parallel: 1
+#      max-parallel: 1
       matrix:
         driver: [ java, ruby ]
 
@@ -37,7 +37,7 @@ jobs:
       - name: Checkout TestKit (testing tool)
         uses: actions/checkout@v2
         with:
-          repository: neo4j-drivers/testkit
+          repository: klobuczek/testkit
           path: testkit
           ref: ${{ steps.testkit_vars.outputs.testkit_version_ref }}
 
@@ -70,5 +70,5 @@ jobs:
           cd testkit
           # everything from --run-only-selected is to reduce the number of tests run in this
           # demonstation setup. In a real setup, you most likely don't want this.
-          python3 main.py --tests TESTKIT_TESTS
+          python3 main.py --tests TESTKIT_TESTS STUB_TESTS
           # --configs 4.3-enterprise --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back
