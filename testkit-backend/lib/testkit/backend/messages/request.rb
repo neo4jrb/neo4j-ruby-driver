@@ -83,8 +83,8 @@ module Testkit::Backend::Messages
       end
     end
 
-    def timeout_duration
-      @table[:timeout]&.send(:*, 1e-3)&.seconds
+    def timeout_duration(field=@table[:timeout])
+      field&.*(1e-3.seconds)
     end
   end
 end

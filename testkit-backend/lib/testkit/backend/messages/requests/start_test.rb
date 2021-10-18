@@ -151,8 +151,8 @@ stub.routing.test_routing_v4x3.RoutingV4x3.test_should_write_successfully_on_lea
           named_entity("SkipTest", reason: reason)
         elsif BACKEND_INCOMPLETE.any?(&testName.method(:match?))
           named_entity("SkipTest", reason: 'Backend Incomplete')
-        elsif RUBY_DRIVER_PROBLEMS.include?(testName)
-          named_entity("SkipTest", reason: 'ruby driver problem')
+        # elsif RUBY_DRIVER_PROBLEMS.include?(testName)
+        #   named_entity("SkipTest", reason: 'ruby driver problem')
         else
           named_entity('RunTest')
         end
