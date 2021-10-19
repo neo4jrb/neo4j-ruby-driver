@@ -141,21 +141,30 @@ stub.routing.test_routing_v4x3.RoutingV4x3.test_should_retry_write_tx_until_succ
 stub.routing.test_routing_v4x3.RoutingV4x3.test_should_retry_write_tx_until_success_on_run_error
 stub.routing.test_routing_v4x3.RoutingV4x3.test_should_retry_write_until_success_with_leader_change_on_run_using_tx_function
 stub.routing.test_routing_v4x3.RoutingV4x3.test_should_retry_write_until_success_with_leader_change_using_tx_function
+stub.routing.test_routing_v4x3.RoutingV4x3.test_should_send_system_bookmark_with_route
 stub.routing.test_routing_v4x3.RoutingV4x3.test_should_write_successfully_on_leader_switch_using_tx_function
-      ]
+     ]
 
       def process
         if SKIPPED_TESTS.key?(testName)
-          named_entity("SkipTest", reason: SKIPPED_TESTS[testName])
+          skip(SKIPPED_TESTS[testName])
         elsif reason = SKIPPED_PATTERN.find { |expr, _| testName.match?(expr) }&.last
-          named_entity("SkipTest", reason: reason)
+          skip(reason)
         elsif BACKEND_INCOMPLETE.any?(&testName.method(:match?))
-          named_entity("SkipTest", reason: 'Backend Incomplete')
-        # elsif RUBY_DRIVER_PROBLEMS.include?(testName)
-        #   named_entity("SkipTest", reason: 'ruby driver problem')
+          skip('Backend Incomplete')
+        elsif RUBY_DRIVER_PROBLEMS.include?(testName)
+          skip('ruby driver problem')
         else
-          named_entity('RunTest')
+          run
         end
+      end
+
+      def run(_ = nil)
+        named_entity('RunTest')
+      end
+
+      def skip(reason = 'Skipping passing')
+        named_entity('SkipTest', reason: reason)
       end
 
       # def process
