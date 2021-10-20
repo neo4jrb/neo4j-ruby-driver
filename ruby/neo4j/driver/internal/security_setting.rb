@@ -40,9 +40,8 @@ module Neo4j::Driver::Internal
 
     def assert_security_settings_not_user_configured(uri_scheme)
       if customized?
-        raise Neo4j::Driver::Exceptions::ClientException.new(
+        raise Neo4j::Driver::Exceptions::ClientException,
           "Scheme #{uri_scheme} is not configurable with manual encryption and trust settings"
-        )
       end
     end
 
@@ -70,7 +69,7 @@ module Neo4j::Driver::Internal
           hostname_verification_enabled, revocation_strategy
         )
       else
-        raise ClientException.new("Unknown TLS authentication strategy: #{trust_strategy.strategy}")
+        raise ClientException, "Unknown TLS authentication strategy: #{trust_strategy.strategy}"
       end
     end
   end
