@@ -25,18 +25,25 @@ module Neo4j::Driver::Internal
 
       def createConnectionPool(authToken, securityPlan, bootstrap, metricsProvider, config, ownsEventLoopGroup, routingContext)
         clock = createClock
-        settings = org.neo4j.driver.internal.ConnectionSettings.new(authToken, config[:user_agent], config[:connection_timeout].in_milliseconds)
+        settings = org.neo4j.driver.internal.ConnectionSettings.new(
+          authToken, config[:user_agent], config[:connection_timeout].in_milliseconds
+        )
         connector = createConnector(settings, securityPlan, config, clock, routingContext)
-        poolSettings = org.neo4j.driver.internal.async.pool.PoolSettings.new(config[:max_connection_pool_size],
-                                                                             config[:connection_acquisition_timeout].in_milliseconds,
-                                                                             config[:max_connection_lifetime].in_milliseconds,
-                                                                             config[:idle_time_before_connection_test].in_milliseconds
+        poolSettings = org.neo4j.driver.internal.async.pool.PoolSettings.new(
+          config[:max_connection_pool_size],
+          config[:connection_acquisition_timeout].in_milliseconds,
+          config[:max_connection_lifetime].in_milliseconds,
+          config[:idle_time_before_connection_test].in_milliseconds
         )
         org.neo4j.driver.internal.async.pool.ConnectionPoolImpl.new(connector, bootstrap, poolSettings, metricsProvider.metricsListener, config.java_config.logging, clock, ownsEventLoopGroup)
       end
 
       def createDriverMetrics(config, clock)
-        config[:metrics_enabled] ? org.neo4j.driver.internal.metrics.InternalMetricsProvider.new(config.java_config, config.logging) : org.neo4j.driver.internal.metrics.MetricsProvider::METRICS_DISABLED_PROVIDER
+        if config[:metrics_enabled]
+          org.neo4j.driver.internal.metrics.InternalMetricsProvider.new(config.java_config, config.logging)
+        else
+          org.neo4j.driver.internal.metrics.MetricsProvider::METRICS_DISABLED_PROVIDER
+        end
       end
 
       def createResolver(config)

@@ -19,7 +19,7 @@ module Neo4j
         end
 
         def self.trust_all_certificates
-          new({ trust_strategy: TRUST_ALL_CERTIFICATES })
+          new(trust_strategy: TRUST_ALL_CERTIFICATES)
         end
 
         def hostname_verification_enabled?
@@ -75,7 +75,7 @@ module Neo4j
         trust_strategy = TrustStrategy.new(config)
         merge!(
           security_settings: Neo4j::Driver::Internal::SecuritySetting.new(config[:encrypted], trust_strategy),
-          trust_strategy: trust_strategy,
+          trust_strategy: trust_strategy
         )
       end
     end
