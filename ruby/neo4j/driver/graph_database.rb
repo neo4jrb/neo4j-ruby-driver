@@ -20,7 +20,7 @@ module Neo4j::Driver
             config.java_config.routing_settings,
             config[:max_transaction_retry_time],
             config,
-            config.java_config.security_settings.create_security_plan(uri.scheme)
+            config[:security_settings].create_security_plan(uri.scheme)
           )
         end
       end
@@ -54,7 +54,7 @@ module Neo4j::Driver
       end
 
       def assert_routing_uris(uris)
-        uris.find { |uri| URI(uri).scheme != Internal::Scheme::NEO4J_URI_SCHEME }&.tap do |uri|
+        uris.find { |uri| URI(uri).scheme != Neo4j::Driver::Internal::Scheme::NEO4J_URI_SCHEME }&.tap do |uri|
           raise ArgumentError, "Illegal URI scheme, expected '#{Internal::Scheme::NEO4J_URI_SCHEME}' in '#{uri}'"
         end
       end

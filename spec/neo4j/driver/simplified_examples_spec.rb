@@ -35,8 +35,8 @@ RSpec.describe Neo4j::Driver do
   end
 
   it 'Driver with block and fetching before session close' do
-    username = 'neo4j'
-    password = 'pass'
+    username = ENV.fetch('TEST_NEO4J_USER', 'neo4j')
+    password = ENV.fetch('TEST_NEO4J_PASS', 'pass')
     result = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(username, password)) do |driver|
       driver.session { |session| session.run('CREATE (a:Person {name: $name}) RETURN a.name', name: 'John').single }
     end
