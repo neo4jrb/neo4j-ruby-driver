@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Neo4j::Driver::Internal::SecuritySetting
+class Neo4j::Driver::Internal::SecuritySetting
   include Scheme
 
   attr_reader :encrypted, :trust_strategy
