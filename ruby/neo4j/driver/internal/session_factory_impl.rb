@@ -12,10 +12,10 @@ module Neo4j::Driver
         @defaultFetchSize = config[:fetch_size]
       end
 
-      def new_instance(fetch_size: @defaultFetchSize, bookmarks: nil, default_access_mode: org.neo4j.driver.AccessMode::WRITE, database: nil)
+      def new_instance(fetch_size: @defaultFetchSize, bookmarks: nil, default_access_mode: org.neo4j.driver.AccessMode::WRITE, database: nil, impersonated_user: nil)
         bookmarkHolder = org.neo4j.driver.internal.DefaultBookmarkHolder.new(
           org.neo4j.driver.internal.InternalBookmark.from(bookmarks ? java.util.ArrayList.new(Array(bookmarks)) : nil))
-        create_session(parseDatabaseName(database), default_access_mode, bookmarkHolder, fetch_size, @logging)
+        create_session(parseDatabaseName(database), default_access_mode, bookmarkHolder, fetch_size, impersonated_user, @logging)
       end
 
       private
@@ -26,9 +26,9 @@ module Neo4j::Driver
           : org.neo4j.driver.internal.DatabaseNameUtil.defaultDatabase
       end
 
-      def create_session(databaseName, mode, bookmarkHolder, fetchSize, logging)
+      def create_session(databaseName, mode, bookmarkHolder, fetchSize, impersonated_user, logging)
         (@leakedSessionsLoggingEnabled ? org.neo4j.driver.internal.async.LeakLoggingNetworkSession : org.neo4j.driver.internal.async.NetworkSession)
-          .new(@connection_provider, @retry_logic, databaseName, mode, bookmarkHolder, fetchSize, logging)
+          .new(@connection_provider, @retry_logic, databaseName, mode, bookmarkHolder, impersonated_user, fetchSize, logging)
       end
     end
   end
