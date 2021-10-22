@@ -13,7 +13,7 @@ module Neo4j
           @active_support_logger = active_support_logger
         end
 
-        def get_log(_name)
+        def getLog(_name)
           self
         end
 
