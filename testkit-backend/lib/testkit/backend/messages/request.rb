@@ -21,13 +21,14 @@ module Testkit::Backend::Messages
     def process_request
       process
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
-      # puts e
+      store(e)
       named_entity('DriverError', id: e.object_id, errorType: e.class.name, msg: e.message, code: e.code)
-    rescue Neo4j::Driver::Exceptions::IllegalStateException, ArgumentError => e
-      # puts e
+    rescue Neo4j::Driver::Exceptions::IllegalStateException, Neo4j::Driver::Exceptions::NoSuchRecordException, ArgumentError => e
+      store(e)
       named_entity('DriverError', id: e.object_id, errorType: e.class.name, msg: e.message)
+    rescue Testkit::Backend::Messages::Requests::RollbackException => e
+      named_entity('FrontendError', msg: "")
     rescue StandardError => e
-      # puts e
       named_entity('BackendError', msg: e.message)
     end
 

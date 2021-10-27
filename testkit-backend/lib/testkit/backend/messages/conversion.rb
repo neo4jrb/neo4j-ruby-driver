@@ -18,16 +18,21 @@ module Testkit
             value_entity('CypherString', object)
           when Symbol
             to_testkit(object.to_s)
+          when Neo4j::Driver::Types::Path
+            named_entity('Path', nodes: to_testkit(object.nodes), relationships: to_testkit(object.relationships))
           when Hash
             value_entity('CypherMap', object.transform_values(&method(:to_testkit)))
-          when Neo4j::Driver::Types::Path
-            raise 'Not implemented'
           when Enumerable
             value_entity('CypherList', object.map(&method(:to_testkit)))
           when Neo4j::Driver::Types::Node
-            named_entity('Node', id: to_testkit(object.id), labels: to_testkit(object.labels), props: to_testkit(object.properties))
+            named_entity('Node', id: to_testkit(object.id), labels: to_testkit(object.labels),
+                         props: to_testkit(object.properties))
+          when Neo4j::Driver::Types::Relationship
+            named_entity('Relationship', id: to_testkit(object.id), startNodeId: to_testkit(object.start_node_id),
+                         endNodeId: to_testkit(object.end_node_id), type: to_testkit(object.type),
+                         props: to_testkit(object.properties))
           else
-            raise 'Not implemented'
+            raise "Not implemented #{object.class.name}:#{object.inspect}"
           end
         end
 
