@@ -24,7 +24,6 @@ module Testkit::Backend::Messages
       store(e)
       named_entity('DriverError', id: e.object_id, errorType: e.class.name, msg: e.message, code: e.code)
     rescue Neo4j::Driver::Exceptions::IllegalStateException, Neo4j::Driver::Exceptions::NoSuchRecordException, ArgumentError => e
-      puts "************************************8"
       puts e
       puts e.backtrace_locations
       store(e)

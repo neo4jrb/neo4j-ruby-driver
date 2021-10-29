@@ -146,6 +146,21 @@ stub.routing.test_routing_v4x3.RoutingV4x3.test_should_retry_write_until_success
 stub.routing.test_routing_v4x3.RoutingV4x3.test_should_retry_write_until_success_with_leader_change_using_tx_function
 stub.routing.test_routing_v4x3.RoutingV4x3.test_should_send_system_bookmark_with_route
 stub.routing.test_routing_v4x3.RoutingV4x3.test_should_write_successfully_on_leader_switch_using_tx_function
+
+      stub.summary.test_summary.TestSummary.test_empty_notifications
+      stub.summary.test_summary.TestSummary.test_invalid_query_type
+      stub.summary.test_summary.TestSummary.test_no_times
+      stub.summary.test_summary.TestSummary.test_partial_summary_contains_system_updates
+      stub.summary.test_summary.TestSummary.test_partial_summary_contains_updates
+      stub.summary.test_summary.TestSummary.test_partial_summary_not_contains_system_updates
+      stub.summary.test_summary.TestSummary.test_partial_summary_not_contains_updates
+      stub.summary.test_summary.TestSummary.test_plan
+      stub.summary.test_summary.TestSummary.test_profile
+      stub.summary.test_summary.TestSummary.test_query
+      neo4j.test_summary.TestSummary.test_address
+      stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_0_records
+      stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_1_records
+
      ]
 
       def process
