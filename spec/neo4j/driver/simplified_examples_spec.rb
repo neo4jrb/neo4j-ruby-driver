@@ -111,4 +111,30 @@ RSpec.describe Neo4j::Driver do
       expect(session.run('RETURN 1').next.first).to eq 1
     end
   end
+
+  describe 'handshake' do
+    it 'chooses 3.' do
+      expect(Neo4j::Driver::GraphDatabase.handshake('3', '4.0', '4.1', '4.4-2').value).to eq '3.0.0.0'
+    end
+
+    it 'chooses 4.' do
+      expect(Neo4j::Driver::GraphDatabase.handshake('4.0', '4.1', '4.4-2').value).to eq '4.0.0.0'
+    end
+
+    it 'chooses 4.1.' do
+      expect(Neo4j::Driver::GraphDatabase.handshake('4.1', '4.4-2').value).to eq '4.1.0.0'
+    end
+
+    it 'chooses 4.3.' do
+      expect(Neo4j::Driver::GraphDatabase.handshake('4.4-2').value).to eq '4.3.0.0'
+    end
+
+    it 'chooses 4.3.' do
+      expect(Neo4j::Driver::GraphDatabase.handshake('4.4-1').value).to eq '4.3.0.0'
+    end
+
+    it 'chooses 0' do
+      expect(Neo4j::Driver::GraphDatabase.handshake('4.4').value).to eq '0.0.0.0'
+    end
+  end
 end

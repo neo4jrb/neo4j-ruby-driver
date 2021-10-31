@@ -46,6 +46,10 @@ end.spec gem_name do
 
   self.clean_globs += %w[Gemfile Gemfile.lock *.gemspec lib/org lib/*_jars.rb]
 
+  if pdir == 'ruby'
+    dependency 'nio4r', '>= 0'
+  end
+
   if pdir == 'ffi'
     dependency 'ffi', '>= 0'
     dependency 'recursive-open-struct', '>= 0'
