@@ -112,29 +112,22 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  describe 'handshake' do
-    it 'chooses 3.' do
-      expect(Neo4j::Driver::GraphDatabase.handshake('3', '4.0', '4.1', '4.4-2').value).to eq '3.0.0.0'
-    end
-
-    it 'chooses 4.' do
-      expect(Neo4j::Driver::GraphDatabase.handshake('4.0', '4.1', '4.4-2').value).to eq '4.0.0.0'
-    end
-
-    it 'chooses 4.1.' do
-      expect(Neo4j::Driver::GraphDatabase.handshake('4.1', '4.4-2').value).to eq '4.1.0.0'
-    end
-
-    it 'chooses 4.3.' do
-      expect(Neo4j::Driver::GraphDatabase.handshake('4.4-2').value).to eq '4.3.0.0'
-    end
-
-    it 'chooses 4.3.' do
-      expect(Neo4j::Driver::GraphDatabase.handshake('4.4-1').value).to eq '4.3.0.0'
-    end
-
-    it 'chooses 0' do
-      expect(Neo4j::Driver::GraphDatabase.handshake('4.4').value).to eq '0.0.0.0'
+  describe 'handshakes' do
+    { handshake_concurrent: :value, handshake_async: :wait }.each do |handshake, v_method|
+      describe handshake do
+        {
+          %w[3 4.0 4.1 4.4-2'] => '3.0.0.0',
+          %w[4.0 4.1 4.4-2] => '4.0.0.0',
+          %w[4.1 4.4-2] => '4.1.0.0',
+          ['4.4-2'] => '4.3.0.0',
+          ['4.4-1'] => '4.3.0.0',
+          ['4.4'] => '0.0.0.0',
+        }.each do |versions, chosen|
+          it "chooses #{chosen}" do
+            expect(Neo4j::Driver::GraphDatabase.send(handshake, *versions).send(v_method)).to eq chosen
+          end
+        end
+      end
     end
   end
 end

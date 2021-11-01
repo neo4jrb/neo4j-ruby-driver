@@ -47,7 +47,7 @@ end.spec gem_name do
   self.clean_globs += %w[Gemfile Gemfile.lock *.gemspec lib/org lib/*_jars.rb]
 
   if pdir == 'ruby'
-    dependency 'nio4r', '>= 0'
+    dependency 'async-io', '>= 0'
   end
 
   if pdir == 'ffi'

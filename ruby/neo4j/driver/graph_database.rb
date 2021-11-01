@@ -11,7 +11,7 @@ module Neo4j::Driver
 
       GOGOBOLT = ["6060B017"].pack('H*')
 
-      def handshake(*versions)
+      def handshake_concurrent(*versions)
         remote_port = 7687
         remote_addr = 'localhost'
         selector = NIO::Selector.new
@@ -50,7 +50,18 @@ module Neo4j::Driver
           selector.select do |monitor|
             monitor.value.call
           end
-          @data.unpack('C*').reverse.map(&:to_s).join('.')
+          ruby_version(@data)
+        end
+      end
+
+      def handshake_async(*versions)
+        Async do |task|
+          Async::IO::Endpoint.tcp('localhost', 7687).connect do |peer|
+            peer.write(GOGOBOLT)
+            peer.write(bolt_versions(*versions))
+            peer.close_write
+            ruby_version(peer.read)
+          end
         end
       end
 
@@ -94,6 +105,10 @@ module Neo4j::Driver
 
       def bolt_version(version)
         pad(version.split(/[.\-]/).map(&:to_i), 4).reverse
+      end
+
+      def ruby_version(bolt_version)
+        bolt_version.unpack('C*').reverse.map(&:to_s).join('.')
       end
 
       def bolt_versions(*versions)
