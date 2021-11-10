@@ -48,6 +48,7 @@ end.spec gem_name do
 
   if pdir == 'ruby'
     dependency 'async-io', '>= 0'
+    dependency 'ione', '>= 0'
   end
 
   if pdir == 'ffi'

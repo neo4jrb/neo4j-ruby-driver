@@ -4,6 +4,7 @@ require 'active_support/core_ext/hash/keys'
 require 'active_support/logger'
 require 'async/io'
 require 'date'
+require 'ione'
 require 'loader'
 require 'neo4j-ruby-driver_jars' if RUBY_PLATFORM.match?(/java/)
 

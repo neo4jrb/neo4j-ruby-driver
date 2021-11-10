@@ -65,6 +65,39 @@ module Neo4j::Driver
         end
       end
 
+      # def handshake_em(*versions)
+      #   require 'rubygems'
+      #   require 'eventmachine'
+      #
+      #   class Echo < EventMachine::Connection
+      #     def post_init
+      #       send_data(GOGOBOLT)
+      #       send_data(bolt_versions(*versions))
+      #     end
+      #
+      #     def receive_data(data)
+      #       p data
+      #     end
+      #   end
+      #
+      #   EventMachine.run {
+      #     EventMachine::connect('localhost', 7687, Echo)
+      #   }
+      # end
+
+      def handshake_ione(*versions)
+        Concurrent::Promises.resolvable_future.tap do |future|
+          reactor = Ione::Io::IoReactor.new
+          reactor.start
+          reactor.connect('localhost', 7687) do |connection|
+            connection.on_data(&future.method(:fulfill))
+            connection.write(GOGOBOLT)
+            connection.write(bolt_versions(*versions))
+          end
+          # reactor.stop
+        end.then(&method(:ruby_version))
+      end
+
       def driver(uri, auth_token = nil, **config)
         check do
           uri = URI(uri)

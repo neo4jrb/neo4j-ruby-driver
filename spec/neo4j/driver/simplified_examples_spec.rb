@@ -113,7 +113,7 @@ RSpec.describe Neo4j::Driver do
   end
 
   describe 'handshakes' do
-    { handshake_concurrent: :value, handshake_async: :wait }.each do |handshake, v_method|
+    { handshake_concurrent: :value, handshake_async: :wait, handshake_ione: :value }.each do |handshake, v_method|
       describe handshake do
         {
           %w[3 4.0 4.1 4.4-2'] => '3.0.0.0',
