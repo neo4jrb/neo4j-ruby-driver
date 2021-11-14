@@ -9,14 +9,16 @@ module Neo4j::Driver
 
       auto_closable :driver, :routing_driver
 
-      def driver(uri, auth_token = nil, **config)
+      # Once on ruby 3 add the default value again, ruby 3 will not confuse last hash with keyword parameter
+      # def driver(uri, auth_token = nil, **config)
+      def driver(uri, auth_token, **config)
         check do
           uri = URI(uri)
           config = Config.new(**config)
 
           Internal::DriverFactory.new_instance(
             uri,
-            auth_token || org.neo4j.driver.AuthTokens.none,
+            auth_token || AuthTokens.none,
             config.java_config.routing_settings,
             config[:max_transaction_retry_time],
             config,

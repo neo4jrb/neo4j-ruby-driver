@@ -15,12 +15,12 @@ module Neo4j
         end
 
         def self.require_non_nil!(obj, message)
-          raise ArgumentError, message if obj.nil?
+          raise ArgumentError, "#{message} can't be nil" if obj.nil?
         end
 
         def self.require_non_nil_credentials!(username, password)
-          require_non_nil! username, "Username can't be nil"
-          require_non_nil! password, "Password can't be nil"
+          require_non_nil! username, "Username"
+          require_non_nil! password, "Password"
         end
       end
     end

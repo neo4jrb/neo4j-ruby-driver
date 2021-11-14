@@ -2,8 +2,9 @@ module Neo4j::Driver::Internal
   class DriverFactory
     class << self
       include Scheme
+      include Neo4j::Driver::Ext::NeoConverter
 
-      def new_instance(uri, authToken, routingSettings, retrySettings, config, securityPlan, eventLoopGroup = nil)
+      def new_instance(uri, auth_token, routingSettings, retrySettings, config, securityPlan, eventLoopGroup = nil)
         bootstrap = org.neo4j.driver.internal.async.connection.BootstrapFactory.newBootstrap(eventLoopGroup || config.java_config.eventLoopThreads)
         java_uri = java.net.URI.create(uri.to_s)
 
@@ -12,21 +13,21 @@ module Neo4j::Driver::Internal
 
         org.neo4j.driver.internal.shaded.io.netty.util.internal.logging.InternalLoggerFactory.setDefaultFactory(org.neo4j.driver.internal.logging.NettyLogging.new(config.java_config.logging))
         eventExecutorGroup = bootstrap.config.group
-        retryLogic = Retry::ExponentialBackoffRetryLogic.new(retrySettings, config[:logger])
+        retry_logic = Retry::ExponentialBackoffRetryLogic.new(retrySettings, config[:logger])
 
         metricsProvider = createDriverMetrics(config, createClock)
-        connectionPool = createConnectionPool(authToken, securityPlan, bootstrap, metricsProvider, config,
+        connectionPool = create_connection_pool(auth_token, securityPlan, bootstrap, metricsProvider, config,
                                               eventLoopGroup.nil?, newRoutingSettings.routingContext)
 
-        createDriver(uri, securityPlan, address, connectionPool, eventExecutorGroup, newRoutingSettings, retryLogic, metricsProvider, config)
+        createDriver(uri, securityPlan, address, connectionPool, eventExecutorGroup, newRoutingSettings, retry_logic, metricsProvider, config)
       end
 
       private
 
-      def createConnectionPool(authToken, securityPlan, bootstrap, metricsProvider, config, ownsEventLoopGroup, routingContext)
+      def create_connection_pool(auth_token, securityPlan, bootstrap, metricsProvider, config, ownsEventLoopGroup, routingContext)
         clock = createClock
         settings = org.neo4j.driver.internal.ConnectionSettings.new(
-          authToken, config[:user_agent], config[:connection_timeout].in_milliseconds
+          org.neo4j.driver.internal.security.InternalAuthToken.new(to_neo(auth_token).transform_values(&org.neo4j.driver.Values.method(:value))), config[:user_agent], config[:connection_timeout].in_milliseconds
         )
         connector = createConnector(settings, securityPlan, config, clock, routingContext)
         poolSettings = org.neo4j.driver.internal.async.pool.PoolSettings.new(
