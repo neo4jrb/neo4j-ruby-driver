@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def process
-        raise Neo4j::Driver::Exceptions::ClientException if errorId.blank?
+        raise errorId.present? ? fetch(errorId) : RollbackException
       end
     end
   end

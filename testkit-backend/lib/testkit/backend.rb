@@ -1,3 +1,4 @@
+require 'active_support/inflector'
 require 'async/io'
 require 'testkit/backend/loader'
 require 'neo4j_ruby_driver'

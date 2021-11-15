@@ -111,7 +111,12 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
   end
 
   it 'handles graceful leader switch' do
-    create_driver(leader.routing_uri) do |driver|
+    cluster_address = Neo4j::Driver::Net::ServerAddress.of('cluster', 7687)
+    cluster_uri = "neo4j://#{cluster_address.host}:#{cluster_address.port}"
+    core_addresses = cluster.cores.map(&:bolt_address)
+    config = { resolver: ->(address) { address == cluster_address ? core_addresses : [address] } }
+
+    create_driver(cluster_uri, config) do |driver|
       session1 = driver.session
       tx1 = session1.begin_transaction
 

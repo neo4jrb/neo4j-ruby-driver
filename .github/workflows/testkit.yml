@@ -22,6 +22,7 @@ jobs:
 
     strategy:
 #      max-parallel: 1
+      fail-fast: false
       matrix:
         driver: [ java, ruby ]
 
@@ -66,6 +67,7 @@ jobs:
           TEST_DRIVER_REPO: ${{ github.workspace }}/driver
           TEST_RUN_ALL_TESTS: "true"
           TEST_DRIVER_PLATFORM: ${{ matrix.driver }}
+          DEBUG_TIMEOUT: "true"
         run: |
           cd testkit
           # everything from --run-only-selected is to reduce the number of tests run in this

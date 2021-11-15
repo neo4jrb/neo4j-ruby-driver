@@ -11,13 +11,16 @@ module Testkit
 
       def process(blocking: false)
         var = (blocking ? @socket.gets : @socket.read_nonblock(4096))
+        return unless var
         puts "#{blocking ? 'blocking:' : 'nonblocking:'} <#{var}>"
         @buffer << var
         if (request_begin = @buffer.match(/^#request begin$/)&.end(0)) &&
           (request_end_match = @buffer.match(/^#request end$/))
-          to_process = (@buffer[request_begin..request_end_match.begin(0) - 1]).tap {|var| puts "processing: <#{var}>"}
+          to_process = (@buffer[request_begin..request_end_match.begin(0) - 1])#.tap {|var| puts "processing: <#{var}>"}
           @buffer = @buffer[request_end_match.end(0)..@buffer.size]
           process_request(to_process)
+        else
+          true
         end
       end
 
