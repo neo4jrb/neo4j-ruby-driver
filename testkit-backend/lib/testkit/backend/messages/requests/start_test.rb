@@ -169,6 +169,7 @@ module Testkit::Backend::Messages
 'neo4j.test_summary.TestSummary.test_address',
 'stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_0_records',
 'stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_1_records',
+'stub.routing.test_routing_v4x1.RoutingV4x1.test_should_pass_bookmark_from_tx_to_tx_using_tx_run',
 'stub.routing.test_routing_v4x4.RoutingV4x4.test_should_pass_bookmark_from_tx_to_tx_using_tx_run',
 'stub.summary.test_summary.TestSummary.test_server_info'
      ]
