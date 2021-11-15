@@ -57,6 +57,15 @@ module Testkit::Backend::Messages
         /test_versions\.TestProtocolVersions\.test_should_reject_server_using_verify_connectivity_bolt_3x0/,
         /test_versions\.TestProtocolVersions\.test_obtain_summary_twice/, #
         /test_versions\.TestProtocolVersions\.test_server_address_in_summary/, #
+        /test_multi_db_various_databases/,
+        /test_agent_string/,
+        /test_kerberos_scheme/,
+        /test_protocol_version_information/,
+        /TestHomeDb/,
+        /TestSessionRunParameters\.test_combined/,
+        /TestSessionRunParameters\.test_impersonation/,
+        /TestTxBeginParameters\.test_combined/,
+        /TestTxBeginParameters\.test_impersonation/,
       ]
 
       RUBY_DRIVER_PROBLEMS = [
@@ -76,6 +85,8 @@ module Testkit::Backend::Messages
 'stub.bookmarks.test_bookmarks_v4.TestBookmarksV4.test_sequence_of_writing_and_reading_tx',
 'stub.configuration_hints.test_connection_recv_timeout_seconds.TestDirectConnectionRecvTimeout.test_timeout_managed_tx_retry',
 'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_managed_tx_retry',
+'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout',
+'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_unmanaged_tx',
 'stub.retry.test_retry.TestRetry.test_no_retry_on_syntax_error',
 'stub.retry.test_retry.TestRetry.test_read',
 'stub.retry.test_retry.TestRetry.test_retry_database_unavailable',

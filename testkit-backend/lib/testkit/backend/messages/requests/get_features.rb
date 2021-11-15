@@ -3,11 +3,17 @@ module Testkit::Backend::Messages
     class GetFeatures < Request
       def process
         named_entity('FeatureList', features: [
-          'Feature:API:Result.Peek',
+          'Feature:API:Result.List',
+          # 'Feature:API:Result.Peek',
           'Feature:API:Result.Single',
           "Feature:Auth:Bearer",
           "Feature:Auth:Custom",
           "Feature:Auth:Kerberos",
+          "Feature:Bolt:3.0",
+          "Feature:Bolt:4.0",
+          "Feature:Bolt:4.1",
+          "Feature:Bolt:4.2",
+          "Feature:Bolt:4.3",
           "Feature:Bolt:4.4",
           "Feature:Impersonation",
           'AuthorizationExpiredTreatment',
@@ -23,7 +29,7 @@ module Testkit::Backend::Messages
           'Temporary:TransactionClose',
           'Temporary:DriverFetchSize',
           'Temporary:DriverMaxTxRetryTime',
-          'Temporary:ResultList',
+          "Temporary:FastFailingDiscovery",
         ])
       end
     end

@@ -10,12 +10,12 @@ module Neo4j
         end
 
         def bearer(token)
-          require_non_nil!(token, "Token")
+          Internal::Validator.require_non_nil!(token, "Token")
           { scheme: 'bearer', credentials: token }
         end
 
         def kerberos(base64_encoded_ticket)
-          require_non_nil!(base64_encoded_ticket, "Ticket")
+          Internal::Validator.require_non_nil!(base64_encoded_ticket, "Ticket")
           { scheme: 'bearer', credentials: base64_encoded_ticket }
         end
 
