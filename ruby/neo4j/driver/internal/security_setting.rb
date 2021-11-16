@@ -5,11 +5,10 @@ module Neo4j::Driver::Internal
     include Scheme
 
     attr_reader :encrypted, :trust_strategy
-    DEFAULT_ENCRYPTED = false
 
     def initialize(encrypted, trust_strategy)
-      @encrypted = encrypted || DEFAULT_ENCRYPTED
-      @trust_strategy = trust_strategy || Neo4j::Driver::Config::TrustStrategy.trust_all_certificates
+      @encrypted = encrypted
+      @trust_strategy = trust_strategy
     end
 
     def create_security_plan(uri_scheme)
@@ -46,7 +45,7 @@ module Neo4j::Driver::Internal
     end
 
     def customized?
-      encrypted != DEFAULT_ENCRYPTED || trust_strategy != DEFAULT_TRUST_STRATEGY
+      encrypted != Neo4j::Driver::Config::DEFAULTS[:encryption] || !trust_strategy.default_trust_strategy?
     end
 
     def create_security_plan_impl(encrypted, trust_strategy)
