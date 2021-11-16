@@ -1,12 +1,12 @@
 module Testkit::Backend::Messages
   module Requests
-    class TransactionCommit < Request
+    class TransactionClose < Request
       def process
         reference('Transaction')
       end
 
       def to_object
-        fetch(txId).tap(&:commit)
+        fetch(txId).tap(&:close)
       end
     end
   end

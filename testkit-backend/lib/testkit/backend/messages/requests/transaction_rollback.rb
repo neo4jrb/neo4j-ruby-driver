@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        delete(txId).tap(&:rollback)
+        fetch(txId).tap(&:rollback)
       end
     end
   end
