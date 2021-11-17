@@ -52,9 +52,9 @@ module Neo4j
       }.freeze
 
       def initialize(**config)
-        merge!(DEFAULTS)
+        merge!(DEFAULTS).merge!(config.compact)
         init_security_and_trust_config(config)
-        merge!(config.compact).merge!(
+        merge!(
           java_config: to_java_config(org.neo4j.driver.Config, config.tap { |hash| hash.delete(:trust_strategy) })
         )
       end
