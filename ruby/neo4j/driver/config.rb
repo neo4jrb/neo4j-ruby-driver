@@ -23,10 +23,6 @@ module Neo4j
           new(trust_strategy: TRUST_ALL_CERTIFICATES)
         end
 
-        def default_trust_strategy?
-          strategy == TRUST_ALL_CERTIFICATES
-        end
-
         def hostname_verification_enabled?
           hostname_verification_enabled
         end
@@ -52,7 +48,7 @@ module Neo4j
         metrics_enabled: false,
         # resolver: nil # :set_address_resolver
         trust_strategy: TrustStrategy.trust_all_certificates,
-        user_agent: "neo4j-java/#{Neo4j::Driver::VERSION}"
+        user_agent: "neo4j-ruby/#{Neo4j::Driver::VERSION}"
       }.freeze
 
       def initialize(**config)
