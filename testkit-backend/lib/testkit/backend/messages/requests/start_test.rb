@@ -91,11 +91,11 @@ module Testkit::Backend::Messages
         end
       end
 
-      def skip(_ = nil)
+      def run(_ = nil)
         named_entity('RunTest')
       end
 
-      def run(reason = 'Skipping passing')
+      def skip(reason = 'Skipping passing')
         named_entity('SkipTest', reason: reason)
       end
     end
