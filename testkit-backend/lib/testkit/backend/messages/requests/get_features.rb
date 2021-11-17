@@ -24,7 +24,7 @@ module Testkit::Backend::Messages
           'Optimization:PullPipelining',
           'ConfHint:connection.recv_timeout_seconds',
           # 'Temporary:ResultKeys', #
-          # 'Temporary:FullSummary', # server address
+          'Temporary:FullSummary',
           'Temporary:CypherPathAndRelationship',
           'Temporary:TransactionClose',
           'Temporary:DriverFetchSize',
