@@ -56,8 +56,9 @@ module Neo4j
       }.freeze
 
       def initialize(**config)
+        merge!(DEFAULTS)
         init_security_and_trust_config(config)
-        merge!(DEFAULTS).merge!(config.compact).merge!(
+        merge!(config.compact).merge!(
           java_config: to_java_config(org.neo4j.driver.Config, config.tap { |hash| hash.delete(:trust_strategy) })
         )
       end
@@ -69,9 +70,11 @@ module Neo4j
       private
 
       def init_security_and_trust_config(config)
-        trust_strategy = config[:trust_strategy] ? TrustStrategy.new(config) : DEFAULTS[:trust_strategy]
+        trust_strategy = config.key?(:trust_strategy) ? TrustStrategy.new(config) : DEFAULTS[:trust_strategy]
+        encryption = config.key?(:encryption) ? config[:encryption] : DEFAULTS[:encryption]
+        customized = %i[encryption trust_strategy].any?(&config.method(:key?))
         merge!(
-          security_settings: Neo4j::Driver::Internal::SecuritySetting.new(config[:encryption], trust_strategy),
+          security_settings: Neo4j::Driver::Internal::SecuritySetting.new(encryption, trust_strategy, customized),
           trust_strategy: trust_strategy
         )
       end

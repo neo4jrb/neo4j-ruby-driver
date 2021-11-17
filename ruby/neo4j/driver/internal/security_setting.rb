@@ -4,11 +4,12 @@ module Neo4j::Driver::Internal
   class SecuritySetting
     include Scheme
 
-    attr_reader :encrypted, :trust_strategy
+    attr_reader :encrypted, :trust_strategy, :customized
 
-    def initialize(encrypted, trust_strategy)
+    def initialize(encrypted, trust_strategy, customized)
       @encrypted = encrypted
       @trust_strategy = trust_strategy
+      @customized = customized
     end
 
     def create_security_plan(uri_scheme)
@@ -38,14 +39,10 @@ module Neo4j::Driver::Internal
     private
 
     def assert_security_settings_not_user_configured(uri_scheme)
-      if customized?
-        raise Neo4j::Driver::Exceptions::ClientException,
-              "Scheme #{uri_scheme} is not configurable with manual encryption and trust settings"
-      end
-    end
+      return unless customized
 
-    def customized?
-      encrypted != Neo4j::Driver::Config::DEFAULTS[:encryption] || !trust_strategy.default_trust_strategy?
+      raise Neo4j::Driver::Exceptions::ClientException,
+            "Scheme #{uri_scheme} is not configurable with manual encryption and trust settings"
     end
 
     def create_security_plan_impl(encrypted, trust_strategy)
