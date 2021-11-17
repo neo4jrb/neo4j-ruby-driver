@@ -24,28 +24,28 @@ module Testkit::Backend::Messages
 
       BACKEND_INCOMPLETE = [
         /test_no_routing_v.*\.NoRoutingV.*\.test_should_check_multi_db_support/,
-        /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_commit_failure_using_tx_commit/, # GH
-        /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_database_shutdown_using_tx_commit/, # GH
-        /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_rollback_failure_using_session_close/, # GH
-        /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_rollback_failure_using_tx_close/, # GH
-        /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_rollback_failure_using_tx_rollback/, # GH
-        /test_no_routing_v.*\.NoRoutingV.*\.test_should_exclude_routing_context/, # GH
+        # /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_commit_failure_using_tx_commit/, # GH
+        # /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_database_shutdown_using_tx_commit/, # GH
+        # /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_rollback_failure_using_session_close/, # GH
+        # /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_rollback_failure_using_tx_close/, # GH
+        # /test_no_routing_v.*\.NoRoutingV.*\.test_should_error_on_rollback_failure_using_tx_rollback/, # GH
+        # /test_no_routing_v.*\.NoRoutingV.*\.test_should_exclude_routing_context/, # GH
         /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_on_empty_discovery_result_using_session_run/,#
         /test_routing_v.*\.RoutingV.*\.test_should_request_rt_from_all_initial_routers_until_successful/,#
         /test_routing_v.*\.RoutingV.*\.test_should_revert_to_initial_router_if_known_router_throws_protocol_errors/,#
         /test_routing_v.*\.RoutingV.*\.test_should_successfully_check_if_support_for_multi_db_is_available/,#
         /test_routing_v.*\.RoutingV.*\.test_should_use_resolver_during_rediscovery_when_existing_routers_fail/,#
         /test_routing_v.*\.RoutingV.*\.test_should_send_system_bookmark_with_route/,# flaky
-        /test_routing_v.*\.RoutingV.*\.test_should_fail_when_driver_closed_using_session_run/, # GH
-        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_session_run/, # GH
-        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_session_run_with_default_db_driver/, # GH
-        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_tx_function/, # GH
-        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_tx_run_adb/, # GH
-        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_tx_run_default_db/, # GH
-        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_using_read_session_run/, # GH
-        /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_using_write_session_run/, # GH
+        # /test_routing_v.*\.RoutingV.*\.test_should_fail_when_driver_closed_using_session_run/, # GH
+        # /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_session_run/, # GH
+        # /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_session_run_with_default_db_driver/, # GH
+        # /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_tx_function/, # GH
+        # /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_tx_run_adb/, # GH
+        # /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_from_reader_using_tx_run_default_db/, # GH
+        # /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_using_read_session_run/, # GH
+        # /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_using_write_session_run/, # GH
         /test_versions\.TestProtocolVersions\.test_should_reject_server_using_verify_connectivity_bolt_3x0/,
-        /test_versions\.TestProtocolVersions\.test_obtain_summary_twice/, # GH
+        # /test_versions\.TestProtocolVersions\.test_obtain_summary_twice/, # GH
         /test_multi_db_various_databases/,
         /test_agent_string/,
         /test_kerberos_scheme/,
