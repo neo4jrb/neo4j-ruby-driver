@@ -69,7 +69,7 @@ module Neo4j
       private
 
       def init_security_and_trust_config(config)
-        trust_strategy = config[:trust_strategy] ? TrustStrategy.new(config) || DEFAULTS[:trust_strategy]
+        trust_strategy = config[:trust_strategy] ? TrustStrategy.new(config) : DEFAULTS[:trust_strategy]
         merge!(
           security_settings: Neo4j::Driver::Internal::SecuritySetting.new(config[:encryption], trust_strategy),
           trust_strategy: trust_strategy
