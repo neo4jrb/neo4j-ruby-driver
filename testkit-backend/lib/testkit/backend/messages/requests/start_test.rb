@@ -15,9 +15,7 @@ module Testkit::Backend::Messages
         'stub.retry.test_retry_clustering.TestRetryClustering.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
         'stub.session_run_parameters.test_session_run_parameters.TestSessionRunParameters.test_empty_query': 'rejects empty string',
       }.transform_keys(&:to_s)
-      test_sequence_of_writing_and_reading_tx (tests.stub.bookmarks.test_bookmarks_v4.TestBookmarksV4)
-      test_sequence_of_writing_and_reading_tx (tests.stub.bookmarks.test_bookmarks_v4.TestBookmarksV4)
-      test_sequence_of_writing_and_reading_tx (tests.stub.bookmarks.test_bookmarks_v4.TestBookmarksV4)
+
       SKIPPED_PATTERN = {
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_on_routing_table_with_no_reader/ => 'needs routing table API support',
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_successfully_get_routing_table$/ => 'needs routing table API support',
