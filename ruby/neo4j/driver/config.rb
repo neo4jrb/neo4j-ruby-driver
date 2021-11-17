@@ -45,15 +45,15 @@ module Neo4j
         keep_alive: true, # BoltSocketOptions_set_keep_alive
         logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::ERROR), # :set_log
         leaked_session_logging: false,
-        #connection_liveness_check_timeout: -1, # Not configured
+        # connection_liveness_check_timeout: -1, # Not configured
         max_connection_lifetime: 1.hour, # :set_max_connection_life_time
         max_connection_pool_size: 100, #:set_max_pool_size
         max_transaction_retry_time: Internal::Retry::ExponentialBackoffRetryLogic::DEFAULT_MAX_RETRY_TIME,
         metrics_enabled: false,
         # resolver: nil # :set_address_resolver
         trust_strategy: TrustStrategy.trust_all_certificates,
-        user_agent: "neo4j-java/#{Neo4j::Driver::VERSION}".freeze
-      }
+        user_agent: "neo4j-java/#{Neo4j::Driver::VERSION}"
+      }.freeze
 
       def initialize(**config)
         init_security_and_trust_config(config)
