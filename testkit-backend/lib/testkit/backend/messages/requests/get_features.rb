@@ -6,16 +6,18 @@ module Testkit::Backend::Messages
           'Feature:API:Result.List',
           # 'Feature:API:Result.Peek',
           'Feature:API:Result.Single',
-          "Feature:Auth:Bearer",
-          "Feature:Auth:Custom",
-          "Feature:Auth:Kerberos",
-          "Feature:Bolt:3.0",
-          "Feature:Bolt:4.0",
-          "Feature:Bolt:4.1",
-          "Feature:Bolt:4.2",
-          "Feature:Bolt:4.3",
-          "Feature:Bolt:4.4",
-          "Feature:Impersonation",
+          'Feature:Auth:Bearer',
+          'Feature:Auth:Custom',
+          'Feature:Auth:Kerberos',
+          'Feature:Bolt:3.0',
+          'Feature:Bolt:4.0',
+          'Feature:Bolt:4.1',
+          'Feature:Bolt:4.2',
+          'Feature:Bolt:4.3',
+          'Feature:Bolt:4.4',
+          'Feature:Impersonation',
+          'Feature:TLS:1.1',
+          'Feature:TLS:1.2',
           'AuthorizationExpiredTreatment',
           # 'Optimization:ImplicitDefaultArguments', #
           # 'Optimization:MinimalResets', #
@@ -24,12 +26,12 @@ module Testkit::Backend::Messages
           'Optimization:PullPipelining',
           'ConfHint:connection.recv_timeout_seconds',
           # 'Temporary:ResultKeys', #
-          # 'Temporary:FullSummary', # server address
+          'Temporary:FullSummary',
           'Temporary:CypherPathAndRelationship',
           'Temporary:TransactionClose',
           'Temporary:DriverFetchSize',
           'Temporary:DriverMaxTxRetryTime',
-          "Temporary:FastFailingDiscovery",
+          'Temporary:FastFailingDiscovery',
         ])
       end
     end
