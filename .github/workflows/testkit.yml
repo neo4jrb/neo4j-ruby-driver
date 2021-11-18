@@ -38,7 +38,7 @@ jobs:
       - name: Checkout TestKit (testing tool)
         uses: actions/checkout@v2
         with:
-          repository: klobuczek/testkit
+          repository: neo4j-drivers/testkit
           path: testkit
           ref: ${{ steps.testkit_vars.outputs.testkit_version_ref }}
 
