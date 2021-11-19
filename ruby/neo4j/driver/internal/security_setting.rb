@@ -21,7 +21,7 @@ module Neo4j::Driver::Internal
         else
           create_security_plan_impl(encrypted, trust_strategy)
         end
-      rescue java.security.GeneralSecurityException.GeneralSecurityException, java.io.IOException
+      rescue java.security.GeneralSecurityException, java.io.IOException
         raise Neo4j::Driver::Exceptions::ClientException, 'Unable to establish SSL parameters'
       end
     end
@@ -29,10 +29,10 @@ module Neo4j::Driver::Internal
     def create_security_plan_from_scheme(uri_scheme)
       if high_trust_scheme?(uri_scheme)
         org.neo4j.driver.internal.security.SecurityPlanImpl.forSystemCASignedCertificates(
-          true, RevocationStrategy.NO_CHECKS
+          true, org.neo4j.driver.internal.RevocationStrategy::NO_CHECKS
         )
       else
-        org.neo4j.driver.internal.security.SecurityPlanImpl.forAllCertificates(false, RevocationStrategy.NO_CHECKS)
+        org.neo4j.driver.internal.security.SecurityPlanImpl.forAllCertificates(false, org.neo4j.driver.internal.RevocationStrategy::NO_CHECKS)
       end
     end
 
