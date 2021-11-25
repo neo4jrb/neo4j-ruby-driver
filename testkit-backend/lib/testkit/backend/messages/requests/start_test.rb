@@ -89,7 +89,7 @@ module Testkit::Backend::Messages
           skip('Backend Incomplete')
         elsif RUBY_DRIVER_PROBLEMS.include?(testName)
           skip('ruby driver problem')
-        elsif ENV['driver'] == java && DOMAIN_RESOLVER_ON_JAVA.include?(testName)
+        elsif ENV['driver'] == 'java' && DOMAIN_RESOLVER_ON_JAVA.include?(testName)
           skip('Domain Resolver hard to implement on jruby due to default visibility and protected not implemented correctly in jruby')
         else
           run
