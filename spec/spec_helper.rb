@@ -13,6 +13,7 @@ $LOAD_PATH.unshift File.join(
   end
 )
 
+require 'active_support/logger'
 require 'ffaker'
 require 'neo4j_ruby_driver'
 require 'parallel'
