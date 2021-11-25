@@ -23,13 +23,12 @@ module Testkit::Backend::Messages
       }
 
       BACKEND_INCOMPLETE = [
-        /test_no_routing_v.*\.NoRoutingV.*\.test_should_check_multi_db_support/,
+        # /test_no_routing_v.*\.NoRoutingV.*\.test_should_check_multi_db_support/,
         /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_on_empty_discovery_result_using_session_run/,#
-        /test_routing_v.*\.RoutingV.*\.test_should_request_rt_from_all_initial_routers_until_successful/,#
         /test_routing_v.*\.RoutingV.*\.test_should_revert_to_initial_router_if_known_router_throws_protocol_errors/,#
-        /test_routing_v.*\.RoutingV.*\.test_should_successfully_check_if_support_for_multi_db_is_available/,#
-        /test_routing_v.*\.RoutingV.*\.test_should_use_resolver_during_rediscovery_when_existing_routers_fail/,#
-        /test_routing_v.*\.RoutingV.*\.test_should_send_system_bookmark_with_route/,# flaky
+        # /test_routing_v.*\.RoutingV.*\.test_should_successfully_check_if_support_for_multi_db_is_available/,#
+        # /test_routing_v.*\.RoutingV.*\.test_should_use_resolver_during_rediscovery_when_existing_routers_fail/,#
+        # /test_routing_v.*\.RoutingV.*\.test_should_send_system_bookmark_with_route/,# flaky
         /test_versions\.TestProtocolVersions\.test_should_reject_server_using_verify_connectivity_bolt_3x0/,
         /test_multi_db_various_databases/,
         /test_agent_string/,
@@ -55,8 +54,8 @@ module Testkit::Backend::Messages
 'stub.authorization.test_authorization.TestAuthorizationV4x3.test_should_retry_on_auth_expired_on_commit_using_tx_function',
 'stub.authorization.test_authorization.TestAuthorizationV4x3.test_should_retry_on_auth_expired_on_pull_using_tx_function',
 'stub.authorization.test_authorization.TestAuthorizationV4x3.test_should_retry_on_auth_expired_on_run_using_tx_function',
-'stub.bookmarks.test_bookmarks_v3.TestBookmarksV3.test_sequence_of_writing_and_reading_tx', # flaky
-'stub.bookmarks.test_bookmarks_v4.TestBookmarksV4.test_sequence_of_writing_and_reading_tx', # flaky
+# 'stub.bookmarks.test_bookmarks_v3.TestBookmarksV3.test_sequence_of_writing_and_reading_tx', # flaky
+# 'stub.bookmarks.test_bookmarks_v4.TestBookmarksV4.test_sequence_of_writing_and_reading_tx', # flaky
 'stub.configuration_hints.test_connection_recv_timeout_seconds.TestDirectConnectionRecvTimeout.test_timeout_managed_tx_retry',
 'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_managed_tx_retry',
 'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout',
@@ -74,8 +73,12 @@ module Testkit::Backend::Messages
 'neo4j.test_summary.TestSummary.test_address',
 'stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_0_records',
 'stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_1_records',
-'stub.summary.test_summary.TestSummary.test_server_info'
+# 'stub.summary.test_summary.TestSummary.test_server_info'
      ]
+
+      DOMAIN_RESOLVER_ON_JAVA = [
+        /test_routing_v.*\.RoutingV.*\.test_should_request_rt_from_all_initial_routers_until_successful/,#
+      ]
 
       def process
         if SKIPPED_TESTS.key?(testName)
@@ -86,6 +89,8 @@ module Testkit::Backend::Messages
           skip('Backend Incomplete')
         elsif RUBY_DRIVER_PROBLEMS.include?(testName)
           skip('ruby driver problem')
+        elsif ENV['driver'] == java && DOMAIN_RESOLVER_ON_JAVA.include?(testName)
+          skip('Domain Resolver hard to implement on jruby due to default visibility and protected not implemented correctly in jruby')
         else
           run
         end

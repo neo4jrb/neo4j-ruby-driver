@@ -12,11 +12,15 @@ module Neo4j::Driver
       # Once on ruby 3 add the default value again, ruby 3 will not confuse last hash with keyword parameter
       # def driver(uri, auth_token = nil, **config)
       def driver(uri, auth_token, **config)
+        internal_driver(uri, auth_token, config, Internal::DriverFactory.new)
+      end
+
+      def internal_driver(uri, auth_token, config, factory)
         check do
           uri = URI(uri)
           config = Config.new(**config)
 
-          Internal::DriverFactory.new_instance(
+          factory.new_instance(
             uri,
             auth_token || AuthTokens.none,
             config.java_config.routing_settings,
