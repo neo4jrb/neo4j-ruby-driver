@@ -34,7 +34,6 @@ end.spec gem_name do
   dependency 'activesupport', '>= 0'
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
-  dependency 'bundler', '2.2.31', :dev
   dependency 'hoe-bundler', '>= 0', :dev
   dependency 'hoe-gemspec', '>= 0', :dev
   dependency 'parallel', '>= 0', :dev
