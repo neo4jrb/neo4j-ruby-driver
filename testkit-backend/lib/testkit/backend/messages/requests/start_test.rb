@@ -77,7 +77,8 @@ module Testkit::Backend::Messages
      ]
 
       DOMAIN_RESOLVER_ON_JAVA = [
-        /test_routing_v.*\.RoutingV.*\.test_should_request_rt_from_all_initial_routers_until_successful/,#
+        /test_routing_v.*\.RoutingV.*\.test_should_request_rt_from_all_initial_routers_until_successful/,
+        /test_routing_v.*\.RoutingV.*\.test_should_successfully_acquire_rt_when_router_ip_changes/,
       ]
 
       def process
