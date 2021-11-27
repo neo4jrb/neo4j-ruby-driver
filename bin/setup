@@ -10,6 +10,8 @@ set -vx
 #neoctrl-install $NEO4J_EDITION_FLAG $NEO4J_VERSION servers
 #neoctrl-configure $NEO4J_DIR dbms.directories.import=
 
+gem uninstall bundler -v 2.2.32
+gem install bundler -v 2.2.31
 gem install rake
 gem install hoe
 gem install hoe-bundler

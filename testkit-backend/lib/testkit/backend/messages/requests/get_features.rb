@@ -16,7 +16,7 @@ module Testkit::Backend::Messages
           'Feature:Bolt:4.3',
           'Feature:Bolt:4.4',
           'Feature:Impersonation',
-          # 'Feature:TLS:1.1', # should support as java driver supports
+          # 'Feature:TLS:1.1', # probably not supported by jruby
           'Feature:TLS:1.2',
           'AuthorizationExpiredTreatment',
           # 'Optimization:ImplicitDefaultArguments', #
