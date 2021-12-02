@@ -2,7 +2,6 @@ module Neo4j::Driver::Internal
   module Security
     class SecurityPlanImpl < Struct.new(:requires_encryption, :ssl_context, :requires_hostname_verification,
                                         :revocation_strategy)
-      
       class << self
         def for_all_certificates(requires_hostname_verification, revocation_strategy)
           ssl_context = javax.net.ssl.SSLContext.get_instance('TLS')
@@ -48,14 +47,14 @@ module Neo4j::Driver::Internal
 
           ssl_context = javax.net.ssl.SSLContext.get_instance('TLS')
 
-          trust_manager_factory = javax.net.ssl.TrustManager.get_instance(javax.net.ssl.TrustManagerFactory.get_default_algorithm())
+          trust_manager_factory = javax.net.ssl.TrustManager.get_instance(javax.net.ssl.TrustManagerFactory.get_default_algorithm)
           trust_manager_factory.init(javax.net.ssl.CertPathTrustManagerParameters.new(pkix_builder_parameters))
           ssl_context.init(javax.net.ssl.KeyManager[0].new, trust_manager_factory.get_trust_managers(), nil)
           ssl_context
         end
 
         def load_system_certificates(trusted_key_store)
-          temp_factory = javax.net.ssl.TrustManagerFactory.get_instance(javax.net.ssl.TrustManagerFactory.get_default_algorithm())
+          temp_factory = javax.net.ssl.TrustManagerFactory.get_instance(javax.net.ssl.TrustManagerFactory.get_default_algorithm)
           temp_factory.init(java.security.KeyStore.java_class.cast(nil))
 
           x509_trust_manager = nil
