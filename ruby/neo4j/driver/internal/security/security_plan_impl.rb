@@ -26,7 +26,7 @@ module Neo4j::Driver::Internal
         private
 
         def config_ssl_context(custom_cert_file, revocation_strategy)
-          trusted_key_store = java.security.KeyStore.get_instance(java.security.KeyStore.get_default_type())
+          trusted_key_store = java.security.KeyStore.get_instance(java.security.KeyStore.get_default_type)
           trusted_key_store.load(nil, nil)
 
           if !custom_cert_file.nil?
@@ -49,7 +49,7 @@ module Neo4j::Driver::Internal
 
           trust_manager_factory = javax.net.ssl.TrustManager.get_instance(javax.net.ssl.TrustManagerFactory.get_default_algorithm)
           trust_manager_factory.init(javax.net.ssl.CertPathTrustManagerParameters.new(pkix_builder_parameters))
-          ssl_context.init(javax.net.ssl.KeyManager[0].new, trust_manager_factory.get_trust_managers(), nil)
+          ssl_context.init(javax.net.ssl.KeyManager[0].new, trust_manager_factory.get_trust_managers, nil)
           ssl_context
         end
 
