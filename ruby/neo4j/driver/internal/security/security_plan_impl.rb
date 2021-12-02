@@ -76,14 +76,6 @@ module Neo4j::Driver::Internal
 
       private
 
-      def initialize(requires_encryption, ssl_context, requires_hostname_verification, revocation_strategy)
-        REQUIRE_ENCRYPTION = requires_encryption
-        SSL_CONTEXT = ssl_context
-        REQUIRES_HOSTNAME_VERIFICATION = requires_hostname_verification
-        REVOCATIONSTRATEGY = revocation_strategy
-      end      
-
-
       class TrustAllTrustManager < javax.net.ssl.X509TrustManager
         def check_client_trusted(chain, auth_type)
           raise Neo4j::Driver::Exceptions::CertificateException, 'All client connections to this client are forbidden.'
