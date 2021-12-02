@@ -74,21 +74,20 @@ module Neo4j::Driver::Internal
         end
       end
 
-      private
-
       class TrustAllTrustManager < javax.net.ssl.X509TrustManager
         def check_client_trusted(chain, auth_type)
           raise Neo4j::Driver::Exceptions::CertificateException, 'All client connections to this client are forbidden.'
         end
 
         def check_server_trusted(chain, auth_type)
-          
         end
 
         def get_accepted_issuers
           java.security.cert.X509Certificate[0].new
         end
       end
+
+      private_constant :TrustAllTrustManager
     end
   end
 end
