@@ -25,23 +25,23 @@ module Neo4j::Driver::Internal
 
         private
 
-        def config_ssl_context(custom_cert_file, revocation_strategy)
+        def configure_ssl_context(custom_cert_file, revocation_strategy)
           trusted_key_store = java.security.KeyStore.get_instance(java.security.KeyStore.get_default_type)
           trusted_key_store.load(nil, nil)
 
           if !custom_cert_file.nil?
-            org.neo4j.driver.internal.util.CertificateTool.loadX509_cert(custom_cert_file, trusted_key_store)
+            Util::CertificateTool.loadX509_cert(custom_cert_file, trusted_key_store)
           else
             load_system_certificates(trusted_key_store)
           end
 
           pkix_builder_parameters = java.security.cert.PKIXBuilderParameters.new(trusted_key_store, java.security.cert.X509CertSelector.new)
-          pkix_builder_parameters.setRevocationEnabled(org.neo4j.driver.internal.RevocationStrategy.requiresRevocationChecking(revocation_strategy))
+          pkix_builder_parameters.set_revocation_enabled(RevocationStrategy.requires_revocation_checking?(revocation_strategy))
 
-          if org.neo4j.driver.internal.RevocationStrategy.requiresRevocationChecking(revocation_strategy)
-            System.set_property('jdk.tls.client.enableStatusRequestExtension', true)
-            if revocation_strategy == org.neo4j.driver.internal.RevocationStrategy.VERIFY_IF_PRESENT
-              Security.set_property('ocsp.enable', true)
+          if RevocationStrategy.requires_revocation_checking?(revocation_strategy)
+            java.lang.System.set_property('jdk.tls.client.enableStatusRequestExtension', true)
+            if revocation_strategy == RevocationStrategy::VERIFY_IF_PRESENT
+              java.security.Security.set_property('ocsp.enable', true)
             end
           end
 
@@ -55,7 +55,7 @@ module Neo4j::Driver::Internal
 
         def load_system_certificates(trusted_key_store)
           temp_factory = javax.net.ssl.TrustManagerFactory.get_instance(javax.net.ssl.TrustManagerFactory.get_default_algorithm)
-          temp_factory.init(java.security.KeyStore.java_class.cast(nil))
+          temp_factory.init(nil)
 
           x509_trust_manager = nil
           temp_factory.get_trust_managers.each do |trust_manager|
@@ -68,7 +68,7 @@ module Neo4j::Driver::Internal
           if x509_trust_manager.nil?
             raise Neo4j::Driver::Exceptions::CertificateException, 'No system certificates found'
           else
-            org.neo4j.driver.internal.util.CertificateTool.load_x509_cert(x509_trust_manager.get_accepted_issuer, trusted_key_store)
+            Util::CertificateTool.load_x509_cert(x509_trust_manager.get_accepted_issuer, trusted_key_store)
           end
         end
       end
