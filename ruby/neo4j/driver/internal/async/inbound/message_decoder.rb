@@ -3,7 +3,14 @@ module Neo4j::Driver
     module Async
       module Inbound
         class MessageDecoder
-          DEFAULT_CUMULATOR = determine_default_cumulator
+
+          class << self
+            def determine_default_cumulator
+              'merge' ==  value = java.lang.System.get_property('message_decoder_cumulator', '') ? MERGE_CUMULATOR : COMPOSITE_CUMULATOR
+            end
+          end
+
+          DEFAULT_CUMULATOR = self.determine_default_cumulator
           attr_accessor :read_message_boundary
 
           def initialize
@@ -36,12 +43,6 @@ module Neo4j::Driver
               # pass the full message to the next handler in the pipeline
               out.add(message_buf)
               read_message_boundary = false
-            end
-          end
-
-          class << self
-            def determine_default_cumulator
-              'merge' ==  value = java.lang.System.get_property('message_decoder_cumulator', '') ? MERGE_CUMULATOR : COMPOSITE_CUMULATOR
             end
           end
         end
