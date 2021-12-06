@@ -2,7 +2,11 @@ module Neo4j::Driver
   module Internal
     module Async
       module Outbound
-        class ChunkAwareByteBufOutput < Struct.new(:max_chunk_size, :buf, :current_chunk_start_index, :current_chunk_size)
+        class ChunkAwareByteBufOutput
+          attr_reader :max_chunk_size
+
+          attr_accessor :buf, :current_chunk_start_index, :current_chunk_size
+
           def initialize
             max_chunk_size = verify_max_chunk_size(Connection::BoltProtocolUtil::DEFAULT_MAX_OUTBOUND_CHUNK_SIZE_BYTES)
           end

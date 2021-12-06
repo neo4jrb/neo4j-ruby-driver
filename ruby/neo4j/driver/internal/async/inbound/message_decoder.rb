@@ -8,7 +8,6 @@ module Neo4j::Driver
 
           def initialize
             set_cumulator(DEFAULT_CUMULATOR)
-            @read_message_boundary = nil
           end
 
           def channel_read(ctx, msg)
@@ -22,32 +21,27 @@ module Neo4j::Driver
             io.netty.handler.codec.ByteToMessageDecoder.channel_read(ctx, msg)
           end
 
-          def decode(ctx, in, out)
+          def decode(ctx, inward, out)
             if read_message_boundary
 
               # now we have a complete message in the input buffer
 
               # increment ref count of the buffer and create it's duplicate that shares the content
               # duplicate will be the output of this decoded and input for the next one
-              message_buf = in.retained_duplicate
+              message_buf = inward.retained_duplicate
 
               # signal that whole message was read by making input buffer seem like it was fully read/consumed
-              in.read_index(in.readable_bytes)
+              inward.reader_index(inward.readable_bytes)
 
               # pass the full message to the next handler in the pipeline
               out.add(message_buf)
               read_message_boundary = false
             end
-
           end
 
           class << self
             def determine_default_cumulator
-              value = java.lang.System.get_property('message_decoder_cumulator', '')
-
-              return MERGE_CUMULATOR if 'merge' == value
-
-              return COMPOSITE_CUMULATOR
+              'merge' ==  value = java.lang.System.get_property('message_decoder_cumulator', '') ? MERGE_CUMULATOR : COMPOSITE_CUMULATOR
             end
           end
         end

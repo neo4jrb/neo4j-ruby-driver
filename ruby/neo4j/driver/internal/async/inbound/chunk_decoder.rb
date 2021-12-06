@@ -3,7 +3,7 @@ module Neo4j::Driver
     module Async
       module Inbound
         class ChunkDecoder
-          # MAX_FRAME_BODY_LENGTH = '0xFFFF'
+          MAX_FRAME_BODY_LENGTH = '0xFFFF'
           MAX_FRAME_BODY_LENGTH = 0
           LENGTH_FIELD_OFFSET = 0
           LENGTH_FIELD_LENGTH = 2
@@ -17,7 +17,6 @@ module Neo4j::Driver
           def initialize(logging)
             io.netty.handler.codec.LengthFieldBasedFrameDecoder.new(MAX_FRAME_LENGTH, LENGTH_FIELD_OFFSET, LENGTH_FIELD_LENGTH, LENGTH_ADJUSTMENT, INITIAL_BYTES_TO_STRIP)
             @logging = logging
-            @log = nil
           end
 
           def handler_added(ctx)

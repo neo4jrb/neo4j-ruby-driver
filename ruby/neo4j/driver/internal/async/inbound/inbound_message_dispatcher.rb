@@ -87,7 +87,6 @@ module Neo4j::Driver
           end
 
           def handle_channel_inactive(cause)
-
             # report issue if the connection has not been terminated as a result of a graceful shutdown request from its
             # parent pool
             if !gracefully_closed

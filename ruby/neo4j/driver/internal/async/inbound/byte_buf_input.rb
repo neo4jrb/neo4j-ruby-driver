@@ -2,7 +2,9 @@ module Neo4j::Driver
   module Internal
     module Async
       module Inbound
-        class ByteBufInput < Struct.new(:buf)
+        class ByteBufInput
+          attr_accessor :buf
+
           def start(new_buf)
             assert_not_started
             buf = java.util.Objects.require_non_null(new_buf)
@@ -43,9 +45,7 @@ module Neo4j::Driver
           private
 
           def assert_not_started
-            unless buf.nil?
-              raise Neo4j::Driver::Exceptions::IllegalStateException, 'Already started'
-            end
+            raise Neo4j::Driver::Exceptions::IllegalStateException, 'Already started' unless buf.nil?
           end
         end
       end

@@ -7,7 +7,6 @@ module Neo4j::Driver
 
           def initialize(logging)
             @logging = logging
-            @message_dispatcher, @log, @error_log, @failed = nil
           end
 
           def handler_added(ctx)
