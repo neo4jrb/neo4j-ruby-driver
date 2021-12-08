@@ -18,28 +18,12 @@ module Neo4j::Driver
             @idle_time_before_connection_test = idle_time_before_connection_test
           end
 
-          def idle_time_before_connection_test
-            idle_time_before_connection_test
-          end
-
           def idle_time_before_connection_test_enabled?
             idle_time_before_connection_test >= 0
           end
 
-          def max_connection_lifetime
-            max_connection_lifetime
-          end
-
           def max_connection_lifetime_enabled
             max_connection_lifetime > 0
-          end
-
-          def max_connection_pool_size
-            max_connection_pool_size
-          end
-
-          def connection_acquisition_timeout
-            connection_acquisition_timeout
           end
         end
       end
