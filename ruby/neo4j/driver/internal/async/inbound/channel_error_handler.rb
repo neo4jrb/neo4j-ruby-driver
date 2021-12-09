@@ -16,9 +16,7 @@ module Neo4j::Driver
           end
 
           def handler_removed(ctx)
-            message_dispatcher = nil
-            log = nil
-            failed = nil
+            @message_dispatcher = @log = @failed = nil
           end
 
           def channel_inactive(ctx)
