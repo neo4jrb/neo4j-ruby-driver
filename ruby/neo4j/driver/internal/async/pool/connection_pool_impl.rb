@@ -138,7 +138,9 @@ module Neo4j::Driver
 
           # for testing only
           def get_pool(address)
-            Util::LockUtil.execute_with_lock(address_to_pool_lock.read_lock, -> () { address_to_pool.get(address) }.call)
+            Util::LockUtil.execute_with_lock(address_to_pool_lock.read_lock) do
+              address_to_pool.get(address)
+            end
           end
 
           def new_pool(address)
