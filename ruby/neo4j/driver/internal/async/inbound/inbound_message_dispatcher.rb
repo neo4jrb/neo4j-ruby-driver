@@ -116,7 +116,7 @@ module Neo4j::Driver
           end
 
           def clear_current_error
-            current_error = nil
+            @current_error = nil
           end
 
           def prepare_to_close_channel
