@@ -167,10 +167,10 @@ module Neo4j::Driver
           end
 
           def close_pool(pool)
-            pool.close.when_complete(-> (_ignored, error) do
+            pool.close.when_complete do |_ignored, error|
               # after the connection pool is removed/close, I can remove its metrics.
               metrics_listener.remove_pool_metrics(pool.id)
-            end.call)
+            end
           end
 
           def close_pool_in_background(address, pool)
