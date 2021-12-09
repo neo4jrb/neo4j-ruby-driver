@@ -25,9 +25,9 @@ module Neo4j::Driver
             ts = Connection::ChannelAttributes.creation_timestamp(channel)
 
             # Override current value ONLY if the new one is greater
-            min_creation_timestamp_millis_opt.get_and_update(-> (prev) do
-              java.util.Optional.of(prev.filter(-> (prev_ts) { ts <= prev_ts }.call.or_else(ts)))
-            end.call)
+            min_creation_timestamp_millis_opt.get_and_update do |prev|
+              java.util.Optional.of(prev.filter(-> (prev_ts) { ts <= prev_ts }.or_else(ts)))
+            end
           end
 
           private

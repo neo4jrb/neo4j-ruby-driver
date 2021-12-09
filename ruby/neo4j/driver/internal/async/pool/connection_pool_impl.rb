@@ -96,7 +96,7 @@ module Neo4j::Driver
           end
 
           def is_open?(address)
-            Util::LockUtil.execute_with_lock(address_to_pool_lock.read_lock, -> () {address_to_pool.contains_key(address)}.call)
+            Util::LockUtil.execute_with_lock(address_to_pool_lock.read_lock, -> () {address_to_pool.contains_key(address)})
           end
 
           def to_string
@@ -130,7 +130,7 @@ module Neo4j::Driver
               unless address.nil?
                 pool.release(channel)
                 close_pool_in_background(address, pool)
-                Util::LockUtil.execute_with_lock(address_to_pool_lock.write_lock, -> (){ address_to_pool.remove(address) }.call)
+                Util::LockUtil.execute_with_lock(address_to_pool_lock.write_lock, -> (){ address_to_pool.remove(address) })
               end
               java.lang.IllegalStateException.new(Spi::ConnectionPool::CONNECTION_POOL_CLOSED_ERROR_MESSAGE)
             end
@@ -154,7 +154,7 @@ module Neo4j::Driver
             if !existing_pool.nil?
               existing_pool
             else
-              Util::LockUtil.execute_with_lock(address_to_pool_lock.write_lock, -> () do
+              Util::LockUtil.execute_with_lock(address_to_pool_lock.write_lock) do
                 pool = new_pool(address)
                 if pool.nil?
                   # before the connection pool is added I can add the metrics for the pool.
@@ -162,7 +162,7 @@ module Neo4j::Driver
                   address_to_pool.put(address, pool)
                 end
                 pool
-              end.call)
+              end
             end
           end
 
@@ -175,11 +175,11 @@ module Neo4j::Driver
 
           def close_pool_in_background(address, pool)
             # Close in the background
-            close_pool(pool).when_complete(-> (_ignored, error) do
+            close_pool(pool).when_complete do |_ignored, error|
               unless error.nil?
                 log.warn( format("An error occurred while closing connection pool towards #{address}."), error)
               end
-            end.call)
+            end
           end
 
           def event_loop_group
@@ -190,20 +190,20 @@ module Neo4j::Driver
             # This is an attempt to speed up the shut down procedure of the driver
             # This timeout is needed for `closePoolInBackground` to finish background job, especially for races between `acquire` and `close`.
             event_loop_group.shutdown_gracefully(200, 15_000, java.util.concurrent.TimeUnit.MILLISECONDS)
-            Util::Futures.as_completion_stage(event_loop_group, termination_future).when_complete( -> (_ignore, event_loop_group_termination_error ) do
+            Util::Futures.as_completion_stage(event_loop_group, termination_future).when_complete do |_ignore, event_loop_group_termination_error|
               combined_errors = Util::Futures.combined_errors(poll_close_error, eventLoopGroupTerminationError)
               Util::Futures.complete_with_null_if_no_error(close_future, combined_errors)
-            end)
+            end
           end
 
           def close_all_pools
             java.util.concurrent.CompletableFuture.all_of(
-                address_to_pool.entry_set.stream.map{-> (entry) do
+                address_to_pool.entry_set.stream.map do |entry|
                   address = entry.get_key
                   pool = entry.get_value
                   # Wait for all pools to be closed.
                   close_pool(pool).to_completable_future
-                end}
+                end
               ).java.util.concurrent.CompletableFuture.new
           end
         end
