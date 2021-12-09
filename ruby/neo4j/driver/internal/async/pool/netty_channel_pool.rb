@@ -9,7 +9,7 @@ module Neo4j::Driver
           # Do not check channels when they are returned to the pool.
           RELEASE_HEALTH_CHECK = false
 
-          attr_reader :delegate, :closed, :id, :close_future
+          attr_reader :id
 
           def initialize(address, connector, bootstrap, handler, health_check, acquire_timeout_millis, max_connections)
             java.util.Objects.require_non_null(address)
