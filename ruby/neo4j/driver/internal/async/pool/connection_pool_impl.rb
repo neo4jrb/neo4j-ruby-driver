@@ -100,7 +100,7 @@ module Neo4j::Driver
           end
 
           def to_string
-            Util::LockUtil.execute_with_lock(address_to_pool_lock.read_lock, -> () {"ConnectionPoolImpl{ pools=#{address_to_pool}}"}.call)
+            Util::LockUtil.execute_with_lock(address_to_pool_lock.read_lock) { "ConnectionPoolImpl{ pools=#{address_to_pool}}" })
           end
 
           private
