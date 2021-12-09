@@ -20,7 +20,7 @@ module Neo4j::Driver
           end
 
           def handler_added(ctx)
-            log = Logging::ChannelActivityLogger.new(ctx.channel, logging, get_class)
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, logging, self.class)
           end
 
           def handler_removed0(ctx)
