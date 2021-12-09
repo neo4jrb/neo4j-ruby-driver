@@ -24,7 +24,7 @@ module Neo4j::Driver
           end
 
           def handler_removed0(ctx)
-            log = nil
+            @log = nil
           end
 
           def extract_frame(ctx, buffer, index, length)
