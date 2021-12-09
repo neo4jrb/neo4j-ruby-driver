@@ -15,7 +15,7 @@ module Neo4j::Driver
             @channel_health_checker = NettyChannelHealthChecker.new(settings, clock, logging)
             @settings = settings
             @metrics_listener = metrics_listener
-            @log = logging.get_log(get_class)
+            @log = logging.get_log(self.class)
             @owns_event_loop_group = owns_event_loop_group
             @connection_factory = NetworkConnectionFactory.new(clock, metrics_listener, logging)
           end
