@@ -40,10 +40,6 @@ module Neo4j::Driver
             closed.get
           end
 
-          def id
-            id
-          end
-
           private
 
           def pool_id(server_address)
