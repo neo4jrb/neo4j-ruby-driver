@@ -8,8 +8,8 @@ module Neo4j::Driver
           NOT_CONFIGURED = -1
           DEFAULT_MAX_CONNECTION_POOL_SIZE = 100
           DEFAULT_IDLE_TIME_BEFORE_CONNECTION_TEST = NOT_CONFIGURED
-          DEFAULT_MAX_CONNECTION_LIFETIME = 60*60*1000
-          DEFAULT_CONNECTION_ACQUISITION_TIMEOUT = 60*1000
+          DEFAULT_MAX_CONNECTION_LIFETIME = java.util.concurrent.TimeUnit::HOURS.to_millis(1)
+          DEFAULT_CONNECTION_ACQUISITION_TIMEOUT = java.util.concurrent.TimeUnit::SECONDS.to_millis(60)
 
           def initialize(max_connection_pool_size, connection_acquisition_timeout, max_connection_lifetime, idle_time_before_connection_test)
             @max_connection_pool_size = max_connection_pool_size

@@ -29,7 +29,7 @@ module Neo4j::Driver
             metrics_listener.before_acquiring_or_creating(pool.id, acquire_event)
             channel_future = pool.acquire
 
-            channel_future.handle(-> (channel, error) do
+            channel_future.handle do |channel, error|
                 begin
                   process_acquisition_error(pool, address, error)
                   assert_not_closed(address, channel, pool)
@@ -41,11 +41,11 @@ module Neo4j::Driver
                 ensure
                   metrics_listener.after_acquiring_or_creating(pool.id)
                 end
-              end.call)
+              end
           end
 
           def retain_all(addresses_to_retain)
-            Util::LockUtil.execute_with_lock(address_to_pool_lock, -> () do
+            Util::LockUtil.execute_with_lock(address_to_pool_lock) do
                 entry_iterator = address_to_pool.entry_set.iterator
                 entry_iterator.each do |iterator|
                   address = iterator.get_key
@@ -64,7 +64,7 @@ module Neo4j::Driver
                     end
                   end
                 end
-              end.call)
+              end
           end
 
           def in_use_connections(address)
@@ -79,18 +79,18 @@ module Neo4j::Driver
             if closed.compare_and_set(false, true)
               netty_channel_tracker.prepare_to_close_channels
 
-              Util::LockUtil.execute_with_lock_async(address_to_pool_lock.write_lock, -> () do
+              Util::LockUtil.execute_with_lock_async(address_to_pool_lock.write_lock) do
                 # We can only shutdown event loop group when all netty pools are fully closed,
                 # otherwise the netty pools might missing threads (from event loop group) to execute clean ups.
-                close_all_pools.when_complete(-> (_ignored, poll_close_error) do
+                close_all_pools.when_complete do |_ignored, poll_close_error|
                   address_to_pool.clear
                   if !owns_event_loop_group
                     Util::Futures.complete_with_null_if_no_error(close_future, poll_close_error)
                   else
                     shutdown_event_loop_group(poll_close_error)
                   end
-                end.call)
-              end.call)
+                end
+              end
             end
             close_future
           end
