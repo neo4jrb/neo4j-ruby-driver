@@ -30,18 +30,18 @@ module Neo4j::Driver
             channel_future = pool.acquire
 
             channel_future.handle do |channel, error|
-                begin
-                  process_acquisition_error(pool, address, error)
-                  assert_not_closed(address, channel, pool)
-                  Connection::ChannelAttributes.set_authorization_state_listener(channel, channel_health_checker)
-                  connection = connection_factory.create_connection(channel, pool)
+              begin
+                process_acquisition_error(pool, address, error)
+                assert_not_closed(address, channel, pool)
+                Connection::ChannelAttributes.set_authorization_state_listener(channel, channel_health_checker)
+                connection = connection_factory.create_connection(channel, pool)
 
-                  metrics_listener.after_acquired_or_created(pool.id, acquire_event)
-                  connection
-                ensure
-                  metrics_listener.after_acquiring_or_creating(pool.id)
-                end
+                metrics_listener.after_acquired_or_created(pool.id, acquire_event)
+                connection
+              ensure
+                metrics_listener.after_acquiring_or_creating(pool.id)
               end
+            end
           end
 
           def retain_all(addresses_to_retain)
