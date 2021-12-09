@@ -10,9 +10,9 @@ module Neo4j::Driver
           end
 
           def handler_added(ctx)
-            message_dispatcher = java.util.Objects.require_non_null(::Connection::ChannelAttributes.message_dispatcher(ctx.channel))
-            log = Logging::ChannelActivityLogger.new(ctx.channel, logging, get_class)
-            error_log = Logging::ChannelErrorLogger.new(ctx.channel, logging)
+            @message_dispatcher = java.util.Objects.require_non_null(::Connection::ChannelAttributes.message_dispatcher(ctx.channel))
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, logging, get_class)
+            @error_log = Logging::ChannelErrorLogger.new(ctx.channel, logging)
           end
 
           def handler_removed(ctx)
