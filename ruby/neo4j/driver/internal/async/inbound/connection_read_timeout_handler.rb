@@ -13,7 +13,7 @@ module Neo4j::Driver
             unless triggered
               ctx.fire_exception_caught(Neo4j::Driver::Exception::ConnectionReadTimeoutException::INSTANCE)
               ctx.close
-              triggered = true
+              @triggered = true
             end
           end
         end
