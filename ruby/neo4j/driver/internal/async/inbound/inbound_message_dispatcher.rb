@@ -119,14 +119,6 @@ module Neo4j::Driver
             current_error = nil
           end
 
-          def current_error
-            current_error
-          end
-
-          def fatal_error_occurred
-            fatal_error_occurred
-          end
-
           def prepare_to_close_channel
             gracefully_closed = true
           end
