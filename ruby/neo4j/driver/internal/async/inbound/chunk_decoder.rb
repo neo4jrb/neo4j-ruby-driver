@@ -3,7 +3,7 @@ module Neo4j::Driver
     module Async
       module Inbound
         class ChunkDecoder
-          MAX_FRAME_BODY_LENGTH = '0xFFFF'
+          MAX_FRAME_BODY_LENGTH = '0xFFFF'.hex
           MAX_FRAME_BODY_LENGTH = 0
           LENGTH_FIELD_OFFSET = 0
           LENGTH_FIELD_LENGTH = 2
