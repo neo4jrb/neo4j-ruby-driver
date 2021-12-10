@@ -8,16 +8,14 @@ module Neo4j::Driver
           @session = session
         end
 
+        delegate :last_bookmark, :close_async, to: :session
+
         def run_async(query, options = {})
           if query.is_a? String
             param = options.has_key?(:parameters) ? options[:parameters] : parameters(options[:parameter_map] || options[:record] || java.util.Collections.empty_map)
             query = org.neo4j.driver.Query.new(query, param)
           end
           session.run_async(query, options[:config] || org.neo4j.driver.TransactionConfig.empty)
-        end
-
-        def close_async
-          session.close_async
         end
 
         def begin_transaction_async(config = nil)
@@ -33,10 +31,6 @@ module Neo4j::Driver
         def write_transaction_async(work, config = nil)
           config = config.nil? ? org.neo4j.driver.TransactionConfig.empty : config
           transaction_async.(org.neo4j.driver.AccessMode::WRITE, work, config)
-        end
-
-        def last_bookmark
-          session.last_bookmark
         end
 
         private

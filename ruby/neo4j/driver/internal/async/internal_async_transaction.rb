@@ -7,20 +7,10 @@ module Neo4j::Driver
           @tx = tx
         end
 
-        def commit_async
-          @tx.commit_async
-        end
-
-        def rollback_async
-          @tx.rollback_async
-        end
+        delegate :commit_async, :rollback_async, :open?, to: :@tx
 
         def run_async(query)
           @tx.run_async(query)
-        end
-
-        def is_open?
-          @tx.is_open?
         end
       end
     end
