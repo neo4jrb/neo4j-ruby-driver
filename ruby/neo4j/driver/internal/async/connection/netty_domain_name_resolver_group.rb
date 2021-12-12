@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     module Async
       module Connection
-        class NettyDomainNameResolverGroup < io.netty.resolver.AddressResolverGroup
+        class NettyDomainNameResolverGroup < org.neo4j.driver.internal.shaded.io.netty.resolver.AddressResolverGroup
           attr_reader :domain_name_resolver
 
           def initialize(domain_name_resolver)

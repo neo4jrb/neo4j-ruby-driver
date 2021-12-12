@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     module Async
       module Connection
-        class HandshakeHandler < io.netty.handler.codec.ReplayingDecoder
+        class HandshakeHandler < org.neo4j.driver.internal.shaded.io.netty.handler.codec.ReplayingDecoder
           attr_reader :pipeline_builder, :handshake_completed_promise, :logging
           attr_accessor :failed, :log, :error_log
 
@@ -43,14 +43,14 @@ module Neo4j::Driver
             end
           end
 
-          def decode(ctx, in, out)
-            server_suggested_version = Messaging::BoltProtocolVersion.from_raw_bytes(in.read_int)
+          def decode(ctx, _in, out)
+            server_suggested_version = Messaging::BoltProtocolVersion.from_raw_bytes(_in.read_int)
             log.debug("S: [Bolt Handshake] #{server_suggested_version}")
 
             # this is a one-time handler, remove it when protocol version has been read
             ctx.pipeline.remove
 
-            protocol = protocol_for_version.(server_suggested_version)
+            protocol = protocol_for_version(server_suggested_version)
             if !protocol.nil?
               protocol_selected(server_suggested_version, protocol.create_message_format, ctx)
             else
@@ -85,7 +85,7 @@ module Neo4j::Driver
           end
 
           def fail(ctx, error)
-            ctx.close.add_listener(->(_future){handshake_completed_promise.try_failure(error)})
+            ctx.close.add_listener(->(_future) { handshake_completed_promise.try_failure(error) })
           end
 
           class << self
@@ -103,14 +103,14 @@ module Neo4j::Driver
 
             def transform_error(error)
               # unwrap the DecoderException if it has a cause
-              error = error.get_cause = if error.kind_of?(io.netty.handler.codec.DecoderException) && !error.get_cause.nil?
-
-              return error if error.kind_of?(Neo4j::Driver::Exception::ServiceUnavailableException)
-
-              if error.kind_of?(javax.net.ssl.SSLHandshakeException)
-                return Neo4j::Driver::Exception::SecurityException.new('Failed to establish secured connection with the server', error)
+              error = error.get_cause if error.kind_of?(org.neo4j.driver.internal.shaded.io.netty.handler.codec.DecoderException) && !error.get_cause.nil?
+              case error
+              when Neo4j::Driver::Exception::ServiceUnavailableException
+                error
+              when javax.net.ssl.SSLHandshakeException
+                Neo4j::Driver::Exception::SecurityException.new('Failed to establish secured connection with the server', error)
               else
-                return Neo4j::Driver::Exception::SecurityException.new('Failed to establish connection with the server', error)
+                Neo4j::Driver::Exception::ServiceUnavailableException('Failed to establish connection with the server', error)
               end
             end
           end

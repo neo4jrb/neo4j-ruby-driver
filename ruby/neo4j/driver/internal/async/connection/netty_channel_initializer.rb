@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     module Async
       module Connection
-        class NettyChannelInitializer < io.netty.channel.ChannelInitializer
+        class NettyChannelInitializer < org.neo4j.driver.internal.shaded.io.netty.channel.ChannelInitializer
           attr_reader :address, :security_plan, :connect_timeout_millis, :clock, :logging
 
           def initialize(address, security_plan, connect_timeout_millis, clock, logging)

@@ -2,8 +2,7 @@ module Neo4j::Driver
   module Internal
     module Async
       module Connection
-        class ChannelConnectedListener < Struct.new(:address, :pipeline_builder, :handshake_completed_promise
-                                                    :logging)
+        class ChannelConnectedListener < Struct.new(:address, :pipeline_builder, :handshake_completed_promise, :logging)
           def operation_complete(future)
             channel = future.channel
             log = Logging::ChannelActivityLogger.new(channel, logging, get_class)
@@ -21,7 +20,7 @@ module Neo4j::Driver
           end
 
           def self.database_unavailable_error(address, cause)
-            Neo4j::Driver::Exceptions::ServiceUnavailableException, java.lang.String.format(
+            Neo4j::Driver::Exceptions::ServiceUnavailableException(
               "Unable to connect to #{address}, ensure the database is running and that there is a working network connection to it.",
               cause)
           end

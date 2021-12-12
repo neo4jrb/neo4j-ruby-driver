@@ -2,11 +2,11 @@ module Neo4j::Driver
   module Internal
     module Async
       module Connection
-        class NettyDomainNameResolver < io.netty.resolver.InetNameResolver
+        class NettyDomainNameResolver < org.neo4j.driver.internal.shaded.io.netty.resolver.InetNameResolver
           attr_reader :domain_name_resolver
 
           def initialize(executor, domain_name_resolver)
-            io.netty.resolver.InetNameResolver.new(executor)
+            org.neo4j.driver.internal.shaded.io.netty.resolver.InetNameResolver.new(executor)
             @domain_name_resolver = domain_name_resolver
           end
 

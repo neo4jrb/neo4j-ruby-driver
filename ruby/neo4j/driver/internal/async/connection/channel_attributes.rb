@@ -3,20 +3,21 @@ module Neo4j::Driver
     module Async
       module Connection
         class ChannelAttributes
+=begin
+          CONNECTION_ID = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('connectionId')
+          POOL_ID = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('poolId')
+          PROTOCOL_VERSION = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('protocolVersion')
+          SERVER_AGENT = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverAgent')
+          ADDRESS = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverAddress')
+          SERVER_VERSION = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverVersion')
+          CREATION_TIMESTAMP = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('creationTimestamp')
+          LAST_USED_TIMESTAMP = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('lastUsedTimestamp')
+          MESSAGE_DISPATCHER = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('messageDispatcher')
+          TERMINATION_REASON = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('terminationReason')
+          AUTHORIZATION_STATE_LISTENER = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('authorizationStateListener')
+          CONNECTION_READ_TIMEOUT = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('connectionReadTimeout')
+=end
 
-          CONNECTION_ID = io.netty.util.AttributeKey.new_instance('connectionId')
-          POOL_ID = io.netty.util.AttributeKey.new_instance('poolId')
-          PROTOCOL_VERSION = io.netty.util.AttributeKey.new_instance('protocolVersion')
-          SERVER_AGENT = io.netty.util.AttributeKey.new_instance('serverAgent')
-          ADDRESS = io.netty.util.AttributeKey.new_instance('serverAddress')
-          SERVER_VERSION = io.netty.util.AttributeKey.new_instance('serverVersion')
-          CREATION_TIMESTAMP = io.netty.util.AttributeKey.new_instance('creationTimestamp')
-          LAST_USED_TIMESTAMP = io.netty.util.AttributeKey.new_instance('lastUsedTimestamp')
-          MESSAGE_DISPATCHER = io.netty.util.AttributeKey.new_instance('messageDispatcher')
-          TERMINATION_REASON = io.netty.util.AttributeKey.new_instance('terminationReason')
-          AUTHORIZATION_STATE_LISTENER = io.netty.util.AttributeKey.new_instance('authorizationStateListener')
-          CONNECTION_READ_TIMEOUT = io.netty.util.AttributeKey.new_instance('connectionReadTimeout')
-          
           class << self
             def connection_id(channel)
               get(channel, CONNECTION_ID)
