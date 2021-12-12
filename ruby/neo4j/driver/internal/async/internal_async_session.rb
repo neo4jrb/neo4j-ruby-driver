@@ -1,7 +1,7 @@
 module Neo4j::Driver
   module Internal
     module Async
-      class InternalAsyncSession
+      class InternalAsyncSession < AsyncAbstractQueryRunner
         attr_reader :session
 
         def initialize(session)

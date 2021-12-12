@@ -7,11 +7,7 @@ module Neo4j::Driver
           @tx = tx
         end
 
-        delegate :commit_async, :rollback_async, :open?, to: :@tx
-
-        def run_async(query)
-          @tx.run_async(query)
-        end
+        delegate :commit_async, :rollback_async, :open?, :run_async, to: :@tx
       end
     end
   end
