@@ -22,7 +22,7 @@ module Neo4j::Driver
 
           class << self
             def handshake_buf
-              HANDSHAKE_BUF.clone
+              HANDSHAKE_BUF.duplicate
             end
 
             def handshake_string
