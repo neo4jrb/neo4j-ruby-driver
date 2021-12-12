@@ -3,15 +3,6 @@ set -euo pipefail
 IFS=$'\n\t'
 set -vx
 
-#NEO4J_EDITION_FLAG=-e
-#NEO4J_VERSION=3.5.12
-#if [ -n "$NEO4J_EDITION_FLAG" ]; then NEO4J_EDITION=enterprise; else NEO4J_EDITION=community; fi
-#NEO4J_DIR=servers/neo4j-$NEO4J_EDITION-$NEO4J_VERSION
-#neoctrl-install $NEO4J_EDITION_FLAG $NEO4J_VERSION servers
-#neoctrl-configure $NEO4J_DIR dbms.directories.import=
-
-gem uninstall bundler -v 2.2.32
-gem install bundler -v 2.2.31
 gem install rake
 gem install hoe
 gem install hoe-bundler
