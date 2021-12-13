@@ -22,16 +22,16 @@ module Neo4j::Driver
           @status = Status::OPEN
         end
 
-        def is_open?
+        def open?
           @status.get == Status::OPEN
         end
 
         def enable_auto_read
-          set_auto_read(true) if is_open?
+          set_auto_read(true) if open?
         end
 
         def disable_auto_read
-          set_auto_read(false) if is_open?
+          set_auto_read(false) if open?
         end
 
         def flush
