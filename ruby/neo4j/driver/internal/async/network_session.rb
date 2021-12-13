@@ -2,187 +2,235 @@ module Neo4j::Driver
   module Internal
     module Async
       class NetworkSession
-        attr_reader :server_agent, :server_address, :server_version, :protocol
 
-        def initialize(channel, channel_pool, clock, metrics_listener, logging)
-          @log = logging.get_log(self)
-          @channel = channel
-          @message_dispatcher = Connection::ChannelAttributes.message_dispatcher(channel)
-          @server_agent = Connection::ChannelAttributes.server_agent(channel)
-          @server_address = Connection::ChannelAttributes.server_address(channel)
-          @server_version = Connection::ChannelAttributes.server_version(channel)
-          @protocol = Messaging::BoltProtocol.for_channel(channel)
-          @channel_pool = channel_pool
-          @release_future = java.util.concurrent.CompletableFuture.new
-          @clock = clock
-          @metrics_listener = metrics_listener
-          @in_use_event = metrics_listener.create_listener_event
-          @connection_read_timeout = Connection::ChannelAttributes.connection_read_timeout(channel) || nil
-          metrics_listener.after_connection_created(Connection::ChannelAttributes.pool_id(channel), @in_use_event)
-          @status = Status::OPEN
+        attr_reader :retry_logic
+
+        def initialize(connection_provider, retry_logic, database_name, mode, bookmark_holder, impersonated_user, fetch_size, logging)
+          @connection_provider = connection_provider
+          @mode = mode
+          @retry_logic = retry_logic
+          @log = Logging::PrefixedLogger.new("[#{hash_code}]", logging.get_log(self))
+          @bookmark_holder = bookmark_holder
+          @database_name_future = database_name.database_name.map(-> (_igonred) { java.util.concurrent.CompletableFuture.completed_future(database_name) }).or_else(java.util.concurrent.CompletableFuture.new)
+          @connection_context = NetworkSessionConnectionContext.new(@database_name_future, @bookmark_holder.get_bookmark, impersonated_user)
+          @fetch_size = fetch_size
+          @transaction_stage = Util::Futures.completed_with_null
+          @connection_stage = Util::Futures.completed_with_null
+          @result_cursor_stage = Util::Futures.completed_with_null
+          @open = java.util.concurrent.atomic.AtomicBoolean.new(true)
         end
 
-        def is_open?
-          @status.get == Status::OPEN
+        def rub_async(query, config)
+          new_result_cursor_stage = build_result_cursor_factory(query, config).then_compose(Cursor::ResultCursorFactory.async_result)
+          @result_cursor_stage = new_result_cursor_stage.exceptionally(-> (_error) { nil })
+          new_result_cursor_stage.then_compose(Cursor::AsyncResultCursor::map_successful_run_completion_async).then_apply(-> (cursor) { cursor }) # convert the return type
         end
 
-        def enable_auto_read
-          set_auto_read(true) if is_open?
+        def run_rx(query, config)
+          new_result_cursor_stage = build_result_cursor_factory(query, config).then_compose(Cursor::ResultCursorFactory.rx_result)
+          @result_cursor_stage = new_result_cursor_stage.exceptionally(-> (_error) { nil })
+          new_result_cursor_stage
         end
 
-        def disable_auto_read
-          set_auto_read(false) if is_open?
-        end
+        def begin_transaction_async(config, mode = nil)
+          mode = @mode unless mode.nil?
 
-        def flush
-          flush_in_event_loop if verify_open(nil, nil)
-        end
+          ensure_session_is_open
 
-        def write(message1, handler1, message2 = nil, handler2 = nil)
-          if message2.nil? && handler2.nil?
-            write_message_in_event_loop(message1, handler1, false) if verify_open(handler1, nil)
-          else
-            write_messages_in_event_loop(message1, handler1, message2, handler2, false) if verify_open(handler1, handler2)
-          end
-        end
-
-        def write_and_flush(message1, handler1, message2 = nil, handler2 = nil)
-          if message2.nil? && handler2.nil?
-            write_message_in_event_loop(message1, handler1, true) if verify_open(handler1, nil)
-          else
-            write_messages_in_event_loop(message1, handler1, message2, handler2, true) if verify_open(handler1, handler2)
-          end
-        end
-
-        def reset
-          result = java.util.concurrent.CompletableFuture.new
-          handler = Handlers::ResetResponseHandler.new(@message_dispatcher, result)
-          write_reset_message_if_needed(handler, true)
-          result
-        end
-
-        def release
-          if @status.compare_and_set(Status::OPEN, Status::RELEASED)
-            handler = Handlers::ChannelReleasingResetResponseHandler.new(@channel, @channel_pool, @message_dispatcher, @clock, @release)
-            write_reset_message_if_needed(handler, false)
-            @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
-          end
-          @release_future
-        end
-
-        def terminate_and_release(reason)
-          if @status.compare_and_set(Status::OPEN, Status::TERMINATED)
-            Connection::ChannelAttributes.set_termination_reason(@channel, reason)
-            Util::Futurs.as_completion_stage(@channel.close).exceptionally(-> (_throwable) { nil }).then_compose(-> (_ignored) { @channel_pool.release(@channel) }).when_complete do |_ignored, _throwable|
-              @release_future.complete(nil)
-              @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
+          # create a chain that acquires connection and starts a transaction
+          new_transaction_stage = ensure_no_open_tx_before_starting_tx.then_compose(-> (_ignore) { acquire_connection(mode) }).then_apply do |connection|
+            ImpersonationUtil.ensure_impersonation_support(connection, connection.impersonated_user).then_compose do |connection|
+              tx = UnmanagedTransaction.new(connection, @bookmark_holder, @fetch_size)
+              tx.begin_async(bookmark_holder.get_bookmark, config)
             end
+          end
+
+          # update the reference to the only known transaction
+          current_transaction_stage = @transaction_stage
+
+          # ignore errors from starting new transaction
+          @transaction_stage = new_transaction_stage.exceptionally(-> (_error) { nil }).then_compose do |tx|
+            return current_transaction_stage if tx.nil?
+
+            # new transaction started, keep reference to it
+            java.util.concurrent.CompletableFuture.completed_future
+          end
+
+          new_transaction_stage
+        end
+
+        def reset_async
+          existing_transaction_or_null.then_accept do |tx|
+            tx.mark_terminated unless tx.nil?
+          end.then_compose(-> (_ignore) { @connection_stage }).then_compose do |connection|
+            return connection.reset unless connection.nil? # there exists an active connection, send a RESET message over it
+
+            Util::Futures.completed_with_null
+          end
+        end
+
+        def last_bookmark
+          @bookmark_holder.get_bookmark
+        end
+
+        def release_connection_async
+          @connection_stage.then_compose do |connection|
+            # there exists connection, try to release it back to the pool
+            return connection.release unless connection.nil?
+
+            # no connection so return null
+            return Util::Futures.completed_with_null
+          end
+        end
+
+        def connection_async
+          @connection_stage
+        end
+
+        def open?
+          @open.get
+        end
+
+        def close_async
+          if @open.compare_and_set(true, false)
+            @result_cursor_stage.then_compose do |cursor|
+              # there exists a cursor with potentially unconsumed error, try to extract and propagate it
+              return cursor.discard_all_failure_async unless cursor.nil?
+
+              # no result cursor exists so no error exists
+              Util::Futures.completed_with_null
+            end.then_compose do |cursor_error|
+              close_transaction_and_release_connection.then_apply do |tx_close_error|
+
+                # now we have cursor error, active transaction has been closed and connection has been released
+                # back to the pool; try to propagate cursor and transaction close errors, if any
+                combined_error = Util::Futures.combined_errors(cursor_error, tx_close_error)
+                raise combined_error unless combined_error.nil?
+
+                nil
+              end
+            end
+          end
+
+          Util::Futures.completed_with_null
+        end
+
+        def current_connection_is_open?
+          @connection_stage.handle do |connection, error|
+            error.nil? && # no acquisition error
+            connection != nil? # some connection has actually been acquired
+            connection.open? # and it's still open
           end
         end
 
         private
 
-        def write_reset_message_if_needed(reset_handler, is_session_reset)
-          @channel.event_loop.execute do
-            if is_session_reset && !is_open?
-              reset_handler.on_success(java.util.Collections.empty_map)
-            else
-              # auto-read could've been disabled, re-enable it to automatically receive response for RESET
-              set_auto_read(true)
-              @message_dispatcher.enqueue(reset_handler)
-              @channel.write_and_flush(Messaging::Request::ResetMessage::RESET).add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+        def build_result_cursor_factory(query, config)
+          ensure_session_is_open
+
+          ensure_no_open_tx_before_running_query.then_compose(-> (_ignore) { acquire_connection(@mode) }).then_apply do |connection|
+            ImpersonationUtil.ensure_impersonation_support(connection, connection.impersonated_user).then_compose do |connection|
+              begin
+                factory = connection.protocol.run_in_auto_commit_transaction(connection, query, @bookmark_holder, config, @fetch_size)
+                java.util.concurrent.CompletableFuture.completed_future(factory)
+              rescue Exception => e
+                Util::Futures.failed_future(e)
+              end
             end
           end
         end
 
-        def flush_in_event_loop
-          @channel.event_loop.execute do
-            @channel.flush
-            register_connection_read_timeout(@channel)
-          end
-        end
+        def acquire_connection(mode)
+          current_connection_stage = @connection_stage
 
-        def write_message_in_event_loop(message, handler, flush)
-          @channel.event_loop.execute do
-            @message_dispatcher.enqueue(handler)
+          new_connection_stage = @result_cursor_stage.then_compose do |cursor|
+            return Util::Futures.completed_with_null if cursor_error.nil?
 
-            if flush
-              @channel.write_and_flush(message).add_listener(-> (_future) { register_connection_read_timeout(@channel) })
-            else
-              @channel.write(message, @channel.void_promise)
+            # make sure previous result is fully consumed and connection is released back to the pool
+            cursor.pull_all_failure_async
+          end.then_compose do |error|
+
+            #   there is no unconsumed error, so one of the following is true:
+            #   1) this is first time connection is acquired in this session
+            #   2) previous result has been successful and is fully consumed
+            #   3) previous result failed and error has been consumed
+
+            # return existing connection, which should've been released back to the pool by now
+            return current_connection_stage.exceptionally(-> (_ignore) { nil }) if error.nil?
+
+            # there exists unconsumed error, re-throw it
+            raise java.util.concurrent.CompletionException.new(error)
+          end.then_compose do |existing_connection|
+            if !existing_connection.nil? && existing_connection.open?
+              # there somehow is an existing open connection, this should not happen, just a precondition
+              raise Neo4j::Driver::Exceptions::IllegalStateException.new('Existing open connection detected')
             end
+
+            @connection_provider.acquire_connection(@connection_context.context_with_mode(mode))
           end
+
+          @connection_stage = new_connection_stage.exceptionally(-> (_error) { nil })
+          new_connection_stage
         end
 
-        def write_messages_in_event_loop(message1, handler1, message2, handler2, flush)
-          @channel.event_loop.execute do
-            @message_dispatcher.enqueue(handler1)
-            @message_dispatcher.enqueue(handler2)
-
-            @channel.write(message1, channel.void_promise)
-
-            if flush
-              @channel.write_and_flush(message2).add_listener(-> (_future) { register_connection_read_timeout(@channel) })
-            else
-              @channel.write(message2, @channel.void_promise)
+        def close_transaction_and_release_connection
+          existing_transaction_or_null.then_compose do |tx|
+            unless tx.nil?
+              # there exists an open transaction, let's close it and propagate the error, if any
+              tx.close_async.then_apply(-> (_ignore) { nil }).exceptionally(-> (error) { error })
             end
+
+            # no open transaction so nothing to close
+            Util::Futures.completed_with_null
+          end.then_compose do |tx_close_error|
+            # then release the connection and propagate transaction close error, if any
+            release_connection_async.then_apply(-> (_ignore) { tx_close_error })
           end
         end
 
-        def set_auto_read(value)
-          @channel.config.set_auto_read(value)
+        def ensure_no_open_tx_before_running_query
+          ensure_no_open_tx('Queries cannot be run directly on a session with an open transaction; either run from within the transaction or use a different session.')
         end
 
-        def verify_open(handler1, handler2)
-          connection_status = @status.get
+        def ensure_no_open_tx_before_starting_tx
+          ensure_no_open_tx('You cannot begin a transaction on a session with an open transaction; either run from within the transaction or use a different session.')
+        end
 
-          case connection_status
-          when 'open'
-            true
-          when 'released'
-            error = Neo4j::Driver::Exceptions::IllegalStateException.new("Connection has been released to the pool and can't be used")
-
-            handler1.on_failure(error) unless handler1.nil?
-
-            handler2.on_failure(error) unless handler2.nil?
-
-            false
-          when 'terminated'
-            terminated_error = Neo4j::Driver::Exceptions::IllegalStateException.new("Connection has been terminated and can't be used")
-
-            handler1.on_failure(terminated_error) unless handler1.nil?
-
-            handler2.on_failure(terminated_error) unless handler2.nil?
-
-            false
-          else
-            raise Neo4j::Driver::Exceptions::IllegalStateException.new("Unknown status: #{connection_status}")
+        def ensure_no_open_tx(error_message)
+          existing_transaction_or_null.then_accept do |tx|
+            raise Neo4j::Driver::Exceptions::TransactionNestingException.new(error_message) unless tx.nil?
           end
         end
 
-        def register_connection_read_timeout(channel)
-          if !channel.event_loop.in_event_loop
-            raise Neo4j::Driver::Exceptions::IllegalStateException.new('This method may only be called in the EventLoop')
-          end
-
-          if !@connection_read_timeout.nil? && @connection_read_timeout_handler.nil?
-            connection_read_timeout_handler = Inbound::ConnectionReadTimeoutHandler.new(@connection_read_timeout, java.util.concurrent.TimeUnit::SECONDS)
-            channel.pipeline.add_first(connection_read_timeout_handler)
-            @log.debug('Added ConnectionReadTimeoutHandler')
-
-            @message_dispatcher.set_before_last_handler_hook do |message_type|
-              channel.pipeline.remove(connection_read_timeout_handler)
-              connection_read_timeout_handler = nil
-              @message_dispatcher.set_before_last_handler_hook(nil)
-              log.debug('Removed ConnectionReadTimeoutHandler')
-            end
+        def existing_transaction_or_null
+          # handle previous connection acquisition and tx begin failures
+          @transaction_stage.exceptionally(-> (_error) { nil }).then_apply do |tx|
+            !tx.nil? && tx.open? ? tx : nil
           end
         end
 
-        class Status
-          OPEN = 'open'
-          RELEASED = 'released'
-          TERMINATED = 'terminated'
+        def ensure_session_is_open
+          unless @open.get
+            raise Neo4j::Driver::Exceptions::ClientException.new('No more interaction with this session are allowed as the current session is already closed.')
+          end
+        end
+
+        # The {@link NetworkSessionConnectionContext#mode} can be mutable for a session connection context
+        class NetworkSessionConnectionContext
+          # This bookmark is only used for rediscovery.
+          # It has to be the initial bookmark given at the creation of the session.
+          # As only that bookmark could carry extra system bookmarks
+          attr_reader :database_name_future, :mode, :rediscovery_bookmark, :impersonated_user
+
+          def initialize(database_name_future, bookmark, impersonated_user)
+            @database_name_future = database_name_future
+            @rediscovery_bookmark = bookmark
+            @impersonated_user = impersonated_user
+          end
+
+          def context_with_mode(mode)
+            @mode = mode
+          end
         end
       end
     end
