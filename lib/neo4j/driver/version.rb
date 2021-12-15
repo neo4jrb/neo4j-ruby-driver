@@ -2,6 +2,6 @@
 
 module Neo4j
   module Driver
-    VERSION = '4.4.0-alpha01'
+    VERSION = '4.4.0'
   end
 end
