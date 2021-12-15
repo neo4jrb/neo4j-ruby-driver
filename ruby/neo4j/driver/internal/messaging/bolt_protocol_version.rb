@@ -16,9 +16,9 @@ module Neo4j::Driver
 
         def to_int_range(min_version)
           if major_version != min_version.major_version
-            raise java.lang.IllegalArgumentException.new('Versions should be from the same major version')
+            raise ArgumentError, 'Versions should be from the same major version'
           elsif minor_version < min_version.minor_version
-            raise java.lang.IllegalArgumentException.new('Max version should be newer than min version')
+            raise ArgumentError, 'Max version should be newer than min version'
           end
 
           range = minor_version - min_version.minor_version
@@ -27,8 +27,8 @@ module Neo4j::Driver
         end
 
         # @return the version in format X.Y where X is the major version and Y is the minor version
-        def to_string
-          [major_version.to_s, minor_version.to_s]
+        def to_s
+          values.join('.')
         end
 
         def <=>(other)
