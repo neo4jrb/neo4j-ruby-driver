@@ -4,19 +4,14 @@ module Neo4j::Driver
       module Connection
         class BoltProtocolUtil
           BOLT_MAGIC_PREAMBLE = 0x6060B017
-          # TODO: convert
           NO_PROTOCOL_VERSION = org.neo4j.driver.internal.messaging.BoltProtocolVersion.new(0, 0)
           CHUNK_HEADER_SIZE_BYTES = 2
           DEFAULT_MAX_OUTBOUND_CHUNK_SIZE_BYTES = java.lang.Short::MAX_VALUE / 2
           HANDSHAKE_BUF = org.neo4j.driver.internal.shaded.io.netty.buffer.Unpooled.unreleasable_buffer(org.neo4j.driver.internal.shaded.io.netty.buffer.Unpooled.copyInt(
             BOLT_MAGIC_PREAMBLE,
-            # TODO: convert
             org.neo4j.driver.internal.messaging.v44.BoltProtocolV44::VERSION.to_int_range(org.neo4j.driver.internal.messaging.v42.BoltProtocolV42::VERSION),
-            # TODO: convert
             org.neo4j.driver.internal.messaging.v41.BoltProtocolV41::VERSION.to_int,
-            # TODO: convert
             org.neo4j.driver.internal.messaging.v4.BoltProtocolV4::VERSION.to_int,
-            # TODO: convert
             org.neo4j.driver.internal.messaging.v3.BoltProtocolV3::VERSION.to_int
           )).freeze
 
