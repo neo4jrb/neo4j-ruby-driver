@@ -74,3 +74,10 @@ jobs:
           # demonstation setup. In a real setup, you most likely don't want this.
           python3 main.py --tests TESTKIT_TESTS STUB_TESTS TLS_TESTS
           # --configs 4.3-enterprise --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back
+
+      - name: Archive testkit artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: artifacts
+          path: testkit/artifacts
+
