@@ -5,7 +5,7 @@ module Neo4j::Driver
         # Definition of the Bolt Protocol 4.3
 
         # The version 4.3 use most of the 4.2 behaviours, but it extends it with new messages such as ROUTE
-        class BoltProtocolV43
+        class BoltProtocolV43 < V42::BoltProtocolV42
           VERSION = BoltProtocolVersion.new(4,3)
           INSTANCE = new
 
