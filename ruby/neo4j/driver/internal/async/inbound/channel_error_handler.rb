@@ -3,33 +3,32 @@ module Neo4j::Driver
     module Async
       module Inbound
         class ChannelErrorHandler
-          attr_accessor :logging, :message_dispatcher, :log, :error_log, :failed
-
           def initialize(logging)
             @logging = logging
           end
 
           def handler_added(ctx)
-            @message_dispatcher = java.util.Objects.require_non_null(::Connection::ChannelAttributes.message_dispatcher(ctx.channel))
-            @log = Logging::ChannelActivityLogger.new(ctx.channel, logging, get_class)
-            @error_log = Logging::ChannelErrorLogger.new(ctx.channel, logging)
+            @message_dispatcher = java.util.Objects.require_non_null(Connection::ChannelAttributes.message_dispatcher(ctx.channel))
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logging, self.class)
+            @error_log = Logging::ChannelErrorLogger.new(ctx.channel, @logging)
           end
 
           def handler_removed(ctx)
-            @message_dispatcher = @log = @failed = nil
+            @message_dispatcher = @log = nil
+            @failed = false
           end
 
           def channel_inactive(ctx)
-            log.debug
+            @log.debug('Channel is inactive')
 
-            termination_reason = ::Connection::ChannelAttributes.termination_reason(ctx.channel)
-            error = ::Util::ErrorUtil.new_connection_terminated_error(termination_reason)
+            termination_reason = Connection::ChannelAttributes.termination_reason(ctx.channel)
+            error = Util::ErrorUtil.new_connection_terminated_error(termination_reason)
 
-            if failed
+            if @failed
 
               # channel became inactive not because of a fatal exception that came from exceptionCaught
               # it is most likely inactive because actual network connection broke or was explicitly closed by the driver
-              message_dispatcher.handle_channel_inactive(error)
+              @message_dispatcher.handle_channel_inactive(error)
               ctx.channel.close
             else
               fail(error)
@@ -37,10 +36,10 @@ module Neo4j::Driver
           end
 
           def exception_caught(ctx, error)
-            if failed
-              error_log.trace_or_debug('Another fatal error occurred in the pipeline', error)
+            if @failed
+              @error_log.trace_or_debug('Another fatal error occurred in the pipeline', error)
             else
-              failed = true
+              @failed = true
               log_unexpected_error_warning(error)
               fail(error)
             end
@@ -50,22 +49,22 @@ module Neo4j::Driver
 
           def log_unexpected_error_warning(error)
             unless error.kind_of?(Neo4j::Driver::Exceptions::ConnectionReadTimeoutException)
-              error_log.trace_or_debug('Fatal error occurred in the pipeline', error)
+              @error_log.trace_or_debug('Fatal error occurred in the pipeline', error)
             end
           end
 
           def fail(error)
             cause = transform_error(error)
-            message_dispatcher.handle_channel_error(cause)
+            @message_dispatcher.handle_channel_error(cause)
           end
 
           class << self
             def transform_error(error)
               # unwrap the CodecException if it has a cause
-              error = error.get_cause if error.kind_of?(io.netty.handler.codec.CodecException) && !error.get_cause.nil?
+              error = error.cause if error.kind_of?(io.netty.handler.codec.CodecException) && error.cause
 
               if error.kind_of?(java.io.IOException)
-                return Neo4j::Driver::Exceptions::ServiceUnavailableException.new('Connection to the database failed', error)
+                Neo4j::Driver::Exceptions::ServiceUnavailableException.new('Connection to the database failed', error)
               else
                 error
               end
