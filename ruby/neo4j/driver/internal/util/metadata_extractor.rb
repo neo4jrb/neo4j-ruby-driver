@@ -116,7 +116,7 @@ module Neo4j::Driver
           end
 
           def extract_result_consumed_after(metadata, key)
-            metadata[key].to_i
+            metadata[key]&.to_i
           end
         end
       end
