@@ -14,8 +14,9 @@ module Neo4j
           raise(ArgumentError, yield) unless obj.nil? || obj.is_a?(Hash)
         end
 
-        def self.require_non_nil!(obj, message)
-          raise ArgumentError, "#{message} can't be nil" if obj.nil?
+        def self.require_non_nil!(obj, message = nil)
+          raise ArgumentError, [message, "can't be nil"].compact.join(' ') if obj.nil?
+          obj
         end
 
         def self.require_non_nil_credentials!(username, password)

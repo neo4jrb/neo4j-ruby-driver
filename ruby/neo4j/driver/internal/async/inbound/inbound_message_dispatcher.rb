@@ -3,10 +3,13 @@ module Neo4j::Driver
     module Async
       module Inbound
         class InboundMessageDispatcher
-          attr_accessor :channel, :handlers, :log, :error_log, :gracefully_closed, :current_error, :fatal_error_occurred, :before_last_handler_hook, :auto_read_managing_handler
+          attr_reader :fatal_error_occurred, :current_error, :log, :error_log
+          # Visible for testing
+          attr_reader :auto_read_managing_handler
 
           def initialize(channel, logging)
-            @channel = java.util.Objects.require_non_null(channel)
+            @handlers = []
+            @channel = Validator.require_non_nil!(channel)
             @log = Logging::ChannelActivityLogger.new(channel, logging, get_class)
             @error_log = Logging.ChannelErrorLogger.new(channel, logging)
           end
@@ -15,20 +18,20 @@ module Neo4j::Driver
             if fatal_error_occurred
               handler.on_failure(current_error)
             else
-              handlers << handler
+              @handlers << handler
               update_auto_read_managing_handler_if_needed(handler)
             end
           end
 
           def set_before_last_handler_hook(before_last_handler_hook)
-            unless channel.event_loop.in_event_loop
+            unless @channel.event_loop.in_event_loop
               raise Neo4j::Driver::Exceptions::IllegalStateException.new('This method may only be called in the EventLoop')
             end
             @before_last_handler_hook = before_last_handler_hook
           end
 
           def queued_handlers_count
-            handlers.size
+            @handlers.size
           end
 
           def handle_success_message(meta)
@@ -43,7 +46,7 @@ module Neo4j::Driver
               log.debug("S: RECORD #{fields}")
             end
 
-            handler = handlers.first
+            handler = @handlers.first
             if handler.nil?
               rails Neo4j::Driver::Exceptions::IllegalStateException.new("No handler exists to handle RECORD message with fields #{fields}")
             end
@@ -57,14 +60,14 @@ module Neo4j::Driver
 
             # we should not continue using channel after a fatal error
             # fire error event back to the pipeline and avoid sending RESET
-            return channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.is_fatal?(current_error)
+            return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.is_fatal?(current_error)
 
             if current_error.kind_of?(Neo4j::Driver::Exceptions::AuthorizationExpiredException)
-              Connection::ChannelAttributes.authorization_state_listener(channel).on_expired(current_error, channel)
+              Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(current_error, @channel)
             else
               # write a RESET to "acknowledge" the failure
               enqueue(ResetResponseHandler.new(self))
-              channel.write_and_flush(RESET, channel.void_promise)
+              @channel.write_and_flush(RESET, @channel.void_promise)
             end
 
             invoke_before_last_handler_hook(HandlerHook::FAILURE)
@@ -76,10 +79,10 @@ module Neo4j::Driver
             log.debug('S: IGNORED')
             handler = remove_handler
 
-            if !current_error.nil?
+            if current_error
               error = current_error
             else
-              log.warn("Received IGNORED message for handler #{handler} but error is missing and RESET is not in progress. Current handlers #{handlers}")
+              log.warn("Received IGNORED message for handler #{handler} but error is missing and RESET is not in progress. Current handlers #{@handlers}")
               error = Neo4j::Driver::Exceptions::ClientException('Database ignored the request')
             end
 
@@ -89,30 +92,30 @@ module Neo4j::Driver
           def handle_channel_inactive(cause)
             # report issue if the connection has not been terminated as a result of a graceful shutdown request from its
             # parent pool
-            if !gracefully_closed
+            if !@gracefully_closed
               handle_channel_error(cause)
             else
-              channel.close
+              @channel.close
             end
           end
 
           def handle_channel_error(error)
-            if !current_error.nil?
+            if current_error
               # we already have an error, this new error probably is caused by the existing one, thus we chain the new error on this current error
               Util::ErrorUtil.add_suppressed(current_error, error)
             else
-              current_error = error
+              @current_error = error
             end
 
-            fatal_error_occurred = true
+            @fatal_error_occurred = true
 
-            while !handlers.empty?
+            while !@handlers.empty?
               handler = remove_handler
               handler.on_failure(current_error)
             end
 
             error_log.trace_or_debug('Closing channel because of a failure', error)
-            channel.close
+            @channel.close
           end
 
           def clear_current_error
@@ -120,18 +123,13 @@ module Neo4j::Driver
           end
 
           def prepare_to_close_channel
-            gracefully_closed = true
-          end
-
-          # Visible for testing
-          def auto_read_managing_handler
-            auto_read_managing_handler
+            @gracefully_closed = true
           end
 
           private
 
           def remove_handler
-            handler = handlers.drop(1)
+            handler = @handlers.drop(1)
 
             if handler == auto_read_managing_handler
               # the auto-read managing handler is being removed
@@ -148,28 +146,26 @@ module Neo4j::Driver
           end
 
           def update_auto_read_managing_handler(new_handler)
-            unless auto_read_managing_handler.nil?
+            if auto_read_managing_handler
 
               # there already exists a handler that manages channel's auto-read
               # make it stop because new managing handler is being added and there should only be a single such handler
               auto_read_managing_handler.disable_auto_read_management
 
               # restore the default value of auto-read
-              channel.config.set_auto_read(true)
+              @channel.config.set_auto_read(true)
             end
 
-            auto_read_managing_handler = new_handler
+            @auto_read_managing_handler = new_handler
           end
 
           def invoke_before_last_handler_hook(message_type)
-            if handlers.size == 1 && !before_last_handler_hook.nil?
-              before_last_handler_hook.run(message_type)
-            end
+            @before_last_handler_hook&.run(message_type) if handlers.size == 1
           end
 
           module HandlerHook
-            SUCCESS = 'success'.freeze
-            FAILURE = 'failure'.freeze
+            SUCCESS = :success
+            FAILURE = :failure
           end
         end
       end
