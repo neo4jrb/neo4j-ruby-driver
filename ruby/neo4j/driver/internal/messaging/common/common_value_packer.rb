@@ -71,15 +71,15 @@ module Neo4j::Driver
               packer.pack_null
             when BYTES
               packer.pack(value.as_byte_array)
-            when STRING
+            when String
               packer.pack(value.to_s)
-            when BOOLEAN
+            when TrueClass || FalseClass
               packer.pack(value.as_boolean)
-            when INTEGER
+            when Integer
               packer.pack(value.to_i)
-            when FLOAT
+            when Float
               packer.pack(value.to_f)
-            when HASH
+            when Hash
               packer.pack_map_header(value.size)
               value.keys.each do |key|
                 packer.pack(key)
