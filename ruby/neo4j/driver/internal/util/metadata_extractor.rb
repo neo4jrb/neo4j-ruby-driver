@@ -15,9 +15,9 @@ module Neo4j::Driver
               keys << value
             end
             keys
+          else
+            Util::QueryKeys::EMPTY
           end
-
-          Util::QueryKeys::EMPTY
         end
 
         def extract_query_id(metadata)
