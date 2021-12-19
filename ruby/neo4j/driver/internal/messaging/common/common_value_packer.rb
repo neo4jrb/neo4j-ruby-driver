@@ -3,30 +3,30 @@ module Neo4j::Driver
     module Messaging
       module Common
         class CommonValuePacker
-           DATE = 'D'
-           DATE_STRUCT_SIZE = 1
-           TIME = 'T'
-           TIME_STRUCT_SIZE = 2
-           LOCAL_TIME = 't'
-           LOCAL_TIME_STRUCT_SIZE = 1
-           LOCAL_DATE_TIME = 'd'
-           LOCAL_DATE_TIME_STRUCT_SIZE = 2
-           DATE_TIME_WITH_ZONE_OFFSET = 'F'
-           DATE_TIME_WITH_ZONE_ID = 'f'
-           DATE_TIME_STRUCT_SIZE = 3
-           DURATION = 'E'
-           DURATION_TIME_STRUCT_SIZE = 4
-           POINT_2D_STRUCT_TYPE = 'X'
-           POINT_2D_STRUCT_SIZE = 3
-           POINT_3D_STRUCT_TYPE = 'Y'
-           POINT_3D_STRUCT_SIZE = 4
+          DATE = 'D'
+          DATE_STRUCT_SIZE = 1
+          TIME = 'T'
+          TIME_STRUCT_SIZE = 2
+          LOCAL_TIME = 't'
+          LOCAL_TIME_STRUCT_SIZE = 1
+          LOCAL_DATE_TIME = 'd'
+          LOCAL_DATE_TIME_STRUCT_SIZE = 2
+          DATE_TIME_WITH_ZONE_OFFSET = 'F'
+          DATE_TIME_WITH_ZONE_ID = 'f'
+          DATE_TIME_STRUCT_SIZE = 3
+          DURATION = 'E'
+          DURATION_TIME_STRUCT_SIZE = 4
+          POINT_2D_STRUCT_TYPE = 'X'
+          POINT_2D_STRUCT_SIZE = 3
+          POINT_3D_STRUCT_TYPE = 'Y'
+          POINT_3D_STRUCT_SIZE = 4
 
           attr_reader :packer
 
           delegate :pack_struct_header, to: :packer
 
           def initialize(output)
-            @packer = Packstream::PackStream::Packer.new(output)
+            @packer = PackStream::PackStream::Packer.new(output)
           end
 
           def pack(value)
@@ -40,7 +40,7 @@ module Neo4j::Driver
                 raise java.lang.IllegalArgumentException, "Unable to pack: #{value}"
               end
             when Hash
-              return packer.pack_map_header(0) if value.nil? || value.empty?
+              return packer.pack_map_header(0) if value.blank?
 
               packer.pack_map_header(value.size)
 

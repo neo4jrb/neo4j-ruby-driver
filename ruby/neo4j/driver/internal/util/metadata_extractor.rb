@@ -2,8 +2,6 @@ module Neo4j::Driver
   module Internal
     module Util
       class MetadataExtractor
-        ABSENT_QUERY_ID = -1
-
         def initialize(result_available_after_metadata_key, result_consumed_after_metadata_key)
           @result_available_after_metadata_key = result_available_after_metadata_key
           @result_consumed_after_metadata_key = result_consumed_after_metadata_key
@@ -11,10 +9,8 @@ module Neo4j::Driver
 
         def extract_query_keys(metadata)
           keys_value = metadata['fields']
-          unless keys_value.nil? && keys_value.empty?
-            # keys = Util::QueryKeys.new(keys_value.size)
-            keys = []
-
+          if keys_value.present?
+            keys = Util::QueryKeys.new(keys_value.size)
             keys_value.values.each do |value|
               keys << value
             end
@@ -25,28 +21,20 @@ module Neo4j::Driver
         end
 
         def extract_query_id(metadata)
-          query_id = metadata['qid']
-
-          return query_id unless query_id.nil?
-
-          ABSENT_QUERY_ID
+          metadata['qid']
         end
 
         def extract_result_available_after(metadata)
-          result_available_after_value = metadata[@result_available_after_metadata_key]
-
-          return result_available_after_value unless result_available_after_value.nil?
-
-          ABSENT_QUERY_ID
+          metadata[@result_available_after_metadata_key]
         end
 
         def extract_summary(query, connection, result_available_after, metadata)
           server_info = Summary::InternalServerInfo.new(connection.server_agent, connection.server_address, connection.server_version, connection.protocol.version)
           db_info = extract_database_info(metadata)
           Summary::InternalResultSummary.new(query, server_info, db_info, extract_query_type(metadata),
-                      extract_counters(metadata), extract_plan(metadata), extract_profiled_plan(metadata),
-                      extract_notifications(metadata), result_available_after,
-                      extract_result_consumed_after(metadata, @result_consumed_after_metadata_key))
+                                             extract_counters(metadata), extract_plan(metadata), extract_profiled_plan(metadata),
+                                             extract_notifications(metadata), result_available_after,
+                                             extract_result_consumed_after(metadata, @result_consumed_after_metadata_key))
         end
 
         class << self
@@ -61,9 +49,9 @@ module Neo4j::Driver
           def extract_bookmarks(metadata)
             bookmark_value = metadata['bookmark']
 
-            return InternalBookmark.parse(bookmark_value) if !bookmark_value.nil? && bookmark_value.has_type(Types::InternalTypeSystem::TYPE_SYSTEM)
+            return InternalBookmark.parse(bookmark_value) if bookmark_value&.is_a? String
 
-            InternalBookmark.empty?
+            InternalBookmark.empty
           end
 
           def extract_neo4j_server_version(metadata)
@@ -86,70 +74,49 @@ module Neo4j::Driver
           private
 
           def extract_query_type(metadata)
-            type_value = metadata['type']
-
-            return Summary::QueryType.from_code(type_value) unless type_value.nil?
-
-            nil
+            metadata['type']&.then(&Summary::QueryType.method(:from_code))
           end
 
           def extract_counters(metadata)
             counters_value = metadata['stat']
 
-            unless counters_value.nil?
-             return Summary::InternalSummaryCounters.new(
-                    counter_value(counters_value, "nodes-created"),
-                    counter_value(counters_value, "nodes-deleted"),
-                    counter_value(counters_value, "relationships-created"),
-                    counter_value(counters_value, "relationships-deleted"),
-                    counter_value(counters_value, "properties-set"),
-                    counter_value(counters_value, "labels-added"),
-                    counter_value(counters_value, "labels-removed"),
-                    counter_value(counters_value, "indexes-added"),
-                    counter_value(counters_value, "indexes-removed"),
-                    counter_value(counters_value, "constraints-added"),
-                    counter_value(counters_value, "constraints-removed"),
-                    counter_value(counters_value, "system-updates"))
-            end
-
-            nil
+            counters_value &&
+              Summary::InternalSummaryCounters.new(
+                counter_value(counters_value, "nodes-created"),
+                counter_value(counters_value, "nodes-deleted"),
+                counter_value(counters_value, "relationships-created"),
+                counter_value(counters_value, "relationships-deleted"),
+                counter_value(counters_value, "properties-set"),
+                counter_value(counters_value, "labels-added"),
+                counter_value(counters_value, "labels-removed"),
+                counter_value(counters_value, "indexes-added"),
+                counter_value(counters_value, "indexes-removed"),
+                counter_value(counters_value, "constraints-added"),
+                counter_value(counters_value, "constraints-removed"),
+                counter_value(counters_value, "system-updates")
+              )
           end
 
           def counter_value(counters_value, name)
-            value = counters_value[name]
-            value.nil? ? 0 : value.to_i
+            counters_value[name]&.to_i || 0
           end
 
           def extract_plan(metadata)
-            plan_value = metadata['plan']
-
-            return Summary::InternalPlan::EXPLAIN_PLAN_FROM_VALUE.apply(plan_value) unless plan_value.nil?
-
-            nil
+            metadata['plan']&.then(Summary::InternalPlan::EXPLAIN_PLAN_FROM_VALUE)
           end
 
           def extract_profiled_plan(metadata)
-            profiled_plan_value = metadata['profile']
-
-            return Summary::InternalProfiledPlan::PROFILED_PLAN_FROM_VALUE.apply(profiled_plan_value) unless profiled_plan_value.nil?
-
-            nil
+            metadata['profile']&.then(Summary::InternalProfiledPlan::PROFILED_PLAN_FROM_VALUE)
           end
 
           def extract_notifications(metadata)
-            notifications_value = metadata['notifications']
-
-            return [Summary::InternalNotification::VALUE_TO_NOTIFICATION] unless notifications_value.nil?
-
-            []
+            metadata['notifications']&.then do | notifications |
+              notifications.map(Summary::InternalNotification::VALUE_TO_NOTIFICATION)
+            end
           end
 
           def extract_result_consumed_after(metadata, key)
-            result_consumed_after_value = metadata['key']
-
-            return result_consumed_after_value unless result_consumed_after_value.nil?
-
-            ABSENT_QUERY_ID
+            metadata[key].to_i
           end
         end
       end
