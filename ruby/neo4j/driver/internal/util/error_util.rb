@@ -27,17 +27,17 @@ module Neo4j::Driver::Internal::Util
 
       def new_neo4j_error(code, message)
         exception_class = case extract_error_class(code)
-          when 'ClientError'
-            if 'Security' == extract_error_sub_class(code)
-              SEC_EXCEPTION_CODE_MAPPING[code.downcase] || Neo4j::Driver::Exceptions::SecurityException
-            else
-              code.casecmp?('Neo.ClientError.Database.DatabaseNotFound') ? Neo4j::Driver::Exceptions::FatalDiscoveryException : Neo4j::Driver::Exceptions::ClientException
-            end
-          when 'TransientError'
-            Neo4j::Driver::Exceptions::TransientException
-          else
-            Neo4j::Driver::Exceptions::DatabaseException
-          end
+                          when 'ClientError'
+                            if extract_error_sub_class(code) == 'Security'
+                              SEC_EXCEPTION_CODE_MAPPING[code.downcase] || Neo4j::Driver::Exceptions::SecurityException
+                            else
+                              code.casecmp?('Neo.ClientError.Database.DatabaseNotFound') ? Neo4j::Driver::Exceptions::FatalDiscoveryException : Neo4j::Driver::Exceptions::ClientException
+                            end
+                          when 'TransientError'
+                            Neo4j::Driver::Exceptions::TransientException
+                          else
+                            Neo4j::Driver::Exceptions::DatabaseException
+                          end
 
         exception_class.new(code, message)
       end
@@ -85,11 +85,11 @@ module Neo4j::Driver::Internal::Util
       private
 
       def extract_error_class(code)
-        extract_class_from_code(2)
+        extract_class_from_code(code, 2)
       end
 
       def extract_error_sub_class(code)
-        extract_class_from_code(3)
+        extract_class_from_code(code, 3)
       end
 
       def extract_class_from_code(code, parts_counts)

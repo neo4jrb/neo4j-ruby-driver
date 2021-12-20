@@ -3,6 +3,7 @@
 module Neo4j::Driver::Internal::Reactive
   class InternalRxTransaction
     include RxUtils
+    include AbstractRxQueryRunner
 
     def initialize(tx)
       @tx = tx

@@ -7,8 +7,8 @@ module Neo4j::Driver::Internal::Reactive
     # @return A publisher that publishes nothing on completion or fails with an error.
     def self.create_empty_publisher(&supplier)
       org.neo4j.driver.internal.shaded.reactor.core.publisher.Mono.create do |sink|
-        supplier.call.when_complete do |ignore, completion_error|
-          error = Neo4j::Driver::Internal::Util::Futures.completion_exception_cause(completion_error);
+        supplier.call.when_complete do |_, completion_error|
+          error = Neo4j::Driver::Internal::Util::Futures.completion_exception_cause(completion_error)
           error.nil? ? sink.success : sink.error(error)
         end
       end

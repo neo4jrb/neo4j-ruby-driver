@@ -11,8 +11,8 @@ module Neo4j::Driver::Internal::Reactive
     def keys
       org.neo4j.driver.internal.shaded.reactor.core.publisher.Mono.defer do
         org.neo4j.driver.internal.shaded.reactor.core.publisher.Mono.from_completion_stage(cursor_future)
-          .map(&Neo4j::Driver::Internal::Cursor::RxResultCursor.method(:keys))
-          .on_error_map(&Util::Futures.method(:completion_exception_cause))
+           .map(&Neo4j::Driver::Internal::Cursor::RxResultCursor.method(:keys))
+           .on_error_map(&Util::Futures.method(:completion_exception_cause))
       end
     end
 
@@ -34,7 +34,6 @@ module Neo4j::Driver::Internal::Reactive
         end
       end
     end
-
 
     def consume
       org.neo4j.driver.internal.shaded.reactor.core.publisher.Mono.create do |sink|

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Neo4j::Driver::Internal::Reactive
-  module RxUtils
+  module AbstractRxQueryRunner
     def parse_query(query, opts)
       return if query.is_a?(Neo4j::Driver::Query)
 
