@@ -9,8 +9,8 @@
 # As the single server serves both read and write operations at the same time.
 module Neo4j::Driver::AccessMode
   # Use this for transactions that requires a read server in a cluster
-  READ = :read
+  READ = Java::OrgNeo4jDriver::AccessMode::READ # TO DO: replace this with :read once all java refs are done
 
   # Use this for transactions that requires a write server in a cluster
-  WRITE = :write
+  WRITE = Java::OrgNeo4jDriver::AccessMode::WRITE # :write # TO DO: replace this with :write once all java refs are done
 end
