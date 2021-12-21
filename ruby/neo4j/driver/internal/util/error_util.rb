@@ -7,9 +7,9 @@ module Neo4j::Driver::Internal::Util
       'Note that the default encryption setting has changed in Neo4j 4.0.'.freeze
 
     SEC_EXCEPTION_CODE_MAPPING = {
-      'neo.clienterror.security.unauthorized': Neo4j::Driver::Exceptions::AuthenticationException,
-      'neo.clienterror.security.authorizationexpired': Neo4j::Driver::Exceptions::AuthorizationExpiredException,
-      'neo.clienterror.security.tokenexpired': Neo4j::Driver::Exceptions::TokenExpiredException
+      'Neo.ClientError.Security.Unauthorized': Neo4j::Driver::Exceptions::AuthenticationException,
+      'Neo.ClientError.Security.AuthorizationExpired': Neo4j::Driver::Exceptions::AuthorizationExpiredException,
+      'Neo.ClientError.Security.TokenExpired': Neo4j::Driver::Exceptions::TokenExpiredException
     }.freeze
 
     class << self
@@ -29,9 +29,9 @@ module Neo4j::Driver::Internal::Util
         exception_class = case extract_error_class(code)
                           when 'ClientError'
                             if extract_error_sub_class(code) == 'Security'
-                              SEC_EXCEPTION_CODE_MAPPING[code.downcase] || Neo4j::Driver::Exceptions::SecurityException
+                              SEC_EXCEPTION_CODE_MAPPING[code] || Neo4j::Driver::Exceptions::SecurityException
                             else
-                              code.casecmp?('Neo.ClientError.Database.DatabaseNotFound') ? Neo4j::Driver::Exceptions::FatalDiscoveryException : Neo4j::Driver::Exceptions::ClientException
+                              code == 'Neo.ClientError.Database.DatabaseNotFound') ? Neo4j::Driver::Exceptions::FatalDiscoveryException : Neo4j::Driver::Exceptions::ClientException
                             end
                           when 'TransientError'
                             Neo4j::Driver::Exceptions::TransientException
@@ -43,18 +43,19 @@ module Neo4j::Driver::Internal::Util
       end
 
       def fatal?(error)
-        return true unless error.is_a?(Neo4j::Driver::Exceptions::Neo4jException)
+        if error.is_a?(Neo4j::Driver::Exceptions::Neo4jException)
+          error_code = error.code
+          return true if protocol_violation_error?(error_code)
+          return false if client_or_transient_error?(error_code)
+        end
 
-        error_code = error.code&.downcase
-        return true if protocol_violation_error?(error_code)
-        return false if client_or_transient_error?(error_code)
-        # TO DO: last two if condition makes this method return nil, should we change it to only return boolean
+        true
       end
 
       def rethrow_async_exception(exception)
         error = exception.cause
         internal_cause = InternalExceptionCause.new(nil, error.backtrace)
-        error.add_suppressed(internal_cause) # TO DO: Ruby exception don't support supressed, how to handle this?
+        error.add_suppressed(internal_cause)
 
         # do not include Thread.current and this method in the stacktrace
         current_stack_trace = Thread.current.backtrace.drop(2)
@@ -100,13 +101,13 @@ module Neo4j::Driver::Internal::Util
       def protocol_violation_error?(error_code)
         return false if error_code.nil?
 
-        error_code.start_with?('neo.clienterror.request')
+        error_code.start_with?('Neo.ClientError.Request')
       end
 
       def client_or_transient_error(error_code)
         return false if error_code.nil?
 
-        error_code.include?('clienterror') || error_code.include?('transienterror')
+        error_code.include?('ClientError') || error_code.include?('TransientError')
       end
     end
   end

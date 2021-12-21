@@ -9,8 +9,7 @@ module Neo4j::Driver::Internal::Reactive
       @tx = tx
     end
 
-    def run(query, opts)
-      query = parse_query(query, opts)
+    def run(query)
       InternalRxResult.new do
         cursor_future = java.util.concurrent.CompletableFuture.new
         @tx.run_rx(query).when_complete do |cursor, completion_error|

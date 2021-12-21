@@ -43,8 +43,7 @@ module Neo4j::Driver::Internal::Reactive
       run_transaction(Neo4j::Driver::AccessMode::WRITE, work, config)
     end
 
-    def run(query, opts = {}, config: Neo4j::Driver::TransactionConfig.empty)
-      query = parse_query(query, opts)
+    def run(query, config: Neo4j::Driver::TransactionConfig.empty)
       InternalRxResult.new do
         result_cursor_future = new java.util.concurrent.CompletableFuture()
         @session.run_rx(query, config).when_complete do |cursor, completion_error|
