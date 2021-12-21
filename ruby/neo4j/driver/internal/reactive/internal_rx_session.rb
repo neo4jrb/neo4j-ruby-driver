@@ -3,7 +3,6 @@
 module Neo4j::Driver::Internal::Reactive
   class InternalRxSession
     include RxUtils
-    include AbstractRxQueryRunner
 
     delegate :last_bookmark, to: :@session
 

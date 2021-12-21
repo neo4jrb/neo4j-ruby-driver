@@ -31,7 +31,7 @@ module Neo4j::Driver::Internal::Util
                             if extract_error_sub_class(code) == 'Security'
                               SEC_EXCEPTION_CODE_MAPPING[code] || Neo4j::Driver::Exceptions::SecurityException
                             else
-                              code == 'Neo.ClientError.Database.DatabaseNotFound') ? Neo4j::Driver::Exceptions::FatalDiscoveryException : Neo4j::Driver::Exceptions::ClientException
+                              code == 'Neo.ClientError.Database.DatabaseNotFound' ? Neo4j::Driver::Exceptions::FatalDiscoveryException : Neo4j::Driver::Exceptions::ClientException
                             end
                           when 'TransientError'
                             Neo4j::Driver::Exceptions::TransientException
