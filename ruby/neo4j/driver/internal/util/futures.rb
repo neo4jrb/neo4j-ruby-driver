@@ -4,6 +4,7 @@ module Neo4j::Driver
   module Internal
     module Util
       class Futures
+        # TO DO: complete this class, this was partially migrated
         extend Ext::AsyncConverter
 
         class << self
@@ -29,6 +30,29 @@ module Neo4j::Driver
             ensure
               java.lang.Thread.currentThread.interrupt if interrupted
             end
+          end
+
+          def completion_exception_cause(error)
+            error.is_a?(java.util.concurrent.CompletionException) ? error.get_cause : error
+          end
+
+          def combine_errors(error1, error2)
+            return unless error1 && error2
+
+            return as_completion_exception(error1) if error2.nil?
+
+            return as_completion_exception(error2) if error1.nil?
+
+            cause1 = completion_exception_cause(error1)
+            cause2 = completion_exception_cause(error2)
+            ErrorUtil.add_suppressed(cause1, cause2)
+            as_completion_exception(cause1)
+          end
+
+          def as_completion_exception(error)
+            error if error.instance_of?(CompletionException)
+
+            java.util.concurrent.CompletionException.new(error)
           end
         end
       end
