@@ -8,12 +8,11 @@ module Neo4j::Driver
           attr_reader :fields
 
           def initialize(fields)
-            @fields = []
             @fields = fields
           end
 
           def to_s
-            "RECORD #{fields.to_s}"
+            "RECORD #{fields}"
           end
 
           def equals(object)

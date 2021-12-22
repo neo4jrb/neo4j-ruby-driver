@@ -9,6 +9,8 @@ module Neo4j::Driver
         class FailureMessage
           SIGNATURE = 0x7F
 
+          attr_reader :code, :message
+
           def initialize(code, message)
             @code = code
             @message = message

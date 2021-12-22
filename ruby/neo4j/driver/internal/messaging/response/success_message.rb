@@ -13,7 +13,6 @@ module Neo4j::Driver
           attr_reader :metadata
 
           def initialize(metadata)
-            @metadata = {}
             @metadata = metadata
           end
 
