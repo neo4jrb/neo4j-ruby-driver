@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Async
       class NetworkConnection
+        include Connection
+
         attr_reader :server_agent, :server_address, :server_version, :protocol
 
         def initialize(channel, channel_pool, clock, metrics_listener, logging)
