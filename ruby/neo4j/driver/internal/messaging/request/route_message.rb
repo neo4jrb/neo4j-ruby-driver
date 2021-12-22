@@ -2,10 +2,12 @@ module Neo4j::Driver
   module Internal
     module Messaging
       module Request
-        class RouteMessage
+        # From the application point of view it is not interesting to know about the role a member plays in the cluster. Instead, the application needs to know which
+        # instance can provide the wanted service.
+        # <p>
+        # This message is used to fetch this routing information.
+        class RouteMessage < Struct.new(:routing_context, :bookmark, :database_name, :impersonated_user)
           SIGNATURE = 0x66
-
-          attr_reader :routing_context, :bookmark, :database_name, :impersonated_user
 
           # Constructor
 
@@ -14,28 +16,15 @@ module Neo4j::Driver
           # @param databaseName     The name of the database to get the routing table for.
           # @param impersonatedUser The name of the impersonated user to get the routing table for, should be {@code null} for non-impersonated requests
           def initialize(routing_context, bookmark, database_name, impersonated_user)
-            @routing_context = java.util.Collections.unmodifiable_map(routing_context)
-            @bookmark = bookmark
-            @database_name = database
-            @impersonated_user = impersonated_user
+            super(routing_context.freeze, bookmark, database_name, impersonated_user)
+          end
+
+          def signature
+            SIGNATURE
           end
 
           def to_s
-            "ROUTE #{routing_context}, #{bookmark}, #{database_name} #{impersonated_user}"
-          end
-
-          def equals(object)
-            return true if self == object
-
-            return false if object.nil? || self.class != object.class
-
-            routing_context.equals(object.routing_context) &&
-            java.util.Objects.equals(database_name, object.database_name) &&
-            java.util.Objects.equals(impersonated_user, object.impersonated_user)
-          end
-
-          def hash_code
-            java.util.Objects.hash(routing_context, database_name, impersonated_user)
+            "ROUTE #{values.join(' ')}"
           end
         end
       end

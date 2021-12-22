@@ -2,7 +2,6 @@ module Neo4j::Driver
   module Internal
     module Messaging
       module Request
-
         # RESET request message
         # <p>
         # Sent by clients to reset a session to a clean state - closing any open transaction or result streams.
@@ -21,6 +20,10 @@ module Neo4j::Driver
 
           def to_s
             'RESET'
+          end
+
+          def signature
+            SIGNATURE
           end
         end
       end

@@ -6,6 +6,10 @@ module Neo4j::Driver
           SIGNATURE = 0x12
           COMMIT = new
 
+          def signature
+            SIGNATURE
+          end
+
           def to_s
             "COMMIT"
           end

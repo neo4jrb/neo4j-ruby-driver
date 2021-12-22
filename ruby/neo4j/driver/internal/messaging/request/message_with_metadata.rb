@@ -2,12 +2,7 @@ module Neo4j::Driver
   module Internal
     module Messaging
       module Request
-        class MessageWithMetadata
-          attr_reader :metadata
-
-          def initialize(metadata)
-            @metadata = metadata
-          end
+        class MessageWithMetadata < Struct.new(:metadata)
         end
       end
     end

@@ -6,6 +6,10 @@ module Neo4j::Driver
           SIGNATURE = 0x2F
           DISCARD_ALL = new
 
+          def signature
+            SIGNATURE
+          end
+
           def to_s
             "DISCARD_ALL"
           end

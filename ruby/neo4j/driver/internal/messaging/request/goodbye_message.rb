@@ -6,6 +6,10 @@ module Neo4j::Driver
           SIGNATURE = 0x02
           GOODBYE = new
 
+          def signature
+            SIGNATURE
+          end
+
           def to_s
             "GOODBYE"
           end
