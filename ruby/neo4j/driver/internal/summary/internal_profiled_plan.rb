@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Neo4j::Driver::Internal::Summary
   class InternalProfiledPlan < InternalPlan
     attr_reader :db_hits, :records, :page_cache_hits, :page_cache_misses, :page_cache_hit_ratio, :time
@@ -18,7 +20,7 @@ module Neo4j::Driver::Internal::Summary
     end
 
     def page_cache_stats?
-      page_cache_hits > 0 || page_cache_misses > 0 || page_cache_hit_ratio > 0
+      page_cache_hits.positive? || page_cache_misses.positive? || page_cache_hit_ratio.positive?
     end
 
     class PlanCreator

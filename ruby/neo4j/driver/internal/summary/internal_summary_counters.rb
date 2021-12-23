@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Neo4j::Driver::Internal::Summary
   class InternalSummaryCounters < Struct.new(:nodes_created, :nodes_deleted, :relationships_created, :relationships_deleted, :properties_set, :labels_added, :labels_removed, :indexes_added, :indexes_removed, :constraints_added, :constraints_removed, :system_updates)
     EMPTY_STATS = InternalSummaryCounters.new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -11,7 +13,7 @@ module Neo4j::Driver::Internal::Summary
     end
 
     def to_s
-      "InternalSummaryCounters{" +
+      "InternalSummaryCounters{"\
       "nodes_created=#{nodes_created}"\
       ", nodes_deleted=#{nodes_deleted}"\
       ", relationships_created=#{relationships_created}"\

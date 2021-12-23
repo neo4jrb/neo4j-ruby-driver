@@ -1,6 +1,7 @@
+# frozen_string_literal: true
+
 module Neo4j::Driver::Internal::Summary
   class InternalResultSummary < Struct.new(:query, :server_info, :database_info, :query_type, :counters, :plan, :profile, :notifications, :result_available_after, :result_consumed_after)
-
     alias server server_info
     alias database database_info
 
@@ -29,7 +30,7 @@ module Neo4j::Driver::Internal::Summary
     end
 
     def to_s
-      "InternalResultSummary{" +
+      "InternalResultSummary{"\
       "query=#{query}"\
       ", server_info=#{server_info}"\
       ", database_info=#{database_info}"\

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Neo4j::Driver::Internal::Summary
   class InternalNotification
     attr_reader :code, :title, :description, :severity, :position
@@ -6,7 +8,7 @@ module Neo4j::Driver::Internal::Summary
       code = value['code'].to_s
       title = value['title'].to_s
       description = value['description'].to_s
-      severity = value.has_key?('severity') ? value['severity'].to_s : 'N/A'
+      severity = value.key?('severity') ? value['severity'].to_s : 'N/A'
       position = nil
 
       pos_value = value['position']

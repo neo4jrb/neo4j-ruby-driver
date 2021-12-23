@@ -1,11 +1,13 @@
+# frozen_string_literal: true
+
 module Neo4j::Driver::Internal::Summary
   class InternalServerInfo < Struct.new(:agent, :address, :version, :protocol_version)
-    def eql?(obj)
-      return true if self == obj
+    def eql?(other)
+      return true if self == other
 
-      return false unless obj.instance_of?(self.class)
+      return false unless other.instance_of?(self.class)
 
-      address == obj.address && version == obj.version
+      address == other.address && version == other.version
     end
 
     def to_s

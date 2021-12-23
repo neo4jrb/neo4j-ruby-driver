@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Neo4j::Driver::Internal::Summary
   # Only call #initialize when sub-classing, for constructing plans, use .plan instead
   class InternalPlan < Struct.new(:operator_type, :arguments, :identifiers, :children)

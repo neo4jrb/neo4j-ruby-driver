@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Neo4j::Driver::Internal::Summary
   # Creating a position from and offset, line number and a column number.
   #
