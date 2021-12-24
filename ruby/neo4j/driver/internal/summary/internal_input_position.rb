@@ -7,8 +7,5 @@ module Neo4j::Driver::Internal::Summary
   # @param line the line number, starting from 1.
   # @param column the column number, starting from 1.
   class InternalInputPosition < Struct.new(:offset, :line, :column)
-    def to_s
-      "offset=#{offset}, line=#{line}, column=#{column}"
-    end
   end
 end

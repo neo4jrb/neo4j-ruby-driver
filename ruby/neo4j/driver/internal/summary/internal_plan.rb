@@ -41,10 +41,5 @@ module Neo4j::Driver::Internal::Summary
     def self.plan(operator_type, arguments, identifiers, children)
       EXPLAIN_PLAN.create(operator_type, arguments, identifiers, children, nil)
     end
-
-    def to_s
-      "SimplePlanTreeNode{operator_type=#{operator_type}, arguments=#{arguments},"\
-      " identifiers=#{identifiers}, children=#{children}}"
-    end
   end
 end

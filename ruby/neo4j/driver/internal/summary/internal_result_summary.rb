@@ -29,21 +29,6 @@ module Neo4j::Driver::Internal::Summary
       unit.convert(@result_consumed_after, java.util.concurrent.TimeUnit::MILLISECONDS) unless @result_consumed_after.nil?
     end
 
-    def to_s
-      "InternalResultSummary{"\
-      "query=#{query}"\
-      ", server_info=#{server_info}"\
-      ", database_info=#{database_info}"\
-      ", query_type=#{query_type}"\
-      ", counters=#{counters}"\
-      ", plan=#{plan}"\
-      ", profile=#{profile}"\
-      ", notifications=#{notifications}"\
-      ", result_available_after=#{result_available_after}"\
-      ", result_consumed_after=#{result_consumed_after}"\
-      "}"
-    end
-
     private
 
     # Profiled plan is a superset of plan. This method returns profiled plan if plan is {@code null}.
