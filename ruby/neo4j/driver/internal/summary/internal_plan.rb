@@ -6,40 +6,36 @@ module Neo4j::Driver::Internal::Summary
     # Since a plan with or without profiling looks almost the same, we just keep two impls. of this
     # around to contain the small difference, and share the rest of the code for building plan trees.
     # @param <T>
-    class PlanCreator
-      def create(operator_type, arguments, identifiers, children, original_plan_value)
-        InternalPlan.new(operator_type, arguments, identifiers, children)
-      end
-    end
 
     class Converter
-      def initialize(plan_creator)
+      def initialize(&plan_creator)
         @plan_creator = plan_creator
       end
 
       def apply(plan)
-        operator_type = plan['operator_type'].to_s
+        operator_type = plan[:operator_type].to_s
 
-        arguments_value = plan['args']
-        arguments = arguments_value.nil? ? {} : arguments_value.as_map(&Values.of_value)
+        arguments_value = plan[:args]
+        arguments = arguments_value || {}
 
-        identifiers_value = plan['identifiers']
-        identifiers = identifiers_value.nil? ? [] : identifiers_value.as_list(&Values.of_string)
+        identifiers_value = plan[:identifiers]
+        identifiers = identifiers_value || []
 
-        children_value = plan['children']
-        children = children_value.nil? ? [] : children_value.as_list(self)
+        children_value = plan[:children]
+        children = children_value || []
 
-        @plan_creator.create(operator_type, arguments, identifiers, children, plan)
+        @plan_creator.call(operator_type, arguments, identifiers, children, plan)
       end
     end
 
-    EXPLAIN_PLAN = PlanCreator.new
+    EXPLAIN_PLAN = lambda { |operator_type, arguments, identifiers, children, _original_plan_value|
+      new(operator_type, arguments, identifiers, children) }
 
     # Builds a regular plan without profiling information - eg. a plan that came as a result of an `EXPLAIN` query
-    EXPLAIN_PLAN_FROM_VALUE = Converter.new(EXPLAIN_PLAN)
+    EXPLAIN_PLAN_FROM_VALUE = Converter.new(&EXPLAIN_PLAN).method(:apply)
 
     def self.plan(operator_type, arguments, identifiers, children)
-      EXPLAIN_PLAN.create(operator_type, arguments, identifiers, children, nil)
+      EXPLAIN_PLAN.call(operator_type, arguments, identifiers, children, nil)
     end
   end
 end

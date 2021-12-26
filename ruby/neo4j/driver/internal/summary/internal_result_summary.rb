@@ -1,32 +1,17 @@
 # frozen_string_literal: true
 
 module Neo4j::Driver::Internal::Summary
-  class InternalResultSummary < Struct.new(:query, :server_info, :database_info, :query_type, :counters, :plan, :profile, :notifications, :result_available_after, :result_consumed_after)
-    alias server server_info
-    alias database database_info
+  class InternalResultSummary < Struct.new(:query, :server, :database, :query_type, :counters, :plan, :profile,
+                                           :notifications, :result_available_after, :result_consumed_after)
+    alias plan? plan
+    alias profile? profile
 
     def counters
-      @counters || InternalSummaryCounters.EMPTY_STATS
-    end
-
-    def plan?
-      !@plan.nil?
-    end
-
-    def profile?
-      !@profile.nil?
+      super || InternalSummaryCounters.EMPTY_STATS
     end
 
     def notifications
-      @notifications || Collections.empty_list
-    end
-
-    def result_available_after(unit)
-      unit.convert(@result_available_after, java.util.concurrent.TimeUnit::MILLISECONDS) unless @result_available_after.nil?
-    end
-
-    def result_consumed_after(unit)
-      unit.convert(@result_consumed_after, java.util.concurrent.TimeUnit::MILLISECONDS) unless @result_consumed_after.nil?
+      super || []
     end
 
     private
