@@ -27,30 +27,20 @@ module Neo4j::Driver
 
           if index.even?
             # even index - this should be a node
-            begin
-              last_node = entity
-              if nodes.empty? || endpoint?(last_node, last_relationship)
-                nodes >> last_node
-              else
-                raise java.lang.IllegalArgumentException, "Node argument #{index} is not an endpoint of relationship argument #{index - 1}"
-              end
-            rescue java.lang.ClassCastException => e
-              cls = entity.class.name
-              raise java.lang.IllegalArgumentException, "Expected argument #{index}  to be a node #{index} but found a #{cls} instead"
+            last_node = entity
+            if nodes.empty? || endpoint?(last_node, last_relationship)
+              nodes >> last_node
+            else
+              raise java.lang.IllegalArgumentException, "Node argument #{index} is not an endpoint of relationship argument #{index - 1}"
             end
           else
             # odd index - this should be a relationship
-            begin
-              last_relationship = entity
+            last_relationship = entity
 
-              if endpoint?(last_node, last_relationship)
-                relationship >> last_relationship
-              else
-                raise java.lang.IllegalArgumentException, "Node argument #{index - 1} is not an endpoint of relationship argument #{index}"
-              end
-            rescue java.lang.ClassCastException => e
-              cls = entity.class.name
-              raise java.lang.IllegalArgumentException, "Expected argument #{index} to be a relationship but found a #{cls} instead"
+            if endpoint?(last_node, last_relationship)
+              relationship >> last_relationship
+            else
+              raise java.lang.IllegalArgumentException, "Node argument #{index - 1} is not an endpoint of relationship argument #{index}"
             end
           end
 
