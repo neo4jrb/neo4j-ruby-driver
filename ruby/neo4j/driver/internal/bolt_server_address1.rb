@@ -8,37 +8,6 @@ module Neo4j::Driver
 
       DEFAULT_PORT = 7687
 
-      def initialize(host, port, connection_host: host)
-        @host = Validator.require_non_nil!(host)
-        @connection_host = Validator.require_non_nil!(connection_host)
-        @port = self.class.require_valid_port(port)
-      end
-
-      LOCAL_DEFAULT = new('localhost', DEFAULT_PORT)
-
-      def self.from(address)
-        address.instance_of?(BoltServerAddress) ? address : new(address.host, address.port)
-      end
-
-      def eql?(other)
-        attributes.eql?(other&.attributes)
-      end
-
-      def to_s
-        "#{host}#{"(#{connection_host})" unless host == connection_host}:#{port}"
-      end
-
-      # Create a stream of unicast addresses.
-      # <p>
-      # While this implementation just returns a stream of itself, the subclasses may provide multiple addresses.
-
-      # @return stream of unicast addresses.
-      def unicast_stream
-        java.util.stream.Stream.of(self)
-      end
-
-      private
-
       class << self
         def host_from(uri)
           host = uri.get_host
@@ -94,6 +63,37 @@ module Neo4j::Driver
           raise ArgumentError, "Illegal port: #{port}"
         end
       end
+
+      def initialize(host, port, connection_host: host)
+        @host = Validator.require_non_nil!(host)
+        @connection_host = Validator.require_non_nil!(connection_host)
+        @port = self.class.require_valid_port(port)
+      end
+
+      LOCAL_DEFAULT = new('localhost', DEFAULT_PORT)
+
+      def self.from(address)
+        address.instance_of?(BoltServerAddress) ? address : new(address.host, address.port)
+      end
+
+      def eql?(other)
+        attributes.eql?(other&.attributes)
+      end
+
+      def to_s
+        "#{host}#{"(#{connection_host})" unless host == connection_host}:#{port}"
+      end
+
+      # Create a stream of unicast addresses.
+      # <p>
+      # While this implementation just returns a stream of itself, the subclasses may provide multiple addresses.
+
+      # @return stream of unicast addresses.
+      def unicast_stream
+        java.util.stream.Stream.of(self)
+      end
+
+      private
 
       def attributes
         [@host, @connection_host, @port]
