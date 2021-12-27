@@ -2,6 +2,7 @@ module Neo4j::Driver
   module Internal
     # Holds a host and port pair that denotes a Bolt server address.
     class BoltServerAddress < Struct.new(:host, :connection_host, :port, :string_value)
+      extend Net::ServerAddress
       DEFAULT_PORT = 7687
       LOCAL_DEFAULT = new('localhost', DEFAULT_PORT)
 
