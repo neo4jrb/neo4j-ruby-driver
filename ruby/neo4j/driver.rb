@@ -21,10 +21,6 @@ module Neo4j
     Result = Neo4j::Driver::Internal::InternalResult
     Transaction = Neo4j::Driver::Internal::InternalTransaction
 
-    module Net
-      include_package 'org.neo4j.driver.net'
-    end
-
     module Summary
       include_package 'org.neo4j.driver.summary'
     end
