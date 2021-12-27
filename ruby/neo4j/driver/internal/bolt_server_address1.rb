@@ -1,14 +1,31 @@
 module Neo4j::Driver
   module Internal
     # Holds a host and port pair that denotes a Bolt server address.
-    class BoltServerAddress < Struct.new(:host, :connection_host, :port, :string_value)
-      include Net::ServerAddress
+    class BoltServerAddress1
+      include org.neo4j.driver.net.ServerAddress
+      attr_reader :host, :connection_host, :port
+      delegate :hash, to: :attributes
 
       DEFAULT_PORT = 7687
+
+      def initialize(host, port, connection_host: host)
+        @host = Validator.require_non_nil!(host)
+        @connection_host = Validator.require_non_nil!(connection_host)
+        @port = require_valid_port(port)
+      end
+
       LOCAL_DEFAULT = new('localhost', DEFAULT_PORT)
 
       def self.from(address)
         address.instance_of?(BoltServerAddress) ? address : new(address.host, address.port)
+      end
+
+      def eql?(other)
+        attributes.eql?(other&.attributes)
+      end
+
+      def to_s
+        "#{host}#{"(#{connection_host})" unless host == connection_host}:#{port}"
       end
 
       # Create a stream of unicast addresses.
@@ -76,6 +93,10 @@ module Neo4j::Driver
 
           raise java.lang.IllegalArgumentException, "Illegal port: #{port}"
         end
+      end
+
+      def attributes
+        [@host, @connection_host, @port]
       end
     end
   end

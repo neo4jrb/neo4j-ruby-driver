@@ -4,7 +4,6 @@ module Neo4j::Driver
       module Inbound
         class ChunkDecoder < org.neo4j.driver.internal.shaded.io.netty.handler.codec.LengthFieldBasedFrameDecoder
           MAX_FRAME_BODY_LENGTH = 0xFFFF
-          MAX_FRAME_BODY_LENGTH = 0
           LENGTH_FIELD_OFFSET = 0
           LENGTH_FIELD_LENGTH = 2
           LENGTH_ADJUSTMENT = 0
