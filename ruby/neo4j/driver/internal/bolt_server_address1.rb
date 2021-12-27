@@ -11,7 +11,7 @@ module Neo4j::Driver
       def initialize(host, port, connection_host: host)
         @host = Validator.require_non_nil!(host)
         @connection_host = Validator.require_non_nil!(connection_host)
-        @port = require_valid_port(port)
+        @port = self.class.require_valid_port(port)
       end
 
       LOCAL_DEFAULT = new('localhost', DEFAULT_PORT)
@@ -67,7 +67,7 @@ module Neo4j::Driver
             raise invalid_address_format(address)
           end
 
-          java.net.URI.create(scheme + host_port)
+          URI(scheme + host_port)
         end
 
         def host_port_from(address)
@@ -85,13 +85,13 @@ module Neo4j::Driver
         end
 
         def invalid_address_format(address)
-          java.lang.IllegalArgumentException.new("Invalid address format #{address}")
+          ArgumentError.new("Invalid address format #{address}")
         end
 
         def require_valid_port(port)
           return port if port >= 0 && port <= 65_535
 
-          raise java.lang.IllegalArgumentException, "Illegal port: #{port}"
+          raise ArgumentError, "Illegal port: #{port}"
         end
       end
 
