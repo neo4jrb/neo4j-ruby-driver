@@ -11,6 +11,10 @@ Loader.load do |loader|
   jruby_dir = File.expand_path('jruby', File.dirname(File.dirname(__dir__)))
   loader.push_dir(jruby_dir)
   loader.ignore(File.expand_path('neo4j/driver.rb', jruby_dir))
+  # %w[
+  #   internal/bolt_server_address
+  #   net/server_address
+  # ].each {|file| loader.ignore(File.expand_path("neo4j/driver/#{file}.rb", __dir__))}
 end
 
 module Neo4j
