@@ -32,7 +32,7 @@ module Neo4j::Driver
           end
 
           def verify_connectivity
-            self.supports_multi_db.then_compose do |supports|
+            supports_multi_db.then_compose do |supports|
               routing_tables.ensure_routing_table(Async::ImmutableConnectionContext.simple(supports)) do |_, error|
                 if !error.nil?
                   cause = Util::Futures.completion_exception_cause(error)

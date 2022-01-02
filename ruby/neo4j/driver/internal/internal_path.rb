@@ -1,11 +1,29 @@
 module Neo4j::Driver
   module Internal
-    class InternalPath < Struct.new(:segments, :nodes, :relationships)
+    class InternalPath < Array
+      attr_reader :nodes, :relationships
+
       class SelfContainedSegment < Struct.new(:start_node, :relationship, :end_node)
+        def to_s
+          sprintf(relationship.start_node_id == start_node.id ? '(%s)-[%s:%s]->(%s)' : '(%s)<-[%s:%s]-(%s)',
+                  start_node.id, relationship.id, relationship.type, end_node.id)
+        end
       end
 
       delegate :length, to: :relationships
+      delegate :include?, to: :entities
 
+      def initialize(nodes, relationships)
+        super()
+        @nodes = nodes
+        @relationships = relationships
+      end
+
+      def to_s
+        'path' + super
+      end
+
+=begin
       private def endpoint?(node, relationship)
         node.id == relationship.start_node_id || node.id == relationship.end_node_id
       end
@@ -53,22 +71,22 @@ module Neo4j::Driver
       private def new_list(size)
         size == 0 ? [] : Array.new(size)
       end
-
-      def contains(relationship)
-        relationships.include?(relationship)
-      end
-
-      def as_value
-        Value::PathValue.new(self)
-      end
+=end
 
       private
+
+      def entities
+        nodes + relationships
+      end
+
+=begin
 
       def build_segments
         relationships.each do |index|
           segments << SelfContainedSegment.new(nodes[index], relationships[index], nodes[index + 1])
         end
       end
+=end
     end
   end
 end
