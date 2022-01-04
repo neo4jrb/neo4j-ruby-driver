@@ -20,7 +20,6 @@ module Neo4j::Driver
 
             @records = UNINITIALIZED_RECORDS
             @auto_pull_enabled = true
-            @summary_future, @record_future, @failure, @summary = nil
 
             install_record_and_summary_consumers
           end

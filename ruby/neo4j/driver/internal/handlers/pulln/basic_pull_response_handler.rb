@@ -11,7 +11,6 @@ module Neo4j::Driver
             @connection = java.util.Objects.require_non_null(connection)
             @completion_listener = java.util.Objects.require_non_null(completion_listener)
             @state = State::ReadyState
-            @to_request, @record_consumer, @summary_consumer = nil
           end
 
           def on_success(metadata)
@@ -166,7 +165,7 @@ module Neo4j::Driver
 
             module StreamingState
               def self.on_success(context, metadata)
-                if metadata.get_or_default('has_more', false)
+                if metadata(:has_more)
                   context.state(ReadyState)
                   context.success_has_more
                 else
@@ -197,7 +196,7 @@ module Neo4j::Driver
 
             module CancelledState
               def self.on_success(context, metadata)
-                if metadata.get_or_default('has_more', false)
+                if metadata(:has_more)
                   context.state(CancelledState)
                   context.discard_all
                 else
