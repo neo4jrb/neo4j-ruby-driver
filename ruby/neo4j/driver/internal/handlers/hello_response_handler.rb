@@ -2,9 +2,9 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class HelloResponseHandler
-        CONNECTION_ID_METADATA_KEY = 'connection_id'
-        CONFIGURATION_HINTS_KEY = 'hints'
-        CONNECTION_RECEIVE_TIMEOUT_SECONDS_KEY = 'connection.recv_timeout_seconds'
+        CONNECTION_ID_METADATA_KEY = :connection_id
+        CONFIGURATION_HINTS_KEY = :hints
+        CONNECTION_RECEIVE_TIMEOUT_SECONDS_KEY = :'connection.recv_timeout_seconds'
 
         def initialize(connection_initialized_promise, protocol_version)
           @connection_initialized_promise = connection_initialized_promise

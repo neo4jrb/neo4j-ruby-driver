@@ -4,7 +4,7 @@ module Neo4j::Driver
       class RouteMessageResponseHandler < Struct.new(:completable_future)
         def on_success(metadata)
           begin
-            completable_future.complete(metadata['rt'.to_sym])
+            completable_future.complete(metadata[:rt])
           rescue StandardError => ex
             completable_future.complete_exceptionally(ex)
           end

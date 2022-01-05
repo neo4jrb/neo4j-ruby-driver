@@ -19,7 +19,7 @@ module Neo4j::Driver
             closure_stage = Util::Futures.as_completion_stage(@channel.close)
           end
 
-          closure_stage.exceptionally(-> (_throwable) { nil }).then_compose(-> (_ignored) { @pool.release(@channel) }).when_complete do |_, error|
+          closure_stage.exceptionally(-> (_throwable) { nil }).then_compose(-> (_ignored) { @pool.release(@channel) }).when_complete do |_, _error|
             completion_future.complete(nil)
           end
         end
