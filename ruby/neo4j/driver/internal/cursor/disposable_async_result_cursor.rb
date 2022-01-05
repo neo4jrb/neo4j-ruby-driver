@@ -4,7 +4,7 @@ module Neo4j::Driver
       class DisposableAsyncResultCursor
         attr_accessor :disposed
 
-        delegate :keys, :pull_all_failure_async to: :@delegate
+        delegate :keys, :pull_all_failure_async, to: :@delegate
 
         def initialize(delegate)
           @delegate = delegate

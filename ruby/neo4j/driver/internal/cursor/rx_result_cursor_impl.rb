@@ -15,7 +15,7 @@ module Neo4j::Driver
           @run_handler = @run_handler
           @pull_handler = @pull_handler
           @summary_future = java.util.concurrent.CompletableFuture.new
-          @consumer_status = NOT_INSTALLED
+          @consumer_status = RecordConsumerStatus::NOT_INSTALLED
           install_summary_consumer
         end
 
@@ -28,7 +28,7 @@ module Neo4j::Driver
 
           return if @consumer_status.installed?
 
-          @consumer_status = record_consumer == DISCARD_RECORD_CONSUMER ? DISCARD_INSTALLED : INSTALLED
+          @consumer_status = record_consumer == DISCARD_RECORD_CONSUMER ? RecordConsumerStatus::DISCARD_INSTALLED : RecordConsumerStatus::INSTALLED
           @pull_handler.install_record_consumer(record_consumer)
           assert_run_completed_successfully
         end
@@ -93,16 +93,16 @@ module Neo4j::Driver
         end
 
         class RecordConsumerStatus
-          NOT_INSTALLED = new(false, false)
-          INSTALLED = new(true, false)
-          DISCARD_INSTALLED = new(true, true)
-
           attr_reader :installed, :discard_consumer
 
           def initialize(installed, discard_consumer)
             @installed = installed
             @discard_consumer = discard_consumer
           end
+
+          NOT_INSTALLED = new(false, false)
+          INSTALLED = new(true, false)
+          DISCARD_INSTALLED = new(true, true)
         end
       end
     end
