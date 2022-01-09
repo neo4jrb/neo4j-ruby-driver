@@ -4,6 +4,7 @@ module Neo4j::Driver
       module Pulln
         class BasicPullResponseHandler
           attr_accessor :state
+
           def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener)
             @query = java.util.Objects.require_non_null(query)
             @run_response_handler = java.util.Objects.require_non_null(run_response_handler)
@@ -50,7 +51,7 @@ module Neo4j::Driver
           end
 
           def success_has_more
-            if @to_request > 0 || @to_request == FetchSizeUtil::UNLIMITED_FETCH_SIZE
+            if @to_request.nil? || @to_request > 0
               request(@to_request)
               @to_request = 0
             end
@@ -72,24 +73,20 @@ module Neo4j::Driver
             connection.writeAndFlush(Messaging::Request::DiscardMessage.new_discard_all_message(@run_response_handler.query_id), self)
           end
 
-          def install_summary_consumer(summary_consumer)
-            unless @summary_consumer.nil?
-              raise Exceptions::IllegalStateException, 'Summary consumer already installed.'
-            end
+          def install_summary_consumer(&summary_consumer)
+            raise Exceptions::IllegalStateException, 'Summary consumer already installed.' if @summary_consumer
 
             @summary_consumer = summary_consumer
           end
 
-          def install_record_consumer(record_consumer)
-            unless @record_consumer.nil?
-              raise Exceptions::IllegalStateException, 'Record consumer already installed.'
-            end
+          def install_record_consumer(&record_consumer)
+            raise Exceptions::IllegalStateException, 'Record consumer already installed.' if @record_consumer
 
             @record_consumer = record_consumer
           end
 
           def done?
-            @state.eql?(State::SucceededState ) || @state.eql?( State::FailureState)
+            @state.eql?(State::SucceededState) || @state.eql?(State::FailureState)
           end
 
           private def extract_result_summary(metadata)
@@ -98,10 +95,10 @@ module Neo4j::Driver
           end
 
           private def add_to_request(to_add)
-            return if @to_request == FetchSizeUtil::UNLIMITED_FETCH_SIZE
+            return unless @to_request
 
             # pull all
-            return @to_request = FetchSizeUtil::UNLIMITED_FETCH_SIZE if to_add == FetchSizeUtil::UNLIMITED_FETCH_SIZE
+            return @to_request = nil unless to_add
 
             if to_add <= 0
               raise java.lang.IllegalArgumentException, "Cannot request record amount that is less than or equal to 0. Request amount: #{to_add}"
