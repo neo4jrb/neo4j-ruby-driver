@@ -32,6 +32,7 @@ module Neo4j::Driver
             end
           end
 
+          # TODO: probably not necessary with concurrent-ruby as it might not wrap exceptions like java
           def completion_exception_cause(error)
             error.is_a?(java.util.concurrent.CompletionException) ? error.get_cause : error
           end
