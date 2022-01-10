@@ -50,7 +50,7 @@ module Neo4j::Driver
       end
 
       def supports_multi_db?
-        org.neo4j.driver.internal.util.Futures.blockingGet(supports_multi_db_async?)
+        Util::Futures.blocking_get(supports_multi_db_async?)
       end
 
       def supports_multi_db_async?

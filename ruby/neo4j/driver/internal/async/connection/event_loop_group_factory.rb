@@ -42,7 +42,7 @@ module Neo4j::Driver
             # @param thread the thread to check.
             # @return {@code true} when given thread belongs to the event loop, {@code false} otherwise.
             def event_loop_thread?(thread)
-              thread.kind_of?(DriverThread)
+              thread.is_a?(DriverThread)
             end
 
             private
