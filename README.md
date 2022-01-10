@@ -48,6 +48,10 @@ Or install it yourself as:
 
     $ gem install neo4j-ruby-driver
 
+## Server Compatibility
+
+The compatibility with Neo4j Server versions is documented in the [Neo4j Knowledge Base](https://neo4j.com/developer/kb/neo4j-supported-versions/).
+
 ## Usage
 
 Both drivers implement identical API and can be used interchangeably. The API is to highest possible degree consistent with the official java driver. 
