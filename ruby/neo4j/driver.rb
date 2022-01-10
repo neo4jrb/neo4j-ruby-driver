@@ -4,13 +4,17 @@ require 'active_support/core_ext/hash/keys'
 require 'active_support/logger'
 require 'date'
 require 'loader'
-require 'neo4j-ruby-driver_jars' if RUBY_PLATFORM.match?(/java/)
+require 'neo4j-ruby-driver_jars'
 require 'socket'
 
 Loader.load do |loader|
   jruby_dir = File.expand_path('jruby', File.dirname(File.dirname(__dir__)))
   loader.push_dir(jruby_dir)
   loader.ignore(File.expand_path('neo4j/driver.rb', jruby_dir))
+  # %w[
+  #   internal/bolt_server_address
+  #   net/server_address
+  # ].each {|file| loader.ignore(File.expand_path("neo4j/driver/#{file}.rb", __dir__))}
 end
 
 module Neo4j

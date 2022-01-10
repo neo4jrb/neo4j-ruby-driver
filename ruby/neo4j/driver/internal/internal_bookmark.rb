@@ -1,14 +1,26 @@
 module Neo4j::Driver
   module Internal
-    class InternalBookmark
-      attr_reader :values
-
-      def initialize(values)
-        java.util.Objects.require_non_null(values)
-        @values = values
+    class InternalBookmark < Set
+      def initialize(enum = nil)
+        super
+        freeze
       end
 
-      EMPTY = new(java.util.Collections.empty_set)
+      def values
+        self
+      end
+
+      EMPTY = new
+
+      class << self
+        def from(bookmarks)
+          new(bookmarks.flatten)
+        end
+
+        def parse(*values)
+          new(values)
+        end
+      end
     end
   end
 end

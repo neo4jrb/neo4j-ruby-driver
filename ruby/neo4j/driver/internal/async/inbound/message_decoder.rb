@@ -2,33 +2,32 @@ module Neo4j::Driver
   module Internal
     module Async
       module Inbound
-        class MessageDecoder
+        class MessageDecoder <  org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder
           class << self
             def determine_default_cumulator
               'merge' ==  value = java.lang.System.get_property('message_decoder_cumulator', '') ? org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder::MERGE_CUMULATOR : org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder::COMPOSITE_CUMULATOR
             end
           end
 
-          DEFAULT_CUMULATOR = self.determine_default_cumulator
-          attr_accessor :read_message_boundary
+          DEFAULT_CUMULATOR = determine_default_cumulator
 
           def initialize
             set_cumulator(DEFAULT_CUMULATOR)
           end
 
           def channel_read(ctx, msg)
-            if msg.kind_of?(io.netty.buffer.ByteBuf)
+            if msg.kind_of?(org.neo4j.driver.internal.shaded.io.netty.buffer.ByteBuf)
 
               # on every read check if input buffer is empty or not
               # if it is empty then it's a message boundary and full message is in the buffer
-              read_message_boundary = msg.readable_bytes == 0
+              @read_message_boundary = msg.readable_bytes == 0
             end
 
-            io.netty.handler.codec.ByteToMessageDecoder.channel_read(ctx, msg)
+            org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder.channel_read(ctx, msg)
           end
 
           def decode(ctx, inward, out)
-            if read_message_boundary
+            if @read_message_boundary
 
               # now we have a complete message in the input buffer
 
@@ -41,7 +40,7 @@ module Neo4j::Driver
 
               # pass the full message to the next handler in the pipeline
               out.add(message_buf)
-              read_message_boundary = false
+              @read_message_boundary = false
             end
           end
         end

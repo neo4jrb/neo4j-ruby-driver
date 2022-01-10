@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe 'SessionSpec' do
+RSpec.describe 'Session' do
   it 'knows session is closed' do
     session = driver.session
     session.close
