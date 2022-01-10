@@ -5,7 +5,6 @@ module Neo4j::Driver
       include Ext::ConfigConverter
       include Ext::ExceptionCheckable
       include Ext::RunOverride
-      java_import org.neo4j.driver.internal.util.Futures
 
       attr_reader :session
 
@@ -18,28 +17,28 @@ module Neo4j::Driver
 
       def run(query, parameters = {}, config = {})
         check do
-          cursor = Futures.blockingGet(session.runAsync(to_statement(query, parameters), to_java_config(org.neo4j.driver.TransactionConfig, config))) do
+          cursor = Util::Futures.blocking_get(session.run_async(to_statement(query, parameters), to_java_config(org.neo4j.driver.TransactionConfig, config))) do
             terminateConnectionOnThreadInterrupt("Thread interrupted while running query in session")
           end
 
           # query executed, it is safe to obtain a connection in a blocking way
-          connection = Futures.getNow(session.connectionAsync)
+          connection = Util::Futures.get_now(session.connection_async)
           InternalResult.new(connection, cursor)
         end
       end
 
       def close
         check do
-          Futures.blockingGet(session.closeAsync) do
-            terminateConnectionOnThreadInterrupt("Thread interrupted while closing the session")
+          Util::Futures.blocking_get(session.close_async) do
+            terminate_connection_on_thread_interrupt("Thread interrupted while closing the session")
           end
         end
       end
 
       def begin_transaction(**config)
         check do
-          tx = Futures.blockingGet(session.beginTransactionAsync(to_java_config(org.neo4j.driver.TransactionConfig, config))) do
-            org.neo4j.driver.internal.terminateConnectionOnThreadInterrupt("Thread interrupted while starting a transaction")
+          tx = Util::Futures.blocking_get(session.begin_transaction_async(to_java_config(org.neo4j.driver.TransactionConfig, config))) do
+            terminate_connection_on_thread_interrupt("Thread interrupted while starting a transaction")
           end
           InternalTransaction.new(tx)
         end
@@ -76,18 +75,18 @@ module Neo4j::Driver
       end
 
       def private_begin_transaction(mode, **config)
-        tx = Futures.blockingGet(session.beginTransactionAsync(mode, to_java_config(org.neo4j.driver.TransactionConfig, config))) do
-          terminateConnectionOnThreadInterrupt("Thread interrupted while starting a transaction")
+        tx = Util::Futures.blocking_get(session.beginTransactionAsync(mode, to_java_config(org.neo4j.driver.TransactionConfig, config))) do
+          terminate_connection_on_thread_interrupt("Thread interrupted while starting a transaction")
         end
         InternalTransaction.new(tx)
       end
 
-      def terminateConnectionOnThreadInterrupt(reason)
-        connection = Futures.getNow(session.connectionAsync)
+      def terminate_connection_on_thread_interrupt(reason)
+        connection = Util::Futures.get_now(session.connection_async)
       rescue Exception
         nil # ignore errors because handing interruptions is best effort
       ensure
-        connection&.terminateAndRelease(reason)
+        connection&.terminate_and_release(reason)
       end
     end
   end
