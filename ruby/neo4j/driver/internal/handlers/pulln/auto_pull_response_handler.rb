@@ -10,12 +10,12 @@ module Neo4j::Driver
             @fetch_size = fetch_size
 
             # For pull everything ensure conditions for disabling auto pull are never met
-            if fetch_size == UNLIMITED_FETCH_SIZE
-              @high_record_watermark = java.lang.Math::Long::MAX_VALUE
-              @low_record_watermark = java.lang.Math::Long::MAX_VALUE
-            else
+            if fetch_size
               @high_record_watermark = fetch_size * 0.7
               @low_record_watermark = fetch_size * 0.3
+            else
+              @high_record_watermark = java.lang.Math::Long::MAX_VALUE
+              @low_record_watermark = java.lang.Math::Long::MAX_VALUE
             end
 
             @records = UNINITIALIZED_RECORDS
@@ -26,8 +26,8 @@ module Neo4j::Driver
 
           private def install_record_and_summary_consumers
             install_record_consumer do |record, error|
-              unless record.nil?
-                enqueue_record(record);
+              if record
+                enqueue_record(record)
                 complete_record_future(record)
               end
 
@@ -108,7 +108,7 @@ module Neo4j::Driver
           def pull_all_async
             return completed_with_value_if_no_failure(@summary) if done?
 
-            request(UNLIMITED_FETCH_SIZE)
+            request(nil)
 
             @summary_future = java.util.concurrent.CompletableFuture.new if @summary_future.nil?
 
