@@ -3,13 +3,10 @@ module Neo4j::Driver
     module Metrics
       class InternalMetricsProvider
         attr_reader :metrics
+        alias metrics_listener metrics
 
         def initialize(clock, logging)
           @metrics = InternalMetrics.new(clock, logging)
-        end
-
-        def metrics_listener
-          metrics
         end
 
         def metrics_enabled?
