@@ -101,6 +101,56 @@ module Neo4j::Driver
             ErrorUtil.add_suppressed(cause1, cause2)
             as_completion_exception(cause1)
           end
+
+          def as_completion_exception(error)
+            error if error.instance_of?(CompletionException)
+
+            java.util.concurrent.CompletionException.new(error)
+          end
+
+          def on_error_continue(future, error_recorder, on_error_action)
+            java.util.Objects.require_non_null(future)
+
+            future.handle do |value, error|
+              unless error.nil?
+                # record error
+                Futures.combine_errors(errorRecorder, error)
+                CompletionResult.new(nil, error)
+              end
+
+              CompletionResult.new(value, nil)
+            end.then_compose do |result|
+                  if result.value.nil?
+                    on_error_action.apply(result.error)
+                  else
+                    java.util.concurrent.CompletableFuture.completed_future(result.value)
+                  end
+                end
+          end
+
+          def future_completing_consumer(future)
+            -> (value, throwable) { throwable.nil? ? future.complete(value) : future.complete_exceptionally(throwable) }
+          end
+
+          private
+
+          class CompletionResult
+            def initialize(value, error)
+              @value = value
+              @error = error
+            end
+          end
+
+          def safe_run(runnable)
+            begin
+              runnable.run
+            rescue StandardError => e
+
+            end
+          end
+
+          def no_op_interrupt_handler
+          end
         end
       end
     end
