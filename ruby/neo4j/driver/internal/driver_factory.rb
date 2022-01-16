@@ -2,6 +2,7 @@ module Neo4j::Driver::Internal
   class DriverFactory
     include Scheme
     include Neo4j::Driver::Ext::NeoConverter
+    NO_ROUTING_CONTEXT_ERROR_MESSAGE = "Routing parameters are not supported with scheme 'bolt'. Given URI: "
 
     def initialize(domain_name_resolver = ->(name) { [name] })
       @domain_name_resolver = domain_name_resolver
@@ -15,14 +16,14 @@ module Neo4j::Driver::Internal
       newRoutingSettings = routingSettings.withRoutingContext(org.neo4j.driver.internal.cluster.RoutingContext.new(java_uri))
 
       org.neo4j.driver.internal.shaded.io.netty.util.internal.logging.InternalLoggerFactory.setDefaultFactory(org.neo4j.driver.internal.logging.NettyLogging.new(config.java_config.logging))
-      eventExecutorGroup = bootstrap.config.group
-      retry_logic = Retry::ExponentialBackoffRetryLogic.new(retrySettings, config[:logger])
+      event_executor_group = bootstrap.config.group
+      retry_logic = Retry::ExponentialBackoffRetryLogic.new(retrySettings, event_executor_group, config[:logger])
 
       metricsProvider = createDriverMetrics(config, createClock)
       connectionPool = create_connection_pool(auth_token, securityPlan, bootstrap, metricsProvider, config,
                                               eventLoopGroup.nil?, newRoutingSettings.routingContext)
 
-      createDriver(uri, securityPlan, address, connectionPool, eventExecutorGroup, newRoutingSettings, retry_logic, metricsProvider, config)
+      createDriver(uri, securityPlan, address, connectionPool, event_executor_group, newRoutingSettings, retry_logic, metricsProvider, config)
     end
 
     private
