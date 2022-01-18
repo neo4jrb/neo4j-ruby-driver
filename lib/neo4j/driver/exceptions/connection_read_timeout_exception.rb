@@ -8,10 +8,6 @@ module Neo4j
       # communication from the server within the specified timeout period. This results in the server being removed from the routing table.
       class ConnectionReadTimeoutException < ServiceUnavailableException
         INSTANCE = new('Connection read timed out due to it taking longer than the server-supplied timeout value via configuration hint.')
-
-        def initialize(message)
-          super(message)
-        end
       end
     end
   end

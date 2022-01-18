@@ -9,9 +9,6 @@ module Neo4j
 
       # @since 1.1
       class AuthenticationException < SecurityException
-        def initialize(code, message)
-          super(code, message)
-        end
       end
     end
   end

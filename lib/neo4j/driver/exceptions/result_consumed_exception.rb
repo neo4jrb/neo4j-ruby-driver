@@ -7,9 +7,6 @@ module Neo4j
       # the resources have already been consumed or
       # the {@link QueryRunner} where the resources are created has already been closed.
       class ResultConsumedException < ClientException
-        def initialize(message)
-          super(message)
-        end
       end
     end
   end

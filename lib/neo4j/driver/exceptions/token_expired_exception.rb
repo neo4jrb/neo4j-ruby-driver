@@ -9,9 +9,6 @@ module Neo4j
       # <p>
       # Error code: Neo.ClientError.Security.TokenExpired
       class TokenExpiredException < SecurityException
-        def initialize(code, message)
-          super(code, message)
-        end
       end
     end
   end

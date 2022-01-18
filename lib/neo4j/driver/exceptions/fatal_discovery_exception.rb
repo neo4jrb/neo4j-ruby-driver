@@ -7,9 +7,6 @@ module Neo4j
       # This exception should not be retried.
       # @since 4.0
       class FatalDiscoveryException < ClientException
-        def initialize(code, message)
-          super(code, message)
-        end
       end
     end
   end

@@ -8,9 +8,6 @@ module Neo4j
       # and all actions taken on the expired session must be replayed.
       # @since 1.1
       class SessionExpiredException < Neo4jException
-        def initialize(message, throwable = nil)
-          super(message, throwable)
-        end
       end
     end
   end

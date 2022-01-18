@@ -8,9 +8,6 @@ module Neo4j
       # Restart of server/driver/cluster might be required to recover from this error.
       # @since 1.1
       class SecurityException < ClientException
-        def initialize(code, message)
-          super(code, message)
-        end
       end
     end
   end

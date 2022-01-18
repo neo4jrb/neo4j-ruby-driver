@@ -10,9 +10,6 @@ module Neo4j
 
       # If you see this error in your logs, it is safe to ignore if your cluster is temporarily changing structure during that time.
       class DiscoveryException < Neo4jException
-        def initialize(message, cause)
-          super(message, cause)
-        end
       end
     end
   end
