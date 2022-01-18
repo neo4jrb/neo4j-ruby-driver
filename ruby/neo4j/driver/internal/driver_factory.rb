@@ -8,8 +8,10 @@ module Neo4j::Driver::Internal
       @domain_name_resolver = domain_name_resolver
     end
 
-    def new_instance(uri, auth_token, routingSettings, retrySettings, config, securityPlan, eventLoopGroup = nil)
-      bootstrap = org.neo4j.driver.internal.async.connection.BootstrapFactory.newBootstrap(eventLoopGroup || config.java_config.eventLoopThreads)
+    def new_instance(uri, auth_token, routingSettings, retry_settings, config, securityPlan, event_loop_group = nil)
+      bootstrap = create_bootstrap(
+        **event_loop_group ? { event_loop_group: event_loop_group } : { thread_count: config[:event_loop_threads] }
+      )
       java_uri = java.net.URI.create(uri.to_s)
 
       address = org.neo4j.driver.internal.BoltServerAddress.new(java_uri)
@@ -17,11 +19,11 @@ module Neo4j::Driver::Internal
 
       org.neo4j.driver.internal.shaded.io.netty.util.internal.logging.InternalLoggerFactory.setDefaultFactory(org.neo4j.driver.internal.logging.NettyLogging.new(config.java_config.logging))
       event_executor_group = bootstrap.config.group
-      retry_logic = Retry::ExponentialBackoffRetryLogic.new(retrySettings, event_executor_group, config[:logger])
+      retry_logic = Retry::ExponentialBackoffRetryLogic.new(retry_settings, event_executor_group, config[:logger])
 
       metricsProvider = createDriverMetrics(config, createClock)
       connectionPool = create_connection_pool(auth_token, securityPlan, bootstrap, metricsProvider, config,
-                                              eventLoopGroup.nil?, newRoutingSettings.routingContext)
+                                              event_loop_group.nil?, newRoutingSettings.routingContext)
 
       createDriver(uri, securityPlan, address, connectionPool, event_executor_group, newRoutingSettings, retry_logic, metricsProvider, config)
     end
@@ -114,13 +116,17 @@ module Neo4j::Driver::Internal
       Java::OrgNeo4jDriverInternalUtil::Clock::SYSTEM
     end
 
+    def create_bootstrap(**args)
+      Async::Connection::BootstrapFactory.new_bootstrap(**args)
+    end
+
+    protected
+
     def closeConnectionPoolAndSuppressError(connectionPool, mainError)
       org.neo4j.driver.internal.util.Futures.blockingGet(connectionPool.close)
     rescue Exception => closeError
       org.neo4j.driver.internal.util.ErrorUtil.addSuppressed(mainError, closeError)
     end
-
-    protected
 
     def getDomainNameResolver(name)
       domain_name_resolver(name).map { |addrinfo| java.net.InetAddress.getByName(addrinfo.canonname) }.to_java(java.net.InetAddress)
