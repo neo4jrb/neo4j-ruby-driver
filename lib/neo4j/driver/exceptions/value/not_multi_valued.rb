@@ -6,10 +6,6 @@ module Neo4j
         # or array.
         # @since 1.0
         class NotMultiValued < ValueException
-          def initialize(message)
-            super(message)
-            @serial_version_ui_d = -7380569883011364090
-          end
         end
       end
     end

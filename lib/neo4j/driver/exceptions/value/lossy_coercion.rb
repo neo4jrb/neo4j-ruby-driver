@@ -7,7 +7,6 @@ module Neo4j
         class LossyCoercion < ValueException
           def initialize(source_type_name, destination_type_name)
             super("Cannot coerce #{source_type_name} to #{destination_type_name} without losing precision")
-            @serial_version_ui_d = -6259981390929065201
           end
         end
       end
