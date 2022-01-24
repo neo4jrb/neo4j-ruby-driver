@@ -14,8 +14,8 @@ end
 # End workaround
 
 require 'active_support'
-#require 'active_support/core_ext/hash/indifferent_access'
-#require 'active_support/core_ext/numeric/time'
-#require 'active_support/duration'
-#require 'active_support/time'
+require 'active_support/core_ext/hash/indifferent_access'
+require 'active_support/core_ext/numeric/time'
+require 'active_support/duration'
+require 'active_support/time'
 require 'neo4j/driver'
