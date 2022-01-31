@@ -36,6 +36,7 @@ module Neo4j
         connection_acquisition_timeout: 1.minute, #:set_max_connection_acquisition_time
         connection_timeout: 30.seconds, # BoltSocketOptions_set_connect_timeout
         encryption: false, # :set_transport
+        event_loop_threads: 0,
         fetch_size: 1000,
         idle_time_before_connection_test: -1,
         keep_alive: true, # BoltSocketOptions_set_keep_alive
