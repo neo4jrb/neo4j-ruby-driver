@@ -27,16 +27,19 @@ module Neo4j
     #  </pre>
     # @see Session
     class TransactionConfig < Hash
-      def initialize(**config)
-        @timeout = config.timeout
-        @metadata = config.metadata
+      EMPTY = new
+
+      def initialize(timeout: nil, metadata: {})
+        Internal::Util::Preconditions.check_argument(timeout.nil? || timeout.positive?, 'Transaction timeout should be positive')
+        Internal::Validator.require_non_nil!(metadata)
+        merge(timeout: timeout, metadata: metadata)
       end
 
       # Check if this configuration object contains any values.
 
       # @return {@code true} when no values are configured, {@code false otherwise}.
       def empty?
-        timeout.nil? && (metadata.nil? || metadata.empty?)
+        fetch(:timeout).nil? && fetch(:metadata).blank?
       end
     end
   end

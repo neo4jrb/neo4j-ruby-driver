@@ -9,6 +9,10 @@ module Neo4j
     # @see ResultSummary
     # @since 1.0
     class Query < Struct.new(:text, :parameters)
+      def initialize(text, **parameters)
+        super(validated_query_text(text), parameters)
+      end
+
       # @param newText the new query text
       # @return a new Query object with updated text
       def with_text(new_text)
@@ -28,20 +32,16 @@ module Neo4j
 
       # @param updates describing how to update the parameters
       # @return a new query with updated parameters
-      def with_updated_parameters(updates)
-        return self if updates.nil? || updates.empty?
+      def with_updated_parameters(**updates)
+        with_parameters(parameters.merge(updates))
+      end
 
-        new_parameters = parameters
+      private
 
-        updates.each do |key, value|
-          if value.nil?
-            new_parameters.delete(key)
-          else
-            new_parameters[key] = value
-          end
-        end
-
-        with_parameters(new_parameters)
+      def self.validated_query_text(query)
+        Internal::Util::Preconditions.check_argument(query, 'Cypher query text should not be nil')
+        Internal::Util::Preconditions.check_argument(query.present?, 'Cypher query text should not be an empty string')
+        query
       end
     end
   end
