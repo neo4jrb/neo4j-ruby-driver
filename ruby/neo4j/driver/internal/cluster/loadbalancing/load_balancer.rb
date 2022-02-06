@@ -66,7 +66,7 @@ module Neo4j::Driver
 
                 @connection_pool.acquire(address).then_compose do |conn|
                   supports_multi_database = Messaging::Request::MultiDatabaseUtil.supports_multi_database(conn)
-                  conn.release.then_apply(-> (_ignored) { supports_multi_database })
+                  conn.release.then_apply(-> { supports_multi_database })
                 end
               end
             end

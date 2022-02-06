@@ -22,7 +22,7 @@ module Neo4j::Driver
           end.exceptionally do |throwable|
                 RoutingProcedureResponse.new(query(database_name), throwable.cause)
               end.then_compose do |routing_procedure_response|
-                    direct_connection.release.then_apply(-> (_ignore) { routing_procedure_response } )
+                    direct_connection.release.then_apply(-> { routing_procedure_response } )
                   end
         end
 

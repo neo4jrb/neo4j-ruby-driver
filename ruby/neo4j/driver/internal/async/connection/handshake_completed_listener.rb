@@ -3,7 +3,6 @@ module Neo4j::Driver
     module Async
       module Connection
         class HandshakeCompletedListener
-          attr_reader :user_agent, :auth_token, :routing_context, :connection_initialized_promise
 
           def initialize(user_agent, auth_token, routing_context, connection_initialized_promise)
             @user_agent = java.util.Objects.require_non_null(user_agent)
@@ -13,11 +12,11 @@ module Neo4j::Driver
           end
 
           def operation_complete(future)
-            if future.is_success?
+            if future.success?
               protocol = Messaging::BoltProtocol.for_channel(future.channel)
-              protocol.initialize_channel(user_agent, auth_token, routing_context, connection_initialized_promise)
+              protocol.initialize_channel(@user_agent, @auth_token, @routing_context, @connection_initialized_promise)
             else
-              connection_initialized_promise.set_failure(future.cause)
+              @connection_initialized_promise.set_failure(future.cause)
             end
           end
         end

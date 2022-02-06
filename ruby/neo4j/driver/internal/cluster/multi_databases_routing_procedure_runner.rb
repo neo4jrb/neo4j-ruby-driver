@@ -9,7 +9,7 @@ module Neo4j::Driver
         MULTI_DB_GET_ROUTING_TABLE = "CALL dbms.routing.getRoutingTable($%s, $%s)" % [SingleDatabaseRoutingProcedureRunner::ROUTING_CONTEXT, DATABASE_NAME]
 
         def initialize(context)
-          super(context)
+          super
         end
 
         private

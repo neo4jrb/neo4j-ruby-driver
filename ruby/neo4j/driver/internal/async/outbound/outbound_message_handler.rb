@@ -31,10 +31,10 @@ module Neo4j::Driver
               @output.stop
               # release buffer because it will not get added to the out list and no other handler is going to handle it
               message_buf.release
-              io.netty.handler.codec.EncoderException.new("Failed to write outbound message: #{msg}", e)
+              org.neo4j.driver.internal.shaded.io.netty.handler.codec.EncoderException.new("Failed to write outbound message: #{msg}", e)
             end
 
-            @log.trace( "C: #{io.netty.buffer.ByteBufUtil.hex_dump(message_buf)}") if @log.trace_enabled?
+            @log.trace( "C: #{org.neo4j.driver.internal.shaded.io.netty.buffer.ByteBufUtil.hex_dump(message_buf)}") if @log.trace_enabled?
 
             Connection::BoltProtocolUtil.write_message_boundary(message_buf)
             out.add(message_buf)

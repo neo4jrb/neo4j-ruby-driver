@@ -42,7 +42,7 @@ module Neo4j::Driver
               when Neo4j::Driver::Exceptions::AuthorizationExpiredException
                 @connection.terminate_and_release(Neo4j::Driver::Exceptions::AuthorizationExpiredException::DESCRIPTION)
               when Neo4j::Driver::Exceptions::ConnectionReadTimeoutException
-                @connection.terminate_and_release(begin_error.get_message)
+                @connection.terminate_and_release(begin_error.message)
               else
                 @connection.release
               end

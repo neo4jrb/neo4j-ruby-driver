@@ -19,13 +19,15 @@ module Neo4j::Driver
             @delegate = Java::IoNettyChannelPool::FixedChannelPool.new(bootstrap, handler, health_check,
                         Java::IoNettyChannelPool::FixedChannelPool::AcquireTimeoutAction::FAIL, acquire_timeout_millis,
                         max_connections, MAX_PENDING_ACQUIRES, RELEASE_HEALTH_CHECK)
+            @close_future = java.util.concurrent.CompletableFuture.new
+            @closed = java.util.concurrent.atomic.AtomicBoolean.new(false)
           end
 
           def close
-            if closed.compare_and_set(false, true)
-              Util::Futurs.as_completion_stage(delegate.close_async, close_future)
+            if @closed.compare_and_set(false, true)
+              Util::Futurs.as_completion_stage(delegate.close_async, @close_future)
             end
-            close_future
+            @close_future
           end
 
           def acquire
@@ -36,14 +38,14 @@ module Neo4j::Driver
             Util::Futurs.as_completion_stage(delegate.release(channel))
           end
 
-          def is_closed?
-            closed.get
+          def closed?
+            @closed.get
           end
 
           private
 
           def pool_id(server_address)
-            [server_address.host, server_address.port, self.hash_code]
+            "#{server_address.host}:#{server_address.port}-#{self.hash_code}"
           end
         end
       end

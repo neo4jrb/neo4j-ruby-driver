@@ -24,7 +24,7 @@ module Neo4j::Driver
             termination_reason = Connection::ChannelAttributes.termination_reason(ctx.channel)
             error = Util::ErrorUtil.new_connection_terminated_error(termination_reason)
 
-            if @failed
+            if !@failed
 
               # channel became inactive not because of a fatal exception that came from exceptionCaught
               # it is most likely inactive because actual network connection broke or was explicitly closed by the driver

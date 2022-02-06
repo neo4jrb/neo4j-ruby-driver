@@ -15,16 +15,16 @@ module Neo4j::Driver
             @logging = java.util.Objects.require_non_null(logging)
             @clock = java.util.Objects.require_non_null(domain_name_resolver)
             @domain_name_resolver = java.util.Objects.require_non_null(domain_name_resolver)
-            @address_resolver_group = NettyDomainNameResolverGroup.new(DOMAIN_NAME_RESOLVER)
+            @address_resolver_group = NettyDomainNameResolverGroup.new(@domain_name_resolver)
           end
 
           def connect(address, bootstrap)
-            bootstrap.option(io.netty.channel.ChannelOption::CONNECT_TIMEOUT_MILLIS, connect_timeout_millis)
+            bootstrap.option(org.neo4j.driver.internal.shaded.io.netty.channel.ChannelOption::CONNECT_TIMEOUT_MILLIS, connect_timeout_millis)
             bootstrap.handler(NettyChannelInitializer.new(address, security_plan, connect_timeout_millis, clock, logging))
-            bootstrap.resolver(address_resolver_group)
+            bootstrap.resolver(@address_resolver_group)
 
             begin
-              socket_address = java.net.InetSocketAddress.new(address_resolver_group)
+              socket_address = java.net.InetSocketAddress.new(@domain_name_resolver.resolve(address.connection_host).first, address.port)
             rescue
               socket_address = java.net.InetSocketAddress.create_unresolved(address.connection_host, address.port)
             end
@@ -48,7 +48,7 @@ module Neo4j::Driver
 
             # add timeout handler to the pipeline when channel is connected. it's needed to limit amount of time code
             # spends in TLS and Bolt handshakes. prevents infinite waiting when database does not respond
-            channel_connected.add_listener(->(_future) {pipeline.add_first(Inbound::ConnectTimeoutHandler.new(connect_timeout_millis))})
+            channel_connected.add_listener(-> { pipeline.add_first(Inbound::ConnectTimeoutHandler.new(connect_timeout_millis)) })
 
             # add listener that sends Bolt handshake bytes when channel is connected
             channel_connected.add_listener(ChannelConnectedListener.new(address, pipeline_builder, handshake_completed, logging))
@@ -59,7 +59,7 @@ module Neo4j::Driver
 
             # remove timeout handler from the pipeline once TLS and Bolt handshakes are completed. regular protocol
             # messages will flow next and we do not want to have read timeout for them
-            handshake_completed.add_listener(->(_future){pipeline.remove(Inbound::ConnectTimeoutHandler.name)})
+            handshake_completed.add_listener(-> { pipeline.remove(Inbound::ConnectTimeoutHandler.name) })
 
             # add listener that sends an INIT message. connection is now fully established. channel pipeline if fully
             # set to send/receive messages for a selected protocol version
@@ -68,11 +68,9 @@ module Neo4j::Driver
 
           class << self
             def require_valid_auth_token(token)
-              if token.kind_of?(Security::InternalAuthToken)
-                token
-              else
-                raise Neo4j::Driver::Exceptions::ClientException, "Unknown authentication token, `#{token}`. Please use one of the supported tokens from `#{Neo4j::Driver::AuthTokens.class}`."
-              end
+              return token if token.kind_of?(Security::InternalAuthToken)
+
+              raise Neo4j::Driver::Exceptions::ClientException, "Unknown authentication token, `#{token}`. Please use one of the supported tokens from `#{Neo4j::Driver::AuthTokens.class}`."
             end
           end
         end

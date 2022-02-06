@@ -10,7 +10,7 @@ module Neo4j::Driver
           def initialize(channel, logging)
             @handlers = []
             @channel = Validator.require_non_nil!(channel)
-            @log = Logging::ChannelActivityLogger.new(channel, logging, get_class)
+            @log = Logging::ChannelActivityLogger.new(channel, logging, self.class)
             @error_log = Logging.ChannelErrorLogger.new(channel, logging)
           end
 
@@ -25,7 +25,7 @@ module Neo4j::Driver
 
           def set_before_last_handler_hook(before_last_handler_hook)
             unless @channel.event_loop.in_event_loop
-              raise Neo4j::Driver::Exceptions::IllegalStateException.new('This method may only be called in the EventLoop')
+              raise Neo4j::Driver::Exceptions::IllegalStateException, 'This method may only be called in the EventLoop'
             end
             @before_last_handler_hook = before_last_handler_hook
           end
@@ -42,25 +42,25 @@ module Neo4j::Driver
           end
 
           def handle_record_message(fields)
-            if log.is_debug_enabled?
+            if log.debug_enabled?
               log.debug("S: RECORD #{fields}")
             end
 
             handler = @handlers.first
             if handler.nil?
-              rails Neo4j::Driver::Exceptions::IllegalStateException.new("No handler exists to handle RECORD message with fields #{fields}")
+              raise Neo4j::Driver::Exceptions::IllegalStateException, "No handler exists to handle RECORD message with fields #{fields}"
             end
 
             handler.on_record(fields)
           end
 
           def handle_failure_message(code, message)
-            log.debug("S: FAILURE #{code}, '#{message}'")
+            log.debug("S: FAILURE #{code} '#{message}'")
             current_error = Util::ErrorUtil.new_neo4j_error(code, message)
 
             # we should not continue using channel after a fatal error
             # fire error event back to the pipeline and avoid sending RESET
-            return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.is_fatal?(current_error)
+            return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.fatal?(current_error)
 
             if current_error.kind_of?(Neo4j::Driver::Exceptions::AuthorizationExpiredException)
               Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(current_error, @channel)

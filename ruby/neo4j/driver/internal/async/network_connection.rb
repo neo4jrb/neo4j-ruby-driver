@@ -7,7 +7,7 @@ module Neo4j::Driver
         attr_reader :server_agent, :server_address, :server_version, :protocol
 
         def initialize(channel, channel_pool, clock, metrics_listener, logging)
-          @log = logging.get_log(self)
+          @log = logging.get_log(self.class)
           @channel = channel
           @message_dispatcher = Connection::ChannelAttributes.message_dispatcher(channel)
           @server_agent = Connection::ChannelAttributes.server_agent(channel)
@@ -84,15 +84,15 @@ module Neo4j::Driver
 
         private
 
-        def write_reset_message_if_needed(reset_handler, is_session_reset)
+        def write_reset_message_if_needed(reset_handler, session_reset)
           @channel.event_loop.execute do
-            if is_session_reset && !is_open?
+            if session_reset && !open?
               reset_handler.on_success(java.util.Collections.empty_map)
             else
               # auto-read could've been disabled, re-enable it to automatically receive response for RESET
               set_auto_read(true)
               @message_dispatcher.enqueue(reset_handler)
-              @channel.write_and_flush(Messaging::Request::ResetMessage::RESET).add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+              @channel.write_and_flush(Messaging::Request::ResetMessage::RESET).add_listener(-> { register_connection_read_timeout(@channel) })
             end
           end
         end
@@ -124,7 +124,7 @@ module Neo4j::Driver
             @channel.write(message1, channel.void_promise)
 
             if flush
-              @channel.write_and_flush(message2).add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+              @channel.write_and_flush(message2).add_listener(-> { register_connection_read_timeout(@channel) })
             else
               @channel.write(message2, @channel.void_promise)
             end
@@ -158,13 +158,13 @@ module Neo4j::Driver
 
             false
           else
-            raise Neo4j::Driver::Exceptions::IllegalStateException.new("Unknown status: #{connection_status}")
+            raise Neo4j::Driver::Exceptions::IllegalStateException, "Unknown status: #{connection_status}"
           end
         end
 
         def register_connection_read_timeout(channel)
           if !channel.event_loop.in_event_loop
-            raise Neo4j::Driver::Exceptions::IllegalStateException.new('This method may only be called in the EventLoop')
+            raise Neo4j::Driver::Exceptions::IllegalStateException, 'This method may only be called in the EventLoop'
           end
 
           if !@connection_read_timeout.nil? && @connection_read_timeout_handler.nil?

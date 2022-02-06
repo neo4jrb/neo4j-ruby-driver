@@ -29,7 +29,7 @@ module Neo4j::Driver
         def transaction_async(mode, **config, &work)
           @session.retry_logic.retry_async do
             result_future = java.util.concurrent.CompletableFuture.new
-            tx_future = @session.begin_transaction_async(mode, ** config)
+            tx_future = @session.begin_transaction_async(mode, **config)
 
             tx_future.when_complete do |tx, completion_error|
               error = Util::Futures.completion_exception_cause(completion_error)

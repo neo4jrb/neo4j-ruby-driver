@@ -11,7 +11,7 @@ module Neo4j::Driver
             # Get class of {@link Channel} for {@link Bootstrap#channel(Class)} method.
 
             # @return class of the channel, which should be consistent with {@link EventLoopGroup}s returned by
-            # {@link #newEventLoopGroup(int)}.
+            # {@link #new_event_loop_group(int)}.
             def channel_class
               org.neo4j.driver.internal.shaded.io.netty.channel.socket.nio.NioSocketChannel
             end
@@ -20,7 +20,7 @@ module Neo4j::Driver
             # {@link Bootstrap#group(EventLoopGroup)}.
 
             # @param threadCount amount of IO threads for the new group.
-            # @return new group consistent with channel class returned by {@link #channelClass()}.
+            # @return new group consistent with channel class returned by {@link #channel_class}.
             def new_event_loop_group(thread_count)
               DriverEventLoopGroup.new(thread_count)
             end
@@ -49,7 +49,7 @@ module Neo4j::Driver
           private
 
           # Same as {@link NioEventLoopGroup} but uses a different {@link ThreadFactory} that produces threads of
-          # {@link DriverThread} class. Such threads can be recognized by {@link #assertNotInEventLoopThread()}.
+          # {@link DriverThread} class. Such threads can be recognized by {@link #assert_not_in_event_loop_thread}.
           class DriverEventLoopGroup < org.neo4j.driver.internal.shaded.io.netty.channel.nio.NioEventLoopGroup
             protected
 
@@ -59,7 +59,7 @@ module Neo4j::Driver
           end
 
           #  Same as {@link DefaultThreadFactory} created by {@link NioEventLoopGroup} by default, except produces threads of
-          # {@link DriverThread} class. Such threads can be recognized by {@link #assertNotInEventLoopThread()}.
+          # {@link DriverThread} class. Such threads can be recognized by {@link #assert_not_in_event_loop_thread}.
 
           class DriverThreadFactory < org.neo4j.driver.internal.shaded.io.netty.util.concurrent.DefaultThreadFactory
             def initialize

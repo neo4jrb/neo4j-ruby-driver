@@ -5,13 +5,13 @@ module Neo4j::Driver
         class InboundMessageHandler < org.neo4j.driver.internal.shaded.io.netty.channel.SimpleChannelInboundHandler
           def initialize(message_format, logging)
             @input = ByteBufInput.new
-            @reader = message_format.new_reader(input)
+            @reader = message_format.new_reader(@input)
             @logging = logging
           end
 
           def handler_added(ctx)
-            @message_dispatcher = java.util.Objects.require_non_null(connection.ChannelAttributes.message_dispatcher(ctx.channel))
-            @log = Logging::ChannelActivityLogger.new(ctx.channel, logging, get_class)
+            @message_dispatcher = java.util.Objects.require_non_null(Connection::ChannelAttributes.message_dispatcher(ctx.channel))
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, logging, self.class)
           end
 
           def handler_removed(_ctx)
@@ -24,7 +24,7 @@ module Neo4j::Driver
               return @log.warn( "Message ignored because of the previous fatal error. Channel will be closed. Message:\n#{org.neo4j.driver.internal.shaded.io.netty.buffer.ByteBufUtil.hex_dump(msg)}")
             end
 
-            @log.trace( "S: #{org.neo4j.driver.internal.shaded.io.netty.buffer.ByteBufUtil.hex_dump(msg)}") if @log.is_trace_enabled?
+            @log.trace( "S: #{org.neo4j.driver.internal.shaded.io.netty.buffer.ByteBufUtil.hex_dump(msg)}") if @log.trace_enabled?
 
             @input.start(msg)
             begin

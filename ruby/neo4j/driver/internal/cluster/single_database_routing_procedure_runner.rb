@@ -53,7 +53,7 @@ module Neo4j::Driver
           # in background. However, releasing it early as part of whole chain makes it easier to reason about
           # rediscovery in stub server tests. Some of them assume connections to instances not present in new
           # routing table will be closed immediately.
-          connection.release.then_apply(->(_ignore) { records } )
+          connection.release.then_apply(-> { records } )
         end
 
         def process_procedure_response(procedure, records, error)

@@ -5,19 +5,21 @@ module Neo4j::Driver
         class ChannelConnectedListener < Struct.new(:address, :pipeline_builder, :handshake_completed_promise, :logging)
           def operation_complete(future)
             channel = future.channel
-            log = Logging::ChannelActivityLogger.new(channel, logging, get_class)
+            log = Logging::ChannelActivityLogger.new(channel, logging, self.class)
 
-            if future.is_success?
+            if future.success?
               log.trace("Channel #{channel} connected, initiating bolt handshake")
 
               pipeline = channel.pipeline
-              pipeline.add_list(HandshakeHandler.new(pipeline_builder, handshake_completed_promise, logging))
+              pipeline.add_last(HandshakeHandler.new(pipeline_builder, handshake_completed_promise, logging))
               log.debug("C: [Bolt Handshake] #{BoltProtocolUtil.handshake_string}")
               channel.write_and_flush(BoltProtocolUtil.handshake_buf, channel.void_promise)
             else
               handshake_completed_promise.set_failure(database_unavailable_error(address, future.cause))
             end
           end
+
+          private
 
           def self.database_unavailable_error(address, cause)
             Neo4j::Driver::Exceptions::ServiceUnavailableException(

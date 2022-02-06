@@ -3,7 +3,6 @@ module Neo4j::Driver
     module Async
       module Connection
         class NettyChannelInitializer < org.neo4j.driver.internal.shaded.io.netty.channel.ChannelInitializer
-          attr_reader :address, :security_plan, :connect_timeout_millis, :clock, :logging
 
           def initialize(address, security_plan, connect_timeout_millis, clock, logging)
             @address = address
@@ -14,7 +13,7 @@ module Neo4j::Driver
           end
 
           def init_channel(channel)
-            if security_plan.requires_encryption?
+            if @security_plan.requires_encryption?
               ssl_handler = create_ssl_handler
               channel.pipeline.add_first(ssl_handler)
             end
@@ -27,16 +26,16 @@ module Neo4j::Driver
           def create_ssl_handler
             ssl_engine = create_ssl_engine
             ssl_handler = io.netty.handler.ssl.SslHandler.new(ssl_engine)
-            ssl_handler.set_handshake_timeout_millis(connect_timeout_millis)
+            ssl_handler.set_handshake_timeout_millis(@connect_timeout_millis)
             ssl_handler
           end
 
           def create_ssl_engine
-            ssl_context = security_plan.ssl_context
-            ssl_engine = ssl_context.create_ssl_engine(address.host, address.port)
+            ssl_context = @security_plan.ssl_context
+            ssl_engine = ssl_context.create_ssl_engine(@address.host, @address.port)
             ssl_engine.set_use_client_mode(true)
 
-            if security_plan.requires_hostname_verification
+            if @security_plan.requires_hostname_verification
               ssl_parameters = ssl_engine.get_ssl_parameters
               ssl_parameters.set_endpoint_identification_algorithm('HTTPS')
               ssl_engine.set_ssl_parameters(ssl_parameters)
@@ -46,8 +45,8 @@ module Neo4j::Driver
 
           def update_channel_attributes(channel)
             ChannelAttributes.set_server_address(channel, address)
-            ChannelAttributes.set_creation_timestamp(channel, clock.millis)
-            ChannelAttributes.set_message_dispatcher(channel, Inbound::InboundMessageDispatcher.new(channel, logging))
+            ChannelAttributes.set_creation_timestamp(channel, @clock.millis)
+            ChannelAttributes.set_message_dispatcher(channel, Inbound::InboundMessageDispatcher.new(channel, @logging))
           end
         end
       end

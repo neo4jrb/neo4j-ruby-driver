@@ -170,7 +170,7 @@ module Neo4j::Driver
           end.then_compose do |existing_connection|
             if !existing_connection.nil? && existing_connection.open?
               # there somehow is an existing open connection, this should not happen, just a precondition
-              raise Neo4j::Driver::Exceptions::IllegalStateException.new('Existing open connection detected')
+              raise Neo4j::Driver::Exceptions::IllegalStateException, 'Existing open connection detected'
             end
 
             @connection_provider.acquire_connection(@connection_context.context_with_mode(mode))
@@ -205,7 +205,7 @@ module Neo4j::Driver
 
         def ensure_no_open_tx(error_message)
           existing_transaction_or_null.then_accept do |tx|
-            raise Neo4j::Driver::Exceptions::TransactionNestingException.new(error_message) unless tx.nil?
+            raise Neo4j::Driver::Exceptions::TransactionNestingException, error_message unless tx.nil?
           end
         end
 
@@ -218,7 +218,7 @@ module Neo4j::Driver
 
         def ensure_session_is_open
           unless @open.get
-            raise Neo4j::Driver::Exceptions::ClientException.new('No more interaction with this session are allowed as the current session is already closed.')
+            raise Neo4j::Driver::Exceptions::ClientException, 'No more interaction with this session are allowed as the current session is already closed.'
           end
         end
 

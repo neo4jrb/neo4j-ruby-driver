@@ -101,13 +101,13 @@ module Neo4j::Driver
           end
 
           def assert_not_started
-              raise Neo4j::Driver::Exceptions::IllegalStateException.new('Already started') if @buf
+              raise Neo4j::Driver::Exceptions::IllegalStateException, 'Already started' if @buf
           end
 
           class << self
             def verify_max_chunk_size(max_chunk_size)
               if max_chunk_size <= 0
-                raise Neo4j::Driver::Exceptions::IllegalArgumentException.new("Max chunk size should be > 0, given: #{max_chunk_size}")
+                raise Neo4j::Driver::Exceptions::IllegalArgumentException, "Max chunk size should be > 0, given: #{max_chunk_size}"
               end
 
               max_chunk_size

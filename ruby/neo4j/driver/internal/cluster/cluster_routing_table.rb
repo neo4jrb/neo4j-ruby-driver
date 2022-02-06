@@ -28,7 +28,7 @@ module Neo4j::Driver
         end
 
         def has_been_stale_for?(extra_time)
-          total_time = Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> () { @expiration_timestamp }) + extra_time
+          total_time = Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> { @expiration_timestamp }) + extra_time
 
           total_time = java.lang.Long::MAX_VALUE if total_time < 0
 
@@ -56,15 +56,15 @@ module Neo4j::Driver
         end
 
         def readers
-          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> () { @readers })
+          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> { @readers })
         end
 
         def writers
-          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> () { @writers })
+          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> { @writers })
         end
 
         def routers
-          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> () { @routers })
+          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> { @routers })
         end
 
         def servers
@@ -85,15 +85,15 @@ module Neo4j::Driver
         end
 
         def replace_router_if_present(old_router, new_router)
-          Util::LockUtil.execute_with_lock(@table_lock.write_lock, -> () { @routers = new_with_address_replaced_if_present(@routers, old_router, new_router) } )
+          Util::LockUtil.execute_with_lock(@table_lock.write_lock, -> { @routers = new_with_address_replaced_if_present(@routers, old_router, new_router) } )
         end
 
         def prefer_initial_router
-          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> () { @prefer_initial_router })
+          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> { @prefer_initial_router })
         end
 
         def expiration_timestamp
-          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> () { @expiration_timestamp })
+          Util::LockUtil.execute_with_lock(@table_lock.read_lock, -> { @expiration_timestamp })
         end
 
         def to_s
@@ -125,7 +125,7 @@ module Neo4j::Driver
         def new_with_reused_addresses(current_addresses, disused_addresses, new_addresses)
           new_list = java.util.stream.Stream.concat(current_addresses.stream, disused_addresses.stream)
                                             .filter(-> (address) { new_addresses.remove(to_bolt_server_address(address)) })
-                                            .collect(java.util.stream.Collectors.to_collection(-> () { Array.new(new_addresses.size) }))
+                                            .collect(java.util.stream.Collectors.to_collection(-> { Array.new(new_addresses.size) }))
           new_list << new_addresses
           new_list.freeze
         end

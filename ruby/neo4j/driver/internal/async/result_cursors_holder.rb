@@ -16,7 +16,7 @@ module Neo4j::Driver
         def retrieve_not_consumed_error
           failures = retrieve_all_failures
 
-          java.util.concurrent.CompletableFuture.all_of(failures).then_apply(-> (_ignore) { find_first_failure(failures) })
+          java.util.concurrent.CompletableFuture.all_of(failures).then_apply(-> { find_first_failure(failures) })
         end
 
         def retrieve_all_failures

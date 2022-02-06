@@ -16,7 +16,7 @@ module Neo4j::Driver
           ensure_database_name_is_completed(context).then_compose do |ctx_and_handler|
             completed_context = ctx_and_handler.context
             handler = ctx_and_handler.handler.nil? ? get_or_create(Util::Futures.join_now_or_else_throw(completed_context.database_name_future, Async::ConnectionContext::PENDING_DATABASE_NAME_EXCEPTION_SUPPLIER)) : ctx_and_handler.handler
-            handler.ensure_routing_table(completed_context).then_apply(-> (_ignored) { handler })
+            handler.ensure_routing_table(completed_context).then_apply(-> { handler })
           end
         end
 
