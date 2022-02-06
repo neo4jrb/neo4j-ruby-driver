@@ -41,7 +41,7 @@ module Neo4j::Driver
 
         def discard_all_failure_async
           # calling this method will enforce discarding record stream and finish running cypher query
-          summary_stage.then_apply(-> (_summary) { nil }).exceptionally do |throwable|
+          summary_stage.then_apply(-> { nil }).exceptionally do |throwable|
             @summary_future_exposed ? null : throwable
           end
         end

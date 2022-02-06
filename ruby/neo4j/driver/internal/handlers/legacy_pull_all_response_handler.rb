@@ -80,7 +80,7 @@ module Neo4j::Driver
         end
 
         def next_async
-          peek_async.then_apply(-> (_ignore) { dequeue_record })
+          peek_async.then_apply(-> { dequeue_record })
         end
 
         def consume_async

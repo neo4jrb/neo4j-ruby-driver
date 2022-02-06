@@ -4,6 +4,7 @@ module Neo4j::Driver
       # This is the logging factory to delegate netty's logging to our logging system
       class NettyLogging < org.neo4j.driver.internal.shaded.io.netty.util.internal.logging.InternalLoggerFactory
         def initialize(logging)
+          super
           @logging = logging
         end
 

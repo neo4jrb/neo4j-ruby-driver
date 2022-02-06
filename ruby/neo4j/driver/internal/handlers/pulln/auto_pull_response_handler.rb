@@ -76,7 +76,7 @@ module Neo4j::Driver
           end
 
           def next_async
-            peek_async.then_apply(-> (_ignore) { dequeue_record })
+            peek_async.then_apply(-> { dequeue_record })
           end
 
           def consume_async
@@ -92,7 +92,7 @@ module Neo4j::Driver
           end
 
           def list_async(map_function)
-            pull_all_async.then_apply(-> (summary) { records_as_list(map_function) })
+            pull_all_async.then_apply(-> { records_as_list(map_function) })
           end
 
           def pull_all_failure_async

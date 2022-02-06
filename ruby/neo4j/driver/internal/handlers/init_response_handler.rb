@@ -20,7 +20,7 @@ module Neo4j::Driver
         end
 
         def on_failure(error)
-          @channel.close.add_listener(-> (_future) { @connection_initialized_promise.set_failure(error) })
+          @channel.close.add_listener(-> { @connection_initialized_promise.set_failure(error) })
         end
 
         def on_record(fields)

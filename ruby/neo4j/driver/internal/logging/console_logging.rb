@@ -20,7 +20,7 @@ module Neo4j::Driver
 
         class ConsoleLogger < JULogger
           def initialize(name, level)
-            super(name, level)
+            super
 
             logger = java.util.logging.Logger.get_logger(name)
             logger.set_use_parent_handlers(false)

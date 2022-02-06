@@ -7,26 +7,8 @@ module Neo4j::Driver
         # <p>
         # Sent by the server to signal a successful operation.
         # Terminates response sequence.
-        class SuccessMessage
+        class SuccessMessage < Struct.new(:metadata)
           SIGNATURE = 0x70
-
-          attr_reader :metadata
-
-          def initialize(metadata)
-            @metadata = metadata
-          end
-
-          def to_s
-            "SUCCESS #{metadata}"
-          end
-
-          def equals(obj)
-            !obj.nil? && obj.class == self.class
-          end
-
-          def hash_code
-            1
-          end
         end
       end
     end
