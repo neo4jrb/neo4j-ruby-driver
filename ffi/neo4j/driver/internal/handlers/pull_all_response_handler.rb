@@ -86,8 +86,11 @@ module Neo4j
             when -1
               check_status(Bolt::Connection.status(bolt_connection))
             when 1
-              InternalRecord.new(run_handler.statement_keys,
-                                 Value::ValueAdapter.to_ruby(Bolt::Connection.field_values(bolt_connection)))
+              values = Value::ValueAdapter.to_ruby(Bolt::Connection.field_values(bolt_connection))
+              data = run_handler.statement_keys.zip(values).to_h
+              data[:labelsOrTypes] = data[:name] if data[:labelsOrTypes] && data[:labelsOrTypes].empty?
+
+              InternalRecord.new(run_handler.statement_keys, data.values)
             else
               @finished = true
               check_summary_failure
