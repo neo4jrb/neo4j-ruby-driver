@@ -8,6 +8,7 @@ module Neo4j
         BOLT_URI_SCHEME = 'bolt'
         BOLT_ROUTING_URI_SCHEME = 'bolt+routing'
         NEO4J_URI_SCHEME = 'neo4j'
+        NEO4J_AURA_URI_SCHEME = 'neo4j+s'
         DEFAULT_PORT = 7687
 
         def new_instance(uri, auth_token, config)
@@ -95,7 +96,7 @@ module Neo4j
         def scheme(uri, routing_context)
           scheme = uri.scheme
           case scheme
-          when BOLT_URI_SCHEME
+          when BOLT_URI_SCHEME, NEO4J_AURA_URI_SCHEME
             assert_no_routing_context(uri, routing_context)
             Bolt::Config::BOLT_SCHEME_DIRECT
           when BOLT_ROUTING_URI_SCHEME, NEO4J_URI_SCHEME
