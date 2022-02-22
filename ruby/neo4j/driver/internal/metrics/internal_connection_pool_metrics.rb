@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Metrics
       class InternalConnectionPoolMetrics
+        include ConnectionPoolMetricsListener
+
         attr_reader :id, :address, :pool, :creating, :created, :failed_to_create, :timed_out_to_acquire, :total_acquisition_time,
                     :total_connection_time, :total_in_use_time, :total_in_use_count, :closed, :acquiring, :acquired
 

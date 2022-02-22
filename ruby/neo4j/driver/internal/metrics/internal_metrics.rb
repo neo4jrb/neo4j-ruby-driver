@@ -1,7 +1,7 @@
 module Neo4j::Driver
   module Internal
     module Metrics
-      class InternalMetrics
+      class InternalMetrics < InternalAbstractMetrics
         def initialize(clock, logging)
           java.util.Objects.require_non_null(clock)
           @connection_pool_metrics = java.util.concurrent.ConcurrentHashMap.new
