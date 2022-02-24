@@ -17,8 +17,9 @@ module Neo4j::Driver
           @string_value = string_value(product, major, minor, patch)
         end
 
+        MAX_INTEGER = 2 ^ 31 - 1
         private def string_value(product, major, minor, patch)
-          if major == java.lang.Integer::MAX_VALUE && minor == java.lang.Integer::MAX_VALUE && patch == java.lang.Integer::MAX_VALUE
+          if major == MAX_INTEGER && minor == MAX_INTEGER && patch == MAX_INTEGER
             return NEO4J_IN_DEV_VERSION_STRING
           end
 
@@ -32,7 +33,7 @@ module Neo4j::Driver
         V4_0_0 = new(NEO4J_PRODUCT, 4, 0, 0)
         V3_5_0 = new(NEO4J_PRODUCT, 3, 5, 0)
         V3_4_0 = new(NEO4J_PRODUCT, 3, 4, 0)
-        V_IN_DEV = new(NEO4J_PRODUCT, java.lang.Integer::MAX_VALUE, java.lang.Integer::MAX_VALUE, java.lang.Integer::MAX_VALUE)
+        V_IN_DEV = new(NEO4J_PRODUCT, MAX_INTEGER, MAX_INTEGER, MAX_INTEGER)
 
         def self.version(server)
           matcher = PATTERN.match(server)

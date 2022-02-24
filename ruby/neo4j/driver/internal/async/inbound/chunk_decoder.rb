@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     module Async
       module Inbound
-        class ChunkDecoder < org.neo4j.driver.internal.shaded.io.netty.handler.codec.LengthFieldBasedFrameDecoder
+        class ChunkDecoder #< org.neo4j.driver.internal.shaded.io.netty.handler.codec.LengthFieldBasedFrameDecoder
           MAX_FRAME_BODY_LENGTH = 0xFFFF
           LENGTH_FIELD_OFFSET = 0
           LENGTH_FIELD_LENGTH = 2
@@ -12,11 +12,11 @@ module Neo4j::Driver
 
           def initialize(logging)
             super(MAX_FRAME_LENGTH, LENGTH_FIELD_OFFSET, LENGTH_FIELD_LENGTH, LENGTH_ADJUSTMENT, INITIAL_BYTES_TO_STRIP)
-            @logging = logging
+            @logger = logging
           end
 
           def handler_added(ctx)
-            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logging, self.class)
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logger, self.class)
           end
 
           protected

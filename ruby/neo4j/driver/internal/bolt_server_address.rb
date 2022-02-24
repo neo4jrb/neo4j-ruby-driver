@@ -1,8 +1,7 @@
 module Neo4j::Driver
   module Internal
     # Holds a host and port pair that denotes a Bolt server address.
-    class BoltServerAddress1
-      include org.neo4j.driver.net.ServerAddress
+    class BoltServerAddress
       attr_reader :host, :connection_host, :port
       delegate :hash, to: :attributes
 
@@ -10,16 +9,11 @@ module Neo4j::Driver
 
       class << self
         def host_from(uri)
-          host = uri.get_host
-
-          raise invalid_address_format(uri) if host.nil?
-
-          host
+          uri&.host || (raise invalid_address_format(uri))
         end
 
         def port_from(uri)
-          port = uri.get_port
-          port.nil? ? DEFAULT_PORT : port
+          uri&.port || DEFAULT_PORT
         end
 
         def uri_from(address)
@@ -64,13 +58,13 @@ module Neo4j::Driver
         end
       end
 
-      def initialize(host, port, connection_host: host)
+      def initialize(uri: nil, host: self.class.host_from(uri), port: self.class.port_from(uri), connection_host: host)
         @host = Validator.require_non_nil!(host)
         @connection_host = Validator.require_non_nil!(connection_host)
         @port = self.class.require_valid_port(port)
       end
 
-      LOCAL_DEFAULT = new('localhost', DEFAULT_PORT)
+      LOCAL_DEFAULT = new(host: 'localhost', port: DEFAULT_PORT)
 
       def self.from(address)
         address.instance_of?(BoltServerAddress) ? address : new(address.host, address.port)
@@ -90,7 +84,7 @@ module Neo4j::Driver
 
       # @return stream of unicast addresses.
       def unicast_stream
-        java.util.stream.Stream.of(self)
+        [self]
       end
 
       private

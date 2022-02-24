@@ -6,9 +6,9 @@ module Neo4j::Driver
           attr_reader :lock, :read, :write, :address_to_in_use_channel_count, :address_to_idle_channel_count, :log,
                       :metrics_listener, :close_listener, :all_channels
 
-          def initialize(metrics_listener, logging, options = {},event_executor = nil, channels = nil)
+          def initialize(metrics_listener, logger, options = {},event_executor = nil, channels = nil)
             @metrics_listener = metrics_listener
-            @log = logging.get_log(get_class)
+            @log = logger
             @all_channels = options[:channels] ? channels : Java::IoNettyChannelGroup::DefaultChannelGroup.new("all-connections", options[:event_executor])
             @lock = java.util.concurrent.locks.ReentrantReadWriteLock.new
             @read = lock.read_lock

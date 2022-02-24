@@ -6,13 +6,13 @@ module Neo4j::Driver
 
         delegate :servers, to: :routing_table
 
-        def initialize(routing_table, rediscovery, connection_pool, routing_table_registry, logging, routing_table_purge_delay_ms)
+        def initialize(routing_table, rediscovery, connection_pool, routing_table_registry, logger, routing_table_purge_delay_ms)
           @routing_table = routing_table
           @database_name = routing_table.database
           @rediscovery = rediscovery
           @connection_pool = connection_pool
           @routing_table_registry = routing_table_registry
-          @log = logging.get_log(self.class)
+          @log = logger
           @routing_table_purge_delay_ms = routing_table_purge_delay_ms
           @resolved_initial_routers = []
           @refresh_routing_table_future = nil

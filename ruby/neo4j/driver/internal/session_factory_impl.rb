@@ -6,32 +6,31 @@ module Neo4j::Driver
 
       def initialize(connection_provider, retry_logic, config)
         @connection_provider = connection_provider
-        @leakedSessionsLoggingEnabled = config[:leaked_session_logging]
+        @leaked_sessions_logging_enabled = config[:leaked_session_logging]
         @retry_logic = retry_logic
-        @logging = config.java_config.logging
-        @defaultFetchSize = config[:fetch_size]
+        @logger = config[:logger]
+        @default_fetch_size = config[:fetch_size]
+      end
+
+      def new_instance(fetch_size: @default_fetch_size, default_access_mode: org.neo4j.driver.AccessMode::WRITE, **config)
+        bookmark_holder = DefaultBookmarkHolder.new(InternalBookmark.from(config[:bookmarks]&.then(&method(:Array))))
+        create_session(parse_database_name(config), default_access_mode, bookmark_holder, fetch_size, config[:impersonated_user])
       end
 
       def supports_multi_db?
-        connection_provider.supports_multi_db
-      end
-
-      def new_instance(fetch_size: @defaultFetchSize, default_access_mode: org.neo4j.driver.AccessMode::WRITE, **config)
-        bookmarkHolder = org.neo4j.driver.internal.DefaultBookmarkHolder.new(
-          org.neo4j.driver.internal.InternalBookmark.from(config[:bookmarks]&.then { |bookmarks| java.util.ArrayList.new(Array(bookmarks)) }))
-        create_session(parseDatabaseName(config), default_access_mode, bookmarkHolder, fetch_size, config[:impersonated_user], @logging)
+        @connection_provider.supports_multi_db
       end
 
       private
 
-      def parseDatabaseName(config)
-        config[:database]&.then(&org.neo4j.driver.internal.DatabaseNameUtil.method(:database)) ||
-          org.neo4j.driver.internal.DatabaseNameUtil.defaultDatabase
+      def parse_database_name(config)
+        config[:database]&.then(&DatabaseNameUtil.method(:database)) || DatabaseNameUtil.default_database
       end
 
-      def create_session(databaseName, mode, bookmarkHolder, fetchSize, impersonated_user, logging)
-        (@leakedSessionsLoggingEnabled ? org.neo4j.driver.internal.async.LeakLoggingNetworkSession : org.neo4j.driver.internal.async.NetworkSession)
-          .new(@connection_provider, @retry_logic, databaseName, mode, bookmarkHolder, impersonated_user, fetchSize, logging)
+      def create_session(database_name, mode, bookmark_holder, fetch_size, impersonated_user)
+        @logger.debug('called create_session')
+        (@leaked_sessions_logging_enabled ? org.neo4j.driver.internal.async.LeakLoggingNetworkSession : Async::NetworkSession)
+          .new(@connection_provider, @retry_logic, database_name, mode, bookmark_holder, impersonated_user, fetch_size, @logger)
       end
     end
   end

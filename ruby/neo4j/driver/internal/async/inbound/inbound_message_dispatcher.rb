@@ -3,20 +3,20 @@ module Neo4j::Driver
     module Async
       module Inbound
         class InboundMessageDispatcher
-          attr_reader :fatal_error_occurred, :current_error, :log, :error_log
+          attr_reader :fatal_error_occurred, :current_error
           # Visible for testing
           attr_reader :auto_read_managing_handler
 
-          def initialize(channel, logging)
+          def initialize(channel, logger)
             @handlers = []
             @channel = Validator.require_non_nil!(channel)
-            @log = Logging::ChannelActivityLogger.new(channel, logging, get_class)
-            @error_log = Logging.ChannelErrorLogger.new(channel, logging)
+            @log = Logging::ChannelActivityLogger.new(channel, logger, self.class)
+            @error_log = Logging::ChannelErrorLogger.new(channel, logger)
           end
 
           def enqueue(handler)
             if fatal_error_occurred
-              handler.on_failure(current_error)
+              handler.on_failure(@current_error)
             else
               @handlers << handler
               update_auto_read_managing_handler_if_needed(handler)

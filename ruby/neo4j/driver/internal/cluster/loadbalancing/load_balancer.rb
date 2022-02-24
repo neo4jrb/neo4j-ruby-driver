@@ -12,18 +12,18 @@ module Neo4j::Driver
 
           delegate :close, to: :@connection_pool
 
-          def initialize(connection_pool, routing_tables, rediscovery, load_balancing_strategy, event_executor_group, logging)
+          def initialize(connection_pool, routing_tables, rediscovery, load_balancing_strategy, event_executor_group, logger)
             @connection_pool = connection_pool
             @routing_tables = routing_tables
             @rediscovery = rediscovery
             @load_balancing_strategy = load_balancing_strategy
             @event_executor_group = event_executor_group
-            @log = logging.get_log(self.class)
+            @log = logger
           end
 
           def acquire_connection(context)
-            routing_tables.ensure_routing_table(context).then_compose do |handler|
-              acquire(context.mode, handler.routing_table).then_apply do |connection|
+            routing_tables.ensure_routing_table(context).then_flat do |handler|
+              acquire(context.mode, handler.routing_table).then do |connection|
                 Async::Connection::RoutingConnection.new(connection,
                                                          Util::Futures.join_now_or_else_throw(context.database_name_future, Async::ConnectionContext::PENDING_DATABASE_NAME_EXCEPTION_SUPPLIER),
                                                          context.mode, context.impersonated_user, handler)
@@ -143,13 +143,13 @@ module Neo4j::Driver
             end
           end
 
-          def create_routing_tables(connection_pool, rediscovery, settings, clock, logging)
-            RoutingTableRegistryImpl.new(connection_pool, rediscovery, clock, logging, settings.routing_table_purge_delay_ms)
+          def create_routing_tables(connection_pool, rediscovery, settings, clock, logger)
+            RoutingTableRegistryImpl.new(connection_pool, rediscovery, clock, logger, settings.routing_table_purge_delay_ms)
           end
 
-          def create_rediscovery(event_executor_group, initial_router, resolver, settings, clock, logging, domain_name_resolver)
+          def create_rediscovery(event_executor_group, initial_router, resolver, settings, clock, logger, domain_name_resolver)
             cluster_composition_provider = RoutingProcedureClusterCompositionProvider.new(clock, settings.routing_context)
-            RediscoveryImpl.new(initial_router, settings, cluster_composition_provider, event_executor_group, resolver, logging, domain_name_resolver)
+            RediscoveryImpl.new(initial_router, settings, cluster_composition_provider, event_executor_group, resolver, logger, domain_name_resolver)
           end
 
           def unknown_mode(mode)

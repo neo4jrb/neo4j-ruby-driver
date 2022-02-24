@@ -8,10 +8,10 @@ module Neo4j::Driver
         INVALID_BOOKMARK_CODE = 'Neo.ClientError.Transaction.InvalidBookmark'
         INVALID_BOOKMARK_MIXTURE_CODE = 'Neo.ClientError.Transaction.InvalidBookmarkMixture'
 
-        def initialize(initial_router, settings, provider, event_executor_group, resolver, logging, domain_name_resolver)
+        def initialize(initial_router, settings, provider, event_executor_group, resolver, logger, domain_name_resolver)
           @initial_router = initial_router
           @settings = settings
-          @log = logging.get_log(self.class)
+          @log = logger
           @provider = provider
           @resolver = resolver
           @event_executor_group = event_executor_group

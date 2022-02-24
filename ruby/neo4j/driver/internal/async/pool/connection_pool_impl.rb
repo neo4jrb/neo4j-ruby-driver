@@ -7,17 +7,17 @@ module Neo4j::Driver
                       :log, :metrics_listener, :owns_event_loop_group, :address_to_pool_lock, :address_to_pool,
                       :closed, :close_future, :connection_factory
 
-          def initialize(connector, bootstrap, settings, metrics_listener, logging, clock, owns_event_loop_group,
+          def initialize(connector, bootstrap, settings, metrics_listener, logger, clock, owns_event_loop_group,
                          netty_channel_tracker = nil, netty_channel_health_checker = nil, connection_factory = nil)
             @connector = connector
             @bootstrap = bootstrap
-            @netty_channel_tracker = NettyChannelTracker.new(metrics_listener, bootstrap.config.group.next, logging)
-            @channel_health_checker = NettyChannelHealthChecker.new(settings, clock, logging)
+            @netty_channel_tracker = NettyChannelTracker.new(metrics_listener, bootstrap.config.group.next, logger)
+            @channel_health_checker = NettyChannelHealthChecker.new(settings, clock, logger)
             @settings = settings
             @metrics_listener = metrics_listener
-            @log = logging.get_log(self.class)
+            @log = logger
             @owns_event_loop_group = owns_event_loop_group
-            @connection_factory = NetworkConnectionFactory.new(clock, metrics_listener, logging)
+            @connection_factory = NetworkConnectionFactory.new(clock, metrics_listener, logger)
           end
 
           def acquire(address)

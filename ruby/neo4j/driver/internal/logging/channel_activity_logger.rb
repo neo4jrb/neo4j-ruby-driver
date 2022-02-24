@@ -2,37 +2,26 @@ module Neo4j::Driver
   module Internal
     module Logging
       class ChannelActivityLogger < ReformattedLogger
-        def initialize(channel, logging, owner)
-          super(logging.log(owner))
+        def initialize(channel, logger, owner)
+          super(logger)
           @channel = channel
-          @local_channel_id = channel.nil? ? nil : channel.id
-        end
-
-        def reformat(message)
-          return message if @channel.nil?
-
-          db_connection_id = db_connection_id
-          server_address = server_address
-
-          "[0x#{@local_channel_id}] [#{Util::Format.value_or_empty(server_address)}] [#{Util::Format.value_or_empty(db_connection_id)}] #{message}"
+          @local_channel_id = channel&.id&.to_s
+          @owner = owner
         end
 
         private
 
-        def db_connection_id
-          if @db_connection_id.nil?
-            @db_connection_id = Async::Connection::ChannelAttributes.connection_id(@channel)
-          end
+        def format_message(severity, datetime, progname, msg)
+          super(severity, datetime, @owner || progname,
+                @channel && "[0x#{@local_channel_id}] [#{server_address}] [#{db_connection_id}] #{msg}" || msg)
+        end
 
-          @db_connection_id
+        def db_connection_id
+          @db_connection_id ||= Async::Connection::ChannelAttributes.connection_id(@channel)
         end
 
         def server_address
-          if @server_address.nil?
-            @server_address = Async::Connection::ChannelAttributes.server_address(@channel)
-          end
-
-          @server_address
+          @server_address ||= Async::Connection::ChannelAttributes.server_address(@channel)&.to_s
         end
       end
     end

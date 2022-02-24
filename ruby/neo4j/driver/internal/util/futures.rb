@@ -5,8 +5,12 @@ module Neo4j::Driver
     module Util
       class Futures
         # TO DO: complete this class, this was partially migrated
-        extend Ext::AsyncConverter
+
+        private
+
         COMPLETED_WITH_NULL = Concurrent::Promises.fulfilled_future(nil)
+
+        public
 
         class << self
           def completed_with_null
@@ -45,12 +49,11 @@ module Neo4j::Driver
           def blocking_get(stage)
             Async::Connection::EventLoopGroupFactory.assert_not_in_event_loop_thread
 
-            future = stage.is_a?(Concurrent::Promises::Future) ? stage : to_future(stage)
             interrupted = false
             begin
               loop do
-                return future.value!
-              rescue java.lang.InterruptedException => e
+                return stage.value!
+              rescue Interrupt => e
                 # this thread was interrupted while waiting
                 # computation denoted by the future might still be running
                 interrupted = true
@@ -71,8 +74,8 @@ module Neo4j::Driver
           end
 
           def join_now_or_else_throw(future)
-            if future.isDone
-                future.join
+            if future.resolved?
+              future.value!
             else
               raise yield
             end
@@ -120,12 +123,12 @@ module Neo4j::Driver
 
               CompletionResult.new(value, nil)
             end.then_compose do |result|
-                  if result.value.nil?
-                    on_error_action.apply(result.error)
-                  else
-                    java.util.concurrent.CompletableFuture.completed_future(result.value)
-                  end
-                end
+              if result.value.nil?
+                on_error_action.apply(result.error)
+              else
+                java.util.concurrent.CompletableFuture.completed_future(result.value)
+              end
+            end
           end
 
           def future_completing_consumer(future)

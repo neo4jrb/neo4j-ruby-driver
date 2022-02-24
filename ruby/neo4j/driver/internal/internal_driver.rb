@@ -2,9 +2,6 @@ module Neo4j::Driver
   module Internal
     class InternalDriver
       extend AutoClosable
-      include Ext::ExceptionCheckable
-      include Ext::AsyncConverter
-
       attr_reader :session_factory, :metrics_provider
       # delegate :verify_connectivity, to: :session_factory
       delegate :metrics, :metrics_enabled?, to: :metrics_provider
@@ -19,6 +16,7 @@ module Neo4j::Driver
       end
 
       def session(**session_config)
+        @log.debug {'called session'}
         InternalSession.new(new_session(**session_config))
       end
 
@@ -42,7 +40,7 @@ module Neo4j::Driver
       def close_async
         return Concurrent::Promises.fulfilled_future(nil) unless @closed.make_true
         @log.info { "Closing driver instance #{object_id}" }
-        to_future(session_factory.close)
+        session_factory.close
       end
 
       def verify_connectivity_async

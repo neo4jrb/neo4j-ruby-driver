@@ -32,6 +32,7 @@ end.spec gem_name do
   require_ruby_version '>= 2.6'
 
   dependency 'activesupport', '>= 0'
+  dependency 'concurrent-ruby-edge', '>= 0.6.0'
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
   dependency 'hoe-bundler', '>= 0', :dev
@@ -46,10 +47,13 @@ end.spec gem_name do
 
   self.clean_globs += %w[Gemfile Gemfile.lock *.gemspec lib/org lib/*_jars.rb]
 
-  if pdir == 'ffi'
+  case pdir
+  when 'ffi'
     dependency 'ffi', '>= 0'
     dependency 'recursive-open-struct', '>= 0'
-  elsif RUBY_PLATFORM.match?(/java/)
+  when 'ruby'
+    dependency 'ione', '>= 0'
+  else
     dependency 'jar-dependencies', '>= 0'
     dependency 'ruby-maven', '>= 0', :dev
 

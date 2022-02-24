@@ -2,7 +2,6 @@ module Neo4j::Driver
   module Internal
     class InternalResult
       include Enumerable
-      include Ext::ExceptionCheckable
 
       def initialize(connection, cursor)
         @connection = connection
@@ -13,7 +12,7 @@ module Neo4j::Driver
         @keys ||=
           begin
             blocking_get(@cursor.peek_async)
-            check { @cursor.keys.map(&:to_sym) }
+            @cursor.keys.map(&:to_sym)
           end
       end
 
@@ -48,7 +47,7 @@ module Neo4j::Driver
       private
 
       def blocking_get(stage)
-          Util::Futures.blocking_get(stage, &method(:terminate_connection_on_thread_interrupt))
+        Util::Futures.blocking_get(stage, &method(:terminate_connection_on_thread_interrupt))
       end
 
       def terminate_connection_on_thread_interrupt

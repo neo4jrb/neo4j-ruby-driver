@@ -1,6 +1,6 @@
 module Neo4j
   module Driver
-    module Logging
+    module Logging1
       # Obtain a {@link Logger} instance by class, its name will be the fully qualified name of the class.
 
       # @param clazz class whose name should be used as the {@link Logger} name.

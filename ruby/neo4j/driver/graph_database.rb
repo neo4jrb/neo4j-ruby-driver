@@ -4,9 +4,6 @@ module Neo4j::Driver
   class GraphDatabase
     class << self
       extend AutoClosable
-      include Ext::ConfigConverter
-      include Ext::ExceptionCheckable
-
       auto_closable :driver, :routing_driver
 
       # Once on ruby 3 add the default value again, ruby 3 will not confuse last hash with keyword parameter
@@ -16,19 +13,17 @@ module Neo4j::Driver
       end
 
       def internal_driver(uri, auth_token, config, factory)
-        check do
-          uri = URI(uri)
-          config = Config.new(**config)
+        uri = URI(uri)
+        config = Config.new(**config)
 
-          factory.new_instance(
-            uri,
-            auth_token || AuthTokens.none,
-            config.java_config.routing_settings,
-            config[:max_transaction_retry_time],
-            config,
-            config[:security_settings].create_security_plan(uri.scheme)
-          )
-        end
+        factory.new_instance(
+          uri,
+          auth_token || AuthTokens.none,
+          config.routing_settings,
+          config[:max_transaction_retry_time],
+          config,
+          config[:security_settings].create_security_plan(uri.scheme)
+        )
       end
 
       def routing_driver(routing_uris, auth_toke, **config)

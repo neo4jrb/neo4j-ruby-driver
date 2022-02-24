@@ -3,13 +3,12 @@ module Neo4j::Driver
     module Async
       module Pool
         class NettyChannelHealthChecker
-          attr_reader :pool_settings, :clock, :logging, :log, :min_creation_timestamp_millis_opt
+          attr_reader :pool_settings, :clock, :logger, :log, :min_creation_timestamp_millis_opt
 
-          def initialize(pool_settings, clock, logging)
+          def initialize(pool_settings, clock, logger)
             @pool_settings = pool_settings
             @clock = clock
-            @logging = logging
-            @log = logging.get_log(get_class)
+            @log = logger
             @min_creation_timestamp_millis_opt = java.util.concurrent.atomic.AtomicReference.new(java.util.Optional.empty)
           end
 
@@ -77,7 +76,7 @@ module Neo4j::Driver
 
           def ping(channel)
             result = channel.event_loop.new_promise
-            Connection::ChannelAttributes.message_dispatcher.enqueue(Handlers::PingResponseHandler.new(result, channel, logging))
+            Connection::ChannelAttributes.message_dispatcher.enqueue(Handlers::PingResponseHandler.new(result, channel, logger))
             channel.write_and_flush(Messaging::Request::ResetMessage::RESET, channel.void_promise)
             result
           end

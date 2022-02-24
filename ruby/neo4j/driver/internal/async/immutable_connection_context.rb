@@ -5,13 +5,13 @@ module Neo4j::Driver
         attr_reader :database_name_future, :mode, :rediscovery_bookmark, :impersonated_user
 
         def initialize(database_name, bookmark, mode)
-          @database_name_future = java.util.concurrent.CompletableFuture.completed_future(database_name)
+          @database_name_future = Concurrent::Promises.fulfilled_future(database_name)
           @rediscovery_bookmark = bookmark
           @mode = mode
         end
 
-        SINGLE_DB_CONTEXT = new(DatabaseNameUtil::DEFAULT_DATABASE, InternalBookmark::EMPTY, org.neo4j.driver.AccessMode::READ)
-        MULTI_DB_CONTEXT = new(DatabaseNameUtil::SYSTEM_DATABASE, InternalBookmark::EMPTY, org.neo4j.driver.AccessMode::READ)
+        SINGLE_DB_CONTEXT = new(DatabaseNameUtil::DEFAULT_DATABASE, InternalBookmark::EMPTY, AccessMode::READ)
+        MULTI_DB_CONTEXT = new(DatabaseNameUtil::SYSTEM_DATABASE, InternalBookmark::EMPTY, AccessMode::READ)
 
         # A simple context is used to test connectivity with a remote server/cluster. As long as there is a read only service, the connection shall be established
         # successfully. Depending on whether multidb is supported or not, this method returns different context for routing table discovery.

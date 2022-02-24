@@ -2,17 +2,17 @@ module Neo4j::Driver
   module Internal
     module Async
       module Outbound
-        class OutboundMessageHandler < org.neo4j.driver.internal.shaded.io.netty.handler.codec.MessageToMessageEncoder
+        class OutboundMessageHandler #< org.neo4j.driver.internal.shaded.io.netty.handler.codec.MessageToMessageEncoder
           NAME = self.class.name
 
-          def initialize(message_format, logging)
+          def initialize(message_format, logger)
             @output = ChunkAwareByteBufOutput.new
             @writer = message_format.new_writer(output)
-            @logging = logging
+            @logger = logger
           end
 
           def handler_added(ctx)
-            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logging, self.class)
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logger, self.class)
           end
 
           def handler_removed(ctx)

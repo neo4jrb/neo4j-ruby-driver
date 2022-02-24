@@ -4,7 +4,7 @@ module Neo4j::Driver
       module Pool
         class NettyChannelPool
           # Unlimited amount of parties are allowed to request channels from the pool.
-          MAX_PENDING_ACQUIRES = java.lang.Integer::MAX_VALUE
+          MAX_PENDING_ACQUIRES = nil
 
           # Do not check channels when they are returned to the pool.
           RELEASE_HEALTH_CHECK = false

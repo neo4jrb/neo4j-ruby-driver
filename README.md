@@ -15,7 +15,7 @@ Add this line to your application's Gemfile:
 ```ruby
 gem 'neo4j-java-driver'
 ```
-
+    
 And then execute:
 
     $ bundle

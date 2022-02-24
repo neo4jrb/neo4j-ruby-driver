@@ -3,16 +3,16 @@ module Neo4j::Driver
     module Async
       module Pool
         class NetworkConnectionFactory
-          attr_reader :clock, :metrics_listener, :logging
+          attr_reader :clock, :metrics_listener, :logger
 
-          def initialize(clock, metrics_listener, logging)
+          def initialize(clock, metrics_listener, logger)
             @clock = clock
             @metrics_listener = metrics_listener
-            @logging = logging
+            @logger = logger
           end
 
           def create_connection(channel, pool)
-            NetworkConnection.new(channel, pool, clock, metrics_listener, logging)
+            NetworkConnection.new(channel, pool, clock, metrics_listener, @logger)
           end
         end
       end

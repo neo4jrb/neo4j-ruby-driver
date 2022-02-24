@@ -2,16 +2,16 @@ module Neo4j::Driver
   module Internal
     module Async
       module Inbound
-        class InboundMessageHandler < org.neo4j.driver.internal.shaded.io.netty.channel.SimpleChannelInboundHandler
-          def initialize(message_format, logging)
+        class InboundMessageHandler #< org.neo4j.driver.internal.shaded.io.netty.channel.SimpleChannelInboundHandler
+          def initialize(message_format, logger)
             @input = ByteBufInput.new
             @reader = message_format.new_reader(input)
-            @logging = logging
+            @logger = logger
           end
 
           def handler_added(ctx)
-            @message_dispatcher = java.util.Objects.require_non_null(connection.ChannelAttributes.message_dispatcher(ctx.channel))
-            @log = Logging::ChannelActivityLogger.new(ctx.channel, logging, get_class)
+            @message_dispatcher = Validator::require_non_nil!(connection.ChannelAttributes.message_dispatcher(ctx.channel))
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, logger, self.class)
           end
 
           def handler_removed(_ctx)

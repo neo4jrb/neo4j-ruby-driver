@@ -2,10 +2,11 @@ module Neo4j::Driver
   module Internal
     module Async
       module Inbound
-        class MessageDecoder <  org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder
+        class MessageDecoder #<  org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder
           class << self
             def determine_default_cumulator
-              'merge' ==  value = java.lang.System.get_property('message_decoder_cumulator', '') ? org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder::MERGE_CUMULATOR : org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder::COMPOSITE_CUMULATOR
+              value = ENV['message_decoder_cumulator']
+              # 'merge' ==  value ? org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder::MERGE_CUMULATOR : org.neo4j.driver.internal.shaded.io.netty.handler.codec.ByteToMessageDecoder::COMPOSITE_CUMULATOR
             end
           end
 

@@ -6,8 +6,8 @@ module Neo4j::Driver
 
         attr_reader :server_agent, :server_address, :server_version, :protocol
 
-        def initialize(channel, channel_pool, clock, metrics_listener, logging)
-          @log = logging.get_log(self)
+        def initialize(channel, channel_pool, clock, metrics_listener, logger)
+          @log = logger
           @channel = channel
           @message_dispatcher = Connection::ChannelAttributes.message_dispatcher(channel)
           @server_agent = Connection::ChannelAttributes.server_agent(channel)

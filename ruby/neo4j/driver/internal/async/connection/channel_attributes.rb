@@ -3,20 +3,18 @@ module Neo4j::Driver
     module Async
       module Connection
         class ChannelAttributes
-=begin
-          CONNECTION_ID = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('connectionId')
-          POOL_ID = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('poolId')
-          PROTOCOL_VERSION = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('protocolVersion')
-          SERVER_AGENT = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverAgent')
-          ADDRESS = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverAddress')
-          SERVER_VERSION = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverVersion')
-          CREATION_TIMESTAMP = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('creationTimestamp')
-          LAST_USED_TIMESTAMP = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('lastUsedTimestamp')
-          MESSAGE_DISPATCHER = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('messageDispatcher')
-          TERMINATION_REASON = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('terminationReason')
-          AUTHORIZATION_STATE_LISTENER = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('authorizationStateListener')
-          CONNECTION_READ_TIMEOUT = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('connectionReadTimeout')
-=end
+          # CONNECTION_ID = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('connectionId')
+          # POOL_ID = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('poolId')
+          # PROTOCOL_VERSION = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('protocolVersion')
+          # SERVER_AGENT = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverAgent')
+          # ADDRESS = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverAddress')
+          # SERVER_VERSION = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('serverVersion')
+          # CREATION_TIMESTAMP = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('creationTimestamp')
+          # LAST_USED_TIMESTAMP = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('lastUsedTimestamp')
+          # MESSAGE_DISPATCHER = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('messageDispatcher')
+          # TERMINATION_REASON = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('terminationReason')
+          # AUTHORIZATION_STATE_LISTENER = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('authorizationStateListener')
+          # CONNECTION_READ_TIMEOUT = org.neo4j.driver.internal.shaded.io.netty.util.AttributeKey.new_instance('connectionReadTimeout')
 
           class << self
             def connection_id(channel)
@@ -126,8 +124,8 @@ module Neo4j::Driver
             def set_once(channel, key, value)
               existing_value = channel.attr(key).set_if_absent(value)
 
-              unless existing_value.nil?
-                raise Neo4j::Driver::Exceptions::CertificateException::IllegalStateException, "Unable to set #{key.name} because it is already set to #{existing_value}"
+              if existing_value
+                raise Neo4j::Driver::Exceptions::IllegalStateException, "Unable to set #{key.name} because it is already set to #{existing_value}"
               end
             end
           end

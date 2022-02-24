@@ -413,39 +413,19 @@ module Neo4j::Driver
         end
 
         class << self
-          class PackStreamException < java.io.IOException
-            def initialize(message)
-              super(message)
-              @serial_version_ui_d = -1491422133282345421
-            end
+          class PackStreamException < IOError
           end
 
           class EndOfStream < PackStreamException
-            def initialize(message)
-              super(message)
-              @serial_version_ui_d = 5102836237108105603
-            end
           end
 
           class Overflow < PackStreamException
-            def initialize(message)
-              super(message)
-              @serial_version_ui_d = -923071934446993659
-            end
           end
 
           class Unexpected < PackStreamException
-            def initialize(message)
-              super(message)
-              @serial_version_ui_d = 5004685868740125469
-            end
           end
 
           class UnPackable < PackStreamException
-            def initialize(message)
-              super(message)
-              @serial_version_ui_d = 2408740707769711365
-            end
           end
         end
       end
