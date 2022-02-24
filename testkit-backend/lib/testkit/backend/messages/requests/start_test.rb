@@ -80,16 +80,20 @@ module Testkit::Backend::Messages
 
       def process
         if SKIPPED_TESTS.key?(testName)
-          skip(SKIPPED_TESTS[testName])
+          # skip(SKIPPED_TESTS[testName])
+          run
         elsif reason = SKIPPED_PATTERN.find { |expr, _| testName.match?(expr) }&.last
-          skip(reason)
+          # skip(reason)
+          run
         elsif BACKEND_INCOMPLETE.any?(&testName.method(:match?))
           # skip('Backend Incomplete')
           run
         elsif RUBY_DRIVER_PROBLEMS.include?(testName)
-          skip('ruby driver problem')
+          # skip('ruby driver problem')
+          run
         elsif ENV['driver'] == 'java' && DOMAIN_RESOLVER_ON_JAVA.any?(&testName.method(:match?))
-          skip('Domain Resolver hard to implement on jruby due to default visibility and protected not implemented correctly in jruby')
+          # skip('Domain Resolver hard to implement on jruby due to default visibility and protected not implemented correctly in jruby')
+          run
         else
           # run
           skip('skipped')
