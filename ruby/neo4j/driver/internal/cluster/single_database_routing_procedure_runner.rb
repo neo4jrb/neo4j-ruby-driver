@@ -65,7 +65,7 @@ module Neo4j::Driver
         end
 
         def handle_error(procedure, error)
-          return RoutingProcedureResponse.new(procedure, records) if error.instance_of? Exceptions::ClientException
+          return RoutingProcedureResponse.new(procedure, records) if error.is_a? Exceptions::ClientException
 
           raise java.util.concurrent.CompletionException, error
         end

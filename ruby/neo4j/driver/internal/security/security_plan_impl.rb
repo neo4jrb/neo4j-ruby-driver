@@ -59,7 +59,7 @@ module Neo4j::Driver::Internal
 
           x509_trust_manager = nil
           temp_factory.get_trust_managers.each do |trust_manager|
-            if trust_manager.kind_of?(javax.net.ssl.X509TrustManager)
+            if trust_manager.is_a?(javax.net.ssl.X509TrustManager)
               x509_trust_manager = javax.net.ssl.X509TrustManager.java_class.cast(trust_manager)
               break
             end

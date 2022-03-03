@@ -154,7 +154,7 @@ module Neo4j::Driver
           new_connection_stage = @result_cursor_stage.then_flat do |cursor|
             @log.debug { "acquire_connection1" }
             # make sure previous result is fully consumed and connection is released back to the pool
-            cursor&.pull_all_failure_async || Util::Futures.completed_with_null
+            cursor ? cursor.pull_all_failure_async : Util::Futures.completed_with_null
           end.then_flat do |error|
             @log.debug { "acquire_connection2" }
             #   there is no unconsumed error, so one of the following is true:

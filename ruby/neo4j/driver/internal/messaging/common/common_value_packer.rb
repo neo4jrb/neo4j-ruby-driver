@@ -34,7 +34,7 @@ module Neo4j::Driver
             when String
               packer.pack(value)
             when Value
-              if value.instance_of? Value::InternalValue
+              if value.is_a? Value::InternalValue
                 pack_internal_value(value)
               else
                 raise java.lang.IllegalArgumentException, "Unable to pack: #{value}"
@@ -129,7 +129,7 @@ module Neo4j::Driver
 
             zone = zoned_date_time.zone
 
-            if zone.instance_of? java.time.ZoneOffset
+            if zone.is_a? java.time.ZoneOffset
               offset_seconds = zone.total_seconds
 
               packer.pack_struct_header(DATE_TIME_STRUCT_SIZE, DATE_TIME_WITH_ZONE_OFFSET)

@@ -62,7 +62,7 @@ module Neo4j::Driver
             # fire error event back to the pipeline and avoid sending RESET
             return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.is_fatal?(current_error)
 
-            if current_error.kind_of?(Neo4j::Driver::Exceptions::AuthorizationExpiredException)
+            if current_error.is_a?(Exceptions::AuthorizationExpiredException)
               Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(current_error, @channel)
             else
               # write a RESET to "acknowledge" the failure

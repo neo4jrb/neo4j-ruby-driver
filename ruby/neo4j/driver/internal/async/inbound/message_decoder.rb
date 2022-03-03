@@ -17,7 +17,7 @@ module Neo4j::Driver
           end
 
           def channel_read(ctx, msg)
-            if msg.kind_of?(org.neo4j.driver.internal.shaded.io.netty.buffer.ByteBuf)
+            if msg.is_a?(org.neo4j.driver.internal.shaded.io.netty.buffer.ByteBuf)
 
               # on every read check if input buffer is empty or not
               # if it is empty then it's a message boundary and full message is in the buffer

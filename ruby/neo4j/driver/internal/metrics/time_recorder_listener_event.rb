@@ -2,18 +2,12 @@ module Neo4j::Driver
   module Internal
     module Metrics
       class TimeRecorderListenerEvent
-        include ListenerEvent
-
-        def initialize(clock)
-          @clock = clock
-        end
-
         def start
-          @start_time = @clock.millis
+          @start_time = Util::Clock::System.millis
         end
 
         def elapsed
-          @clock.millis - @start_time
+          Util::Clock::System.millis - @start_time
         end
       end
     end

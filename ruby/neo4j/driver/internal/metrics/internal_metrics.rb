@@ -2,10 +2,8 @@ module Neo4j::Driver
   module Internal
     module Metrics
       class InternalMetrics
-        def initialize(clock, logger)
-          Validator.require_non_nil!(clock)
-          @connection_pool_metrics = java.util.concurrent.ConcurrentHashMap.new
-          @clock = clock
+        def initialize(logger)
+          @connection_pool_metrics = Concurrent::Map.new
           @log = logger
         end
 
@@ -14,7 +12,7 @@ module Neo4j::Driver
         end
 
         def remove_pool_metrics(id)
-          @connection_pool_metrics.remove(id)
+          @connection_pool_metrics.delete(id)
         end
 
         def before_creating(pool_id, creating_event)
@@ -46,11 +44,11 @@ module Neo4j::Driver
         end
 
         def after_connection_created(pool_id, in_use_event)
-          pool_metrics(pool_id).acquired( in_use_event)
+          pool_metrics(pool_id).acquired(in_use_event)
         end
 
         def after_connection_released(pool_id, in_use_event)
-          pool_metrics(pool_id).released( in_use_event)
+          pool_metrics(pool_id).released(in_use_event)
         end
 
         def after_timed_out_to_acquire_or_create(pool_id)
@@ -58,28 +56,25 @@ module Neo4j::Driver
         end
 
         def create_listener_event
-          TimeRecorderListenerEvent.new(@clock)
+          TimeRecorderListenerEvent.new
         end
 
         def connection_pool_metrics
-          java.util.Collections.unmodifiable_collection(@connection_pool_metrics.values)
+          @connection_pool_metrics.values.freeze
         end
 
         def to_s
-          "PoolMetrics=#{@connection_pool_metrics}"
+          "PoolMetrics=#{@connection_pool_metrics.each_pair.to_h}"
         end
 
         private
 
         def pool_metrics(pool_id)
-          pool_metrics = @connection_pool_metrics[pool_id]
-
-          if pool_metrics.nil?
-            @log.warn("Failed to find pool metrics with id `#{pool_id}` in #{@connection_pool_metrics}.")
-            return ConnectionPoolMetricsListener::DEV_NULL_POOL_METRICS_LISTENER
-          end
-
-          pool_metrics
+          @connection_pool_metrics[pool_id] ||
+            begin
+              @log.warn("Failed to find pool metrics with id `#{pool_id}` in #{@connection_pool_metrics.each_pair.to_h}.")
+              ConnectionPoolMetricsListener::DEV_NULL_POOL_METRICS_LISTENER
+            end
         end
       end
     end

@@ -12,17 +12,17 @@ module Neo4j::Driver
 
           delegate :close, to: :@connection_pool
 
-          def initialize(connection_pool, routing_tables, rediscovery, load_balancing_strategy, event_executor_group, logger)
+          def initialize(initial_router, settings, connection_pool, event_executor_group, clock, logger, load_balancing_strategy, resolver, domain_name_resolver)
             @connection_pool = connection_pool
-            @routing_tables = routing_tables
-            @rediscovery = rediscovery
+            @rediscovery = create_rediscovery(event_executor_group, initial_router, resolver, settings, clock, logger, domain_name_resolver)
+            @routing_tables = create_routing_tables(connection_pool, @rediscovery, settings, clock, logger)
             @load_balancing_strategy = load_balancing_strategy
             @event_executor_group = event_executor_group
             @log = logger
           end
 
           def acquire_connection(context)
-            routing_tables.ensure_routing_table(context).then_flat do |handler|
+            @routing_tables.ensure_routing_table(context).then_flat do |handler|
               acquire(context.mode, handler.routing_table).then do |connection|
                 Async::Connection::RoutingConnection.new(connection,
                                                          Util::Futures.join_now_or_else_throw(context.database_name_future, Async::ConnectionContext::PENDING_DATABASE_NAME_EXCEPTION_SUPPLIER),
@@ -32,22 +32,18 @@ module Neo4j::Driver
           end
 
           def verify_connectivity
-            supports_multi_db.then_compose do |supports|
-              routing_tables.ensure_routing_table(Async::ImmutableConnectionContext.simple(supports)) do |_, error|
-                if !error.nil?
-                  cause = Util::Futures.completion_exception_cause(error)
-
-                  if cause.instance_of? Exceptions::ServiceUnavailableException
-                    raise Util::Futures.as_completion_exception(Neo4j::Driver::Exceptions::ServiceUnavailableException.new('Unable to connect to database management service, ensure the database is running and that there is a working network connection to it.', cause))
-                  end
-
-                  raise Util::Futures.as_completion_exception(cause)
+            supports_multi_db?.then_flat do |supports|
+              @routing_tables.ensure_routing_table(Async::ImmutableConnectionContext.simple(supports)) do |_, error|
+                if error.is_a? Exceptions::ServiceUnavailableException
+                  raise Exceptions::ServiceUnavailableException.new(
+                    'Unable to connect to database management service, ensure the database is running and that there is a working network connection to it.',
+                    error)
                 end
               end
             end
           end
 
-          def supports_multi_db
+          def supports_multi_db?
             begin
               addresses = @rediscovery.resolve
             rescue StandardError => error
@@ -58,30 +54,30 @@ module Neo4j::Driver
             base_error = Exceptions::ServiceUnavailableException.new("Failed to perform multi-databases feature detection with the following servers: #{addresses}")
 
             addresses.each do |address|
-              result = Util::Futures.on_error_continue(result, base_error) do |completion_error|
+              result = Util::Futures.on_error_continue(result, base_error) do |error|
                 # We fail fast on security errors
-                error = Util::Futures.completion_exception_cause(completion_error)
-
-                Util::Futures.failed_future(error) if error.instance_of? Exceptions::SecurityException
-
-                @connection_pool.acquire(address).then_compose do |conn|
-                  supports_multi_database = Messaging::Request::MultiDatabaseUtil.supports_multi_database(conn)
-                  conn.release.then_apply(-> (_ignored) { supports_multi_database })
+                if error.is_a? Exceptions::SecurityException
+                  Util::Futures.failed_future(error)
+                else
+                  private_suports_multi_db?(address)
                 end
               end
             end
 
-            Util::Futures.on_error_continue(result, base_error) do |completion_error|
+            Util::Futures.on_error_continue(result, base_error) do |error|
               # If we failed with security errors, then we rethrow the security error out, otherwise we throw the chained errors.
-              error = Util::Futures.completion_exception_cause(completion_error)
-
-              Util::Futures.failed_future(error) if error.instance_of? Exceptions::SecurityException
-
-              Util::Futures.failed_future(base_error)
+              Util::Futures.failed_future((error.is_a? Exceptions::SecurityException) ? error : base_error)
             end
           end
 
           private
+
+          def private_suports_multi_db?(address)
+            @connection_pool.acquire(address).then_flat do |conn|
+              supports_multi_database = Messaging::Request::MultiDatabaseUtil.supports_multi_database(conn)
+              conn.release.then_apply(-> (_ignored) { supports_multi_database })
+            end
+          end
 
           def acquire(mode, routing_table, result = nil, attempt_errors = nil)
             unless result.present? && attempt_errors.present?
@@ -107,7 +103,7 @@ module Neo4j::Driver
               if error.nil?
                 result.complete(connection)
               else
-                if !error.instance_of? Exceptions::ServiceUnavailableException
+                if !error.is_a? Exceptions::ServiceUnavailableException
                   result.complete_exceptionally(error)
                 else
                   attempt_message = CONNECTION_ACQUISITION_ATTEMPT_FAILURE_MESSAGE % address

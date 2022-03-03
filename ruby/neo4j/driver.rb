@@ -3,6 +3,7 @@
 require 'active_support/core_ext/hash/keys'
 require 'active_support/logger'
 require 'concurrent-edge'
+require 'ione'
 require 'date'
 require 'loader'
 require 'socket'

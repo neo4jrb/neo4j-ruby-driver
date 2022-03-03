@@ -6,12 +6,13 @@ module Neo4j::Driver
           class << self
             def new_bootstrap(thread_count: nil,
                               event_loop_group: EventLoopGroupFactory.new_event_loop_group(thread_count))
-              Io::Bootstrap.new.tap do |bootstrap|
-                bootstrap.group = event_loop_group
-                bootstrap.channel(EventLoopGroupFactory.channel_class)
+              Ione::Io::IoReactor.new
+              # Io::Bootstrap.new.tap do |bootstrap|
+              #   bootstrap.group = event_loop_group
+              #   bootstrap.channel(EventLoopGroupFactory.channel_class)
                 # bootstrap.option(org.neo4j.driver.internal.shaded.io.netty.channel.ChannelOption::SO_KEEPALIVE, true)
                 # bootstrap.option(org.neo4j.driver.internal.shaded.io.netty.channel.ChannelOption::SO_REUSEADDR, true)
-              end
+              # end
             end
           end
         end

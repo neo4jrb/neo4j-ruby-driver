@@ -3,7 +3,7 @@ module Neo4j::Driver
     module Security
       # A simple common token for authentication schemes that easily convert to
       # an auth token map
-      class InternalAuthToken < Struct.new(:content)
+      class InternalAuthToken < Hash
         SCHEME_KEY = 'scheme'
         PRINCIPAL_KEY = 'principal'
         CREDENTIALS_KEY = 'credentials'

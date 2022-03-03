@@ -33,7 +33,7 @@ module Neo4j::Driver
             # @throws IllegalStateException when current thread is an event loop IO thread.
             def assert_not_in_event_loop_thread
               if event_loop_thread?(Thread.current)
-                raise Neo4j::Driver::Exceptions::IllegalStateException, "Blocking operation can't be executed in IO thread because it might result in a deadlock. Please do not use blocking API when chaining futures returned by async API methods."
+                raise Exceptions::IllegalStateException, "Blocking operation can't be executed in IO thread because it might result in a deadlock. Please do not use blocking API when chaining futures returned by async API methods."
               end
             end
 

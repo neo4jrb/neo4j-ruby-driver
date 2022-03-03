@@ -13,26 +13,26 @@ module Neo4j::Driver
       end
 
       def run(query, parameters = {}, config = {})
-          cursor = Util::Futures.blocking_get(session.run_async(Query.new(query, parameters), TransactionConfig.new(**config))) do
-            terminate_connection_on_thread_interrupt('Thread interrupted while running query in session')
-          end
+        cursor = Util::Futures.blocking_get(session.run_async(Query.new(query, **parameters), **TransactionConfig.new(**config))) do
+          terminate_connection_on_thread_interrupt('Thread interrupted while running query in session')
+        end
 
-          # query executed, it is safe to obtain a connection in a blocking way
-          connection = Util::Futures.get_now(session.connection_async)
-          InternalResult.new(connection, cursor)
+        # query executed, it is safe to obtain a connection in a blocking way
+        connection = Util::Futures.get_now(session.connection_async)
+        InternalResult.new(connection, cursor)
       end
 
       def close
-          Util::Futures.blocking_get(session.close_async) do
-            terminate_connection_on_thread_interrupt("Thread interrupted while closing the session")
-          end
+        Util::Futures.blocking_get(session.close_async) do
+          terminate_connection_on_thread_interrupt("Thread interrupted while closing the session")
+        end
       end
 
       def begin_transaction(**config)
-          tx = Util::Futures.blocking_get(session.begin_transaction_async(to_java_config(org.neo4j.driver.TransactionConfig, config))) do
-            terminate_connection_on_thread_interrupt("Thread interrupted while starting a transaction")
-          end
-          InternalTransaction.new(tx)
+        tx = Util::Futures.blocking_get(session.begin_transaction_async(to_java_config(org.neo4j.driver.TransactionConfig, config))) do
+          terminate_connection_on_thread_interrupt("Thread interrupted while starting a transaction")
+        end
+        InternalTransaction.new(tx)
       end
 
       def read_transaction(**config, &block)
@@ -50,14 +50,14 @@ module Neo4j::Driver
         # caller thread will also be the one who sleeps between retries;
         # it is unsafe to execute retries in the event loop threads because this can cause a deadlock
         # event loop thread will bock and wait for itself to read some data
-          @session.retry_logic.retry do
-            tx = private_begin_transaction(mode, config)
-            result = yield tx
-            tx.commit if tx.open? # if a user has not explicitly committed or rolled back the transaction
-            result
-          ensure
-            tx&.close
-          end
+        @session.retry_logic.retry do
+          tx = private_begin_transaction(mode, config)
+          result = yield tx
+          tx.commit if tx.open? # if a user has not explicitly committed or rolled back the transaction
+          result
+        ensure
+          tx&.close
+        end
       end
 
       def private_begin_transaction(mode, **config)
@@ -69,7 +69,7 @@ module Neo4j::Driver
 
       def terminate_connection_on_thread_interrupt(reason)
         connection = Util::Futures.get_now(session.connection_async)
-      rescue Exception
+      rescue
         nil # ignore errors because handing interruptions is best effort
       ensure
         connection&.terminate_and_release(reason)

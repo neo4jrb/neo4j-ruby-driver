@@ -67,7 +67,7 @@ module Neo4j::Driver
       LOCAL_DEFAULT = new(host: 'localhost', port: DEFAULT_PORT)
 
       def self.from(address)
-        address.instance_of?(BoltServerAddress) ? address : new(address.host, address.port)
+        address.is_a?(BoltServerAddress) ? address : new(address.host, address.port)
       end
 
       def eql?(other)

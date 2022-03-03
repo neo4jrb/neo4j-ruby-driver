@@ -198,13 +198,13 @@ module Neo4j::Driver
         end
 
         def must_abort_discovery(throwable)
-          abort = if !(throwable.instance_of? Exceptions::AuthorizationExpiredException) && (throwable.instance_of? Exceptions::SecurityException)
+          abort = if !(throwable.is_a? Exceptions::AuthorizationExpiredException) && (throwable.is_a? Exceptions::SecurityException)
                     true
-                  elsif throwable.instance_of? Exceptions::FatalDiscoveryException
+                  elsif throwable.is_a? Exceptions::FatalDiscoveryException
                     true
-                  elsif throwable.instance_of? Exceptions::IllegalStateException && Spi::ConnectionPool::CONNECTION_POOL_CLOSED_ERROR_MESSAGE == throwable.message
+                  elsif throwable.is_a? Exceptions::IllegalStateException && Spi::ConnectionPool::CONNECTION_POOL_CLOSED_ERROR_MESSAGE == throwable.message
                     true
-                  elsif throwable.instance_of? Exceptions::ClientException
+                  elsif throwable.is_a? Exceptions::ClientException
                     code = throwable.code
                     INVALID_BOOKMARK_CODE.eql?(code) || INVALID_BOOKMARK_MIXTURE_CODE.eql?(code)
                   end

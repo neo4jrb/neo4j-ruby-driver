@@ -17,7 +17,7 @@ module Neo4j::Driver
           end
 
           def connect(address, bootstrap)
-            bootstrap.option(org.neo4j.driver.internal.shaded.io.netty.channel.ChannelOption::CONNECT_TIMEOUT_MILLIS, @connect_timeout_millis.to_java(:int))
+            bootstrap.option(org.neo4j.driver.internal.shaded.io.netty.channel.ChannelOption::CONNECT_TIMEOUT_MILLIS, @connect_timeout_millis)
             bootstrap.handler(NettyChannelInitializer.new(address, @security_plan, @connect_timeout_millis, @clock, @logger))
             bootstrap.resolver(@address_resolver_group)
 
@@ -66,10 +66,10 @@ module Neo4j::Driver
 
           class << self
             def require_valid_auth_token(token)
-              if token.is_a? org.neo4j.driver.internal.security.InternalAuthToken
+              if token.is_a? Internal::Security::InternalAuthToken
                 token
               else
-                raise Neo4j::Driver::Exceptions::ClientException, "Unknown authentication token, `#{token}`. Please use one of the supported tokens from `#{Neo4j::Driver::AuthTokens.class}`."
+                raise Exceptions::ClientException, "Unknown authentication token, `#{token}`. Please use one of the supported tokens from `#{AuthTokens.class}`."
               end
             end
           end
