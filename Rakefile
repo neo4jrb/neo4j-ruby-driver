@@ -52,6 +52,7 @@ end.spec gem_name do
     dependency 'ffi', '>= 0'
     dependency 'recursive-open-struct', '>= 0'
   when 'ruby'
+    dependency 'async-io', '>= 0'
     dependency 'ione', '>= 0'
   else
     dependency 'jar-dependencies', '>= 0'
