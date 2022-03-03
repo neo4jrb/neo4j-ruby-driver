@@ -23,9 +23,12 @@ module Testkit
         puts "*** #{host}:#{port} connected"
         # handle_client(socket)
 
-        command_processor = CommandProcessor.new(socket)
-        monitor = @selector.register(socket, :r)
-        monitor.value = proc { handle_client(socket, command_processor) }
+        @command_processor = CommandProcessor.new(socket)
+        while @command_processor.process(blocking: true) do
+        end
+        socket.close
+        # monitor = @selector.register(socket, :r)
+        # monitor.value = proc { handle_client(socket, @command_processor) }
       end
 
       def handle_client(client_socket, command_processor)

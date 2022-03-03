@@ -2,21 +2,21 @@ name: Specs
 
 on:
   push:
-    branches: [ master, 4.3 ]
+    branches: [ master, 4.4 ]
   pull_request:
-    branches: [ master, 4.3 ]
+    branches: [ master, 4.4 ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
   test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        ruby: [ jruby-9.3.1.0 ]
-        neo4j: [ 3.5.29, 4.0.12, 4.1.10, 4.2.11, 4.3.6 ]
+        ruby: [ jruby-9.3.3.0 ]
+        neo4j: [ 3.5.30, 4.0.12, 4.1.11, 4.2.14, 4.3.10, 4.4.3 ]
         driver: [ java, ruby ]
     env:
       NEO4J_EDITION_FLAG: -e

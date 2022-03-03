@@ -4,12 +4,12 @@ module Neo4j::Driver::Internal
   class SecuritySetting
     include Scheme
 
-    attr_reader :encrypted, :trust_strategy
-    DEFAULT_ENCRYPTED = false
+    attr_reader :encrypted, :trust_strategy, :customized
 
-    def initialize(encrypted, trust_strategy)
-      @encrypted = encrypted || DEFAULT_ENCRYPTED
-      @trust_strategy = trust_strategy || Neo4j::Driver::Config::TrustStrategy.trust_all_certificates
+    def initialize(encrypted, trust_strategy, customized)
+      @encrypted = encrypted
+      @trust_strategy = trust_strategy
+      @customized = customized
     end
 
     def create_security_plan(uri_scheme)
@@ -17,11 +17,11 @@ module Neo4j::Driver::Internal
       begin
         if security_scheme?(uri_scheme)
           assert_security_settings_not_user_configured(uri_scheme)
-          return create_security_plan_from_scheme(uri_scheme)
+          create_security_plan_from_scheme(uri_scheme)
         else
-          return create_security_plan_impl(encrypted, trust_strategy)
+          create_security_plan_impl(encrypted, trust_strategy)
         end
-      rescue java.security.GeneralSecurityException.GeneralSecurityException, java.io.IOException
+      rescue java.security.GeneralSecurityException, java.io.IOException
         raise Neo4j::Driver::Exceptions::ClientException, 'Unable to establish SSL parameters'
       end
     end
@@ -29,28 +29,24 @@ module Neo4j::Driver::Internal
     def create_security_plan_from_scheme(uri_scheme)
       if high_trust_scheme?(uri_scheme)
         org.neo4j.driver.internal.security.SecurityPlanImpl.forSystemCASignedCertificates(
-          true, RevocationStrategy.NO_CHECKS
+          true, org.neo4j.driver.internal.RevocationStrategy::NO_CHECKS
         )
       else
-        org.neo4j.driver.internal.security.SecurityPlanImpl.forAllCertificates(false, RevocationStrategy.NO_CHECKS)
+        org.neo4j.driver.internal.security.SecurityPlanImpl.forAllCertificates(false, org.neo4j.driver.internal.RevocationStrategy::NO_CHECKS)
       end
     end
 
     private
 
     def assert_security_settings_not_user_configured(uri_scheme)
-      if customized?
-        raise Neo4j::Driver::Exceptions::ClientException,
-          "Scheme #{uri_scheme} is not configurable with manual encryption and trust settings"
-      end
-    end
+      return unless customized
 
-    def customized?
-      encrypted != DEFAULT_ENCRYPTED || trust_strategy != DEFAULT_TRUST_STRATEGY
+      raise Neo4j::Driver::Exceptions::ClientException,
+            "Scheme #{uri_scheme} is not configurable with manual encryption and trust settings"
     end
 
     def create_security_plan_impl(encrypted, trust_strategy)
-      return org.neo4j.driver.internal.security.SecurityPlanImpl.insecure() unless encrypted
+      return org.neo4j.driver.internal.security.SecurityPlanImpl.insecure unless encrypted
 
       hostname_verification_enabled = trust_strategy.hostname_verification_enabled?
       revocation_strategy = trust_strategy.revocation_strategy

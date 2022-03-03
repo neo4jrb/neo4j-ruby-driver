@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        delete(txId).tap(&:commit)
+        fetch(txId).tap(&:commit)
       end
     end
   end

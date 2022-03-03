@@ -31,6 +31,8 @@ module Testkit::Backend::Messages
     rescue Testkit::Backend::Messages::Requests::RollbackException => e
       named_entity('FrontendError', msg: "")
     rescue StandardError => e
+      puts e.inspect
+      puts e.backtrace_locations
       named_entity('BackendError', msg: e.message)
     end
 

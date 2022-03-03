@@ -111,7 +111,8 @@ RSpec.describe Neo4j::Driver do
 
     it 'raises exception' do
       expect do
-        Neo4j::Driver::GraphDatabase.driver('bolt://localhost:9999', max_transaction_retry_time: 0, &method(:add_item))
+        Neo4j::Driver::GraphDatabase.driver('bolt://localhost:9999', Neo4j::Driver::AuthTokens.none,
+                                            max_transaction_retry_time: 0, &method(:add_item))
       end.to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
     end
   end
@@ -215,7 +216,6 @@ RSpec.describe Neo4j::Driver do
 
       # Create the first person and employment relationship.
       driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE) do |session1|
-
         session1.write_transaction { |tx| add_company(tx, 'Wayne Enterprises') }
         session1.write_transaction { |tx| add_person(tx, 'Alice') }
         session1.write_transaction { |tx| employ(tx, 'Alice', 'Wayne Enterprises') }

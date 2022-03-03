@@ -180,8 +180,8 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
       driver.session do |session|
         session.read_transaction { |tx| tx.run('RETURN 1').consume }
       end
-      expect(driver.session_factory.connection_provider.routing_table_registry.routing_table_handler(nil).routing_table
-                   .routers.to_a.size).to eq 3
+      expect(driver.session_factory.connection_provider.routing_table_registry
+                   .routing_table_handler(('neo4j' if version?('>=4.4'))).routing_table.routers.to_a.size).to eq 3
     end
   end
 
