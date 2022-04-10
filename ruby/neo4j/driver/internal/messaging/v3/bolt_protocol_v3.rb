@@ -11,19 +11,17 @@ module Neo4j::Driver
             MessageFormatV3.new
           end
 
-          def initialize_channel(user_agent, auth_token, routing_context, channel_initialized_promise)
-            channel = channel_initialized_promise.channel
-
+          def initialize_channel(channel, user_agent, auth_token, routing_context)
             message = if routing_context.server_routing_enabled?
-                        Request::HelloMessage.new(user_agent, auth_token.to_map, routing_context.to_map)
+                        Request::HelloMessage.new(user_agent, auth_token, routing_context.to_map)
                       else
-                        Request::HelloMessage.new(user_agent, auth_token.to_map, nil)
+                        Request::HelloMessage.new(user_agent, auth_token, nil)
                       end
 
-            handler = Handlers::HelloResponseHandler.new(channel_initialized_promise, VERSION)
+            handler = Handlers::HelloResponseHandler.new(channel, VERSION)
 
-            Connection::ChannelAttributes.message_dispatcher(channel).enqueue(handler)
-            channel.write_and_flush(message, channel.void_promise)
+            channel.message_dispatcher.enqueue(handler)
+            channel.write_and_flush(message)
           end
 
           def prepare_to_close_channel(channel)
@@ -67,7 +65,7 @@ module Neo4j::Driver
           def run_in_auto_commit_transaction(connection, query, bookmark_holder, config, fetch_size)
             verify_database_name_before_transaction(connection.database_name)
 
-            run_message = Request::RunWithMetadataMessage.auto_commit_tx_run_message(query, config, connection.database_name, connection.mode, bookmark.bookmark, connection.impersonated_user)
+            run_message = Request::RunWithMetadataMessage.auto_commit_tx_run_message(query, config, connection.database_name, connection.mode, bookmark_holder.bookmark, connection.impersonated_user)
 
             build_result_cursor_factory(connection, query, bookmark_holder, nil, run_message, fetch_size)
           end
@@ -87,6 +85,10 @@ module Neo4j::Driver
 
           def verify_database_name_before_transaction(database_name)
             Request::MultiDatabaseUtil.assert_empty_database_name(database_name, VERSION)
+          end
+
+          def version
+            self.class::VERSION
           end
         end
       end

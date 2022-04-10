@@ -4,12 +4,12 @@ module Neo4j::Driver
       class ServerVersion
         NEO4J_PRODUCT = 'Neo4j'
 
-        NEO4J_IN_DEV_VERSION_STRING = "#{NEO4J_PRODUCT} /dev"
-        PATTERN = "([^/]+)/(\\d+)\\.(\\d+)(?:\\.)?(\\d*)(\\.|-|\\+)?([0-9A-Za-z-.]*)?"
+        NEO4J_IN_DEV_VERSION_STRING = "#{NEO4J_PRODUCT}/dev"
+        PATTERN = Regexp.new '([^/]+)/(\\d+)\\.(\\d+)(?:\\.)?(\\d*)(\\.|-|\\+)?([0-9A-Za-z\-.]*)?'
 
         attr_reader :product
 
-        def initialize(product, major, minor, patch)
+        def initialize(product, major = nil, minor = nil, patch = nil)
           @product = product
           @major = major
           @minor = minor
@@ -17,12 +17,8 @@ module Neo4j::Driver
           @string_value = string_value(product, major, minor, patch)
         end
 
-        MAX_INTEGER = 2 ^ 31 - 1
         private def string_value(product, major, minor, patch)
-          if major == MAX_INTEGER && minor == MAX_INTEGER && patch == MAX_INTEGER
-            return NEO4J_IN_DEV_VERSION_STRING
-          end
-
+          return NEO4J_IN_DEV_VERSION_STRING unless major || minor || patch
           "#{product}/#{major}.#{minor}.#{patch}"
         end
 
@@ -33,28 +29,18 @@ module Neo4j::Driver
         V4_0_0 = new(NEO4J_PRODUCT, 4, 0, 0)
         V3_5_0 = new(NEO4J_PRODUCT, 3, 5, 0)
         V3_4_0 = new(NEO4J_PRODUCT, 3, 4, 0)
-        V_IN_DEV = new(NEO4J_PRODUCT, MAX_INTEGER, MAX_INTEGER, MAX_INTEGER)
+        V_IN_DEV = new(NEO4J_PRODUCT)
 
         def self.version(server)
-          matcher = PATTERN.match(server)
-
-          if matcher.matches
-            product = matcher.group(1)
-            major = java.lang.Integer.value_of(matcher.group(2))
-            minor = java.lang.Integer.value_of(matcher.group(2))
-            patch_string = matcher.group(4)
-            patch = 0
-
-            unless patch_string.nil? && patch_string.empty?
-              patch = java.lang.Integer.value_of(patch_string)
-            end
-
-            new(product, major, minor, patch)
-          elsif server.equals_ignore_case(NEO4J_IN_DEV_VERSION_STRING)
-            v_in_dev
-          else
-            raise ArgumentError, "Cannot parse #{server}"
+          PATTERN.match(server) do |matchdata|
+            product = matchdata[1]
+            major = matchdata[2].to_i
+            minor = matchdata[3].to_i
+            patch = matchdata[4].to_i
+            return new(product, major, minor, patch)
           end
+          return V_IN_DEV if server.casecmp?(NEO4J_IN_DEV_VERSION_STRING)
+          raise ArgumentError, "Cannot parse #{server}"
         end
 
         def self.from_bolt_protocol_version(protocol_version)

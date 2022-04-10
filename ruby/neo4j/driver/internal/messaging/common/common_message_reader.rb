@@ -4,7 +4,7 @@ module Neo4j::Driver
       module Common
         class CommonMessageReader
           def initialize(input)
-            @unpacker = CommonValueUnpacker.new(input)
+            @unpacker = input
           end
 
           def read(handler)
@@ -21,22 +21,19 @@ module Neo4j::Driver
             when Response::RecordMessage::SIGNATURE
               unpack_record_message(handler)
             else
-              raise java.io.IOException, "Unknown message type: #{type}"
+              raise IOError, "Unknown message type: #{type}"
             end
           end
 
           private
 
           def unpack_success_message(output)
-            map = @unpacker.unpack_map
+            map = @unpacker.unpack
             output.handle_success_message(map)
           end
 
           def unpack_failure_message(output)
-            params = @unpacker.unpack_map
-            code = params['code']
-            message = params['message']
-            output.handle_failure_message(code, message)
+            output.handle_failure_message(**@unpacker.unpack)
           end
 
           def unpack_ignored_message(output)
@@ -44,7 +41,7 @@ module Neo4j::Driver
           end
 
           def unpack_record_message(output)
-            fields = @unpacker.unpack_array
+            fields = @unpacker.unpack
             output.handle_record_message(fields)
           end
         end

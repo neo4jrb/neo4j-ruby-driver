@@ -51,15 +51,46 @@ module Neo4j::Driver
         end
       end
 
-      def handshake_async(*versions)
-        Async do |task|
-          Async::IO::Endpoint.tcp('localhost', 7687).connect do |peer|
-            peer.write(GOGOBOLT)
-            peer.write(bolt_versions(*versions))
-            peer.close_write
-            ruby_version(peer.read)
-          end
+      class Connection < Async::Pool::Resource
+        attr :version, true
+        attr :io
+
+        def initialize
+          super
+          @io = Async::IO::Endpoint.tcp('localhost', 7687).connect
         end
+
+        def close
+          super
+          @io.close
+        end
+      end
+
+      def handshake_async(*versions)
+        # Async do |task|
+        pool = Async::Pool::Controller.wrap { Connection.new }
+        pool.acquire do |connection|
+          Console.logger.info(connection)
+          stream = Async::IO::Stream.new(connection.io)
+          asy = Async do
+            connection.version = ruby_version(stream.read_exactly(4))
+            connection.version.tap(&Console.logger.method(:info))
+          end
+          stream.write(GOGOBOLT)
+          stream.write(bolt_versions(*versions))
+          # stream.write(['0010000102030405060708090A0B0C0D0E0F0000'].pack('H*'))
+          stream.flush
+          # res = stream.read(100)
+          # res
+          asy.wait
+          connection.version
+        ensure
+          stream&.close
+        end.tap { Console.logger.info('After aquire') }
+      ensure
+        Console.logger.info('Closing pool...')
+        pool.close
+        # end
       end
 
       # def handshake_em(*versions)

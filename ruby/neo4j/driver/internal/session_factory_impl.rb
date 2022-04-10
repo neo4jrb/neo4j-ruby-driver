@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     class SessionFactoryImpl
       attr_reader :connection_provider
-      delegate :verify_connectivity, :close, to: :connection_provider
+      delegate :verify_connectivity, :close, :supports_multi_db?, to: :connection_provider
 
       def initialize(connection_provider, retry_logic, config)
         @connection_provider = connection_provider
@@ -17,10 +17,6 @@ module Neo4j::Driver
         create_session(parse_database_name(config), default_access_mode, bookmark_holder, fetch_size, config[:impersonated_user])
       end
 
-      def supports_multi_db?
-        @connection_provider.supports_multi_db
-      end
-
       private
 
       def parse_database_name(config)
@@ -28,7 +24,6 @@ module Neo4j::Driver
       end
 
       def create_session(database_name, mode, bookmark_holder, fetch_size, impersonated_user)
-        @logger.debug('called create_session')
         (@leaked_sessions_logging_enabled ? org.neo4j.driver.internal.async.LeakLoggingNetworkSession : Async::NetworkSession)
           .new(@connection_provider, @retry_logic, database_name, mode, bookmark_holder, impersonated_user, fetch_size, @logger)
       end

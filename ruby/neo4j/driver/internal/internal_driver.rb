@@ -16,16 +16,15 @@ module Neo4j::Driver
       end
 
       def session(**session_config)
-        @log.debug {'called session'}
         InternalSession.new(new_session(**session_config))
       end
 
       def rx_session(**session_config)
-        org.neo4j.driver.internal.reactive.InternalRxSession.new(new_session(**session_config))
+        InternalRxSession.new(new_session(**session_config))
       end
 
       def async_session(**session_config)
-        org.neo4j.driver.internal.async.InternalAsyncSession.new(new_session(**session_config))
+        InternalAsyncSession.new(new_session(**session_config))
       end
 
       def encrypted?
@@ -34,11 +33,11 @@ module Neo4j::Driver
       end
 
       def close
-        close_async.value!
+        close_async
       end
 
       def close_async
-        return Concurrent::Promises.fulfilled_future(nil) unless @closed.make_true
+        return nil unless @closed.make_true
         @log.info { "Closing driver instance #{object_id}" }
         session_factory.close
       end
@@ -48,7 +47,7 @@ module Neo4j::Driver
       end
 
       def supports_multi_db?
-        Util::Futures.blocking_get(supports_multi_db_async?)
+        Sync { supports_multi_db_async? }
       end
 
       def supports_multi_db_async?
@@ -56,7 +55,7 @@ module Neo4j::Driver
       end
 
       def verify_connectivity
-        Util::Futures.blocking_get(verify_connectivity_async)
+        Sync { verify_connectivity_async }
       end
 
       def new_session(**config)

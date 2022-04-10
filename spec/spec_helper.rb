@@ -1,18 +1,10 @@
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift File.join(
-  File.dirname(__FILE__),
-  '..',
-  case ENV['driver']
-  when 'java'
-    'jruby'
-  when 'ruby'
-    'ruby'
-  else
-    'ffi'
-  end
-)
+$LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', RUBY_PLATFORM == 'java' ? 'jruby' : 'ruby')
 
+require 'async'
+require 'async/rspec' unless RUBY_PLATFORM == 'java'
+require 'async/rspec/reactor'
 require 'active_support/logger'
 require 'ffaker'
 require 'neo4j_ruby_driver'
@@ -32,13 +24,17 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 
+  config.include_context Async::RSpec::Reactor
   config.include DriverHelper::Helper
   # config.include Neo4jCleaner
   include DriverHelper::Helper
   include Neo4jCleaner
-  config.before(:suite, &:clean)
+  config.define_derived_metadata do |metadata|
+    metadata[:timeout] = 9999
+  end
+  # config.before(:suite, &:clean)
   config.after(:suite) { driver.close }
-  config.around { |example| cleaning(&example.method(:run)) }
+  # config.around { |example| cleaning(&example.method(:run)) }
 
   config.filter_run_excluding auth: :none
   config.filter_run_excluding version: method(:not_version?)

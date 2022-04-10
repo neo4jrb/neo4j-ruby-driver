@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class BeginTxResponseHandler
+        include Spi::ResponseHandler
+
         def initialize(begin_tx_future)
           @begin_tx_future = java.util.Objects.require_non_null(begin_tx_future)
         end

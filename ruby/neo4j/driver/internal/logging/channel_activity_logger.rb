@@ -5,7 +5,7 @@ module Neo4j::Driver
         def initialize(channel, logger, owner)
           super(logger)
           @channel = channel
-          @local_channel_id = channel&.id&.to_s
+          @local_channel_id = channel&.object_id&.to_s
           @owner = owner
         end
 

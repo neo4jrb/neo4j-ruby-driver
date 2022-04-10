@@ -11,25 +11,25 @@ module Neo4j::Driver
       def keys
         @keys ||=
           begin
-            blocking_get(@cursor.peek_async)
+            @cursor.peek_async
             @cursor.keys.map(&:to_sym)
           end
       end
 
       def has_next?
-        blocking_get(@cursor.peek_async)
+        @cursor.peek_async
       end
 
       def next
-        blocking_get(@cursor.next_async) or raise Exceptions::NoSuchRecordException.no_more
+        @cursor.next_async || raise(Exceptions::NoSuchRecordException.no_more)
       end
 
       def single
-        blocking_get(@cursor.single_async)
+        @cursor.single_async
       end
 
       def peek
-        blocking_get(@cursor.peek_async) or raise Exceptions::NoSuchRecordException.no_peek_past
+        @cursor.peek_async or raise Exceptions::NoSuchRecordException.no_peek_past
       end
 
       def each
@@ -37,7 +37,7 @@ module Neo4j::Driver
       end
 
       def consume
-        blocking_get(@cursor.consume_async)
+        @cursor.consume_async
       end
 
       def remove

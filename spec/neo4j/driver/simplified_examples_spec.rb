@@ -113,15 +113,18 @@ RSpec.describe Neo4j::Driver do
   end
 
   describe 'handshakes' do
-    { handshake_concurrent: :value, handshake_async: :wait, handshake_ione: :value }.each do |handshake, v_method|
+    include_context Async::RSpec::Reactor
+    # { handshake_concurrent: :value, handshake_async: :wait, handshake_ione: :value }.each do |handshake, v_method|
+    { handshake_async: :itself }.each do |handshake, v_method|
       describe handshake do
         {
-          %w[3 4.0 4.1 4.4-2'] => '3.0.0.0',
-          %w[4.0 4.1 4.4-2] => '4.0.0.0',
-          %w[4.1 4.4-2] => '4.1.0.0',
-          ['4.4-2'] => '4.3.0.0',
-          ['4.4-1'] => '4.3.0.0',
-          ['4.4'] => '0.0.0.0',
+          # %w[3 4.0 4.1 4.4-2'] => '3.0.0.0',
+          # %w[4.0 4.1 4.4-2] => '4.0.0.0',
+          # %w[4.1 4.4-2] => '4.1.0.0',
+          # ['4.4-2'] => '4.4.0.0',
+          # ['4.4-1'] => '4.4.0.0',
+          ['4.4'] => '4.4.0.0',
+          # ['9.9'] => '0.0.0.0',
         }.each do |versions, chosen|
           it "chooses #{chosen}" do
             expect(Neo4j::Driver::GraphDatabase.send(handshake, *versions).send(v_method)).to eq chosen

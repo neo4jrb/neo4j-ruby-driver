@@ -268,7 +268,7 @@ end
 # List          Enumerable
 # Map           Hash
 # Boolean       TrueClass/FalseClass
-# Integer       Integer
+# Integer       Integer*
 # Float         Float
 # String        String (Symbol)*
 # ByteArray     Neo4j::Driver::Types::Bytes
@@ -283,6 +283,7 @@ end
 # Relationship  Neo4j::Driver::Types::Relationship
 # Path          Neo4j::Driver::Types::Path
 
+# * An Integer smaller than -2 ** 63 or lager than 2 ** 63 will always be implicitly converted to String
 # * A Symbol passed as a parameter will always be implicitly converted to String
 # * A ruby DateTime passed as a parameter will always be implicitly converted to Time
 

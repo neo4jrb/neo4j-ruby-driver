@@ -1,14 +1,20 @@
 # frozen_string_literal: true
 
+require 'active_support/core_ext/array/grouping'
 require 'active_support/core_ext/hash/keys'
 require 'active_support/logger'
-require 'concurrent-edge'
-require 'ione'
 require 'async/io'
+require 'async/io/stream'
+require 'async/pool'
+require 'async/pool/resource'
+require 'async/queue'
+# require 'concurrent-edge'
+# require 'ione'
 require 'date'
-require 'ione'
+# require 'ione'
 require 'loader'
-require 'socket'
+# require 'nio'
+# require 'socket'
 
 Loader.load
 # Loader.load do |loader|

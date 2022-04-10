@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class RouteMessageResponseHandler < Struct.new(:completable_future)
+        include Spi::ResponseHandler
+
         def on_success(metadata)
           begin
             completable_future.complete(metadata[:rt])

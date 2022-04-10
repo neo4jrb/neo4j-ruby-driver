@@ -6,7 +6,7 @@ module Neo4j::Driver
           def encode(message, packer)
             Util::Preconditions.check_argument(message, Request::PullMessage)
             packer.pack_struct_header(1, Request::PullMessage::SIGNATURE)
-            packer.pack(messag.metadata)
+            packer.pack(message.metadata)
           end
         end
       end

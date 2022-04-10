@@ -13,33 +13,28 @@ module Neo4j::Driver
             @logger = Validator.require_non_nil!(logger)
             @clock = Validator.require_non_nil!(clock)
             @domain_name_resolver = Validator.require_non_nil!(domain_name_resolver)
-            @address_resolver_group = NettyDomainNameResolverGroup.new(&@domain_name_resolver)
           end
 
-          def connect(address, bootstrap)
-            bootstrap.option(org.neo4j.driver.internal.shaded.io.netty.channel.ChannelOption::CONNECT_TIMEOUT_MILLIS, @connect_timeout_millis)
-            bootstrap.handler(NettyChannelInitializer.new(address, @security_plan, @connect_timeout_millis, @clock, @logger))
-            bootstrap.resolver(@address_resolver_group)
+          def connect(address)
+            socket_host = (@domain_name_resolver.call(address.connection_host).first.ip_address rescue nil) || bracketless(address.connection_host)
 
-            begin
-              socket_address = java.net.InetSocketAddress.new(@address_resolver_group)
-            rescue
-              socket_address = java.net.InetSocketAddress.create_unresolved(address.connection_host, address.port)
-            end
+            channel_connected = ::Async::IO::Endpoint.tcp(socket_host, address.port).connect
 
-            channel_connected = bootstrap.connect(socket_address)
+            # install_channel_connected_listeners(address, channel_connected, handshake_completed)
+            # install_handshake_completed_listeners(handshake_completed, connection_initialized)
 
-            channel = channel_connected.channel
-            handshake_completed = channel.new_promise
-            connection_initialized = channel.new_promise
+            channel_connected
+          end
 
-            install_channel_connected_listeners(address, channel_connected, handshake_completed)
-            install_handshake_completed_listeners(handshake_completed, connection_initialized)
-
-            connection_initialized
+          def initialize_channel(channel, protocol)
+            protocol.initialize_channel(channel, @user_agent, @auth_token, @routing_context)
           end
 
           private
+
+          def bracketless(host)
+            host.delete_prefix('[').delete_suffix(']')
+          end
 
           def install_channel_connected_listeners(address, channel_connected, handshake_completed)
             pipeline = channel_connected.channel.pipeline

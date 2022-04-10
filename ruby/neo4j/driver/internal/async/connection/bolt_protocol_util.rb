@@ -17,7 +17,7 @@ module Neo4j::Driver
 
           class << self
             def handshake_buf
-              HANDSHAKE_BUF.dup
+              HANDSHAKE_BUF
             end
 
             def handshake_string

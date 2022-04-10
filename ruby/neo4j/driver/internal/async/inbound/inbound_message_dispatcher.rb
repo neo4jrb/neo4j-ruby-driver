@@ -35,15 +35,15 @@ module Neo4j::Driver
           end
 
           def handle_success_message(meta)
-            log.debug("S: SUCCESS #{meta}")
+            @log.debug("S: SUCCESS #{meta}")
             invoke_before_last_handler_hook(HandlerHook::SUCCESS)
             handler = remove_handler
             handler.on_success(meta)
           end
 
           def handle_record_message(fields)
-            if log.is_debug_enabled?
-              log.debug("S: RECORD #{fields}")
+            if @log.debug?
+              @log.debug("S: RECORD #{fields}")
             end
 
             handler = @handlers.first
@@ -54,20 +54,20 @@ module Neo4j::Driver
             handler.on_record(fields)
           end
 
-          def handle_failure_message(code, message)
-            log.debug("S: FAILURE #{code}, '#{message}'")
+          def handle_failure_message(code:, message:)
+            @log.debug("S: FAILURE #{code}, '#{message}'")
             current_error = Util::ErrorUtil.new_neo4j_error(code, message)
 
             # we should not continue using channel after a fatal error
             # fire error event back to the pipeline and avoid sending RESET
-            return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.is_fatal?(current_error)
+            return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.fatal?(current_error)
 
             if current_error.is_a?(Exceptions::AuthorizationExpiredException)
               Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(current_error, @channel)
             else
               # write a RESET to "acknowledge" the failure
-              enqueue(ResetResponseHandler.new(self))
-              @channel.write_and_flush(RESET, @channel.void_promise)
+              enqueue(Handlers::ResetResponseHandler.new(self))
+              @channel.write_and_flush(Messaging::Request::ResetMessage::RESET)
             end
 
             invoke_before_last_handler_hook(HandlerHook::FAILURE)
@@ -126,10 +126,8 @@ module Neo4j::Driver
             @gracefully_closed = true
           end
 
-          private
-
           def remove_handler
-            handler = @handlers.drop(1)
+            handler = @handlers.shift
 
             if handler == auto_read_managing_handler
               # the auto-read managing handler is being removed
@@ -139,8 +137,10 @@ module Neo4j::Driver
             handler
           end
 
+          private
+
           def update_auto_read_managing_handler_if_needed(handler)
-            if handler.can_manage_auto_read
+            if handler.can_manage_auto_read?
               update_auto_read_managing_handler(handler)
             end
           end
@@ -160,7 +160,7 @@ module Neo4j::Driver
           end
 
           def invoke_before_last_handler_hook(message_type)
-            @before_last_handler_hook&.run(message_type) if handlers.size == 1
+            @before_last_handler_hook&.run(message_type) if @handlers.size == 1
           end
 
           module HandlerHook

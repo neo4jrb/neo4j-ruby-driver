@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class ResetResponseHandler
+        include Spi::ResponseHandler
+
         def initialize(message_dispatcher, completion_future = nil)
           @message_dispatcher = message_dispatcher
           @completion_future = completion_future

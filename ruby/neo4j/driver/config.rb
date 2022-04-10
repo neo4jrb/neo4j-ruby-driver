@@ -30,9 +30,11 @@ module Neo4j
         end
       end
 
+      # Console.logger = ::Logger.new(STDOUT, level: :debug)
       DEFAULTS = {
         # logger: ::Logger.new(nil),
         logger: ::Logger.new(STDOUT, level: :debug),
+        # logger: Console.logger,
         leaked_sessions_logging: false,
         max_connection_pool_size: Internal::Async::Pool::PoolSettings::DEFAULT_MAX_CONNECTION_POOL_SIZE,
         idle_time_before_connection_test: Internal::Async::Pool::PoolSettings::DEFAULT_IDLE_TIME_BEFORE_CONNECTION_TEST,

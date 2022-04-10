@@ -49,7 +49,7 @@ module Neo4j::Driver
         end
 
         def map_successful_run_completion_async
-          @delegate.map_successful_run_completion_async.then_apply(-> (_ignored) { self })
+          @delegate.map_successful_run_completion_async
         end
       end
     end

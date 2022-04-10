@@ -38,7 +38,7 @@ module Neo4j::Driver::Internal
         config[:max_connection_lifetime].in_milliseconds,
         config[:idle_time_before_connection_test]&.in_milliseconds || -1 # TODO: remember to get rid of -1
       )
-      Async::Pool::ConnectionPoolImpl.new(connector, bootstrap, pool_settings, metrics_provider.metrics_listener, config[:logger], clock, owns_event_loop_group)
+      Async::Pool::ConnectionPoolImpl.new(connector, pool_settings, config[:logger])
     end
 
     def create_driver_metrics(config)

@@ -3,6 +3,7 @@ module Neo4j::Driver
     module Handlers
       # This is the Pull All response handler that handles pull all messages in Bolt v3 and previous protocol versions.
       class LegacyPullAllResponseHandler
+        include Spi::ResponseHandler
         UNINITIALIZED_RECORDS = []
         RECORD_BUFFER_LOW_WATERMARK = ENV['record_buffer_low_watermark']&.to_i || 300
         RECORD_BUFFER_HIGH_WATERMARK = ENV['record_buffer_high_watermark']&.to_i || 1000
@@ -40,7 +41,7 @@ module Neo4j::Driver
 
           if fail_record_future
             # error propagated through the record future
-           complete_failure_future(nil)
+            complete_failure_future(nil)
           else
             completed_failure_future = complete_failure_future(error)
 

@@ -2,11 +2,10 @@ module Neo4j::Driver
   module Internal
     module Async
       module Connection
-        class HandshakeHandler #< org.neo4j.driver.internal.shaded.io.netty.handler.codec.ReplayingDecoder
-          def initialize(pipeline_builder, handshake_completed_promise, logger)
-            @pipeline_builder = pipeline_builder
-            @handshake_completed_promise = handshake_completed_promise
-            @logger = logger
+        class HandshakeHandler
+          def initialize(logger)
+            # @pipeline_builder = pipeline_builder
+            @log = logger
           end
 
           def handler_added(ctx)
@@ -39,33 +38,32 @@ module Neo4j::Driver
             end
           end
 
-          def decode(ctx, in_, _out)
-            server_suggested_version = Messaging::BoltProtocolVersion.from_raw_bytes(in_.read_int)
+          def decode(connection)
+            server_suggested_version = Messaging::BoltProtocolVersion.from_raw_bytes(connection.stream.read_int)
             @log.debug("S: [Bolt Handshake] #{server_suggested_version}")
-
-            # this is a one-time handler, remove it when protocol version has been read
-            ctx.pipeline.remove(self)
+            # ::Logger.new(STDOUT, level: :debug).debug("S: [Bolt Handshake] #{server_suggested_version}")
 
             protocol = protocol_for_version(server_suggested_version)
             if protocol
-              protocol_selected(server_suggested_version, protocol.create_message_format, ctx)
+              protocol_selected(server_suggested_version, protocol, connection)
             else
-              handle_unknown_suggested_protocol_version(server_suggested_version, ctx)
+              handle_unknown_suggested_protocol_version(server_suggested_version, connection)
             end
           end
 
           private
 
           def protocol_for_version(version)
-            Messaging::BoltProtocol(version)
-          rescue Neo4j::Driver::Exception::ClientException
+            Messaging::BoltProtocol.for_version(version)
+          rescue Neo4j::Driver::Exceptions::ClientException
             nil
           end
 
-          def protocol_selected(version, message_format, ctx)
-            ChannelAttributes.set_protocol_version(ctx.channel, version)
-            pipeline_builder.build(message_format, ctx.pipeline, @logger)
-            handshake_completed_promise.set_success
+          def protocol_selected(version, protocol, connection)
+            connection.attributes[:protocol_version] = version
+            connection.version = version
+            connection.protocol = protocol
+            connection.message_format = protocol.create_message_format
           end
 
           def handle_unknown_suggested_protocol_version(version, ctx)
