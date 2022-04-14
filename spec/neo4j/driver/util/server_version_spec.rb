@@ -34,7 +34,7 @@ RSpec.describe Neo4j::Driver::Internal::Util::ServerVersion do
       expect(Neo4j::Driver::Internal::Util::ServerVersion::V4_2_0).to eq(Neo4j::Driver::Internal::Util::ServerVersion.from_bolt_protocol_version(Neo4j::Driver::Internal::Messaging::V42::BoltProtocolV42::VERSION))
       expect(Neo4j::Driver::Internal::Util::ServerVersion::V4_3_0).to eq(Neo4j::Driver::Internal::Util::ServerVersion.from_bolt_protocol_version(Neo4j::Driver::Internal::Messaging::V43::BoltProtocolV43::VERSION))
       expect(Neo4j::Driver::Internal::Util::ServerVersion::V4_4_0).to eq(Neo4j::Driver::Internal::Util::ServerVersion.from_bolt_protocol_version(Neo4j::Driver::Internal::Messaging::V44::BoltProtocolV44::VERSION))
-      expect(Neo4j::Driver::Internal::Util::ServerVersion::V_IN_DEV).to eq(Neo4j::Driver::Internal::Util::ServerVersion.from_bolt_protocol_version(Neo4j::Driver::Internal::Messaging::BoltProtocolVersion.new(java.lang.Integer::MAX_VALUE, java.lang.Integer::MAX_VALUE)))
+      expect(Neo4j::Driver::Internal::Util::ServerVersion::V_IN_DEV).to eq(Neo4j::Driver::Internal::Util::ServerVersion.from_bolt_protocol_version(Neo4j::Driver::Internal::Messaging::BoltProtocolVersion.new(nil, nil)))
     end
   end
 end
