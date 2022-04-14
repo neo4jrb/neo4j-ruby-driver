@@ -24,7 +24,9 @@ jobs:
 #      max-parallel: 1
       fail-fast: false
       matrix:
-        ruby: [ jruby:latest, ruby:latest ]
+        ruby:
+          - 'jruby:latest'
+          - 'ruby:latest'
 
     steps:
       - uses: actions/checkout@v2
