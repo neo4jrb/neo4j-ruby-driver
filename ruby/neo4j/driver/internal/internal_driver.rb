@@ -33,7 +33,7 @@ module Neo4j::Driver
       end
 
       def close
-        close_async
+        Sync { close_async }
       end
 
       def close_async

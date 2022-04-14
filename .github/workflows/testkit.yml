@@ -66,7 +66,6 @@ jobs:
           TEST_DRIVER_NAME: ruby
           TEST_DRIVER_REPO: ${{ github.workspace }}/driver
           TEST_RUN_ALL_TESTS: "true"
-          TEST_DRIVER_PLATFORM: ${{ matrix.driver }}
 #          TEST_DEBUG_REQRES: "true"
         run: |
           cd testkit

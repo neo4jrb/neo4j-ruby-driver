@@ -15,13 +15,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: [ jruby-9.3.3.0 ]
-        neo4j: [ 3.5.30, 4.0.12, 4.1.11, 4.2.15, 4.3.10, 4.4.4 ]
-        driver: [ java, ruby ]
+        ruby: [ jruby-9.3.4.0, ruby ]
+        neo4j: [ 3.5.31, 4.0.12, 4.1.11, 4.2.15, 4.3.11, 4.4.5 ]
     env:
       NEO4J_EDITION_FLAG: -e
       NEO4J_VERSION: ${{ matrix.neo4j }}
-      driver: ${{ matrix.driver }}
     steps:
       - uses: actions/checkout@v2
 

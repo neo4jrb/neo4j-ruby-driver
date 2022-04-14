@@ -24,7 +24,7 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 
-  config.include_context Async::RSpec::Reactor
+  # config.include_context Async::RSpec::Reactor
   config.include DriverHelper::Helper
   # config.include Neo4jCleaner
   include DriverHelper::Helper
@@ -32,9 +32,9 @@ RSpec.configure do |config|
   config.define_derived_metadata do |metadata|
     metadata[:timeout] = 9999
   end
-  # config.before(:suite, &:clean)
+  config.before(:suite, &:clean)
   config.after(:suite) { driver.close }
-  # config.around { |example| cleaning(&example.method(:run)) }
+  config.around { |example| cleaning(&example.method(:run)) }
 
   config.filter_run_excluding auth: :none
   config.filter_run_excluding version: method(:not_version?)

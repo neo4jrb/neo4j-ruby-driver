@@ -126,10 +126,10 @@ module Neo4j::Driver
         end.then(&method(:ruby_version))
       end
 
-      # Once on ruby 3 add the default value again, ruby 3 will not confuse last hash with keyword parameter
-      # def driver(uri, auth_token = nil, **config)
-      def driver(uri, auth_token, **config)
-        internal_driver(uri, auth_token, config, Internal::DriverFactory.new)
+      def driver(uri, auth_token = nil, **config)
+        Sync do
+          internal_driver(uri, auth_token, config, Internal::DriverFactory.new)
+        end
       end
 
       def internal_driver(uri, auth_token, config, factory)

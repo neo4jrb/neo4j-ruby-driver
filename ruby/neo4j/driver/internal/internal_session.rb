@@ -11,18 +11,22 @@ module Neo4j::Driver
       end
 
       def run(query, parameters = {}, **config)
-        cursor = @session.run_async(Query.new(query, **parameters), **TransactionConfig.new(**config)) do
-          terminate_connection_on_thread_interrupt('Thread interrupted while running query in session')
-        end
+        Sync do
+          cursor = @session.run_async(Query.new(query, **parameters), **TransactionConfig.new(**config)) do
+            terminate_connection_on_thread_interrupt('Thread interrupted while running query in session')
+          end
 
-        # query executed, it is safe to obtain a connection in a blocking way
-        connection = @session.connection_async
-        InternalResult.new(connection, cursor)
+          # query executed, it is safe to obtain a connection in a blocking way
+          connection = @session.connection_async
+          InternalResult.new(connection, cursor)
+        end
       end
 
       def close
-        @session.close_async do
-          terminate_connection_on_thread_interrupt("Thread interrupted while closing the session")
+        Sync do
+          @session.close_async do
+            terminate_connection_on_thread_interrupt("Thread interrupted while closing the session")
+          end
         end
       end
 

@@ -4,9 +4,6 @@ module Neo4j::Driver
       module Inbound
         class InboundMessageDispatcher
           attr_reader :fatal_error_occurred, :current_error
-          # Visible for testing
-          attr_reader :auto_read_managing_handler
-
           def initialize(channel, logger)
             @handlers = []
             @channel = Validator.require_non_nil!(channel)
@@ -129,7 +126,7 @@ module Neo4j::Driver
           def remove_handler
             handler = @handlers.shift
 
-            if handler == auto_read_managing_handler
+            if handler == @auto_read_managing_handler
               # the auto-read managing handler is being removed
               # make sure this dispatcher does not hold on to a removed handler
               update_auto_read_managing_handler(nil)
@@ -146,11 +143,11 @@ module Neo4j::Driver
           end
 
           def update_auto_read_managing_handler(new_handler)
-            if auto_read_managing_handler
+            if @auto_read_managing_handler
 
               # there already exists a handler that manages channel's auto-read
               # make it stop because new managing handler is being added and there should only be a single such handler
-              auto_read_managing_handler.disable_auto_read_management
+              @auto_read_managing_handler.disable_auto_read_management
 
               # restore the default value of auto-read
               @channel.config.set_auto_read(true)
