@@ -66,66 +66,6 @@ module Neo4j::Driver
         end
       end
 
-      def handshake_async(*versions)
-        # Async do |task|
-        pool = Async::Pool::Controller.wrap { Connection.new }
-        pool.acquire do |connection|
-          Console.logger.info(connection)
-          stream = Async::IO::Stream.new(connection.io)
-          asy = Async do
-            connection.version = ruby_version(stream.read_exactly(4))
-            connection.version.tap(&Console.logger.method(:info))
-          end
-          stream.write(GOGOBOLT)
-          stream.write(bolt_versions(*versions))
-          # stream.write(['0010000102030405060708090A0B0C0D0E0F0000'].pack('H*'))
-          stream.flush
-          # res = stream.read(100)
-          # res
-          asy.wait
-          connection.version
-        ensure
-          stream&.close
-        end.tap { Console.logger.info('After aquire') }
-      ensure
-        Console.logger.info('Closing pool...')
-        pool.close
-        # end
-      end
-
-      # def handshake_em(*versions)
-      #   require 'rubygems'
-      #   require 'eventmachine'
-      #
-      #   class Echo < EventMachine::Connection
-      #     def post_init
-      #       send_data(GOGOBOLT)
-      #       send_data(bolt_versions(*versions))
-      #     end
-      #
-      #     def receive_data(data)
-      #       p data
-      #     end
-      #   end
-      #
-      #   EventMachine.run {
-      #     EventMachine::connect('localhost', 7687, Echo)
-      #   }
-      # end
-
-      def handshake_ione(*versions)
-        Concurrent::Promises.resolvable_future.tap do |future|
-          reactor = Ione::Io::IoReactor.new
-          reactor.start
-          reactor.connect('localhost', 7687) do |connection|
-            connection.on_data(&future.method(:fulfill))
-            connection.write(GOGOBOLT)
-            connection.write(bolt_versions(*versions))
-          end
-          # reactor.stop
-        end.then(&method(:ruby_version))
-      end
-
       def driver(uri, auth_token = nil, **config)
         Sync do
           internal_driver(uri, auth_token, config, Internal::DriverFactory.new)
