@@ -41,17 +41,12 @@ module Neo4j::Driver
               Util::Futures.failed_future(error)
             end
 
-            begin_tx_future = java.util.concurrent.CompletableFuture.new
             begin_message = Request::BeginMessage.new(bookmark, config, connection.database_name, connection.mode, connection.impersonated_user)
-            connection.write_and_flush(begin_message, Handlers::BeginTxResponseHandler.new(begin_tx_future))
-
-            begin_tx_future
+            connection.write_and_flush(begin_message, Handlers::BeginTxResponseHandler.new)
           end
 
           def commit_transaction(connection)
-            commit_future = java.util.concurrent.CompletableFuture.new
             connection.write_and_flush(Request::CommitMessage::COMMIT, Handlers::CommitTxResponseHandler.new(commit_future))
-
             commit_future
           end
 

@@ -29,18 +29,16 @@ module Neo4j::Driver
         end
 
         def begin_transaction_async(mode = @mode, **config)
-          @log.debug { 'calling begin_transaction_async' }
           ensure_session_is_open
 
           # create a chain that acquires connection and starts a transaction
           new_transaction_stage =
             ensure_no_open_tx_before_starting_tx
-              .then_flat { acquire_connection(mode) }
-              .then { |connection| ImpersonationUtil.ensure_impersonation_support(connection, connection.impersonated_user) }
-              .then_flat do |connection|
-              tx = UnmanagedTransaction.new(connection, @bookmark_holder, @fetch_size)
-              tx.begin_async(bookmark_holder.get_bookmark, config)
-            end
+          acquire_connection(mode).then do |connection|
+            ImpersonationUtil.ensure_impersonation_support(connection, connection.impersonated_user)
+            tx = UnmanagedTransaction.new(connection, @bookmark_holder, @fetch_size)
+            tx.begin_async(@bookmark_holder.bookmark, config)
+          end
 
           # update the reference to the only known transaction
           current_transaction_stage = @transaction_stage
@@ -104,7 +102,7 @@ module Neo4j::Driver
           connection = acquire_connection(@mode)
           ImpersonationUtil.ensure_impersonation_support(connection, connection.impersonated_user)
           connection.protocol.run_in_auto_commit_transaction(connection, query, @bookmark_holder, config,
-                                                                       @fetch_size)
+                                                             @fetch_size)
         end
 
         def acquire_connection(mode)
