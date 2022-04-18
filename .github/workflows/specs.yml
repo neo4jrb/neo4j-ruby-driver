@@ -12,6 +12,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.ruby == 'ruby' }}
     strategy:
       fail-fast: false
       matrix:
