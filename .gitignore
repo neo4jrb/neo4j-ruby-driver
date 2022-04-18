@@ -18,8 +18,10 @@
 *.crt
 .env
 .idea/
+.mvn/
 db/
 servers/
+obsolete/
 
 neo4j-java-driver_jars.rb
 Gemfile
