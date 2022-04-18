@@ -39,4 +39,5 @@ RSpec.configure do |config|
   config.filter_run_excluding auth: :none
   config.filter_run_excluding version: method(:not_version?)
   config.filter_run_excluding concurrency: true unless RUBY_PLATFORM == 'java'
+  config.exclude_pattern = 'spec/ruby/**/*_spec.rb' if RUBY_PLATFORM == 'java'
 end

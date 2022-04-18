@@ -1,27 +1,9 @@
 module Neo4j::Driver
   module Internal
     module Util
-      class ServerVersion
+      class ServerVersion < Struct.new(:product, :major, :minor, :patch)
+        include Comparable
         NEO4J_PRODUCT = 'Neo4j'
-
-        NEO4J_IN_DEV_VERSION_STRING = "#{NEO4J_PRODUCT}/dev"
-        PATTERN = Regexp.new '([^/]+)/(\\d+)\\.(\\d+)(?:\\.)?(\\d*)(\\.|-|\\+)?([0-9A-Za-z\-.]*)?'
-
-        attr_reader :product
-
-        def initialize(product, major = nil, minor = nil, patch = nil)
-          @product = product
-          @major = major
-          @minor = minor
-          @patch = patch
-          @string_value = string_value(product, major, minor, patch)
-        end
-
-        private def string_value(product, major, minor, patch)
-          return NEO4J_IN_DEV_VERSION_STRING unless major || minor || patch
-          "#{product}/#{major}.#{minor}.#{patch}"
-        end
-
         V4_4_0 = new(NEO4J_PRODUCT, 4, 4, 0)
         V4_3_0 = new(NEO4J_PRODUCT, 4, 3, 0)
         V4_2_0 = new(NEO4J_PRODUCT, 4, 2, 0)
@@ -30,6 +12,19 @@ module Neo4j::Driver
         V3_5_0 = new(NEO4J_PRODUCT, 3, 5, 0)
         V3_4_0 = new(NEO4J_PRODUCT, 3, 4, 0)
         V_IN_DEV = new(NEO4J_PRODUCT)
+        NEO4J_IN_DEV_VERSION_STRING = "#{NEO4J_PRODUCT}/dev"
+        PATTERN = Regexp.new '([^/]+)/(\\d+)\\.(\\d+)(?:\\.)?(\\d*)(\\.|-|\\+)?([0-9A-Za-z\-.]*)?'
+
+        def <=>(other)
+          unless product == other.product
+            raise ArgumentError, "Comparing different products #{product}  with #{other.product}"
+          end
+          values <=> other.values
+        end
+
+        def to_s
+          major || minor || patch ? "#{product}/#{major}.#{minor}.#{patch}" : NEO4J_IN_DEV_VERSION_STRING
+        end
 
         def self.version(server)
           PATTERN.match(server) do |matchdata|
