@@ -46,7 +46,7 @@ To run the tests the following tools need to be installed:
     $ brew install python
     $ pip3 install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
     $ neoctrl-install -e 4.4.5 servers
-    $ neoctrl-configure servers/neo4j-enterprise-4.0.2 dbms.directories.import= dbms.default_listen_address=::
+    $ neoctrl-configure servers/neo4j-enterprise-4.4.5 dbms.directories.import= dbms.default_listen_address=::
     $ neoctrl-set-initial-password pass servers/neo4j-enterprise-4.4.5
     $ neoctrl-start servers/neo4j-enterprise-4.4.5
 
