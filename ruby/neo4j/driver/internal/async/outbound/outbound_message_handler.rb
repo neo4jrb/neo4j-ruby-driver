@@ -2,42 +2,35 @@ module Neo4j::Driver
   module Internal
     module Async
       module Outbound
-        class OutboundMessageHandler < org.neo4j.driver.internal.shaded.io.netty.handler.codec.MessageToMessageEncoder
+        class OutboundMessageHandler
           NAME = self.class.name
 
-          def initialize(message_format, logging)
-            @output = ChunkAwareByteBufOutput.new
+          def initialize(output, message_format, logger)
+            @output = output
             @writer = message_format.new_writer(output)
-            @logging = logging
+            @log = logger
           end
 
           def handler_added(ctx)
-            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logging, self.class)
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, @log, self.class)
           end
 
           def handler_removed(ctx)
             @log = nil
           end
 
-          def encode(ctx, msg, out)
-            @log.debug("C: #{ msg}")
+          def encode(msg)
+            @log.debug("C: #{msg}")
 
-            message_buf = ctx.alloc.io_buffer
-            @output.start(message_buf)
+            @output.start
             begin
               @writer.write(msg)
+            ensure
               @output.stop
-            rescue StandardError => e
-              @output.stop
-              # release buffer because it will not get added to the out list and no other handler is going to handle it
-              message_buf.release
-              io.netty.handler.codec.EncoderException.new("Failed to write outbound message: #{msg}", e)
             end
 
-            @log.trace( "C: #{io.netty.buffer.ByteBufUtil.hex_dump(message_buf)}") if @log.trace_enabled?
-
-            Connection::BoltProtocolUtil.write_message_boundary(message_buf)
-            out.add(message_buf)
+            @output.write_message_boundary
+            # @log.debug( "C: #{}") if @log.debug_enabled?
           end
         end
       end

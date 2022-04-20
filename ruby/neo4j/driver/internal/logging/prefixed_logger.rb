@@ -4,14 +4,14 @@ module Neo4j::Driver
       class PrefixedLogger < ReformattedLogger
         def initialize(message_prefix = nil, delegate)
           super(delegate)
-
           @message_prefix = message_prefix
         end
 
-        def reformat(message)
-          return message if @message_prefix.nil?
+        private
 
-          "#{@message_prefix} #{message}"
+        def format_message(severity, datetime, progname, msg)
+          return super unless @message_prefix
+          super(severity, datetime, progname, "#{@message_prefix} #{msg}")
         end
       end
     end

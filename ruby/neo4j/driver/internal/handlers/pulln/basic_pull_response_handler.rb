@@ -2,16 +2,23 @@ module Neo4j::Driver
   module Internal
     module Handlers
       module Pulln
-        class BasicPullResponseHandler
-          attr_accessor :state
+        class BasicPullResponseHandler < ::Async::Notification
+          include Spi::ResponseHandler
+          attr :state
 
           def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener)
-            @query = java.util.Objects.require_non_null(query)
-            @run_response_handler = java.util.Objects.require_non_null(run_response_handler)
-            @metadata_extractor = java.util.Objects.require_non_null(metadata_extractor)
-            @connection = java.util.Objects.require_non_null(connection)
-            @completion_listener = java.util.Objects.require_non_null(completion_listener)
-            @state = State::ReadyState
+            super()
+            @query = Validator.require_non_nil!(query)
+            @run_response_handler = Validator.require_non_nil!(run_response_handler)
+            @metadata_extractor = Validator.require_non_nil!(metadata_extractor)
+            @connection = Validator.require_non_nil!(connection)
+            @completion_listener = Validator.require_non_nil!(completion_listener)
+            @state = State::READY_STATE
+          end
+
+          def state=(state)
+            @state = state
+            signal
           end
 
           def on_success(metadata)
@@ -62,11 +69,11 @@ module Neo4j::Driver
 
           def handle_record(fields)
             record = InternalRecord.new(@run_response_handler.query_keys, fields)
-            @record_consumer.accept(record, nil)
+            @record_consumer.call(record, nil)
           end
 
           def write_pull(n)
-            @connection.write_and_flush(Messaging::PullMessage.new(n, @run_response_handler.query_id), self)
+            @connection.write_and_flush(Messaging::Request::PullMessage.new(n, @run_response_handler.query_id), self)
           end
 
           def discard_all
@@ -86,12 +93,12 @@ module Neo4j::Driver
           end
 
           def done?
-            @state.eql?(State::SucceededState) || @state.eql?(State::FailureState)
+            @state == State::SUCEEDED_STATE || @state == State::FAILURE_STATE
           end
 
           private def extract_result_summary(metadata)
             result_available_after = @run_response_handler.result_available_after
-            @metadata_extractor.extract_summary(@query, connection, result_available_after, metadata)
+            @metadata_extractor.extract_summary(@query, @connection, result_available_after, metadata)
           end
 
           private def add_to_request(to_add)
@@ -121,152 +128,153 @@ module Neo4j::Driver
 
           private def complete(summary, error)
             # we first inform the summary consumer to ensure when streaming finished, summary is definitely available.
-            @summary_consumer.accept(summary, error)
+            @summary_consumer.call(summary, error)
 
             # record consumer use (nil, nil) to identify the end of record stream
-            @record_consumer.accept(nil, error)
+            @record_consumer.call(nil, error)
             dispose
           end
 
           private def dispose
             # release the reference to the consumers who hold the reference to subscribers which shall be released when subscription is completed.
-            @record_consumer, @summary_consumer = nil
+            @record_consumer = nil
+            @summary_consumer = nil
           end
 
           module State
-            module ReadyState
-              def self.on_success(context, metadata)
-                context.state(SucceededState)
+            READY_STATE = Class.new do
+              def on_success(context, metadata)
+                context.state = SUCCEEDED_STATE
                 context.complete_with_success(metadata)
               end
 
-              def self.on_failure(context, error)
-                context.state(FailureState)
+              def on_failure(context, error)
+                context.state = FAILURE_STATE
                 context.complete_with_failure(error)
               end
 
-              def self.on_record(context, _fields)
-                context.state(ReadyState)
+              def on_record(context, _fields)
+                context.state = READY_STATE
               end
 
-              def self.request(context, n)
-                context.state(StreamingState)
+              def request(context, n)
+                context.state = STREAMING_STATE
                 context.write_pull(n)
               end
 
-              def self.cancel(context)
-                context.state(CancelledState)
+              def cancel(context)
+                context.state = CANCELLED_STATE
                 context.discard_all
               end
-            end
+            end.new
 
-            module StreamingState
-              def self.on_success(context, metadata)
-                if metadata(:has_more)
-                  context.state(ReadyState)
+            STREAMING_STATE = Class.new do
+              def on_success(context, metadata)
+                if metadata[:has_more]
+                  context.state = READY_STATE
                   context.success_has_more
                 else
-                  context.state(SucceededState)
+                  context.state = SUCEEDED_STATE
                   context.complete_with_success(metadata)
                 end
               end
 
-              def self.on_failure(context, error)
-                context.state(FailureState)
+              def on_failure(context, error)
+                context.state = FAILURE_STATE
                 context.complete_with_failure(error)
               end
 
-              def self.on_record(context, fields)
-                context.state(StreamingState)
+              def on_record(context, fields)
+                context.state = STREAMING_STATE
                 context.handle_record(fields)
               end
 
-              def self.request(context, n)
-                context.state(StreamingState)
+              def request(context, n)
+                context.state = STREAMING_STATE
                 context.add_to_request(n)
               end
 
-              def self.cancel(context)
-                context.state(CancelledState)
+              def cancel(context)
+                context.state = CANCELLED_STATE
               end
-            end
+            end.new
 
-            module CancelledState
-              def self.on_success(context, metadata)
-                if metadata(:has_more)
-                  context.state(CancelledState)
+            CANCELLED_STATE = Class.new do
+              def on_success(context, metadata)
+                if metadata[:has_more]
+                  context.state = CANCELLED_STATE
                   context.discard_all
                 else
-                  context.state(SucceededState)
+                  context.state = SUCEEDED_STATE
                   context.complete_with_success(metadata)
                 end
               end
 
-              def self.on_failure(context, error)
-                context.state(FailureState)
+              def on_failure(context, error)
+                context.state = FAILURE_STATE
                 context.complete_with_failure(error)
               end
 
-              def self.on_record(context, _fields)
-                context.state(CancelledState)
+              def on_record(context, _fields)
+                context.state = CANCELLED_STATE
               end
 
-              def self.request(context, _n)
-                context.state(CancelledState)
+              def request(context, _n)
+                context.state = CANCELLED_STATE
               end
 
-              def self.cancel(context)
-                context.state(CancelledState)
+              def cancel(context)
+                context.state = CANCELLED_STATE
               end
-            end
+            end.new
 
-            module SucceededState
-              def self.on_success(context, metadata)
-                context.state(SucceededState)
+            SUCEEDED_STATE = Class.new do
+              def on_success(context, metadata)
+                context.state = SUCEEDED_STATE
                 context.complete_with_success(metadata)
               end
 
-              def self.on_failure(context, error)
-                context.state(FailureState)
+              def on_failure(context, error)
+                context.state = FAILURE_STATE
                 context.complete_with_failure(error)
               end
 
-              def self.on_record(context, _fields)
-                context.state(SucceededState)
+              def on_record(context, _fields)
+                context.state = SUCEEDED_STATE
               end
 
-              def self.request(context, _n)
-                context.state(SucceededState)
+              def request(context, _n)
+                context.state = SUCEEDED_STATE
               end
 
-              def self.cancel(context)
-                context.state(SucceededState)
+              def cancel(context)
+                context.state = SUCEEDED_STATE
               end
-            end
+            end.new
 
-            module FailureState
-              def self.on_success(context, metadata)
-                context.state(SucceededState)
+            FAILURE_STATE = Class.new do
+              def on_success(context, metadata)
+                context.state = SUCEEDED_STATE
                 context.complete_with_success(metadata)
               end
 
-              def self.on_failure(context, error)
-                context.state(FailureState)
+              def on_failure(context, error)
+                context.state = FAILURE_STATE
                 context.complete_with_failure(error)
               end
 
-              def self.on_record(context, _fields)
-                context.state(FailureState)
+              def on_record(context, _fields)
+                context.state = FAILURE_STATE
               end
 
-              def self.request(context, _n)
-                context.state(FailureState)
+              def request(context, _n)
+                context.state = FAILURE_STATE
               end
 
-              def self.cancel(context)
-                context.state(FailureState)
+              def cancel(context)
+                context.state = FAILURE_STATE
               end
-            end
+            end.new
           end
         end
       end

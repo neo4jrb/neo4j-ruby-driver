@@ -7,17 +7,17 @@ module Neo4j::Driver
           NO_PROTOCOL_VERSION = Messaging::BoltProtocolVersion.new(0, 0)
           CHUNK_HEADER_SIZE_BYTES = 2
           DEFAULT_MAX_OUTBOUND_CHUNK_SIZE_BYTES = 2 ** 15 - 1
-          HANDSHAKE_BUF = org.neo4j.driver.internal.shaded.io.netty.buffer.Unpooled.unreleasable_buffer(org.neo4j.driver.internal.shaded.io.netty.buffer.Unpooled.copyInt(
+          HANDSHAKE = [
             BOLT_MAGIC_PREAMBLE,
             Messaging::V44::BoltProtocolV44::VERSION.to_int_range(Messaging::V42::BoltProtocolV42::VERSION),
             Messaging::V41::BoltProtocolV41::VERSION.to_int,
             Messaging::V4::BoltProtocolV4::VERSION.to_int,
-            Messaging::V3::BoltProtocolV3::VERSION.to_int
-          )).freeze
+            Messaging::V3::BoltProtocolV3::VERSION.to_int]
+          HANDSHAKE_BUF = HANDSHAKE.pack('N*').freeze
 
           class << self
             def handshake_buf
-              HANDSHAKE_BUF.duplicate
+              HANDSHAKE_BUF
             end
 
             def handshake_string
@@ -39,8 +39,7 @@ module Neo4j::Driver
             private
 
             def create_handshake_string
-              buf = handshake_buf
-              [buf.read_int.to_s(16), buf.read_int, buf.read_int, buf.read_int, buf.read_int]
+              "[0x#{HANDSHAKE.first.to_s(16)}, %s, %s, %s, %s]" % HANDSHAKE[1, 4]
             end
           end
 

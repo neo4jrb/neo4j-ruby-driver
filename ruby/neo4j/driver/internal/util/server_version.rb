@@ -1,30 +1,9 @@
 module Neo4j::Driver
   module Internal
     module Util
-      class ServerVersion
+      class ServerVersion < Struct.new(:product, :major, :minor, :patch)
+        include Comparable
         NEO4J_PRODUCT = 'Neo4j'
-
-        NEO4J_IN_DEV_VERSION_STRING = "#{NEO4J_PRODUCT} /dev"
-        PATTERN = "([^/]+)/(\\d+)\\.(\\d+)(?:\\.)?(\\d*)(\\.|-|\\+)?([0-9A-Za-z-.]*)?"
-
-        attr_reader :product
-
-        def initialize(product, major, minor, patch)
-          @product = product
-          @major = major
-          @minor = minor
-          @patch = patch
-          @string_value = string_value(product, major, minor, patch)
-        end
-
-        private def string_value(product, major, minor, patch)
-          if major == java.lang.Integer::MAX_VALUE && minor == java.lang.Integer::MAX_VALUE && patch == java.lang.Integer::MAX_VALUE
-            return NEO4J_IN_DEV_VERSION_STRING
-          end
-
-          "#{product}/#{major}.#{minor}.#{patch}"
-        end
-
         V4_4_0 = new(NEO4J_PRODUCT, 4, 4, 0)
         V4_3_0 = new(NEO4J_PRODUCT, 4, 3, 0)
         V4_2_0 = new(NEO4J_PRODUCT, 4, 2, 0)
@@ -32,28 +11,31 @@ module Neo4j::Driver
         V4_0_0 = new(NEO4J_PRODUCT, 4, 0, 0)
         V3_5_0 = new(NEO4J_PRODUCT, 3, 5, 0)
         V3_4_0 = new(NEO4J_PRODUCT, 3, 4, 0)
-        V_IN_DEV = new(NEO4J_PRODUCT, java.lang.Integer::MAX_VALUE, java.lang.Integer::MAX_VALUE, java.lang.Integer::MAX_VALUE)
+        V_IN_DEV = new(NEO4J_PRODUCT)
+        NEO4J_IN_DEV_VERSION_STRING = "#{NEO4J_PRODUCT}/dev"
+        PATTERN = Regexp.new '([^/]+)/(\\d+)\\.(\\d+)(?:\\.)?(\\d*)(\\.|-|\\+)?([0-9A-Za-z\-.]*)?'
+
+        def <=>(other)
+          unless product == other.product
+            raise ArgumentError, "Comparing different products #{product}  with #{other.product}"
+          end
+          values <=> other.values
+        end
+
+        def to_s
+          major || minor || patch ? "#{product}/#{major}.#{minor}.#{patch}" : NEO4J_IN_DEV_VERSION_STRING
+        end
 
         def self.version(server)
-          matcher = PATTERN.match(server)
-
-          if matcher.matches
-            product = matcher.group(1)
-            major = java.lang.Integer.value_of(matcher.group(2))
-            minor = java.lang.Integer.value_of(matcher.group(2))
-            patch_string = matcher.group(4)
-            patch = 0
-
-            unless patch_string.nil? && patch_string.empty?
-              patch = java.lang.Integer.value_of(patch_string)
-            end
-
-            new(product, major, minor, patch)
-          elsif server.equals_ignore_case(NEO4J_IN_DEV_VERSION_STRING)
-            v_in_dev
-          else
-            raise ArgumentError, "Cannot parse #{server}"
+          PATTERN.match(server) do |matchdata|
+            product = matchdata[1]
+            major = matchdata[2].to_i
+            minor = matchdata[3].to_i
+            patch = matchdata[4].to_i
+            return new(product, major, minor, patch)
           end
+          return V_IN_DEV if server.casecmp?(NEO4J_IN_DEV_VERSION_STRING)
+          raise ArgumentError, "Cannot parse #{server}"
         end
 
         def self.from_bolt_protocol_version(protocol_version)

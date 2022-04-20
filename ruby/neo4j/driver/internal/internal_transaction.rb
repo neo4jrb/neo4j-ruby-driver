@@ -1,9 +1,6 @@
 module Neo4j::Driver
   module Internal
     class InternalTransaction
-      include Ext::ExceptionCheckable
-      include Ext::RunOverride
-
       delegate :open?, to: :@tx
 
       def initialize(tx)
@@ -11,36 +8,28 @@ module Neo4j::Driver
       end
 
       def commit
-        check do
-          org.neo4j.driver.internal.util.Futures.blockingGet(@tx.commitAsync) do
-            terminateConnectionOnThreadInterrupt("Thread interrupted while committing the transaction")
-          end
+        org.neo4j.driver.internal.util.Futures.blockingGet(@tx.commitAsync) do
+          terminateConnectionOnThreadInterrupt("Thread interrupted while committing the transaction")
         end
       end
 
       def rollback
-        check do
-          org.neo4j.driver.internal.util.Futures.blockingGet(@tx.rollbackAsync) do
-            terminateConnectionOnThreadInterrupt("Thread interrupted while rolling back the transaction")
-          end
+        org.neo4j.driver.internal.util.Futures.blockingGet(@tx.rollbackAsync) do
+          terminateConnectionOnThreadInterrupt("Thread interrupted while rolling back the transaction")
         end
       end
 
       def close
-        check do
-          org.neo4j.driver.internal.util.Futures.blockingGet(@tx.closeAsync) do
-            terminateConnectionOnThreadInterrupt("Thread interrupted while closing the transaction")
-          end
+        org.neo4j.driver.internal.util.Futures.blockingGet(@tx.closeAsync) do
+          terminateConnectionOnThreadInterrupt("Thread interrupted while closing the transaction")
         end
       end
 
       def run(query, parameters = {})
-        check do
-          cursor = org.neo4j.driver.internal.util.Futures.blockingGet(@tx.runAsync(to_statement(query, parameters))) do
-            terminateConnectionOnThreadInterrupt("Thread interrupted while running query in transaction")
-          end
-          InternalResult.new(@tx.connection, cursor)
+        cursor = org.neo4j.driver.internal.util.Futures.blockingGet(@tx.runAsync(to_statement(query, parameters))) do
+          terminateConnectionOnThreadInterrupt("Thread interrupted while running query in transaction")
         end
+        InternalResult.new(@tx.connection, cursor)
       end
 
       private

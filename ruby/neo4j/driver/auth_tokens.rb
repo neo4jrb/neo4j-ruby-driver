@@ -6,26 +6,27 @@ module Neo4j
       class << self
         def basic(username, password, realm = nil)
           Internal::Validator.require_non_nil_credentials!(username, password)
-          { scheme: 'basic', principal: username, credentials: password, realm: realm }.compact
+          Internal::Security::InternalAuthToken[
+            { scheme: 'basic', principal: username, credentials: password, realm: realm }.compact]
         end
 
         def bearer(token)
           Internal::Validator.require_non_nil!(token, "Token")
-          { scheme: 'bearer', credentials: token }
+          Internal::Security::InternalAuthToken[scheme: 'bearer', credentials: token]
         end
 
         def kerberos(base64_encoded_ticket)
           Internal::Validator.require_non_nil!(base64_encoded_ticket, "Ticket")
-          { scheme: 'bearer', credentials: base64_encoded_ticket }
+          Internal::Security::InternalAuthToken[scheme: 'bearer', credentials: base64_encoded_ticket]
         end
 
         def custom(principal, credentials, realm, scheme, **parameters)
-          { scheme: scheme, principal: principal, credentials: credentials, realm: realm,
-            parameters: parameters.presence || nil }.compact
+          Internal::Security::InternalAuthToken[{ scheme: scheme, principal: principal, credentials: credentials,
+                                                  realm: realm, parameters: parameters.presence || nil }.compact]
         end
 
         def none
-          {}
+          Internal::Security::InternalAuthToken.new
         end
       end
     end

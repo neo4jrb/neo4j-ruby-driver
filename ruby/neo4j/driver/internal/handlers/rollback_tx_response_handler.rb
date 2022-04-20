@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class RollbackTxResponseHandler
+        include Spi::ResponseHandler
+
         def initialize(rollback_future)
           @rollback_future = java.util.Objects.require_non_null(rollback_future)
         end

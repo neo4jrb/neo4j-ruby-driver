@@ -1,7 +1,6 @@
 module Neo4j::Driver
   module Internal
     module Util
-      # Since {@link java.time.Clock} is only available in Java 8, use our own until we drop java 7 support.
       module Clock
         module System
           class << self

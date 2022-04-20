@@ -11,23 +11,20 @@ module Neo4j::Driver
       delegate :close, to: :@connection_pool
 
       def acquire_connection(context)
-        database_name_future = context.database_name_future
-        database_name_future.complete(DatabaseNameUtil::DEFAULT_DATABASE)
-        acquire_connection.then_apply do |connection|
-          Async::Connection::DirectConnection.new(connection,
-                                                  Futures.join_now_or_else_throw(database_name_future,Async::ConnectionContext::PENDING_DATABASE_NAME_EXCEPTION_SUPPLIER),
-                                                  context.mode, context.impersonated_user)
-        end
+        database_name = context.database_name || DatabaseNameUtil::DEFAULT_DATABASE
+        Async::Connection::DirectConnection.new(private_acquire_connection, database_name, context.mode,
+                                                context.impersonated_user)
       end
 
       def verify_connectivity
-        acquire_connection.then_compose(Spi::Connection::release)
+        private_acquire_connection&.release
       end
 
-      def supports_multi_db
-        acquire_connection.then_compose do |conn|
-          supports_multi_database = supports_multi_database(conn)
-          conn.release.then_apply(-> (_ignored) { supports_multi_database })
+      def supports_multi_db?
+        private_acquire_connection.then do |conn|
+          supports_multi_database?(conn)
+        ensure
+          conn.release
         end
       end
 
@@ -35,8 +32,8 @@ module Neo4j::Driver
 
       # Used only for grabbing a connection with the server after hello message.
       # This connection cannot be directly used for running any queries as it is missing necessary connection context
-      def acquire_connection
-        @connection_pool.acquire(address)
+      def private_acquire_connection
+        @connection_pool.acquire(@address)
       end
     end
   end

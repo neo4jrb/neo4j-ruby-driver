@@ -1,80 +1,76 @@
 module Neo4j::Driver::Internal
   class DriverFactory
     include Scheme
-    include Neo4j::Driver::Ext::NeoConverter
     NO_ROUTING_CONTEXT_ERROR_MESSAGE = "Routing parameters are not supported with scheme 'bolt'. Given URI: "
 
     def initialize(domain_name_resolver = ->(name) { [name] })
       @domain_name_resolver = domain_name_resolver
     end
 
-    def new_instance(uri, auth_token, routingSettings, retry_settings, config, securityPlan, event_loop_group = nil)
+    def new_instance(uri, auth_token, routing_settings, retry_settings, config, security_plan, event_loop_group = nil)
       bootstrap = create_bootstrap(
         **event_loop_group ? { event_loop_group: event_loop_group } : { thread_count: config[:event_loop_threads] }
       )
-      java_uri = java.net.URI.create(uri.to_s)
 
-      address = org.neo4j.driver.internal.BoltServerAddress.new(java_uri)
-      newRoutingSettings = routingSettings.withRoutingContext(org.neo4j.driver.internal.cluster.RoutingContext.new(java_uri))
+      address = BoltServerAddress.new(uri: uri)
+      new_routing_settings = routing_settings.with_routing_context(Cluster::RoutingContext.new(uri))
 
-      org.neo4j.driver.internal.shaded.io.netty.util.internal.logging.InternalLoggerFactory.setDefaultFactory(org.neo4j.driver.internal.logging.NettyLogging.new(config.java_config.logging))
-      event_executor_group = bootstrap.config.group
-      retry_logic = Retry::ExponentialBackoffRetryLogic.new(retry_settings, event_executor_group, config[:logger])
+      # org.neo4j.driver.internal.shaded.io.netty.util.internal.logging.InternalLoggerFactory.setDefaultFactory(org.neo4j.driver.internal.logging.NettyLogging.new(config.logging))
+      _event_executor_group = nil #bootstrap.group
+      retry_logic = Retry::ExponentialBackoffRetryLogic.new(retry_settings, _event_executor_group, config[:logger])
 
-      metricsProvider = createDriverMetrics(config, createClock)
-      connectionPool = create_connection_pool(auth_token, securityPlan, bootstrap, metricsProvider, config,
-                                              event_loop_group.nil?, newRoutingSettings.routingContext)
+      metrics_provider = create_driver_metrics(config)
+      connection_pool = create_connection_pool(auth_token, security_plan, bootstrap, metrics_provider, config,
+                                               event_loop_group.nil?, new_routing_settings.routing_context)
 
-      createDriver(uri, securityPlan, address, connectionPool, event_executor_group, newRoutingSettings, retry_logic, metricsProvider, config)
+      create_driver(uri, security_plan, address, connection_pool, _event_executor_group, new_routing_settings, retry_logic, metrics_provider, config)
     end
 
     private
 
-    def create_connection_pool(auth_token, securityPlan, bootstrap, metricsProvider, config, ownsEventLoopGroup, routingContext)
-      clock = createClock
-      settings = org.neo4j.driver.internal.ConnectionSettings.new(
-        org.neo4j.driver.internal.security.InternalAuthToken.new(to_neo(auth_token).transform_values(&org.neo4j.driver.Values.method(:value))), config[:user_agent], config[:connection_timeout].in_milliseconds
-      )
-      connector = createConnector(settings, securityPlan, config, clock, routingContext)
-      poolSettings = org.neo4j.driver.internal.async.pool.PoolSettings.new(
+    def create_connection_pool(auth_token, security_plan, bootstrap, metrics_provider, config, owns_event_loop_group, routing_context)
+      clock = Util::Clock::System
+      settings = ConnectionSettings.new(auth_token, config[:user_agent], config[:connection_timeout].in_milliseconds)
+      connector = create_connector(settings, security_plan, config, clock, routing_context)
+      pool_settings = Async::Pool::PoolSettings.new(
         config[:max_connection_pool_size],
         config[:connection_acquisition_timeout].in_milliseconds,
         config[:max_connection_lifetime].in_milliseconds,
-        config[:idle_time_before_connection_test].in_milliseconds
+        config[:idle_time_before_connection_test]&.in_milliseconds || -1 # TODO: remember to get rid of -1
       )
-      org.neo4j.driver.internal.async.pool.ConnectionPoolImpl.new(connector, bootstrap, poolSettings, metricsProvider.metricsListener, config.java_config.logging, clock, ownsEventLoopGroup)
+      Async::Pool::ConnectionPoolImpl.new(connector, pool_settings, config[:logger])
     end
 
-    def createDriverMetrics(config, clock)
+    def create_driver_metrics(config)
       if config[:metrics_enabled]
-        org.neo4j.driver.internal.metrics.InternalMetricsProvider.new(config.java_config, config.logging)
+        Metrics::InternalMetricsProvider.new(config[:logger])
       else
-        org.neo4j.driver.internal.metrics.MetricsProvider::METRICS_DISABLED_PROVIDER
+        Metrics::MetricsProvider::METRICS_DISABLED_PROVIDER
       end
     end
 
-    def createResolver(config)
+    def create_resolver(config)
       config[:resolver] || ->(address) { [address] }
     end
 
-    def assertNoRoutingContext(uri, routingSettings)
-      routingContext = routingSettings.routingContext
-      if routingContext.isDefined
+    def assert_no_routing_context(uri, routing_settings)
+      routing_context = routing_settings.routing_context
+      if routing_context.defined?
         raise ArgumentError, "Routing parameters are not supported with scheme 'bolt'. Given URI: '#{uri}'"
       end
     end
 
-    def createConnector(settings, securityPlan, config, clock, routingContext)
-      org.neo4j.driver.internal.async.connection.ChannelConnectorImpl.new(
-        settings, securityPlan, config.java_config.logging, clock, routingContext, &method(:getDomainNameResolver))
+    def create_connector(settings, security_plan, config, clock, routing_context)
+      Async::Connection::ChannelConnectorImpl.new(
+        settings, security_plan, config[:logger], clock, routing_context, &method(:domain_name_resolver))
     end
 
-    def createDriver(uri, securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
+    def create_driver(uri, security_plan, address, connection_pool, eventExecutorGroup, routing_settings, retryLogic, metricsProvider, config)
       if routing_scheme?(uri.scheme.downcase)
-        createRoutingDriver(securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
+        createRoutingDriver(security_plan, address, connection_pool, eventExecutorGroup, routing_settings, retryLogic, metricsProvider, config)
       else
-        assertNoRoutingContext(uri, routingSettings)
-        createDirectDriver(securityPlan, address, connectionPool, retryLogic, metricsProvider, config)
+        assert_no_routing_context(uri, routing_settings)
+        createDirectDriver(security_plan, address, connection_pool, retryLogic, metricsProvider, config)
       end
     rescue Exception => driverError
       # we need to close the connection pool if driver creation threw exception
@@ -82,18 +78,14 @@ module Neo4j::Driver::Internal
       raise driverError
     end
 
-    def createDirectDriver(securityPlan, address, connectionPool, retryLogic, metricsProvider, config)
-      connectionProvider = constructor_send(org.neo4j.driver.internal.DirectConnectionProvider, address, connectionPool)
-      driver(:Direct, securityPlan, address, connectionProvider, retryLogic, metricsProvider, config)
+    def createDirectDriver(securityPlan, address, connection_pool, retryLogic, metricsProvider, config)
+      connection_provider = DirectConnectionProvider.new(address, connection_pool)
+      driver(:Direct, securityPlan, address, connection_provider, retryLogic, metricsProvider, config)
     end
 
-    def createRoutingDriver(securityPlan, address, connectionPool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
-      connectionProvider = createLoadBalancer(address, connectionPool, eventExecutorGroup, config, routingSettings)
-      driver(:Routing, securityPlan, address, connectionProvider, retryLogic, metricsProvider, config)
-    end
-
-    def constructor_send(klass, *args)
-      klass.java_class.declared_constructors.first.tap { |c| c.accessible = true }.new_instance(*args).to_java
+    def createRoutingDriver(securityPlan, address, connection_pool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
+      connection_provider = createLoadBalancer(address, connection_pool, eventExecutorGroup, config, routingSettings)
+      driver(:Routing, securityPlan, address, connection_provider, retryLogic, metricsProvider, config)
     end
 
     def driver(type, securityPlan, address, connectionProvider, retryLogic, metricsProvider, config)
@@ -104,16 +96,12 @@ module Neo4j::Driver::Internal
       end
     end
 
-    def createLoadBalancer(address, connectionPool, eventExecutorGroup, config, routingSettings)
-      loadBalancingStrategy = org.neo4j.driver.internal.cluster.loadbalancing.LeastConnectedLoadBalancingStrategy.new(connectionPool, config.java_config.logging)
-      resolver = ->(address) { java.util.HashSet.new(createResolver(config).call(address)) }
-      org.neo4j.driver.internal.cluster.loadbalancing.LoadBalancer.new(
-        address, routingSettings, connectionPool, eventExecutorGroup, createClock,
-        config.java_config.logging, loadBalancingStrategy, resolver, &method(:getDomainNameResolver))
-    end
-
-    def createClock
-      Java::OrgNeo4jDriverInternalUtil::Clock::SYSTEM
+    def createLoadBalancer(address, connection_pool, eventExecutorGroup, config, routingSettings)
+      load_balancing_strategy = Cluster::Loadbalancing::LeastConnectedLoadBalancingStrategy.new(connection_pool, config[:logger])
+      resolver = create_resolver(config)
+      Cluster::Loadbalancing::LoadBalancer.new(
+        address, routingSettings, connection_pool, eventExecutorGroup,
+        config[:logger], load_balancing_strategy, resolver, &method(:domain_name_resolver))
     end
 
     def create_bootstrap(**args)
@@ -122,15 +110,15 @@ module Neo4j::Driver::Internal
 
     protected
 
-    def closeConnectionPoolAndSuppressError(connectionPool, mainError)
-      org.neo4j.driver.internal.util.Futures.blockingGet(connectionPool.close)
-    rescue Exception => closeError
-      org.neo4j.driver.internal.util.ErrorUtil.addSuppressed(mainError, closeError)
+    def closeConnectionPoolAndSuppressError(connection_pool, main_error)
+      Util::Futures.blocking_get(connection_pool.close)
+    rescue Exception => close_error
+      Util::ErrorUtil.add_suppressed(main_error, close_error)
     end
 
-    def getDomainNameResolver(name)
-      domain_name_resolver(name).map { |addrinfo| java.net.InetAddress.getByName(addrinfo.canonname) }.to_java(java.net.InetAddress)
-    end
+    # def getDomainNameResolver(name)
+    #   domain_name_resolver(name).map { |addrinfo| java.net.InetAddress.getByName(addrinfo.canonname) }.to_java(java.net.InetAddress)
+    # end
 
     def domain_name_resolver(name)
       @domain_name_resolver.call(name).flat_map { |n| Addrinfo.getaddrinfo(n, nil, nil, nil, Socket::IPPROTO_TCP) }

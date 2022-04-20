@@ -3,16 +3,35 @@ module Neo4j::Driver
     class DatabaseNameUtil
       DEFAULT_DATABASE_NAME = nil
       SYSTEM_DATABASE_NAME = 'system'
-      DEFAULT_DATABASE = DatabaseName.new(java.util.Optional.empty, "<default database>")
+
+      private
+
+      DEFAULT_DATABASE = Struct.new(:database_name, :description).new(nil, '<default database>')
       SYSTEM_DATABASE = InternalDatabaseName.new(SYSTEM_DATABASE_NAME)
 
-      def self.database(name)
-        return DEFAULT_DATABASE if java.util.Objects.equals(name, DEFAULT_DATABASE_NAME)
+      public
 
-        return SYSTEM_DATABASE if java.util.Objects.equals(name, SYSTEM_DATABASE_NAME)
+      class << self
+        def default_database
+          DEFAULT_DATABASE
+        end
 
-        InternalDatabaseName.new(name)
+        def system_database
+          SYSTEM_DATABASE
+        end
+
+        def database(name)
+          case name
+          when DEFAULT_DATABASE_NAME
+            default_database
+          when SYSTEM_DATABASE_NAME
+            system_database
+          else
+            InternalDatabaseName.new(name)
+          end
+        end
       end
     end
   end
 end
+

@@ -8,12 +8,12 @@ module Neo4j::Driver
         # of active connections.
         class LeastConnectedLoadBalancingStrategy
 
-          def initialize(connection_pool, logging)
+          def initialize(connection_pool, logger)
             @readers_index = RoundRobinArrayIndex.new
             @writers_index = RoundRobinArrayIndex.new
 
             @connection_pool = connection_pool
-            @log = logging.get_log(self.class)
+            @log = logger
           end
 
           def select_reader(known_readers)
@@ -30,7 +30,7 @@ module Neo4j::Driver
             size = addresses.size
 
             if size == 0
-              @log.trace("Unable to select #{address_type}, no known addresses given")
+              @log.debug("Unable to select #{address_type}, no known addresses given")
               return nil
             end
 
@@ -57,7 +57,7 @@ module Neo4j::Driver
               break if index != start_index
             end
 
-            @log.trace("Selected #{address_type} with address: '#{least_connected_address}' and active connections: #{least_active_connections}")
+            @log.debug("Selected #{address_type} with address: '#{least_connected_address}' and active connections: #{least_active_connections}")
 
             least_connected_address
           end

@@ -2,227 +2,163 @@ module Neo4j::Driver
   module Internal
     module Messaging
       module Common
-        class CommonValueUnpacker
-          DATE = 'D'
-          DATE_STRUCT_SIZE = 1
-          TIME = 'T'
-          TIME_STRUCT_SIZE = 2
-          LOCAL_TIME = 't'
-          LOCAL_TIME_STRUCT_SIZE = 1
-          LOCAL_DATE_TIME = 'd'
-          LOCAL_DATE_TIME_STRUCT_SIZE = 2
-          DATE_TIME_WITH_ZONE_OFFSET = 'F'
-          DATE_TIME_WITH_ZONE_ID = 'f'
-          DATE_TIME_STRUCT_SIZE = 3
-          DURATION = 'E'
-          DURATION_TIME_STRUCT_SIZE = 4
-          POINT_2D_STRUCT_TYPE = 'X'
-          POINT_2D_STRUCT_SIZE = 3
-          POINT_3D_STRUCT_TYPE = 'Y'
-          POINT_3D_STRUCT_SIZE = 4
+        module CommonValueUnpacker
+          include CommonValue
           NODE = 'N'
           RELATIONSHIP = 'R'
           UNBOUND_RELATIONSHIP = 'r'
           PATH = 'P'
           NODE_FIELDS = 3
 
-          attr_reader :unpacker
-
-          delegate :unpack_struct_header, :unpack_struct_signature, to: :unpacker
-
-          def initialize(input)
-            @unpacker = Packstream::PackStream::Unpacker.new(input)
+          def unpack_map(size)
+            size.times.to_h { [unpack.to_sym, unpack] }
           end
 
-          def unpack_map
-            size = unpacker.unpack_map_header.to_i
-
-            return java.util.Collections.empty_map if size == 0
-
-            map = Util::Iterables.new_hash_map_with_size(size)
-
-            size.times do
-              key = unpacker.unpack_string
-              map[key] = unpack
-            end
-
-            map
-          end
-
-          def unpack_array
-            size = unpacker.unpack_list_header.to_i
-            values = []
-
-            size.times{ values << unpack }
-
-            values
+          def unpack_array(size)
+            size.times.map { unpack }
           end
 
           def unpack
-            type = unpacker.peek_next_type
+            marker_byte = read_byte
+            marker_high_nibble = marker_byte & 0xF0
+            marker_low_nibble = marker_byte & 0x0F
 
-            case type
-            when NilClass
-              Values.value(unpacker.unpack_null)
-            when FalseClass || TrueClass
-              Values.value(unpacker.unpack_boolean)
-            when Integer
-              Values.value(unpacker.unpack_long)
-            when Float
-              Values.value(unpacker.unpack_double)
-            when BYTES
-              Values.value(unpacker.unpack_bytes)
-            when String
-              Values.value(unpacker.unpack_string)
-            when Hash
-              Value::MapValue.new(unpack_map)
-            when Array
-              size = unpacker.unpack_list_header.to_i
+            case marker_high_nibble
+            when TINY_STRING
+              return unpack_string(marker_low_nibble)
+            when TINY_LIST
+              return unpack_array(marker_low_nibble)
+            when TINY_MAP
+              return unpack_map(marker_low_nibble)
+            when TINY_STRUCT
+              return unpack_struct(marker_low_nibble, read_char)
+            end
 
-              vals = []
-
-              size.times{ vals << unpack }
-
-              Value::ListValue.new(vals)
-            when STRUCT
-              size = unpacker.unpack_struct_header.to_i
-              struct_type = unpacker.unpack_struct_signature
-
-              unpack_struct(size, struct_type)
+            case marker_byte & 0xFF # we read a signed byte but markers are unsigned
+            when NULL
+              nil
+            when TRUE
+              true
+            when FALSE
+              false
+            when FLOAT_64
+              unpack_double
+            when BYTES_8
+              unpack_bytes(read_ubyte)
+            when BYTES_16
+              unpack_bytes(read_ushort)
+            when BYTES_32
+              unpack_bytes(read_uint)
+            when STRING_8
+              unpack_string(read_ubyte)
+            when STRING_16
+              unpack_string(read_ushort)
+            when STRING_32
+              unpack_string(read_uint)
+            when LIST_8
+              unpack_array(read_ubyte)
+            when LIST_16
+              unpack_array(read_ushort)
+            when LIST_32
+              unpack_array(read_uint)
+            when MAP_8
+              unpack_map(read_ubyte)
+            when MAP_16
+              unpack_map(read_ushort)
+            when STRUCT_8
+              unpack_struct(read_ubyte, read_char)
+            when STRUCT_16
+              unpack_struct(read_ushort, read_char)
             else
-              raise java.io.IOException, "Unknown value type: #{type}"
+              unpack_long(marker_byte)
             end
           end
 
           def unpack_struct(size, type)
             case type
             when DATE
-              ensure_correct_struct_size(Types::TypeConstructor::DATE, DATE_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:DATE, DATE_STRUCT_SIZE, size)
               unpack_date
             when TIME
-              ensure_correct_struct_size(Types::TypeConstructor::TIME, TIME_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:TIME, TIME_STRUCT_SIZE, size)
               unpack_time
             when LOCAL_TIME
-              ensure_correct_struct_size(Types::TypeConstructor::LOCAL_TIME, LOCAL_TIME_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:LOCAL_TIME, LOCAL_TIME_STRUCT_SIZE, size)
               unpack_local_time
             when LOCAL_DATE_TIME
-              ensure_correct_struct_size(Types::TypeConstructor::LOCAL_DATE_TIME, LOCAL_DATE_TIME_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:LOCAL_DATE_TIME, LOCAL_DATE_TIME_STRUCT_SIZE, size)
               unpack_local_date_time
             when DATE_TIME_WITH_ZONE_OFFSET
-              ensure_correct_struct_size(Types::TypeConstructor::DATE_TIME_WITH_ZONE_OFFSET, DATE_TIME_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:DATE_TIME_WITH_ZONE_OFFSET, DATE_TIME_STRUCT_SIZE, size)
               unpack_date_time_with_zone_offset
             when DATE_TIME_WITH_ZONE_ID
-              ensure_correct_struct_size(Types::TypeConstructor::DATE_TIME_WITH_ZONE_ID, DATE_TIME_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:DATE_TIME_WITH_ZONE_ID, DATE_TIME_STRUCT_SIZE, size)
               unpack_date_time_with_zone_id
             when DURATION
-              ensure_correct_struct_size(Types::TypeConstructor::DURATION, DURATION_TIME_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:DURATION, DURATION_TIME_STRUCT_SIZE, size)
               unpack_duration
             when POINT_2D_STRUCT_TYPE
-              ensure_correct_struct_size(Types::TypeConstructor::POINT, POINT_2D_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:POINT, POINT_2D_STRUCT_SIZE, size)
               unpack_point2_d
             when POINT_3D_STRUCT_TYPE
-              ensure_correct_struct_size(Types::TypeConstructor::POINT, POINT_3D_STRUCT_SIZE, size)
+              ensure_correct_struct_size(:POINT, POINT_3D_STRUCT_SIZE, size)
               unpack_point3_d
             when NODE
-              ensure_correct_struct_size(Types::TypeConstructor::NODE, NODE_FIELDS, size)
+              ensure_correct_struct_size(:NODE, NODE_FIELDS, size)
               adapted = unpack_node
-              Value::NodeValue.new(adapted)
             when RELATIONSHIP
-              ensure_correct_struct_size(Types::TypeConstructor::RELATIONSHIP, 5, size)
+              ensure_correct_struct_size(:RELATIONSHIP, 5, size)
               unpack_relationship
+            when UNBOUND_RELATIONSHIP
+              ensure_correct_struct_size(:RELATIONSHIP, 3, size)
+              unpack_unbound_relationship
             when PATH
-              ensure_correct_struct_size(Types::TypeConstructor::PATH, 3, size)
+              ensure_correct_struct_size(:PATH, 3, size)
               unpack_path
             else
-              raise java.io.IOException, "Unknown struct type: #{type}"
+              raise IOError, "Unknown struct type: #{type}"
             end
           end
 
           private
 
           def unpack_relationship
-            urn = unpacker.unpack_long
-            start_urn = unpacker.unpack_long
-            end_urn = unpacker.unpack_long
-            rel_type = unpacker.unpack_string
-            props = unpack_map
+            InternalRelationship.new(*4.times.map { unpack }, **unpack)
+          end
 
-            adapted = InternalRelationship.new(urn, start_urn, end_urn, rel_type, props)
-            Value::RelationshipValue.new(adapted)
+          def unpack_unbound_relationship
+            InternalRelationship.new(unpack, nil, nil, unpack, **unpack)
           end
 
           def unpack_node
-            urn = unpacker.unpack_long
-
-            num_labels = unpacker.unpack_list_header.to_i
-            labels = []
-
-            num_labels.times{ labels << unpacker.unpack_string }
-
-            num_props = unpacker.unpack_map_header.to_i
-            props = Util::Iterables.new_hash_map_with_size(num_props)
-
-            num_props.times do
-              key = unpacker.unpack_string
-              props[key] = unpack
-            end
-
-            InternalNode.new(urn, labels, props)
+            InternalNode.new(unpack, unpack.map(&:to_sym), **unpack)
           end
 
           def unpack_path
-            # List of unique nodes
-            uniq_nodes = Array.new(unpacker.unpack_list_header.to_i)
-
-            uniq_nodes.length.times do |index|
-              ensure_correct_struct_size(Types::TypeConstructor::NODE, NODE_FIELDS, unpacker.unpack_struct_header)
-              ensure_correct_struct_signature("NODE", NODE, unpacker.unpack_struct_signature)
-              uniq_nodes[index] = unpack_node
+            uniq_nodes = unpack
+            uniq_rels = unpack
+            sequence = unpack
+            prev_node = uniq_nodes.first
+            nodes = [prev_node] # Start node is always 0, and isn't encoded in the sequence
+            rels = []
+            path = Types::Path.new(nodes, rels)
+            sequence.in_groups_of(2) do |rel_idx, node_idx|
+              node = uniq_nodes[node_idx]
+              nodes << node
+              rel = uniq_rels[rel_idx.abs - 1] # -1 because rel idx are 1-indexed
+              update(rel, prev_node, node, rel_idx.negative?)
+              rels << rel
+              path << Types::Path::Segment.new(prev_node, rel, node)
+              prev_node = node
             end
+            path
+          end
 
-            # List of unique relationships, without start/end information
-            uniq_rels = Array.new(unpacker.unpack_list_header.to_i)
-            uniq_rels.length.times do |index|
-              ensure_correct_struct_size(Types::TypeConstructor::RELATIONSHIP, 3, unpacker.unpack_struct_header)
-              ensure_correct_struct_signature("UNBOUND_RELATIONSHIP", UNBOUND_RELATIONSHIP, unpacker.unpack_struct_signature)
-              id = unpacker.unpack_long
-              rel_type = unpacker.unpack_string
-              props = unpack_map
-              uniq_rels[index] = InternalRelationship.new(id, -1, -1, rel_type, props)
-            end
-
-            # Path sequence
-            length = unpacker.unpack_list_header.to_i
-
-            # Knowing the sequence length, we can create the arrays that will represent the nodes, rels and segments in their "path order"
-            segments = Array.new(length/2)
-            nodes = Array.new(segments.length + 1)
-            rels = Array.new(segments.length)
-
-            prev_node = uniq_nodes.first # Start node is always 0, and isn't encoded in the sequence
-            nodes[0] = prev_node
-
-            segments.length.times do |index|
-              rel_idx = unpacker.unpack_long.to_i
-
-              next_node = uniq_nodes[rel_idx]
-
-              # Negative rel index means this rel was traversed "inversed" from its direction
-              if rel_idx < 0
-                rel = uniq_rels[(-rel_idx) - 1] # -1 because rel idx are 1-indexed
-                rel.set_start_and_end(next_node.id, prev_node.id)
-              else
-                rel = uniq_rels[rel_idx - 1]
-                rel.set_start_and_end(prev_node.id, next_node.id)
-              end
-
-              nodes[index + 1] = next_node
-              rels[index] = rel
-              segments[index] = InternalPath::SelfContainedSegment.new(prev_node, rel, next_node)
-              prev_node = next_node
-            end
-
-            Value::PathValue.new(InternalPath.new(segments, nodes, rels))
+          def update(rel, prev_node, node, inversed)
+            # Negative rel index means this rel was traversed "inversed" from its direction
+            prev_node, node = node, prev_node if inversed
+            rel.start_node_id = prev_node.id
+            rel.end_node_id = node.id
           end
 
           def ensure_correct_struct_size(type_constructor, expected, actual)
@@ -242,71 +178,48 @@ module Neo4j::Driver
           end
 
           def unpack_date
-            epoch_day = unpacker.unpack_long
-            Values.value(java.time.LocalDate.of_epoch_day(epoch_day))
+            EPOCH + unpack
+          end
+
+          def time(nano_of_day_local, offset_seconds = nil)
+            min, sec = Rational(nano_of_day_local, NANO_FACTOR).divmod(60)
+            Time.new(0, 1, 1, *min.divmod(60), sec, offset_seconds)
           end
 
           def unpack_time
-            nano_of_day_local = unpacker.unpack_long
-            offset_seconds = java.lang.Math.to_int_exact(unpacker.unpack_long)
-
-            local_time = java.time.LocalTime.of_nano_of_day(nano_of_day_local)
-            offset = java.time.ZoneOffset.of_total_seconds(offset_seconds)
-            Values.value( java.time.OffsetTime.of(local_time, offset))
+            Types::OffsetTime.new(time(unpack, unpack))
           end
 
           def unpack_local_time
-            nano_of_day_local = unpacker.unpack_long
-            Values.value(java.time.LocalTime.of_nano_of_day(nano_of_day_local))
+            Types::LocalTime.new(time(unpack))
           end
 
           def unpack_local_date_time
-            epoch_second_utc = unpacker.unpack_long
-            nano = java.lang.Math.to_int_exact(unpacker.unpack_long)
-            Values.value( java.time.LocalDateTime.of_epoch_second(epoch_second_utc, nano, UTC))
+            Types::LocalDateTime.new(Time.at(unpack, unpack, :nsec).utc)
           end
 
           def unpack_date_time_with_zone_offset
-            epoch_second_local = unpacker.unpack_long
-            nano = java.lang.Math.to_int_exact(unpacker.unpack_long)
-            offset_seconds = java.lang.Math.to_int_exact(unpacker.unpack_long)
-            Values.value( new_zoned_date_time(epoch_second_local, nano, java.time.ZoneOffset.of_total_seconds(offset_seconds)))
+            Time.at(unpack, unpack, :nsec, tz: unpack)
           end
 
           def unpack_date_time_with_zone_id
-            epoch_second_local = unpacker.unpack_long
-            nano = java.lang.Math.to_int_exact(unpacker.unpack_long)
-            zone_id_string = unpacker.unpack_string
-            Values.value(new_zoned_date_time(epoch_second_local, nano, java.time.ZoneId.of(zone_id_string)))
+            time = Time.at(unpack, unpack, :nsec).in_time_zone(TZInfo::Timezone.get(unpack))
+            time - time.utc_offset
           end
 
           def unpack_duration
-            months = unpacker.unpack_long
-            days = unpacker.unpack_long
-            seconds = unpacker.unpack_long
-            nanoseconds = java.lang.Math.to_int_exact(unpacker.unpack_long)
-            Values.iso_duration(months, days, seconds, nanoseconds)
+            ActiveSupport::Duration.months(unpack) +
+              ActiveSupport::Duration.days(unpack) +
+              ActiveSupport::Duration.seconds(unpack) +
+              ActiveSupport::Duration.seconds(unpack * BigDecimal('1e-9'))
           end
 
           def unpack_point2_d
-            srid = java.lang.Math.to_int_exact(unpacker.unpack_long)
-            x = unpacker.unpack_double
-            y = unpacker.unpack_double
-            Values.point(srid, x, y)
+            Types::Point.new(srid: unpack, x: unpack, y: unpack)
           end
 
           def unpack_point3_d
-            srid = java.lang.Math.to_int_exact(unpacker.unpack_long)
-            x = unpacker.unpack_double
-            y = unpacker.unpack_double
-            z = unpacker.unpack_double
-            Values.point(srid, x, y, z)
-          end
-
-          def self.new_zoned_date_time(epoch_second_local, nano, zone_id)
-            instant = java.time.Instant.of_epoch_second(epoch_second_local, nano)
-            local_date_time = java.time.LocalDateTime.of_instant(instant, UTC)
-            java.time.ZonedDateTime.of(local_date_time, zone_id)
+            Types::Point.new(srid: unpack, x: unpack, y: unpack, z: unpack)
           end
         end
       end

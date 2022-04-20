@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class PullHandlers
+        include Spi::ResponseHandler
+
         class << self
           def new_bolt_v3_pull_all_handler(query, run_handler, connection, bookmark_holder, tx)
             completion_listener = create_pull_response_completion_listener(connection, bookmark_holder, tx)

@@ -4,8 +4,8 @@ module Neo4j::Driver
       module Request
         class HelloMessage < MessageWithMetadata
           SIGNATURE = 0x01
-          USER_AGENT_METADATA_KEY = 'user_agent'
-          ROUTING_CONTEXT_METADATA_KEY = 'routing'
+          USER_AGENT_METADATA_KEY = :user_agent
+          ROUTING_CONTEXT_METADATA_KEY = :routing
 
           def initialize(user_agent, auth_token, routing_context)
             super(build_metadata(user_agent, auth_token, routing_context))
@@ -18,7 +18,7 @@ module Neo4j::Driver
 
           private
 
-          def self.build_metadata(user_agent, auth_token, routing_context)
+          def build_metadata(user_agent, auth_token, routing_context)
             auth_token.merge(
               USER_AGENT_METADATA_KEY => user_agent,
               ROUTING_CONTEXT_METADATA_KEY => routing_context

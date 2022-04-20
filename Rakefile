@@ -6,32 +6,22 @@ require 'hoe'
 Hoe.plugin :bundler
 Hoe.plugin :gemspec
 
-def pdir
-  case ENV['driver']
-  when 'java'
-    'jruby'
-  when 'ruby'
-    'ruby'
-  else
-    'ffi'
-  end
-end
-
-def gem_name
-  ENV['driver'] == 'java' ? 'neo4j-java-driver' : 'neo4j-ruby-driver'
+def jruby?
+  RUBY_PLATFORM == 'java'
 end
 
 HOE = Class.new(Hoe) do
   def read_manifest
     Dir[*%w[README.md LICENSE.txt lib/neo4j_ruby_driver.rb lib/loader.rb]] +
       Dir['lib/neo4j/**/*.rb'] +
-      Dir["#{pdir}/**/*.rb"]
+      Dir["#{jruby? ? 'jruby' : 'ruby'}/**/*.rb"]
   end
-end.spec gem_name do
+end.spec 'neo4j-ruby-driver' do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
-  require_ruby_version '>= 2.6'
 
   dependency 'activesupport', '>= 0'
+  dependency 'async', '>= 0'
+  dependency 'async-rspec', '>= 0', :dev
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
   dependency 'hoe-bundler', '>= 0', :dev
@@ -42,19 +32,22 @@ end.spec gem_name do
   dependency 'rspec-mocks', '>= 0', :dev
   dependency 'zeitwerk', '>= 2.1.10'
 
-  spec_extras[:require_paths] = ['lib', pdir]
+  spec_extras[:require_paths] = ['lib', jruby? ? 'jruby' : 'ruby']
 
   self.clean_globs += %w[Gemfile Gemfile.lock *.gemspec lib/org lib/*_jars.rb]
 
-  if pdir == 'ffi'
-    dependency 'ffi', '>= 0'
-    dependency 'recursive-open-struct', '>= 0'
-  elsif RUBY_PLATFORM.match?(/java/)
+  if jruby?
+    require_ruby_version '>= 2.6'
+    dependency 'concurrent-ruby-edge', '>= 0.6.0'
     dependency 'jar-dependencies', '>= 0'
     dependency 'ruby-maven', '>= 0', :dev
 
-    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 4.4.2' }
+    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 4.4.5' }
     spec_extras[:platform] = 'java'
+  else
+    require_ruby_version '>= 3.1'
+    dependency 'async-io', '>= 0'
+    dependency 'async-pool', '>= 0'
   end
 end
 

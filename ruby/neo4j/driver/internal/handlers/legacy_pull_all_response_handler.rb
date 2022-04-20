@@ -3,16 +3,17 @@ module Neo4j::Driver
     module Handlers
       # This is the Pull All response handler that handles pull all messages in Bolt v3 and previous protocol versions.
       class LegacyPullAllResponseHandler
+        include Spi::ResponseHandler
         UNINITIALIZED_RECORDS = []
-        RECORD_BUFFER_LOW_WATERMARK = java.lang.Integer.get_integer('record_buffer_low_watermark', 300)
-        RECORD_BUFFER_HIGH_WATERMARK = java.lang.Integer.get_integer('record_buffer_high_watermark', 1000)
+        RECORD_BUFFER_LOW_WATERMARK = ENV['record_buffer_low_watermark']&.to_i || 300
+        RECORD_BUFFER_HIGH_WATERMARK = ENV['record_buffer_high_watermark']&.to_i || 1000
 
         def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener)
-          @query = java.util.Objects.require_non_null(query)
-          @run_response_handler = java.util.Objects.require_non_null(run_response_handler)
-          @metadata_extractor = java.util.Objects.require_non_null(metadata_extractor)
-          @connection = java.util.Objects.require_non_null(connection)
-          @completion_listener = java.util.Objects.require_non_null(completion_listener)
+          @query = Util::Validator.require_non_nil!(query)
+          @run_response_handler = Util::Validator.require_non_nil!(run_response_handler)
+          @metadata_extractor = Util::Validator.require_non_nil!(metadata_extractor)
+          @connection = Util::Validator.require_non_nil!(connection)
+          @completion_listener = Util::Validator.require_non_nil!(completion_listener)
           @records = UNINITIALIZED_RECORDS
         end
 
@@ -40,7 +41,7 @@ module Neo4j::Driver
 
           if fail_record_future
             # error propagated through the record future
-           complete_failure_future(nil)
+            complete_failure_future(nil)
           else
             completed_failure_future = complete_failure_future(error)
 

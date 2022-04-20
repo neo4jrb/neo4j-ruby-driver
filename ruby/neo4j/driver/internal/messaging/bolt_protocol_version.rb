@@ -4,9 +4,8 @@ module Neo4j::Driver
       class BoltProtocolVersion < Struct.new(:major_version, :minor_version)
         def self.from_raw_bytes(raw_version)
           major = raw_version & 0x000000FF
-          minor = (0x000000FF >> 8) & 0x000000FF
-
-          new(major, minor)
+          minor = (raw_version >> 8) & 0x000000FF
+          new(major,minor)
         end
 
         def to_int

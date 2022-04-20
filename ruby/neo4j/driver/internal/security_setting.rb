@@ -21,7 +21,8 @@ module Neo4j::Driver::Internal
         else
           create_security_plan_impl(encrypted, trust_strategy)
         end
-      rescue java.security.GeneralSecurityException, java.io.IOException
+      # rescue java.security.GeneralSecurityException, IOError
+      rescue IOError
         raise Neo4j::Driver::Exceptions::ClientException, 'Unable to establish SSL parameters'
       end
     end
@@ -46,22 +47,22 @@ module Neo4j::Driver::Internal
     end
 
     def create_security_plan_impl(encrypted, trust_strategy)
-      return org.neo4j.driver.internal.security.SecurityPlanImpl.insecure unless encrypted
+      return Security::SecurityPlanImpl.insecure unless encrypted
 
       hostname_verification_enabled = trust_strategy.hostname_verification_enabled?
       revocation_strategy = trust_strategy.revocation_strategy
 
       case trust_strategy.strategy
       when Config::TrustStrategy::TRUST_CUSTOM_CA_SIGNED_CERTIFICATES
-        return org.neo4j.driver.internal.security.SecurityPlanImpl.forCustomCASignedCertificates(
+        return Security::SecurityPlanImpl.forCustomCASignedCertificates(
           trust_strategy.cert_file_to_java, hostname_verification_enabled, revocation_strategy
         )
       when Config::TrustStrategy::TRUST_SYSTEM_CA_SIGNED_CERTIFICATES
-        return org.neo4j.driver.internal.security.SecurityPlanImpl.forSystemCASignedCertificates(
+        return Security::SecurityPlanImpl.forSystemCASignedCertificates(
           hostname_verification_enabled, revocation_strategy
         )
       when Config::TrustStrategy::TRUST_ALL_CERTIFICATES
-        return org.neo4j.driver.internal.security.SecurityPlanImpl.forAllCertificates(
+        return Security::SecurityPlanImpl.forAllCertificates(
           hostname_verification_enabled, revocation_strategy
         )
       else

@@ -3,7 +3,7 @@ module Neo4j::Driver
     module Handlers
       module Pulln
         class AutoPullResponseHandler < BasicPullResponseHandler
-          UNINITIALIZED_RECORDS = []
+          UNINITIALIZED_RECORDS = ::Async::Queue.new
 
           def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener, fetch_size)
             super(query, run_response_handler, connection, metadata_extractor, completion_listener)
@@ -62,33 +62,21 @@ module Neo4j::Driver
           end
 
           def peek_async
-            record = @records.peek
-
-            if record.nil?
-              return completed_with_value_if_no_failure(nil) if done?
-
-              @record_future = java.util.concurrent.CompletableFuture.new if @record_future.nil?
-
-              @record_future
-            else
-              java.util.concurrent.CompletableFuture.completed_future(record)
+            while @records.empty? && !done?
+              wait
             end
+            @records.items.first
           end
 
           def next_async
-            peek_async.then_apply(-> (_ignore) { dequeue_record })
+            dequeue_record if peek_async
           end
 
           def consume_async
-            @records.clear
-
+            @records.items.clear
             return completed_with_value_if_no_failure(@summary) if done?
-
             cancel
-
-            @summary_future = java.util.concurrent.CompletableFuture.new if @summary_future.nil?
-
-            @summary_future
+            @summary
           end
 
           def list_async(map_function)
@@ -123,13 +111,13 @@ module Neo4j::Driver
           end
 
           def dequeue_record
-            record = @records.drop(1)
+            record = @records.dequeue
 
             if @records.size <= @low_record_watermark
               # if not in streaming state we need to restart streaming
-              request(@fetch_size) if state == !State::StreamingState
+              request(@fetch_size) if state == !State::STREAMING_STATE
 
-              auto_pull_enabled = true
+              @auto_pull_enabled = true
             end
 
             record
@@ -151,10 +139,7 @@ module Neo4j::Driver
           end
 
           def extract_failure
-            if @failure.nil?
-              raise Exceptions::IllegalStateException, "Can't extract failure because it does not exist"
-            end
-
+            raise Exceptions::IllegalStateException, "Can't extract failure because it does not exist" unless @failure
             error = @failure
             @failure = nil # propagate failure only once
             error
@@ -188,13 +173,7 @@ module Neo4j::Driver
           end
 
           def completed_with_value_if_no_failure(value)
-            if !@failure.nil?
-              return Util::Futures.failed_future(extract_failure)
-            elsif value.nil?
-              return Util::Futures.completed_with_null
-            else
-              java.util.concurrent.CompletableFuture.completed_future(value)
-            end
+            @failure ? extract_failure : value
           end
         end
       end

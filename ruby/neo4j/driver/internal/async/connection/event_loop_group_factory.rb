@@ -4,7 +4,7 @@ module Neo4j::Driver
       module Connection
         class EventLoopGroupFactory
           THREAD_NAME_PREFIX = "Neo4jDriverIO"
-          THREAD_PRIORITY = java.lang.Thread::MAX_PRIORITY
+          THREAD_PRIORITY = 10
           THREAD_IS_DAEMON = true
 
           class << self
@@ -13,7 +13,7 @@ module Neo4j::Driver
             # @return class of the channel, which should be consistent with {@link EventLoopGroup}s returned by
             # {@link #newEventLoopGroup(int)}.
             def channel_class
-              org.neo4j.driver.internal.shaded.io.netty.channel.socket.nio.NioSocketChannel
+              # org.neo4j.driver.internal.shaded.io.netty.channel.socket.nio.NioSocketChannel
             end
 
             # Create new {@link EventLoopGroup} with specified thread count. Returned group should by given to
@@ -33,7 +33,7 @@ module Neo4j::Driver
             # @throws IllegalStateException when current thread is an event loop IO thread.
             def assert_not_in_event_loop_thread
               if event_loop_thread?(Thread.current)
-                raise Neo4j::Driver::Exceptions::IllegalStateException, "Blocking operation can't be executed in IO thread because it might result in a deadlock. Please do not use blocking API when chaining futures returned by async API methods."
+                raise Exceptions::IllegalStateException, "Blocking operation can't be executed in IO thread because it might result in a deadlock. Please do not use blocking API when chaining futures returned by async API methods."
               end
             end
 
@@ -50,7 +50,10 @@ module Neo4j::Driver
 
           # Same as {@link NioEventLoopGroup} but uses a different {@link ThreadFactory} that produces threads of
           # {@link DriverThread} class. Such threads can be recognized by {@link #assertNotInEventLoopThread()}.
-          class DriverEventLoopGroup < org.neo4j.driver.internal.shaded.io.netty.channel.nio.NioEventLoopGroup
+          class DriverEventLoopGroup #< org.neo4j.driver.internal.shaded.io.netty.channel.nio.NioEventLoopGroup
+            def initialize(n_threads = nil)
+            end
+
             protected
 
             def new_default_thread_factory
@@ -61,8 +64,8 @@ module Neo4j::Driver
           #  Same as {@link DefaultThreadFactory} created by {@link NioEventLoopGroup} by default, except produces threads of
           # {@link DriverThread} class. Such threads can be recognized by {@link #assertNotInEventLoopThread()}.
 
-          class DriverThreadFactory < org.neo4j.driver.internal.shaded.io.netty.util.concurrent.DefaultThreadFactory
-            def initialize
+          class DriverThreadFactory #< org.neo4j.driver.internal.shaded.io.netty.util.concurrent.DefaultThreadFactory
+            def initialize()
               super(THREAD_NAME_PREFIX, THREAD_IS_DAEMON, THREAD_PRIORITY)
             end
 
@@ -71,7 +74,7 @@ module Neo4j::Driver
             end
           end
 
-          class DriverThread < org.neo4j.driver.internal.shaded.io.netty.util.concurrent.FastThreadLocalThread
+          class DriverThread #< org.neo4j.driver.internal.shaded.io.netty.util.concurrent.FastThreadLocalThread
           end
         end
       end

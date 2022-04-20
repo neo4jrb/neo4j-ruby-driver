@@ -8,10 +8,10 @@ module Neo4j::Driver
         INVALID_BOOKMARK_CODE = 'Neo.ClientError.Transaction.InvalidBookmark'
         INVALID_BOOKMARK_MIXTURE_CODE = 'Neo.ClientError.Transaction.InvalidBookmarkMixture'
 
-        def initialize(initial_router, settings, provider, event_executor_group, resolver, logging, domain_name_resolver)
+        def initialize(initial_router, settings, provider, event_executor_group, resolver, logger, domain_name_resolver)
           @initial_router = initial_router
           @settings = settings
-          @log = logging.get_log(self.class)
+          @log = logger
           @provider = provider
           @resolver = resolver
           @event_executor_group = event_executor_group
@@ -198,13 +198,13 @@ module Neo4j::Driver
         end
 
         def must_abort_discovery(throwable)
-          abort = if !(throwable.instance_of? Exceptions::AuthorizationExpiredException) && (throwable.instance_of? Exceptions::SecurityException)
+          abort = if !(throwable.is_a? Exceptions::AuthorizationExpiredException) && (throwable.is_a? Exceptions::SecurityException)
                     true
-                  elsif throwable.instance_of? Exceptions::FatalDiscoveryException
+                  elsif throwable.is_a? Exceptions::FatalDiscoveryException
                     true
-                  elsif throwable.instance_of? Exceptions::IllegalStateException && Spi::ConnectionPool::CONNECTION_POOL_CLOSED_ERROR_MESSAGE == throwable.message
+                  elsif throwable.is_a? Exceptions::IllegalStateException && Spi::ConnectionPool::CONNECTION_POOL_CLOSED_ERROR_MESSAGE == throwable.message
                     true
-                  elsif throwable.instance_of? Exceptions::ClientException
+                  elsif throwable.is_a? Exceptions::ClientException
                     code = throwable.code
                     INVALID_BOOKMARK_CODE.eql?(code) || INVALID_BOOKMARK_MIXTURE_CODE.eql?(code)
                   end

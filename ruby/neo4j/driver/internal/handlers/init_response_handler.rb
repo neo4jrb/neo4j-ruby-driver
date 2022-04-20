@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class InitResponseHandler
+        include Spi::ResponseHandler
+
         def initialize(connection_initialized_promise)
           @connection_initialized_promise = connection_initialized_promise
           @channel = connection_initialized_promise

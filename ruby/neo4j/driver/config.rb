@@ -3,8 +3,6 @@
 module Neo4j
   module Driver
     class Config < Hash
-      include Ext::ConfigConverter
-
       class TrustStrategy
         TRUST_ALL_CERTIFICATES = :trust_all_certificates
         TRUST_CUSTOM_CA_SIGNED_CERTIFICATES = :trust_custom_ca_signed_certificates
@@ -32,36 +30,43 @@ module Neo4j
         end
       end
 
+      # Console.logger = ::Logger.new(STDOUT, level: :debug)
       DEFAULTS = {
-        connection_acquisition_timeout: 1.minute, #:set_max_connection_acquisition_time
-        connection_timeout: 30.seconds, # BoltSocketOptions_set_connect_timeout
-        encryption: false, # :set_transport
+        # logger: ::Logger.new(nil),
+        logger: ::Logger.new(STDOUT, level: :debug),
+        # logger: Console.logger,
+        leaked_sessions_logging: false,
+        max_connection_pool_size: Internal::Async::Pool::PoolSettings::DEFAULT_MAX_CONNECTION_POOL_SIZE,
+        idle_time_before_connection_test: Internal::Async::Pool::PoolSettings::DEFAULT_IDLE_TIME_BEFORE_CONNECTION_TEST,
+        max_connection_lifetime: Internal::Async::Pool::PoolSettings::DEFAULT_MAX_CONNECTION_LIFETIME,
+        connection_acquisition_timeout: Internal::Async::Pool::PoolSettings::DEFAULT_CONNECTION_ACQUISITION_TIMEOUT,
+        routing_failure_limit: Internal::Cluster::RoutingSettings::DEFAULT.max_routing_failures,
+        routing_retry_delay: Internal::Cluster::RoutingSettings::DEFAULT.retry_timeout_delay,
+        routing_table_purge_delay: Internal::Cluster::RoutingSettings::DEFAULT.routing_table_purge_delay,
+        user_agent: "neo4j-ruby/#{Neo4j::Driver::VERSION}",
+        connection_timeout: 30.seconds,
+        driver_metrics: false,
+        fetch_size: Internal::Handlers::Pulln::FetchSizeUtil::DEFAULT_FETCH_SIZE,
         event_loop_threads: 0,
-        fetch_size: 1000,
-        idle_time_before_connection_test: -1,
+
+        # TODO: Still to cleanup
+        encryption: false, # :set_transport
         keep_alive: true, # BoltSocketOptions_set_keep_alive
-        logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::ERROR), # :set_log
-        leaked_session_logging: false,
         # connection_liveness_check_timeout: -1, # Not configured
-        max_connection_lifetime: 1.hour, # :set_max_connection_life_time
-        max_connection_pool_size: 100, #:set_max_pool_size
         max_transaction_retry_time: Internal::Retry::ExponentialBackoffRetryLogic::DEFAULT_MAX_RETRY_TIME,
         metrics_enabled: false,
         # resolver: nil # :set_address_resolver
         trust_strategy: TrustStrategy.trust_all_certificates,
-        user_agent: "neo4j-ruby/#{Neo4j::Driver::VERSION}"
       }.freeze
 
       def initialize(**config)
         merge!(DEFAULTS).merge!(config.compact)
         init_security_and_trust_config(config)
-        merge!(
-          java_config: to_java_config(org.neo4j.driver.Config, config.tap { |hash| hash.delete(:trust_strategy) })
-        )
       end
 
-      def java_config
-        fetch(:java_config)
+      def routing_settings
+        Internal::Cluster::RoutingSettings.new(
+          *values_at(:routing_failure_limit, :routing_retry_delay, :routing_table_purge_delay))
       end
 
       private

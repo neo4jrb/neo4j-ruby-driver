@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class CommitTxResponseHandler
+        include Spi::ResponseHandler
+
         def initialize(commit_future)
           @commit_future = java.util.Objects.require_non_null(commit_future)
         end

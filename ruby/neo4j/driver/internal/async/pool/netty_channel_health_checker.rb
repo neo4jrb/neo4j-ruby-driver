@@ -3,13 +3,12 @@ module Neo4j::Driver
     module Async
       module Pool
         class NettyChannelHealthChecker
-          attr_reader :pool_settings, :clock, :logging, :log, :min_creation_timestamp_millis_opt
+          attr_reader :pool_settings, :clock, :logger, :log, :min_creation_timestamp_millis_opt
 
-          def initialize(pool_settings, clock, logging)
+          def initialize(pool_settings, clock, logger)
             @pool_settings = pool_settings
             @clock = clock
-            @logging = logging
-            @log = logging.get_log(get_class)
+            @log = logger
             @min_creation_timestamp_millis_opt = java.util.concurrent.atomic.AtomicReference.new(java.util.Optional.empty)
           end
 
@@ -37,7 +36,7 @@ module Neo4j::Driver
             min_creation_timestamp_millis_opt = min_creation_timestamp_millis_opt.get
 
             if min_creation_timestamp_millis_opt.present? && creation_timestamp_millis <= min_creation_timestamp_millis_opt.get
-              log.trace("The channel #{channel} is marked for closure as its creation timestamp is older than or equal to the acceptable minimum timestamp: #{creation_timestamp_millis} <= #{min_creation_timestamp_millis_opt.get}")
+              log.debug("The channel #{channel} is marked for closure as its creation timestamp is older than or equal to the acceptable minimum timestamp: #{creation_timestamp_millis} <= #{min_creation_timestamp_millis_opt.get}")
               return true
             end
 
@@ -50,7 +49,7 @@ module Neo4j::Driver
               too_old = age_millis > max_age_millis
 
               if too_old
-                log.trace("Failed acquire channel #{channel} from the pool because it is too old: #{age_millis} > #{max_age_millis}")
+                log.debug("Failed acquire channel #{channel} from the pool because it is too old: #{age_millis} > #{max_age_millis}")
               end
               return too_old
             end
@@ -66,7 +65,7 @@ module Neo4j::Driver
                 idle_too_long = idle_time > pool_settings.idle_time_before_connection_test
 
                 if idle_too_long
-                  log.trace( "Channel #{channel} has been idle for #{idle_time} and needs a ping")
+                  log.debug( "Channel #{channel} has been idle for #{idle_time} and needs a ping")
                 end
 
                 return idle_too_long
@@ -77,7 +76,7 @@ module Neo4j::Driver
 
           def ping(channel)
             result = channel.event_loop.new_promise
-            Connection::ChannelAttributes.message_dispatcher.enqueue(Handlers::PingResponseHandler.new(result, channel, logging))
+            Connection::ChannelAttributes.message_dispatcher.enqueue(Handlers::PingResponseHandler.new(result, channel, logger))
             channel.write_and_flush(Messaging::Request::ResetMessage::RESET, channel.void_promise)
             result
           end

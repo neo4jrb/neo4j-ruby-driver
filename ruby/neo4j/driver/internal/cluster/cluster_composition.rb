@@ -2,27 +2,29 @@ module Neo4j::Driver
   module Internal
     module Cluster
       class ClusterComposition < Struct.new(:expiration_timestamp, :readers, :writers, :routers, :database_name)
-        MAX_TTL = java.lang.Long::MAX_VALUE / 1000
-        OF_BOLTSERVERADDRESS = -> (value) { BoltServerAddress.new(value) }
+        private
+
+        MAX_LONG = 2 ^ 63 - 1
+        MAX_TTL = MAX_LONG / 1000
+
+        public
+
+        def initialize(expiration_timestamp:, database_name:, readers: [], writers: [], routers: [])
+          super(expiration_timestamp, readers, writers, routers, database_name)
+        end
 
         def has_writers?
-          !writers.empty?
+          @writers.present?
         end
 
         def has_routers_and_readers?
-          !routers.empty? && !readers.empty?
+          @routers.present? && @readers.present?
         end
 
         def self.parse(record, now)
-          return nil if record.nil?
-
-          result = new(expiration_timestamp(now, record), record['db'])
-
-          record['servers'] do |value|
-            result.servers(value['role']).add_all(value['addresses'])
-          end
-
-          result
+          return if record.nil?
+          new(expiration_timestamp: expiration_timestamp(now, record), database_name: record['db'],
+              **record['servers'].to_h { |value| [servers(value['role']), BoltServerAddress.new(value['addresses'])] })
         end
 
         private
@@ -32,7 +34,7 @@ module Neo4j::Driver
           expiration_timestamp = now + ttl * 1000
 
           if ttl < 0 || ttl >= MAX_TTL || expiration_timestamp < 0
-            expiration_timestamp = java.lang.Long::MAX_VALUE
+            expiration_timestamp = MAX_LONG
           end
 
           expiration_timestamp
@@ -41,11 +43,11 @@ module Neo4j::Driver
         def servers(role)
           case role
           when 'READ'
-            readers
+            :readers
           when 'WRITE'
-            writers
+            :writers
           when 'ROUTE'
-            routers
+            :routers
           else
             raise ArgumentError, "invalid server role: #{role}"
           end

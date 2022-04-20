@@ -2,6 +2,7 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class RoutingResponseHandler
+        include Spi::ResponseHandler
         delegate :on_success, :on_record, :can_manage_auto_read, :disable_auto_read_management, to: :@delegate
 
         def initialize(delegate, address, access_mode, error_handler)
