@@ -38,7 +38,7 @@ jobs:
         with:
           repository: neo4j-drivers/testkit
           path: testkit
-          ref: 555800a760d32b17c44b17b5667c911e5f06392b
+          ref: cd12d40a65a7d02c32f847fe0a79cafa7f0e8509
 
       - name: Install dependencies
         run: |
