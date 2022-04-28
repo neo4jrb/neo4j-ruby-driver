@@ -10,6 +10,7 @@ module Testkit::Backend::Messages
         'neo4j.test_summary.TestDirectDriver.test_can_obtain_summary_after_consuming_result': '???',
         'neo4j.test_summary.TestDirectDriver.test_no_notification_info': '???',
         'neo4j.test_summary.TestDirectDriver.test_summary_counters_case_1': '???',
+        'neo4j.test_tx_func_run.TestTxFuncRun.test_tx_func_configuration': 'Does not send metadata',
         'stub.iteration.test_iteration_tx_run.TestIterationTxRun.test_nested': 'completely pulls the first query before running the second',
         'stub.retry.test_retry.TestRetry.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
         'stub.retry.test_retry_clustering.TestRetryClustering.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
