@@ -1,7 +1,7 @@
 module Testkit::Backend::Messages
   class Request < OpenStruct
     include Conversion
-    delegate :delete, :fetch, :store, to: :@command_processor
+    delegate :delete, :fetch, :store, to: Testkit::Backend::ObjectCache
     attr_reader :data
 
     def self.from(request, objects = nil)
@@ -21,13 +21,11 @@ module Testkit::Backend::Messages
     def process_request
       process
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
-      store(e)
-      named_entity('DriverError', id: e.object_id, errorType: e.class.name, msg: e.message, code: e.code)
+      driver_error(e)
     rescue Neo4j::Driver::Exceptions::IllegalStateException, Neo4j::Driver::Exceptions::NoSuchRecordException, ArgumentError => e
       puts e
       puts e.backtrace_locations
-      store(e)
-      named_entity('DriverError', id: e.object_id, errorType: e.class.name, msg: e.message)
+      driver_error(e)
     rescue Testkit::Backend::Messages::Requests::RollbackException => e
       named_entity('FrontendError', msg: "")
     rescue StandardError => e
@@ -37,12 +35,14 @@ module Testkit::Backend::Messages
     end
 
     def process
-      # name, data = %i[name data].map(&response.method(:send))
-      # named_entity(name, **data)
       response.to_testkit
     end
 
     private
+
+    def driver_error(e)
+      Responses::DriverError.new(e).to_testkit
+    end
 
     def to_params
       params&.transform_values(&Request.method(:object_from)) || {}

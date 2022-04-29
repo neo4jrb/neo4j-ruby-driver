@@ -2,7 +2,7 @@ module Testkit::Backend::Messages
   module Responses
     class Result < Response
       def data
-        { id: @object }
+        { id: store(@object), keys: @object.keys }
       end
     end
   end
