@@ -76,6 +76,5 @@ jobs:
       - name: Archive testkit artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: artifacts
-          path: testkit/artifacts
-
+          name: artifacts ${{ matrix.ruby }}
+          path: ${{ github.workspace }}/testkit/artifacts
