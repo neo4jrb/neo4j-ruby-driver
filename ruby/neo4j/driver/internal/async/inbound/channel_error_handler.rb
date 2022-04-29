@@ -3,14 +3,14 @@ module Neo4j::Driver
     module Async
       module Inbound
         class ChannelErrorHandler
-          def initialize(logging)
-            @logging = logging
+          def initialize(logger)
+            @logger = logger
           end
 
           def handler_added(ctx)
             @message_dispatcher = java.util.Objects.require_non_null(Connection::ChannelAttributes.message_dispatcher(ctx.channel))
-            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logging, self.class)
-            @error_log = Logging::ChannelErrorLogger.new(ctx.channel, @logging)
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logger, self.class)
+            @error_log = Logging::ChannelErrorLogger.new(ctx.channel, @logger)
           end
 
           def handler_removed(ctx)
@@ -48,7 +48,7 @@ module Neo4j::Driver
           private
 
           def log_unexpected_error_warning(error)
-            unless error.kind_of?(Neo4j::Driver::Exceptions::ConnectionReadTimeoutException)
+            unless error.is_a?(Exceptions::ConnectionReadTimeoutException)
               @error_log.trace_or_debug('Fatal error occurred in the pipeline', error)
             end
           end
@@ -61,9 +61,9 @@ module Neo4j::Driver
           class << self
             def transform_error(error)
               # unwrap the CodecException if it has a cause
-              error = error.cause if error.kind_of?(io.netty.handler.codec.CodecException) && error.cause
+              error = error.cause if error.is_a?(io.netty.handler.codec.CodecException) && error.cause
 
-              if error.kind_of?(java.io.IOException)
+              if error.is_a?(java.io.IOException)
                 Neo4j::Driver::Exceptions::ServiceUnavailableException.new('Connection to the database failed', error)
               else
                 error

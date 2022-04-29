@@ -4,8 +4,6 @@ module Neo4j::Driver
   module Internal
     module Retry
       class ExponentialBackoffRetryLogic
-        include Ext::ExceptionCheckable
-
         DEFAULT_MAX_RETRY_TIME = 30.seconds
         INITIAL_RETRY_DELAY = 1.second
         RETRY_DELAY_MULTIPLIER = 2.0
@@ -22,7 +20,7 @@ module Neo4j::Driver
           start_time = nil
           next_delay = INITIAL_RETRY_DELAY
           begin
-            check { yield }
+            yield
           rescue StandardError => error
             if can_retry_on?(error)
               curr_time = Util::Clock::System.time

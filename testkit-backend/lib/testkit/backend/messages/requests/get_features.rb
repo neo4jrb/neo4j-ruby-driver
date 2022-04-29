@@ -25,13 +25,6 @@ module Testkit::Backend::Messages
           # 'Optimization:EagerTransactionBegin', #
           'Optimization:PullPipelining',
           'ConfHint:connection.recv_timeout_seconds',
-          # 'Temporary:ResultKeys', #
-          'Temporary:FullSummary',
-          'Temporary:CypherPathAndRelationship',
-          'Temporary:TransactionClose',
-          'Temporary:DriverFetchSize',
-          'Temporary:DriverMaxTxRetryTime',
-          'Temporary:FastFailingDiscovery',
         ])
       end
     end

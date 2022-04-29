@@ -9,6 +9,6 @@ import sys
 
 if __name__ == "__main__":
     subprocess.check_call(
-        ['env', 'driver=%s' % os.environ.get("TEST_DRIVER_PLATFORM", 'ruby'), "bin/testkit-backend"],
+        ["bin/testkit-backend"],
         stdout=sys.stdout, stderr=sys.stderr
     )

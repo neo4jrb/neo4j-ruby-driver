@@ -2,14 +2,14 @@ module Neo4j::Driver
   module Internal
     module Cluster
       class RoutingTableRegistryImpl
-        def initialize(connection_pool, rediscovery, clock, logging, routing_table_purge_delay_ms)
-          @factory = RoutingTableHandlerFactory.new(connection_pool, rediscovery, clock, logging, routing_table_purge_delay_ms)
+        def initialize(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
+          @factory = RoutingTableHandlerFactory.new(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
           @routing_table_handlers = {}
           @principal_to_database_name_stage = {}
           @clock = clock
           @connection_pool = connection_pool
           @rediscovery = rediscovery
-          @log = logging.get_log(self.class)
+          @log = logger
         end
 
         def ensure_routing_table(context)
@@ -109,17 +109,17 @@ module Neo4j::Driver
         private
 
         class RoutingTableHandlerFactory
-          def initialize(connection_pool, rediscovery, clock, logging, routing_table_purge_delay_ms)
+          def initialize(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
             @connection_pool = connection_pool
             @rediscovery = rediscovery
             @clock = clock
-            @logging = logging
+            @logger = logger
             @routing_table_purge_delay_ms = routing_table_purge_delay_ms
           end
 
           def new_instance(database_name, all_tables)
             routing_table = ClusterRoutingTable.new(database_name, @clock)
-            RoutingTableHandlerImpl.new(routing_table, @rediscovery, @connection_pool, all_tables, @logging, @routing_table_purge_delay_ms)
+            RoutingTableHandlerImpl.new(routing_table, @rediscovery, @connection_pool, all_tables, @logger, @routing_table_purge_delay_ms)
           end
         end
 

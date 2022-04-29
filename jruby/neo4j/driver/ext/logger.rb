@@ -16,6 +16,7 @@ module Neo4j
         def getLog(_name)
           self
         end
+        alias get_log getLog
 
         def error(*args)
           add(::Logger::ERROR, format(*args))

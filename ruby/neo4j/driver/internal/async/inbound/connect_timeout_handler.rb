@@ -5,7 +5,7 @@ module Neo4j::Driver
         # Handler needed to limit amount of time connection performs TLS and Bolt handshakes.
         # It should only be used when connection is established and removed from the pipeline afterwards.
         # Otherwise it will make long running queries fail.
-        class ConnectTimeoutHandler < org.neo4j.driver.internal.shaded.io.netty.handler.timeout.ReadTimeoutHandler
+        class ConnectTimeoutHandler #< org.neo4j.driver.internal.shaded.io.netty.handler.timeout.ReadTimeoutHandler
           def initialize(timeout_millis)
             super(timeout_millis, java.util.concurrent.TimeUnit::MILLISECONDS)
             @timeout_millis = timeout_millis
@@ -13,7 +13,7 @@ module Neo4j::Driver
 
           protected
 
-          def read_timed_out(ctx)
+          def readTimedOut(ctx)
             unless @triggered
               @triggered = true
               ctx.fire_exception_caught(unable_to_connect_error)

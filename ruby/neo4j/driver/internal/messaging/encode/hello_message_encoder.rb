@@ -5,7 +5,7 @@ module Neo4j::Driver
         class HelloMessageEncoder
           def encode(message, packer)
             Util::Preconditions.check_argument(message, Request::HelloMessage)
-            packer.pack_struct_header(1, message.signature)
+            packer.pack_struct_header(1, message.class::SIGNATURE)
             packer.pack(message.metadata)
           end
         end

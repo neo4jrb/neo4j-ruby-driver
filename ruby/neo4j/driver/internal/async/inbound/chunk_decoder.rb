@@ -2,38 +2,37 @@ module Neo4j::Driver
   module Internal
     module Async
       module Inbound
-        class ChunkDecoder < org.neo4j.driver.internal.shaded.io.netty.handler.codec.LengthFieldBasedFrameDecoder
-          MAX_FRAME_BODY_LENGTH = 0xFFFF
-          LENGTH_FIELD_OFFSET = 0
-          LENGTH_FIELD_LENGTH = 2
-          LENGTH_ADJUSTMENT = 0
-          INITIAL_BYTES_TO_STRIP = LENGTH_FIELD_LENGTH
-          MAX_FRAME_LENGTH = LENGTH_FIELD_LENGTH + MAX_FRAME_BODY_LENGTH
-
-          def initialize(logging)
-            super(MAX_FRAME_LENGTH, LENGTH_FIELD_OFFSET, LENGTH_FIELD_LENGTH, LENGTH_ADJUSTMENT, INITIAL_BYTES_TO_STRIP)
-            @logging = logging
+        module ChunkDecoder
+          def initialize(input)
+            @input = input
+            @remaining = 0
           end
 
-          def handler_added(ctx)
-            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logging, self.class)
-          end
-
-          protected
-
-          def handler_removed0(_ctx)
-            @log = nil
-          end
-
-          def extract_frame(ctx, buffer, index, length)
-            if @log.trace_enabled?
-              original_reader_index = buffer.read_index
-              reader_index_with_chunk_header = original_reader_index - INITIAL_BYTES_TO_STRIP
-              length_with_chunk_header = INITIAL_BYTES_TO_STRIP + length
-              hex_dump = org.neo4j.driver.internal.shaded.io.netty.buffer.ByteBufUtil.hex_dump(buffer, reader_index_with_chunk_header, length_with_chunk_header)
-              @log.trace("S: #{hex_dump}")
+          def read_exactly(size, buffer = nil)
+            while @remaining.zero?
+              @remaining = read_length_field
             end
-            super(ctx, buffer, index, length)
+            if size > @remaining
+              # (buffer ||= Buffer.new(capacity: size)) << super(@remaining)
+              (buffer ||= ::Async::IO::Buffer.new) << read_exactly(@remaining)
+              size -= @remaining
+              @remaining = 0
+              read_exactly(size, buffer)
+            else
+              data = @input.read_exactly(size)
+              @remaining -= size
+              buffer ? buffer << data : data
+            end
+          end
+
+          def ensure_termination
+            raise 'Chunking problem' unless @remaining.zero? && read_length_field.zero?
+          end
+
+          private
+
+          def read_length_field
+            @input.read_exactly(2).unpack1('S>')
           end
         end
       end

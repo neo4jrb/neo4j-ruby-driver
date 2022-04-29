@@ -3,20 +3,18 @@ module Neo4j::Driver
     module Util
       class LockUtil
         class << self
-          def execute_with_lock(lock, runnable)
+          def execute_with_lock(lock)
             lock.lock
-
             begin
-              runnable.run
-            rescue Exception => e
+              yield
+            ensure
               lock.unlock
             end
           end
 
-          def execute_with_lock_async(lock, stage_supplier)
+          def execute_with_lock_async(lock)
             lock.lock
-
-            java.util.concurrent.CompletableFuture.completed_future(lock).then_compose { stage_supplier }.when_complete{ lock.unlock }
+            Concurrent::Promises.fulfilled_future(lock).then_flat { yield }.on_fulfillment! { lock.unlock }
           end
         end
       end

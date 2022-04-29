@@ -1,28 +1,32 @@
 module Neo4j::Driver
   module Internal
     module Async
-      class NetworkConnection
-        include Connection
+      class NetworkConnection < ::Async::Pool::Resource
+        include Spi::Connection
+        delegate :protocol, to: :@channel
 
-        attr_reader :server_agent, :server_address, :server_version, :protocol
+        attr_reader :server_agent, :server_address, :server_version
 
-        def initialize(channel, channel_pool, clock, metrics_listener, logging)
-          @log = logging.get_log(self)
+        def initialize(channel, channel_pool, logger)
+          super()
+          @log = logger
           @channel = channel
-          @message_dispatcher = Connection::ChannelAttributes.message_dispatcher(channel)
-          @server_agent = Connection::ChannelAttributes.server_agent(channel)
-          @server_address = Connection::ChannelAttributes.server_address(channel)
-          @server_version = Connection::ChannelAttributes.server_version(channel)
+          @message_dispatcher = channel.attributes[:message_dispatcher]
+          @server_agent = channel.attributes[:server_agent]
+          @server_address = channel.attributes[:server_address]
+          @server_version = channel.attributes[:server_version]
           @protocol = Messaging::BoltProtocol.for_channel(channel)
           @channel_pool = channel_pool
-          @release_future = java.util.concurrent.CompletableFuture.new
-          @clock = clock
-          @metrics_listener = metrics_listener
-          @in_use_event = metrics_listener.create_listener_event
-          @connection_read_timeout = Connection::ChannelAttributes.connection_read_timeout(channel) || nil
-          metrics_listener.after_connection_created(Connection::ChannelAttributes.pool_id(channel), @in_use_event)
-          @status = Status::OPEN
+          # @release_future = java.util.concurrent.CompletableFuture.new
+          # @clock = clock
+          # @connection_read_timeout = Connection::ChannelAttributes.connection_read_timeout(channel) || nil
+          @status = Concurrent::AtomicReference.new(Status::OPEN)
         end
+
+        # def close
+        #   super
+        #   @io.close
+        # end
 
         def open?
           @status.get == Status::OPEN
@@ -65,11 +69,13 @@ module Neo4j::Driver
 
         def release
           if @status.compare_and_set(Status::OPEN, Status::RELEASED)
-            handler = Handlers::ChannelReleasingResetResponseHandler.new(@channel, @channel_pool, @message_dispatcher, @clock, @release)
-            write_reset_message_if_needed(handler, false)
-            @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
+            @channel_pool.release(@channel)
           end
-          @release_future
+          # handler = Handlers::ChannelReleasingResetResponseHandler.new(@channel, @channel_pool, @message_dispatcher, @clock, @release)
+          # write_reset_message_if_needed(handler, false)
+          # @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
+          # end
+          # @release_future
         end
 
         def terminate_and_release(reason)
@@ -86,7 +92,7 @@ module Neo4j::Driver
 
         def write_reset_message_if_needed(reset_handler, is_session_reset)
           @channel.event_loop.execute do
-            if is_session_reset && !is_open?
+            if is_session_reset && !open?
               reset_handler.on_success(java.util.Collections.empty_map)
             else
               # auto-read could've been disabled, re-enable it to automatically receive response for RESET
@@ -105,14 +111,12 @@ module Neo4j::Driver
         end
 
         def write_message_in_event_loop(message, handler, flush)
-          @channel.event_loop.execute do
-            @message_dispatcher.enqueue(handler)
+          @message_dispatcher.enqueue(handler)
 
-            if flush
-              @channel.write_and_flush(message).add_listener(-> (_future) { register_connection_read_timeout(@channel) })
-            else
-              @channel.write(message, @channel.void_promise)
-            end
+          if flush
+            @channel.write_and_flush(message)#.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+          else
+            @channel.write(message)
           end
         end
 

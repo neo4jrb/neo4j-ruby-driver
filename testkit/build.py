@@ -9,5 +9,5 @@ def run(args):
         args, universal_newlines=True, stderr=subprocess.STDOUT, check=True)
 
 if __name__ == "__main__":
-    run(['env', 'driver=%s' % os.environ.get("TEST_DRIVER_PLATFORM", 'ruby'), 'bin/setup'])
-    run(['env', 'driver=%s' % os.environ.get("TEST_DRIVER_PLATFORM", 'ruby'), "bin/testkit-setup"])
+    run(['bin/setup'])
+    run(["bin/testkit-setup"])

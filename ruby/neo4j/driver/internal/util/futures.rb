@@ -5,8 +5,12 @@ module Neo4j::Driver
     module Util
       class Futures
         # TO DO: complete this class, this was partially migrated
-        extend Ext::AsyncConverter
+
+        private
+
         COMPLETED_WITH_NULL = Concurrent::Promises.fulfilled_future(nil)
+
+        public
 
         class << self
           def completed_with_null
@@ -17,27 +21,6 @@ module Neo4j::Driver
             error ? future.reject(error) : future.fulfill(nil)
           end
 
-          def as_completion_stage(future, result = Concurrent::Promises.resolvable_future)
-            if future.is_cancelled
-              result.fulfill(:cancelled)
-            elsif future.future.is_success
-              result.fulfill(future.get_now)
-            elsif future.cause
-              result.reject(future.cause)
-            else
-              future.add_listener do
-                if future.is_cancelled
-                  result.fulfill(:cancelled)
-                elsif future.is_success
-                  result.fulfill(future.get_now)
-                else
-                  result.reject(future.cause)
-                end
-              end
-            end
-            result
-          end
-
           def failed_future(error)
             Concurrent::Promises.rejected_future(error)
           end
@@ -45,109 +28,67 @@ module Neo4j::Driver
           def blocking_get(stage)
             Async::Connection::EventLoopGroupFactory.assert_not_in_event_loop_thread
 
-            future = stage.is_a?(Concurrent::Promises::Future) ? stage : to_future(stage)
             interrupted = false
             begin
               loop do
-                return future.value!
-              rescue java.lang.InterruptedException => e
+                break stage.value!
+              rescue Interrupt => e
                 # this thread was interrupted while waiting
                 # computation denoted by the future might still be running
                 interrupted = true
 
                 # run the interrupt handler and ignore if it throws
                 # need to wait for IO thread to actually finish, can't simply re-rethrow
-                yield if block_given? rescue nil
-              rescue java.util.concurrent.ExecutionException => e
-                ErrorUtil.rethrow_async_exception(e)
+                yield rescue nil
+                # rescue java.util.concurrent.ExecutionException => e
+                #   ErrorUtil.rethrow_async_exception(e)
               end
             ensure
-              java.lang.Thread.currentThread.interrupt if interrupted
+              Thread.current.interrupt if interrupted
             end
           end
 
           def get_now(stage)
-            stage.toCompletableFuture().getNow(nil)
+            stage.resolved? ? stage.value! : nil
           end
 
           def join_now_or_else_throw(future)
-            if future.isDone
-                future.join
+            if future.resolved?
+              future.value!
             else
               raise yield
             end
           end
 
-          # TODO: probably not necessary with concurrent-ruby as it might not wrap exceptions like java
-          def completion_exception_cause(error)
-            error.is_a?(java.util.concurrent.CompletionException) ? error.get_cause : error
-          end
-
-          def as_completion_exception(error)
-            error if error.instance_of?(CompletionException)
-
-            java.util.concurrent.CompletionException.new(error)
-          end
-
           def combine_errors(error1, error2)
-            return unless error1 && error2
-
-            return as_completion_exception(error1) if error2.nil?
-
-            return as_completion_exception(error2) if error1.nil?
-
-            cause1 = completion_exception_cause(error1)
-            cause2 = completion_exception_cause(error2)
-            ErrorUtil.add_suppressed(cause1, cause2)
-            as_completion_exception(cause1)
+            ErrorUtil.add_suppressed(error1, error2) if error1 && error2
+            error1 || error2
           end
 
-          def as_completion_exception(error)
-            error if error.instance_of?(CompletionException)
+          def on_error_continue(future, error_recorder)
+            Validator.require_non_nil!(future)
 
-            java.util.concurrent.CompletionException.new(error)
-          end
-
-          def on_error_continue(future, error_recorder, on_error_action)
-            java.util.Objects.require_non_null(future)
-
-            future.handle do |value, error|
-              unless error.nil?
-                # record error
-                Futures.combine_errors(errorRecorder, error)
-                CompletionResult.new(nil, error)
+            future
+              .then { |value| CompletionResult.new(value, nil) }
+              .rescue do |error|
+              Futures.combine_errors(error_recorder, error)
+              CompletionResult.new(nil, error)
+            end.then_flat do |result|
+              if result.value.nil?
+                yield result.error
+              else
+                Concurrent::Promises.fulfilled_future(result.value)
               end
-
-              CompletionResult.new(value, nil)
-            end.then_compose do |result|
-                  if result.value.nil?
-                    on_error_action.apply(result.error)
-                  else
-                    java.util.concurrent.CompletableFuture.completed_future(result.value)
-                  end
-                end
+            end
           end
 
-          def future_completing_consumer(future)
-            -> (value, throwable) { throwable.nil? ? future.complete(value) : future.complete_exceptionally(throwable) }
+          def future_completing_consumer(future, fulfilled, value, throwable)
+            fulfilled ? future.fulfill(value) : future.reject(throwable)
           end
 
           private
 
-          class CompletionResult
-            def initialize(value, error)
-              @value = value
-              @error = error
-            end
-          end
-
-          def safe_run(runnable)
-            begin
-              runnable.run
-            rescue StandardError => e
-
-            end
-          end
+          CompletionResult = Struct.new(:value, :error)
 
           def no_op_interrupt_handler
           end

@@ -2,31 +2,26 @@ module Neo4j::Driver
   module Internal
     module Async
       module Connection
-        class HandshakeHandler < org.neo4j.driver.internal.shaded.io.netty.handler.codec.ReplayingDecoder
-          attr_reader :pipeline_builder, :handshake_completed_promise, :logging
-          attr_accessor :failed, :log, :error_log
-
-          def initialize(pipeline_builder, handshake_completed_promise, logging)
-            @pipeline_builder = pipeline_builder
-            @handshake_completed_promise = handshake_completed_promise
-            @logging = logging
-            @failed, @log, @error_log = nil
+        class HandshakeHandler
+          def initialize(logger)
+            # @pipeline_builder = pipeline_builder
+            @log = logger
           end
 
           def handler_added(ctx)
-            log = Logging::ChannelActivityLogger.new(ctx.channel, logging, get_class)
-            error_log = Logging::ChannelErrorLogger.new(ctx.channel, logging)
+            @log = Logging::ChannelActivityLogger.new(ctx.channel, @logger, self.class)
+            @error_log = Logging::ChannelErrorLogger.new(ctx.channel, @logger)
           end
 
           def handler_removed0(ctx)
-            failed = false
-            log = nil
+            @failed = false
+            @log = nil
           end
 
           def channel_inactive(ctx)
-            log.debug('Channel is inactive')
+            @log.debug('Channel is inactive')
 
-            unless failed
+            unless @failed
               # channel became inactive while doing bolt handshake, not because of some previous error
               error = Util::ErrorUtil.new_connection_terminated_error
               fail(ctx, error)
@@ -34,50 +29,47 @@ module Neo4j::Driver
           end
 
           def exception_caught(ctx, error)
-            if failed
-              error_log.trace_or_debug('Another fatal error occurred in the pipeline', error)
+            if @failed
+              @error_log.debug('Another fatal error occurred in the pipeline', error)
             else
-              failed = true
+              @failed = true
               cause = transform_error(error)
               fail(ctx, cause)
             end
           end
 
-          def decode(ctx, _in, out)
-            server_suggested_version = Messaging::BoltProtocolVersion.from_raw_bytes(_in.read_int)
-            log.debug("S: [Bolt Handshake] #{server_suggested_version}")
-
-            # this is a one-time handler, remove it when protocol version has been read
-            ctx.pipeline.remove
+          def decode(connection)
+            server_suggested_version = Messaging::BoltProtocolVersion.from_raw_bytes(connection.stream.read_int)
+            @log.debug("S: [Bolt Handshake] #{server_suggested_version}")
+            # ::Logger.new(STDOUT, level: :debug).debug("S: [Bolt Handshake] #{server_suggested_version}")
 
             protocol = protocol_for_version(server_suggested_version)
-            if !protocol.nil?
-              protocol_selected(server_suggested_version, protocol.create_message_format, ctx)
+            if protocol
+              protocol_selected(server_suggested_version, protocol, connection)
             else
-              handle_unknown_suggested_protocol_version(server_suggested_version, ctx)
+              handle_unknown_suggested_protocol_version(server_suggested_version, connection)
             end
           end
 
           private
 
           def protocol_for_version(version)
-            begin
-              Messaging::BoltProtocol(version)
-            rescue Neo4j::Driver::Exception::ClientException => e
-              nil
-            end
+            Messaging::BoltProtocol.for_version(version)
+          rescue Neo4j::Driver::Exceptions::ClientException
+            nil
           end
 
-          def protocol_selected(version, message_format, ctx)
-            ChannelAttributes.set_protocol_version(ctx.channel, version)
-            pipeline_builder.build(message_format, ctx.pipeline, logging)
-            handshake_completed_promise.set_success
+          def protocol_selected(version, protocol, connection)
+            connection.attributes[:protocol_version] = version
+            connection.version = version
+            connection.protocol = protocol
+            connection.message_format = protocol.create_message_format
           end
 
           def handle_unknown_suggested_protocol_version(version, ctx)
-            if BoltProtocolUtil::NO_PROTOCOL_VERSION.eql?(version)
+            if BoltProtocolUtil::NO_PROTOCOL_VERSION == version
               fail(ctx, protocol_no_supported_by_server_error)
-            elsif Messaging::BoltProtocolVersion.is_http(version)
+            elsif Messaging::BoltProtocolVersion.http?(version)
               fail(ctx, http_endpoint_error)
             else
               fail(ctx, protocol_no_supported_by_driver_error(version))
@@ -85,7 +77,7 @@ module Neo4j::Driver
           end
 
           def fail(ctx, error)
-            ctx.close.add_listener(->(_future) { handshake_completed_promise.try_failure(error) })
+            ctx.close.add_listener { @handshake_completed_promise.try_failure(error) }
           end
 
           class << self
@@ -103,7 +95,7 @@ module Neo4j::Driver
 
             def transform_error(error)
               # unwrap the DecoderException if it has a cause
-              error = error.get_cause if error.kind_of?(org.neo4j.driver.internal.shaded.io.netty.handler.codec.DecoderException) && !error.get_cause.nil?
+              error = error.cause if error.is_a?(org.neo4j.driver.internal.shaded.io.netty.handler.codec.DecoderException) && error.cause
               case error
               when Neo4j::Driver::Exception::ServiceUnavailableException
                 error

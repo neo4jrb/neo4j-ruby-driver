@@ -2,12 +2,14 @@ module Neo4j::Driver
   module Internal
     module Cluster
       class RoutingContext
+        include Scheme
+
         EMPTY = new
         ROUTING_ADDRESS_KEY = 'address'
 
         def initialize(uri = nil)
           if uri
-            @server_routing_enabled = Scheme.routing_scheme?(uri.scheme)
+            @server_routing_enabled = routing_scheme?(uri.scheme)
             @context = parse_parameters(uri).freeze
           else
             @server_routing_enabled = true

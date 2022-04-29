@@ -1,12 +1,9 @@
 module Testkit
   module Backend
     class CommandProcessor
-      delegate :delete, :fetch, to: :@objects
-
       def initialize(socket)
         @socket = socket
         @buffer = String.new
-        @objects = Hash.new
       end
 
       def process(blocking: false)
@@ -30,10 +27,6 @@ module Testkit
 
       def process_response(response_message)
         @socket.write(response(response_message))
-      end
-
-      def store(object)
-        object.object_id.tap { |id| @objects[id] = object }
       end
 
       def to_testkit(name, object)

@@ -6,9 +6,9 @@ name: TestKit
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ master, 4.4 ]
+    branches: [ 4.4 ]
   pull_request:
-    branches: [ master, 4.4 ]
+    branches: [ 4.4 ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -19,28 +19,26 @@ jobs:
   testkit:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.ruby == 'ruby' }}
+    timeout-minutes: 60
 
     strategy:
 #      max-parallel: 1
       fail-fast: false
       matrix:
-        driver: [ java, ruby ]
+        ruby: [jruby, ruby]
 
     steps:
       - uses: actions/checkout@v2
         with:
           path: driver
 
-      - name: Read required TestKit version from driver repo
-        id: testkit_vars
-        run: echo ::set-output name=testkit_version_ref::$(cat driver/.testkit_version | xargs)
-
       - name: Checkout TestKit (testing tool)
         uses: actions/checkout@v2
         with:
           repository: neo4j-drivers/testkit
           path: testkit
-          ref: ${{ steps.testkit_vars.outputs.testkit_version_ref }}
+          ref: 4.4
 
       - name: Install dependencies
         run: |
@@ -63,10 +61,10 @@ jobs:
       - name: Run TestKit
         env:
           # to learn what these variables do, see https://github.com/neo4j-drivers/testkit
+          TESTKIT_DRIVER_BUILD_ARG_RUBY: ${{ matrix.ruby }}
           TEST_DRIVER_NAME: ruby
           TEST_DRIVER_REPO: ${{ github.workspace }}/driver
           TEST_RUN_ALL_TESTS: "true"
-          TEST_DRIVER_PLATFORM: ${{ matrix.driver }}
 #          TEST_DEBUG_REQRES: "true"
         run: |
           cd testkit

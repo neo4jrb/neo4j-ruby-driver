@@ -2,19 +2,21 @@ module Neo4j::Driver
   module Internal
     module Handlers
       class PingResponseHandler
-        def initialize(result, channel, logging)
+        include Spi::ResponseHandler
+
+        def initialize(result, channel, logger)
           @result = result
-          @channel = channel;
-          @log = logging.get_log(self.class)
+          @channel = channel
+          @log = logger
         end
 
         def on_success(_metadata)
-          @log.trace("Channel #{@channel} pinged successfully")
+          @log.debug("Channel #{@channel} pinged successfully")
           @result.set_success(true)
         end
 
         def on_failure(error)
-          @log.trace("Channel #{@channel} failed ping #{error}")
+          @log.debug("Channel #{@channel} failed ping #{error}")
           @result.set_success(false)
         end
 

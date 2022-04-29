@@ -32,11 +32,6 @@ module Neo4j::Driver
           private def key_value_string(entry)
             "#{entry.keys.first}:#{entry.values.first}"
           end
-
-          # Returns the submitted value if it is not null or an empty string if it is.
-          def value_or_empty(value)
-            value.nil? ? "" : value
-          end
         end
       end
     end

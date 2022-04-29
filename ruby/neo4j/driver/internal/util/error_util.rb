@@ -99,15 +99,11 @@ module Neo4j::Driver::Internal::Util
       end
 
       def protocol_violation_error?(error_code)
-        return false if error_code.nil?
-
-        error_code.start_with?('Neo.ClientError.Request')
+        error_code&.start_with?('Neo.ClientError.Request')
       end
 
-      def client_or_transient_error(error_code)
-        return false if error_code.nil?
-
-        error_code.include?('ClientError') || error_code.include?('TransientError')
+      def client_or_transient_error?(error_code)
+        error_code && %w[ClientError TransientError].any?(&error_code.method(:include?))
       end
     end
   end

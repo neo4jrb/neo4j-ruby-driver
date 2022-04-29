@@ -104,15 +104,15 @@ module Neo4j::Driver
           end
 
           def assert_parameter(value)
-            if value.instance_of? Types::Node
+            if value.is_a? Types::Node
               raise Exceptions::ClientException, "Nodes can't be used as parameters."
             end
 
-            if value.instance_of? Types::Relationship
+            if value.is_a? Types::Relationship
               raise Exceptions::ClientException, "Relationships can't be used as parameters."
             end
 
-            if value.instance_of? Types::Path
+            if value.is_a? Types::Path
               raise Exceptions::ClientException, "Paths can't be used as parameters."
             end
           end

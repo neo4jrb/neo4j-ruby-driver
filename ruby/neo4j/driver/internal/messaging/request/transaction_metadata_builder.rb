@@ -3,6 +3,8 @@ module Neo4j::Driver
     module Messaging
       module Request
         class TransactionMetadataBuilder
+          MODE_READ_VALUE = 'r'
+
           class << self
             def build_metadata(tx_timeout:, tx_metadata:, mode:, bookmark:, impersonated_user:,
                                database_name: DatabaseNameUtil.default_database)
@@ -10,9 +12,9 @@ module Neo4j::Driver
                 tx_timeout: tx_timeout,
                 tx_metadata: tx_metadata,
                 mode: (MODE_READ_VALUE if mode == AccessMode::READ),
-                db: database_name.database_name,
+                db: database_name&.database_name,
                 imp_user: impersonated_user
-              }.filter { |_, value| value.present? }
+              }.compact
             end
           end
         end
