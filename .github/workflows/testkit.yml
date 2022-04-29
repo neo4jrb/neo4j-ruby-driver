@@ -74,6 +74,8 @@ jobs:
           # --configs 4.3-enterprise --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back
 
       - name: Archive testkit artifacts
+#        if: failure()
+        if: always()
         uses: actions/upload-artifact@v2
         with:
           name: artifacts ${{ matrix.ruby }}
