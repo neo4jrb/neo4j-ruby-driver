@@ -10,7 +10,8 @@ module Testkit::Backend::Messages
         config = { user_agent: userAgent,
                    connection_timeout: timeout_duration(connectionTimeoutMs),
                    fetch_size: fetchSize,
-                   max_transaction_retry_time: timeout_duration(maxTxRetryTimeMs) }
+                   max_transaction_retry_time: timeout_duration(maxTxRetryTimeMs),
+                   max_connection_pool_size: maxConnectionPoolSize }
         config = config.merge({ resolver: method(:callback_resolver) }) if resolverRegistered
         if domainNameResolverRegistered
           Neo4j::Driver::GraphDatabase.internal_driver(

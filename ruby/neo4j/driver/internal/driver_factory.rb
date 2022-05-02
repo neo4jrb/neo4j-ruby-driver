@@ -74,7 +74,7 @@ module Neo4j::Driver::Internal
       end
     rescue Exception => driverError
       # we need to close the connection pool if driver creation threw exception
-      closeConnectionPoolAndSuppressError(connectionPool, driverError)
+      closeConnectionPoolAndSuppressError(connection_pool, driverError)
       raise driverError
     end
 
@@ -88,9 +88,9 @@ module Neo4j::Driver::Internal
       driver(:Routing, securityPlan, address, connection_provider, retryLogic, metricsProvider, config)
     end
 
-    def driver(type, securityPlan, address, connectionProvider, retryLogic, metricsProvider, config)
-      session_factory = SessionFactoryImpl.new(connectionProvider, retryLogic, config)
-      InternalDriver.new(securityPlan, session_factory, metricsProvider, config[:logger]).tap do |driver|
+    def driver(type, security_plan, address, connection_provider, retry_logic, metrics_provider, config)
+      session_factory = SessionFactoryImpl.new(connection_provider, retry_logic, config)
+      InternalDriver.new(security_plan, session_factory, metrics_provider, config[:logger]).tap do |driver|
         log = config[:logger]
         log.info { "#{type} driver instance #{driver.object_id} created for server address #{address}" }
       end
