@@ -3,7 +3,7 @@
 ############################################################################
 
 ######################################
-# Example 1.4. Hello World
+# Example 1. Hello World
 ######################################
 
 Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
@@ -19,7 +19,7 @@ Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
 end # driver auto closed at the end of the block if one given
 
 ######################################
-# Example 2.1. The driver lifecycle
+# Example 2. The driver lifecycle
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
@@ -27,7 +27,7 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 driver.close
 
 ######################################
-# Example 2.3. Custom Address Resolver
+# Example 3. Custom Address Resolver
 ######################################
 
 private
@@ -39,7 +39,7 @@ end
 
 def add_person(name)
   username = 'neo4j'
-  password = 'some password'
+  password = 'pass'
   create_driver('bolt+routing://x.acme.com', username, password, ServerAddress.of('a.acme.com', 7676),
                 ServerAddress.of('b.acme.com', 8787), ServerAddress.of('c.acme.com', 9898)) do |driver|
     driver.session { |session| session.run('CREATE (a:Person {name: $name})', name: name) }
@@ -47,44 +47,108 @@ def add_person(name)
 end
 
 ######################################
-# Example 2.4. Unencrypted
+# Example 4. Unencrypted
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: false)
 
 ######################################
-# Example 2.5. Trust
+# Example 5. Trust
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates)
 
 ######################################
-# Example 2.6. Connecting to a service
+# Example 6. Connecting to a service
 ######################################
 
-# TODO
+######################################
+# Example 6.1 Neo4j Aura Secured with full certificate
+######################################
+
+uri = 'bolt+routing://graph.example.com:7687'
 
 ######################################
-# Example 2.7. Basic authentication
+# Example 6.2 Neo4j 4.x Unsecured
+######################################
+
+uri = 'bolt+routing://graph.example.com:7687'
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: false)
+
+######################################
+# Example 6.3 Neo4j 4.x Secured with full certificate
+######################################
+
+uri = 'bolt+routing://graph.example.com:7687'
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
+                                             trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates)
+
+######################################
+# Example 6.4 Neo4j 4.x Secured with self-signed certificate
+######################################
+
+uri = 'bolt+routing://graph.example.com:7687'
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
+
+######################################
+# Example 6.5 Neo4j 3.x Secured with full certificate
+######################################
+
+uri = 'bolt+routing://graph.example.com:7687'
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
+                                             trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates)
+
+######################################
+# Example 6.6 Neo4j 3.x Secured with full certificate
+######################################
+
+uri = 'bolt+routing://graph.example.com:7687'
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
+                                             trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates)
+
+
+######################################
+# Example 6.7 Neo4j 3.x Secured with self-signed certificate
+######################################
+
+uri = 'bolt+routing://graph.example.com:7687'
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
+
+######################################
+# Example 6.8 Neo4j 3.x Unsecured
+######################################
+
+uri = 'bolt+routing://graph.example.com:7687'
+
+driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: false)
+
+######################################
+# Example 7. Basic authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
 
 ######################################
-# Example 2.8. Kerberos authentication
+# Example 8. Kerberos authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.kerberos(ticket))
 
 ######################################
-# Example 2.9. Custom authentication
+# Example 9. Custom authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.custom(principal, credentials, realm,
                                                                                    scheme, parameters))
 ######################################
-# Example 2.10. Connection pool management
+# Example 10. Connection pool management
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
@@ -93,21 +157,21 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
                                              connection_acquisition_timeout: 2.minutes)
 
 ######################################
-# Example 2.11. Connection timeout
+# Example 11. Connection timeout
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              connection_timeout: 15.seconds)
 
 ######################################
-# Example 2.12. Max retry time
+# Example 12. Max retry time
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              max_transaction_retry_time: 15.seconds)
 
 ######################################
-# Example 2.13. Service unavailable
+# Example 13. Service unavailable
 ######################################
 
 def add_item
