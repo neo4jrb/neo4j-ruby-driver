@@ -11,7 +11,7 @@ module Testkit::Backend::Messages
           relationships_deleted system_updates]),
                        query: { text: summary.query.text, parameters: summary.query.parameters.transform_values(&method(:to_testkit)) },
                        database: summary.database.name,
-                       queryType: 'rw',
+                       queryType: Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary.query_type(summary.query_type.to_s),
                        notifications: summary.notifications.then { |ns| ns.present? ? notifications(ns) : nil },
                        plan: summary.has_plan ? summary.plan.then { |p| { operator_type: p.operator_type } } : nil,
                        profile: summary.has_profile ? summary.profile.then { |p| { db_hits: p.db_hits } } : nil,
