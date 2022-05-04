@@ -12,13 +12,13 @@ module Neo4j
 
             def self.query_type(type)
               case type
-              when "READ_ONLY"
+              when Neo4j::Driver::Summary::QueryType::READ_ONLY
                 'r'
-              when "READ_WRITE"
+              when Neo4j::Driver::Summary::QueryType::READ_WRITE
                 'rw'
-              when "WRITE_ONLY"
+              when Neo4j::Driver::Summary::QueryType::WRITE_ONLY
                 'w'
-              when "SCHEMA_WRITE"
+              when Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
                 's'
               else
                 raise Neo4j::Driver::Exceptions::ClientException, "Unknown query type: #{type}"
