@@ -6,13 +6,23 @@ module Neo4j
       module Internal
         module Summary
           module InternalResultSummary
+            java_import org.neo4j.driver.summary.QueryType
+
             %i[result_available_after result_consumed_after].each do |method|
               define_method(method) { super(Java::JavaUtilConcurrent::TimeUnit::MILLISECONDS) }
             end
 
             def query_type
-              type = super
-              type == Java::OrgNeo4jDriverSummary::QueryType::READ_WRITE ? 'rw' : type.to_s.split('').first.downcase
+              case super
+              when QueryType::READ_ONLY
+                Driver::Summary::QueryType::READ_ONLY
+              when QueryType::READ_WRITE
+                Driver::Summary::QueryType::READ_WRITE
+              when QueryType::WRITE_ONLY
+                Driver::Summary::QueryType::WRITE_ONLY
+              when QueryType::SCHEMA_WRITE
+                Driver::Summary::QueryType::SCHEMA_WRITE
+              end
             end
           end
         end
