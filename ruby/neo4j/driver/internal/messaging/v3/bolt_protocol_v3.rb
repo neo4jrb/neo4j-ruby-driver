@@ -3,7 +3,7 @@ module Neo4j::Driver
     module Messaging
       module V3
         class BoltProtocolV3
-          VERSION = BoltProtocolVersion.new(3,0)
+          VERSION = BoltProtocolVersion.new(3, 0)
           INSTANCE = new
           METADATA_EXTRACTOR = Util::MetadataExtractor.new('t_first', 't_last')
 
@@ -12,12 +12,8 @@ module Neo4j::Driver
           end
 
           def initialize_channel(channel, user_agent, auth_token, routing_context)
-            message = if routing_context.server_routing_enabled?
-                        Request::HelloMessage.new(user_agent, auth_token, routing_context.to_map)
-                      else
-                        Request::HelloMessage.new(user_agent, auth_token, nil)
-                      end
-
+            message = Request::HelloMessage.new(user_agent, auth_token,
+                                                (routing_context.to_map if routing_context.server_routing_enabled?))
             handler = Handlers::HelloResponseHandler.new(channel, VERSION)
 
             channel.message_dispatcher.enqueue(handler)
