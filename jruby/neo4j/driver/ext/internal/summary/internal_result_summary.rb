@@ -10,19 +10,9 @@ module Neo4j
               define_method(method) { super(Java::JavaUtilConcurrent::TimeUnit::MILLISECONDS) }
             end
 
-            def self.query_type(type)
-              case type
-              when Neo4j::Driver::Summary::QueryType::READ_ONLY
-                'r'
-              when Neo4j::Driver::Summary::QueryType::READ_WRITE
-                'rw'
-              when Neo4j::Driver::Summary::QueryType::WRITE_ONLY
-                'w'
-              when Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
-                's'
-              else
-                raise Neo4j::Driver::Exceptions::ClientException, "Unknown query type: #{type}"
-              end
+            def query_type
+              type = super
+              type == Java::OrgNeo4jDriverSummary::QueryType::READ_WRITE ? 'rw' : type.to_s.split('').first.downcase
             end
           end
         end
