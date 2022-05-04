@@ -6,11 +6,11 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Heinrich Klobuczek"]
   spec.email         = ["heinrich@mail.com"]
 
-  spec.summary       = %q{teskit backend for neo4j-ruby-driver}
+  spec.summary       = %q{testkit backend for neo4j-ruby-driver}
   # spec.description   = %q{TODO: Write a longer description or delete this line.}
   # spec.homepage      = "TODO: Put your gem's website or public repo URL here."
   spec.license       = "MIT"
-  spec.required_ruby_version = Gem::Requirement.new(">= 2.3.0")
+  spec.required_ruby_version = Gem::Requirement.new(">= 2.6")
 
   spec.metadata["allowed_push_host"] = "TODO: Set to 'http://mygemserver.com'"
 

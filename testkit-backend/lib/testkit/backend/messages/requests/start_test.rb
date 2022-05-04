@@ -4,7 +4,6 @@ module Testkit::Backend::Messages
       SKIPPED_TESTS = {
         'neo4j.test_direct_driver.TestDirectDriver.test_custom_resolver': 'Does not call resolver for direct connections',
         'neo4j.test_direct_driver.TestDirectDriver.test_multi_db': '???',
-        'neo4j.test_direct_driver.TestDirectDriver.test_supports_multi_db': '???',
         'neo4j.test_summary.TestDirectDriver.test_can_obtain_notification_info': '???',
         'neo4j.test_summary.TestDirectDriver.test_can_obtain_plan_info': '???',
         'neo4j.test_summary.TestDirectDriver.test_can_obtain_summary_after_consuming_result': '???',
