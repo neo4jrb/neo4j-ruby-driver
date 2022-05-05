@@ -5,7 +5,6 @@ module Testkit::Backend::Messages
         named_entity('Summary',
                      **{
                        serverInfo: to_map(summary.server, :protocol_version, :address, :agent),
-                       # serverInfo: to_map(summary.server, :protocol_version, :agent),
                        counters: to_map(summary.counters, *%w[constraints_added constraints_removed contains_system_updates contains_updates indexes_added
           indexes_removed labels_added labels_removed nodes_created nodes_deleted properties_set relationships_created
           relationships_deleted system_updates]),

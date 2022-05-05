@@ -14,6 +14,9 @@ module Testkit::Backend::Messages
         'stub.retry.test_retry.TestRetry.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
         'stub.retry.test_retry_clustering.TestRetryClustering.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
         'stub.session_run_parameters.test_session_run_parameters.TestSessionRunParameters.test_empty_query': 'rejects empty string',
+        'stub.summary.test_summary.TestSummary.test_server_info': 'Address includes domain name',
+        'stub.versions.test_versions.TestProtocolVersions.test_obtain_summary_twice': 'Address includes domain name',
+        'stub.versions.test_versions.TestProtocolVersions.test_server_address_in_summary': 'Address includes domain name',
       }.transform_keys(&:to_s)
 
       SKIPPED_PATTERN = {
