@@ -10,7 +10,8 @@ module Testkit::Backend::Messages
           default_access_mode: accessMode == 'r' ? Neo4j::Driver::AccessMode::READ : Neo4j::Driver::AccessMode::WRITE,
           bookmarks: bookmarks&.map { |bookmark| Neo4j::Driver::Bookmark.from(Array(bookmark)) },
           database: database,
-          fetch_size: fetchSize
+          fetch_size: fetchSize,
+          impersonated_user: impersonatedUser
         )
       end
     end
