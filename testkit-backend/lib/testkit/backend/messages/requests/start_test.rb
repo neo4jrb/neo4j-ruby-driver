@@ -33,6 +33,7 @@ module Testkit::Backend::Messages
 
       RUBY_DRIVER_PROBLEMS = [
         'neo4j.test_summary.TestSummary.test_address',
+        'stub.bookmarks.test_bookmarks_v4.TestBookmarksV4.test_sequence_of_writing_and_reading_tx',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_managed_tx_retry',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_unmanaged_tx',
@@ -70,11 +71,11 @@ module Testkit::Backend::Messages
         end
       end
 
-      def skip(_ = nil)
+      def run(_ = nil)
         named_entity('RunTest')
       end
 
-      def run(reason = 'Skipping passing')
+      def skip(reason = 'Skipping passing')
         named_entity('SkipTest', reason: reason)
       end
     end
