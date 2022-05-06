@@ -26,8 +26,6 @@ module Testkit::Backend::Messages
         /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_on_empty_discovery_result_using_session_run/, #
         /test_routing_v.*\.RoutingV.*\.test_should_revert_to_initial_router_if_known_router_throws_protocol_errors/, #
         /test_versions\.TestProtocolVersions\.test_should_reject_server_using_verify_connectivity_bolt_3x0/,
-        # /stub\.routing\.test_routing_v4x.\.RoutingV4x.\.test_should_pass_bookmark_from_tx_to_tx_using_tx_run/,
-        # /stub\.routing\.test_routing_v4x4\.RoutingV4x4\.test_should_send_system_bookmark_with_route/, #flaky
         /test_multi_db_various_databases/,
       ]
 
