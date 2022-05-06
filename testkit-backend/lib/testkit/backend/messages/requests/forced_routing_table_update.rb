@@ -7,8 +7,8 @@ module Testkit::Backend::Messages
 
       def to_object
         fetch(driverId).session(
-          bookmarks: bookmarks&.map { |bookmark| Neo4j::Driver::Bookmark.from(Array(bookmark)) },
-          database: database
+          database: database,
+          bookmarks: bookmarks&.map { |bookmark| Neo4j::Driver::Bookmark.from(Array(bookmark)) }
           )
       end
     end
