@@ -26,15 +26,18 @@ module Testkit::Backend::Messages
         /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_on_empty_discovery_result_using_session_run/, #
         /test_routing_v.*\.RoutingV.*\.test_should_revert_to_initial_router_if_known_router_throws_protocol_errors/, #
         /test_versions\.TestProtocolVersions\.test_should_reject_server_using_verify_connectivity_bolt_3x0/,
-        /stub\.routing\.test_routing_v4x.\.RoutingV4x.\.test_should_pass_bookmark_from_tx_to_tx_using_tx_run/,
-        /stub\.routing\.test_routing_v4x4\.RoutingV4x4\.test_should_send_system_bookmark_with_route/, #flaky
+        # /stub\.routing\.test_routing_v4x.\.RoutingV4x.\.test_should_pass_bookmark_from_tx_to_tx_using_tx_run/,
+        # /stub\.routing\.test_routing_v4x4\.RoutingV4x4\.test_should_send_system_bookmark_with_route/, #flaky
         /test_multi_db_various_databases/,
       ]
 
       RUBY_DRIVER_PROBLEMS = [
+        'neo4j.test_summary.TestSummary.test_address',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_managed_tx_retry',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_unmanaged_tx',
+        'stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_0_records',
+        'stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_1_records',
         'stub.summary.test_summary.TestSummary.test_empty_notifications',
         'stub.summary.test_summary.TestSummary.test_invalid_query_type',
         'stub.summary.test_summary.TestSummary.test_no_times',
@@ -44,9 +47,6 @@ module Testkit::Backend::Messages
         'stub.summary.test_summary.TestSummary.test_partial_summary_not_contains_updates',
         'stub.summary.test_summary.TestSummary.test_plan',
         'stub.summary.test_summary.TestSummary.test_profile',
-        'neo4j.test_summary.TestSummary.test_address',
-        'stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_0_records',
-        'stub.iteration.test_result_peek.TestResultPeek.test_result_peek_with_1_records',
       ]
 
       DOMAIN_RESOLVER_ON_JAVA = [
@@ -70,11 +70,11 @@ module Testkit::Backend::Messages
         end
       end
 
-      def run(_ = nil)
+      def skip(_ = nil)
         named_entity('RunTest')
       end
 
-      def skip(reason = 'Skipping passing')
+      def run(reason = 'Skipping passing')
         named_entity('SkipTest', reason: reason)
       end
     end
