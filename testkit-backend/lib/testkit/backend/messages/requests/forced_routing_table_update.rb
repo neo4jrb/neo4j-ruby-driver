@@ -5,8 +5,12 @@ module Testkit::Backend::Messages
         named_entity('Driver', id: driverId)
       end
 
-      # def to_object
-      # end
+      def to_object
+        fetch(driverId).session(
+          bookmarks: bookmarks&.map { |bookmark| Neo4j::Driver::Bookmark.from(Array(bookmark)) },
+          database: database
+          )
+      end
     end
   end
 end
