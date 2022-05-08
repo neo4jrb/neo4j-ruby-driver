@@ -14,6 +14,7 @@ module Testkit::Backend::Messages
       }.transform_keys(&:to_s)
 
       SKIPPED_PATTERN = {
+        /stub\.bookmarks\.test_bookmarks_v.\.TestBookmarksV.\.test_sequence_of_writing_and_reading_tx/ => 'random timeouts',
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_on_routing_table_with_no_reader/ => 'needs routing table API support',
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_successfully_get_routing_table$/ => 'needs routing table API support',
         /stub.versions.test_versions.TestProtocolVersions.test_should_reject_server_using_verify_connectivity_bolt_4x./ => 'Skipped because it needs investigation',
@@ -31,7 +32,6 @@ module Testkit::Backend::Messages
 
       RUBY_DRIVER_PROBLEMS = [
         'neo4j.test_summary.TestSummary.test_address',
-        'stub.bookmarks.test_bookmarks_v4.TestBookmarksV4.test_sequence_of_writing_and_reading_tx',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_managed_tx_retry',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout',
         'stub.configuration_hints.test_connection_recv_timeout_seconds.TestRoutingConnectionRecvTimeout.test_timeout_unmanaged_tx',
