@@ -8,20 +8,11 @@ module Neo4j::Driver
         end
 
         def extract_query_keys(metadata)
-          keys_value = metadata['fields']
-          if keys_value.present?
-            keys = Util::QueryKeys.new(keys_value.size)
-            keys_value.values.each do |value|
-              keys << value
-            end
-            keys
-          else
-            Util::QueryKeys::EMPTY
-          end
+          metadata[:fields] || []
         end
 
         def extract_query_id(metadata)
-          metadata['qid']
+          metadata[:qid]
         end
 
         def extract_result_available_after(metadata)

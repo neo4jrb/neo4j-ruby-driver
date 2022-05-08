@@ -14,7 +14,7 @@ module Neo4j::Driver
             end
             if size > @remaining
               # (buffer ||= Buffer.new(capacity: size)) << super(@remaining)
-              (buffer ||= ::Async::IO::Buffer.new) << read_exactly(@remaining)
+              (buffer ||= ::Async::IO::Buffer.new) << @input.read_exactly(@remaining)
               size -= @remaining
               @remaining = 0
               read_exactly(size, buffer)

@@ -6,7 +6,7 @@ module Neo4j::Driver
         attr_reader :query_keys, :result_available_after, :query_id
 
         def initialize(metadata_extractor, connection, tx)
-          @query_keys = Util::QueryKeys::EMPTY
+          @query_keys = []
           @metadata_extractor = metadata_extractor
           @connection = connection
           @tx = tx

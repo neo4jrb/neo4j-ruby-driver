@@ -109,6 +109,7 @@ module Neo4j::Driver
                 pack(val)
               end
             when Enumerable
+              value = value.to_a
               pack_list_header(value.size)
               value.each(&method(:pack))
             else
@@ -183,7 +184,7 @@ module Neo4j::Driver
           def pack_map_header(size)
             if size < 0x10
               write_byte(TINY_MAP | size)
-            elsif size size < PLUS_2_TO_THE_8
+            elsif size < PLUS_2_TO_THE_8
               write_byte(MAP_8).write_byte(size)
             elsif size < PLUS_2_TO_THE_16
               write_byte(MAP_16).write_short(size)

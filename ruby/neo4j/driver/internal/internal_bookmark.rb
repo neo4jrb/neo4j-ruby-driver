@@ -1,19 +1,11 @@
 module Neo4j::Driver
   module Internal
     class InternalBookmark < Set
-      private
-
       EMPTY = new
-
-      public
 
       def initialize(enum = nil)
         super
         freeze
-      end
-
-      def empty
-        EMPTY
       end
 
       def values
@@ -21,6 +13,10 @@ module Neo4j::Driver
       end
 
       class << self
+        def empty
+          EMPTY
+        end
+
         def from(bookmarks)
           new(bookmarks&.compact)
         end
