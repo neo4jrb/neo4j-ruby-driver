@@ -10,7 +10,7 @@ module Neo4j::Driver
         @session = session
       end
 
-      def run(query, parameters = {}, **config)
+      def run(query, parameters = {}, config = {})
         Sync do
           cursor = @session.run_async(Query.new(query, **parameters), **TransactionConfig.new(**config)) do
             terminate_connection_on_thread_interrupt('Thread interrupted while running query in session')

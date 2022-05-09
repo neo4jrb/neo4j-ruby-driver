@@ -48,13 +48,18 @@ module Neo4j::Driver
 
           def complete_with_failure(error)
             @completion_listener.after_failure(error)
-            complete(extract_result_summary({}), error)
+            complete(extract_result_summary, error)
           end
 
           def complete_with_success(metadata)
-            @completion_listener.after_failure(metadata)
-            summary = extract_result_summary(metadata)
-            complete(summary, nil)
+            @completion_listener.after_success(metadata)
+            summary, exception =
+              begin
+                [extract_result_summary(**metadata), nil]
+              rescue Exceptions::Neo4jException => e
+                [extract_result_summary, e]
+              end
+            complete(summary, exception)
           end
 
           def success_has_more
@@ -96,7 +101,7 @@ module Neo4j::Driver
             @state == State::SUCEEDED_STATE || @state == State::FAILURE_STATE
           end
 
-          private def extract_result_summary(metadata)
+          private def extract_result_summary(**metadata)
             result_available_after = @run_response_handler.result_available_after
             @metadata_extractor.extract_summary(@query, @connection, result_available_after, metadata)
           end
@@ -129,7 +134,6 @@ module Neo4j::Driver
           private def complete(summary, error)
             # we first inform the summary consumer to ensure when streaming finished, summary is definitely available.
             @summary_consumer.call(summary, error)
-
             # record consumer use (nil, nil) to identify the end of record stream
             @record_consumer.call(nil, error)
             dispose

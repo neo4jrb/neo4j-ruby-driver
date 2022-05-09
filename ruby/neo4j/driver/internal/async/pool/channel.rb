@@ -21,13 +21,6 @@ module Neo4j::Driver
             @outbound_handler = Outbound::OutboundMessageHandler.new(stream_writer, message_format, logger)
             @common_message_reader = Messaging::Common::CommonMessageReader.new(stream_reader)
             connector.initialize_channel(self, protocol)
-            # @message_dispatcher.enqueue(Handlers::HelloResponseHandler.new(self, attributes[:protocol_version]))
-            # common_message_reader.read(@message_dispatcher)
-            # Async do
-            #   while @message_dispatcher.queued_handlers_count > 0 do
-            #     common_message_reader.read(@message_dispatcher)
-            #   end
-            # end
           end
 
           def close
@@ -42,15 +35,22 @@ module Neo4j::Driver
           def write_and_flush(message)
             write(message)
             @stream.flush
-            while @message_dispatcher.queued_handlers_count > 0 do
-              @common_message_reader.read(@message_dispatcher)
-            end
+            ensure_response_handling
           end
 
           private
 
           def bracketless(host)
             host.delete_prefix('[').delete_suffix(']')
+          end
+
+          def ensure_response_handling
+            return if @handling_active
+            @handling_active = true
+            while @message_dispatcher.queued_handlers_count > 0 do
+              @common_message_reader.read(@message_dispatcher)
+            end
+            @handling_active = false
           end
         end
       end
