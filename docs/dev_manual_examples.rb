@@ -215,72 +215,8 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 
 
 ######################################
-# Example 13. Service unavailable
-######################################
-
-def add_item
-  driver.session do |session|
-    session.write_transaction do |tx|
-      tx.run('CREATE (a:Item)')
-      true
-    end
-  rescue Neo4j::Driver::Exceptions::ServiceUnavailableException
-    false
-  end
-end
-
-######################################
-# Example 3.1. Session
-######################################
-
-def add_person(name)
-  driver.session do |session|
-    session.write_transaction do |tx|
-      tx.run('CREATE (a:Person {name: $name})', name: name)
-    end
-  end
-end
-
-######################################
-# Example 3.2. Auto-commit transaction
-######################################
-
-def add_person(name)
-  driver.session do |session|
-    session.run('CREATE (a:Person {name: $name})', name: name)
-  end
-end
-
-######################################
-# Example 3.3. Transaction function
-######################################
-
-def add_person(name)
-  driver.session do |session|
-    session.write_transaction { |tx| create_person_node(tx, name) }
-  end
-end
-
-def create_person_node(tx, name)
-  tx.run('CREATE (a:Person {name: $name})', name: name)
-end
-
-######################################
-# 3.2.3. Explicit transactions
-######################################
-
-def add_person(name)
-  driver.session(Neo4j::Driver::AccessMode::WRITE) do |session|
-    tx = session.begin_transaction
-    tx.run('CREATE (a:Person {name: $name})', name: name)
-    tx.commit
-  ensure
-    tx&.close
-  end
-end
-
-######################################
-# Example 3.4. Passing bookmarks between sessions
+# Cypher Workflow
+# Example 1. Passing bookmarks between sessions
 ######################################
 
 # Create a company node
@@ -349,7 +285,8 @@ def add_employ_and_make_friends
 end
 
 ######################################
-# Example 3.5. Read-write transaction
+# Cypher Workflow
+# Example 3. Read-write transaction
 ######################################
 
 def add_person(name)
@@ -368,10 +305,25 @@ def match_person_node(tx, name)
 end
 
 ######################################
-# Example 4.1. Map Neo4j types to native language types
+# Cypher Workflow
+# Example 4. Database selection on session creation
 ######################################
 
-# Neo4j type	  Ruby type
+driver.session(database: 'examples') do |session|
+  session.run("CREATE (a:Greeting {message: 'Hello, Example-Database'}) RETURN a").consume
+end
+
+driver.session(database: 'examples', default_access_mode: org.neo4j.driver.AccessMode::READ) do |session|
+  msg = session.run('MATCH (a:Greeting) RETURN a.message as msg').single.first['msg'].to_s
+  puts msg
+end
+
+######################################
+# Cypher Workflow
+# Example 5. Map Neo4j types to native language types
+######################################
+
+# Neo4j type    Ruby type
 # null          nil
 # List          Enumerable
 # Map           Hash
@@ -396,7 +348,34 @@ end
 # * A ruby DateTime passed as a parameter will always be implicitly converted to Time
 
 ######################################
-# Example 4.2. Consuming the stream
+# Session API - Simple Sessions 
+# Example 1. Transaction function
+######################################
+
+def add_person(name)
+  driver.session do |session|
+    session.write_transaction { |tx| create_person_node(tx, name) }
+  end
+end
+
+def create_person_node(tx, name)
+  tx.run('CREATE (a:Person {name: $name})', name: name)
+end
+
+######################################
+# Session API - Simple Session
+# Example 2. Auto-commit transaction
+######################################
+
+def add_person(name)
+  driver.session do |session|
+    session.run('CREATE (a:Person {name: $name})', name: name)
+  end
+end
+
+######################################
+# Session API - Simple Session
+# Example 3. Consuming the stream
 ######################################
 
 def people
@@ -410,7 +389,8 @@ def match_person_nodes(tx)
 end
 
 ######################################
-# Example 4.3. Retain results for further processing
+# Session API - Simple Session
+# Example 4. Retain results for further processing
 ######################################
 
 def add_employees(company_name)
@@ -431,4 +411,45 @@ end
 
 def match_person_nodes(tx)
   tx.run('MATCH (a:Person) RETURN a.name AS name').to_a
+end
+
+######################################
+# Example 13. Service unavailable
+######################################
+
+def add_item
+  driver.session do |session|
+    session.write_transaction do |tx|
+      tx.run('CREATE (a:Item)')
+      true
+    end
+  rescue Neo4j::Driver::Exceptions::ServiceUnavailableException
+    false
+  end
+end
+
+######################################
+# Example 3.1. Session
+######################################
+
+def add_person(name)
+  driver.session do |session|
+    session.write_transaction do |tx|
+      tx.run('CREATE (a:Person {name: $name})', name: name)
+    end
+  end
+end
+
+######################################
+# 3.2.3. Explicit transactions
+######################################
+
+def add_person(name)
+  driver.session(Neo4j::Driver::AccessMode::WRITE) do |session|
+    tx = session.begin_transaction
+    tx.run('CREATE (a:Person {name: $name})', name: name)
+    tx.commit
+  ensure
+    tx&.close
+  end
 end
