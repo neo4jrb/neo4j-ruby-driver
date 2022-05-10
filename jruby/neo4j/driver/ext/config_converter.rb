@@ -19,6 +19,9 @@ module Neo4j
           when 'encryption'
             method = :without_encryption unless value
             value = nil
+          when 'driver_metrics'
+            method = :without_driver_metrics unless value
+            value = nil
           when 'timeout'
             value = java.time.Duration.ofMillis(Driver::Internal::DurationNormalizer.milliseconds(value))
           when /time(out)?$/
