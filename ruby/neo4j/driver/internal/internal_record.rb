@@ -19,7 +19,7 @@ module Neo4j
         end
 
         def index(key)
-          @keys.index(key.to_s) || (raise StandardError, "Unknown key: #{key}")
+          @keys.index(key.to_s)
         end
 
         def to_h
