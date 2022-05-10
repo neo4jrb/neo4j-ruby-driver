@@ -16,8 +16,8 @@ module Neo4j
           method = :"with_#{key}"
           unit = nil
           case key.to_s
-          when 'encryption'
-            method = :without_encryption unless value
+          when 'encryption', 'driver_metrics'
+            method = :"without_#{key}" unless value
             value = nil
           when 'timeout'
             value = java.time.Duration.ofMillis(Driver::Internal::DurationNormalizer.milliseconds(value))
