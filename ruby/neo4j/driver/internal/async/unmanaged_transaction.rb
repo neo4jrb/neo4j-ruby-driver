@@ -35,21 +35,17 @@ module Neo4j::Driver
         end
 
         def begin_async(initial_bookmark, config)
-          @protocol.begin_transaction(@connection, initial_bookmark, config).handle do |_ignore, begin_error|
-            if begin_error
-              case begin_error
-              when Neo4j::Driver::Exceptions::AuthorizationExpiredException
-                @connection.terminate_and_release(Neo4j::Driver::Exceptions::AuthorizationExpiredException::DESCRIPTION)
-              when Neo4j::Driver::Exceptions::ConnectionReadTimeoutException
-                @connection.terminate_and_release(begin_error.get_message)
-              else
-                @connection.release
-              end
-
-              raise Util::Futures.as_completion_exception(begin_error)
-            end
-            self
-          end
+          @protocol.begin_transaction(@connection, initial_bookmark, config)
+          self
+        rescue Neo4j::Driver::Exceptions::AuthorizationExpiredException
+          @connection.terminate_and_release(Neo4j::Driver::Exceptions::AuthorizationExpiredException::DESCRIPTION)
+          raise
+        rescue Neo4j::Driver::Exceptions::ConnectionReadTimeoutException => begin_error
+          @connection.terminate_and_release(begin_error.message)
+          raise
+        rescue
+          @connection.release
+          raise
         end
 
         def close_async(commit = false, complete_with_null_if_not_open = true)
@@ -123,7 +119,7 @@ module Neo4j::Driver
         end
 
         def open?
-          OPEN_STATES.include?(@lock.synchronized { @state })
+          OPEN_STATES.include?(@lock.synchronize { @state })
         end
 
         def mark_terminated(cause)

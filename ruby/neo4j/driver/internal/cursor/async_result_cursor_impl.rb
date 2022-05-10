@@ -10,7 +10,7 @@ module Neo4j::Driver
         end
 
         def keys
-          @run_handler.query_keys.keys
+          @run_handler.query_keys
         end
 
         def single_async

@@ -31,12 +31,7 @@ module Neo4j::Driver
           end
 
           def begin_transaction(connection, bookmark, config)
-            begin
-              verify_database_name_before_transaction(connection.database_name)
-            rescue Exception => error
-              Util::Futures.failed_future(error)
-            end
-
+            verify_database_name_before_transaction(connection.database_name)
             begin_message = Request::BeginMessage.new(bookmark, config, connection.database_name, connection.mode, connection.impersonated_user)
             connection.write_and_flush(begin_message, Handlers::BeginTxResponseHandler.new)
           end

@@ -84,7 +84,7 @@ module Neo4j::Driver
           end
 
           def pull_all_failure_async
-            pull_all_async.handle(-> (_ignore, error) { error })
+            pull_all_async
           end
 
           def pre_populate_records

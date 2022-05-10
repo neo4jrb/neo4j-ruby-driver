@@ -30,30 +30,12 @@ module Neo4j::Driver
 
         def begin_transaction_async(mode = @mode, **config)
           ensure_session_is_open
-
-          # create a chain that acquires connection and starts a transaction
-          new_transaction_stage =
-            ensure_no_open_tx_before_starting_tx
+          ensure_no_open_tx_before_starting_tx
           acquire_connection(mode).then do |connection|
             ImpersonationUtil.ensure_impersonation_support(connection, connection.impersonated_user)
             tx = UnmanagedTransaction.new(connection, @bookmark_holder, @fetch_size)
             tx.begin_async(@bookmark_holder.bookmark, config)
-          end
-
-          # update the reference to the only known transaction
-          current_transaction_stage = @transaction_stage
-
-          # ignore errors from starting new transaction
-          @transaction_stage = new_transaction_stage.rescue {}.then_flat do |tx|
-            if tx
-              # new transaction started, keep reference to it
-              Concurrent::Promises.fulfilled_future(tx)
-            else
-              current_transaction_stage
-            end
-          end
-
-          new_transaction_stage
+          end&.tap { |new_transaction| @transaction = new_transaction }
         end
 
         def reset_async
@@ -131,8 +113,8 @@ module Neo4j::Driver
         end
 
         def ensure_no_open_tx(error_message)
-          existing_transaction_or_null.then do |tx|
-            raise Neo4j::Driver::Exceptions::TransactionNestingException.new(error_message) if tx
+          existing_transaction_or_null&.then do
+            raise Neo4j::Driver::Exceptions::TransactionNestingException.new(error_message)
           end
         end
 

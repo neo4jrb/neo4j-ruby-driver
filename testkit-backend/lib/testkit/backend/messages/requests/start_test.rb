@@ -18,6 +18,7 @@ module Testkit::Backend::Messages
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_on_routing_table_with_no_reader/ => 'needs routing table API support',
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_successfully_get_routing_table$/ => 'needs routing table API support',
         /stub\.routing\.test_routing_v4x.\.RoutingV4x.\.test_should_pass_bookmark_from_tx_to_tx_using_tx_run/ => 'random timeouts',
+        /stub\.routing\.test_routing_v4x4\.RoutingV4x4\.test_should_send_system_bookmark_with_route/ => 'random timeouts',
         /stub.versions.test_versions.TestProtocolVersions.test_should_reject_server_using_verify_connectivity_bolt_4x./ => 'Skipped because it needs investigation',
 
         /test_should_enforce_pool_size_per_cluster_member/ => '???',

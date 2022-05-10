@@ -69,7 +69,7 @@ module Neo4j::Driver
             end
 
             # summary consumer use (null, null) to identify done handling of success with has_more
-            @summary_consumer.accept(nil, nil)
+            @summary_consumer.call(nil, nil)
           end
 
           def handle_record(fields)
