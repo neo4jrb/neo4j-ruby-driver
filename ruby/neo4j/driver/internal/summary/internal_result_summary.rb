@@ -7,7 +7,7 @@ module Neo4j::Driver::Internal::Summary
     alias profile? profile
 
     def counters
-      super || InternalSummaryCounters.EMPTY_STATS
+      super || InternalSummaryCounters::EMPTY_STATS
     end
 
     def notifications

@@ -113,7 +113,7 @@ module Neo4j::Driver
               pack_list_header(value.size)
               value.each(&method(:pack))
             else
-              raise UnPackable, "Cannot pack object #{value}"
+              raise Exceptions::ClientException, "Unable to convert #{value.class.name} to Neo4j Value."
             end
           end
 
