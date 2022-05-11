@@ -349,7 +349,7 @@ end
 
 ######################################
 # Session API - Simple Sessions 
-# Example 1. Transaction function
+# Transaction function
 ######################################
 
 def add_person(name)
@@ -364,7 +364,7 @@ end
 
 ######################################
 # Session API - Simple Session
-# Example 2. Auto-commit transaction
+# Auto-commit transaction
 ######################################
 
 def add_person(name)
@@ -375,7 +375,7 @@ end
 
 ######################################
 # Session API - Simple Session
-# Example 3. Consuming the stream
+# Consuming the stream
 ######################################
 
 def people
@@ -390,7 +390,7 @@ end
 
 ######################################
 # Session API - Simple Session
-# Example 4. Retain results for further processing
+# Retain results for further processing
 ######################################
 
 def add_employees(company_name)
@@ -411,6 +411,21 @@ end
 
 def match_person_nodes(tx)
   tx.run('MATCH (a:Person) RETURN a.name AS name').to_a
+end
+
+######################################
+# Session API - Transaction configuration
+# Transaction Timeout
+######################################
+
+def add_person(name)
+  driver.session do |session|
+    session.write_transaction(max_transaction_retry_time: 5.seconds) { |tx| create_person_node(tx, name) }
+  end
+end
+
+def create_person_node(tx, name)
+  tx.run('CREATE (a:Person {name: $name})', name: name)
 end
 
 ######################################
