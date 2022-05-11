@@ -11,6 +11,10 @@ module Testkit::Backend::Messages
                    connection_timeout: timeout_duration(connectionTimeoutMs),
                    fetch_size: fetchSize,
                    driver_metrics: true,
+                   encryption: encrypted,
+                   trust_strategy: trustedCertificates,
+                   connection_acquisition_timeout: timeout_duration(connectionAcquisitionTimeoutMs),
+                   liveness_check_timeout_ms: timeout_duration(livenessCheckTimeoutMs),
                    max_transaction_retry_time: timeout_duration(maxTxRetryTimeMs),
                    max_connection_pool_size: maxConnectionPoolSize }
         config = config.merge({ resolver: method(:callback_resolver) }) if resolverRegistered
