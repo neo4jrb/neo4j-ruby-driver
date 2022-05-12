@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        delete(driverId).tap(&:close)
+        delete(driver_id).tap(&:close)
       end
     end
   end

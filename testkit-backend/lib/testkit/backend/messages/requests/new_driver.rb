@@ -6,20 +6,20 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        auth_token = Request.object_from(authorizationToken)
+        auth_token = Request.object_from(authorization_token)
         config = {
-          user_agent: userAgent,
-          connection_timeout: timeout_duration(connectionTimeoutMs),
-          fetch_size: fetchSize,
+          user_agent: user_agent,
+          connection_timeout: timeout_duration(connection_timeout_ms),
+          fetch_size: fetch_size,
           driver_metrics: true,
-          max_transaction_retry_time: timeout_duration(maxTxRetryTimeMs),
-          connection_liveness_check_timeout: timeout_duration(livenessCheckTimeoutMs),
-          max_connection_pool_size: maxConnectionPoolSize,
-          connection_acquisition_timeout: timeout_duration(connectionAcquisitionTimeoutMs),
+          max_transaction_retry_time: timeout_duration(max_tx_retry_time_ms),
+          connection_liveness_check_timeout: timeout_duration(liveness_check_timeout_ms),
+          max_connection_pool_size: max_connection_pool_size,
+          connection_acquisition_timeout: timeout_duration(connection_acquisition_timeout_ms),
           encrypted: encrypted,
         }
-        config = config.merge({ resolver: method(:callback_resolver) }) if resolverRegistered
-        if domainNameResolverRegistered
+        config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
+        if domain_name_resolver_registered
           Neo4j::Driver::GraphDatabase.internal_driver(
             uri, auth_token, config, Neo4j::Driver::Internal::DriverFactory.new(method(:domain_name_resolver)))
         else

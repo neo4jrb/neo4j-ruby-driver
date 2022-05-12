@@ -20,7 +20,7 @@ module Testkit::Backend::Messages
       private
 
       def summary
-        @object ||= fetch(resultId).consume
+        @object ||= fetch(result_id).consume
       end
 
       def to_map(o, *methods)

@@ -3,7 +3,7 @@ module Testkit::Backend::Messages
     class GetConnectionPoolMetrics < Request
       def process
         uri = URI(address)
-        pool_metrics = fetch(driverId).metrics.connection_pool_metrics.find do |pm|
+        pool_metrics = fetch(driver_id).metrics.connection_pool_metrics.find do |pm|
                          pm.address.host == uri.host && pm.address.port ==  uri.port
                        end
 

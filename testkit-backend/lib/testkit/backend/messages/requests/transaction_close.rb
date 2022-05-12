@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        fetch(txId).tap(&:close)
+        fetch(tx_id).tap(&:close)
       end
     end
   end

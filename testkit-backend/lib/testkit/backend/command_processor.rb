@@ -1,6 +1,8 @@
 module Testkit
   module Backend
     class CommandProcessor
+      require 'active_support/core_ext/string'
+
       def initialize(socket)
         @socket = socket
         @buffer = String.new
@@ -20,6 +22,7 @@ module Testkit
       end
 
       def process_request(request)
+        request = JSON.parse(request, symbolize_names: true).deep_transform_keys{|key| key.to_s.underscore}.to_json
         Messages::Request.from(JSON.parse(request, symbolize_names: true), self).tap do |message|
           process_response(message.process_request)
         end

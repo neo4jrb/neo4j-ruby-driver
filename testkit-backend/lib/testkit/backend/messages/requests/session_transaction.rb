@@ -2,7 +2,7 @@ module Testkit::Backend::Messages
   module Requests
     class SessionTransaction < Request
       def process
-        fetch(sessionId).send(method, metadata: txMeta, timeout: timeout_duration) do |tx|
+        fetch(session_id).send(method, metadata: tx_meta, timeout: timeout_duration) do |tx|
           tx_id = store(tx)
           @command_processor.process_response(named_entity('RetryableTry', id: tx_id))
           until @command_processor.process(blocking: true).is_a?(Retryable) do
