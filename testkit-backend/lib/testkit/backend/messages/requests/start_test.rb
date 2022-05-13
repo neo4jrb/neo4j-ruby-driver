@@ -30,6 +30,11 @@ module Testkit::Backend::Messages
         /test_routing_v.*\.RoutingV.*\.test_should_revert_to_initial_router_if_known_router_throws_protocol_errors/, #
         /test_versions\.TestProtocolVersions\.test_should_reject_server_using_verify_connectivity_bolt_3x0/,
         /test_multi_db_various_databases/,
+
+      # After features enabled
+        /stub\.authorization\.test_authorization\.TestAuthenticationSchemes\.test_custom_scheme_empty/,
+        /stub\.iteration\.test_result_list\.TestResultList\.test_.*_result_list_pulls_all_records_at_once.*/,
+        /stub.routing.test_no_routing_v4x1.NoRoutingV4x1.test_should_pull_custom_size_and_then_all_using_session_configuration/,
       ]
 
       RUBY_DRIVER_PROBLEMS = [
