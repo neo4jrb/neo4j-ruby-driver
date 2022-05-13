@@ -4,13 +4,13 @@ module Testkit::Backend::Messages
       def process
         named_entity('Summary',
                      **{
-                       serverInfo: to_map(summary.server, :protocol_version, :address, :agent),
+                       server_info: to_map(summary.server, :protocol_version, :address, :agent),
                        counters: to_map(summary.counters, *%w[constraints_added constraints_removed contains_system_updates contains_updates indexes_added
           indexes_removed labels_added labels_removed nodes_created nodes_deleted properties_set relationships_created
           relationships_deleted system_updates]),
                        query: { text: summary.query.text, parameters: summary.query.parameters.transform_values(&method(:to_testkit)) },
                        database: summary.database.name,
-                       queryType: summary.query_type,
+                       query_type: summary.query_type,
                        notifications: summary.notifications.then { |ns| ns.present? ? notifications(ns) : nil },
                        plan: summary.has_plan ? summary.plan.then { |p| { operator_type: p.operator_type } } : nil,
                        profile: summary.has_profile ? summary.profile.then { |p| { db_hits: p.db_hits } } : nil,
