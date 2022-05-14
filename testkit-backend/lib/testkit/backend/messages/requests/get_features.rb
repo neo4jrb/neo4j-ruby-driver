@@ -4,7 +4,7 @@ module Testkit::Backend::Messages
       def process
         named_entity('FeatureList', features: [
           'Feature:API:Driver.IsEncrypted',
-          'Feature:API:Result.Peek',
+          # 'Feature:API:Result.Peek', # TODO works for java
           'Feature:API:Result.List',
           'Feature:API:Result.Single',
           'Feature:API:Liveness.Check',
@@ -26,7 +26,7 @@ module Testkit::Backend::Messages
           'AuthorizationExpiredTreatment',
           # 'Optimization:ConnectionReuse', #
           'Optimization:EagerTransactionBegin',
-          'Optimization:ImplicitDefaultArguments',
+          # 'Optimization:ImplicitDefaultArguments', # TODO works for java
           # 'Optimization:MinimalResets', #
           'Optimization:PullPipelining',
           'Optimization:ResultListFetchAll',
