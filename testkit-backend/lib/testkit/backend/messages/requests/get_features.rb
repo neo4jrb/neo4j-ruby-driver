@@ -9,7 +9,7 @@ module Testkit::Backend::Messages
           'Feature:API:Result.Single',
           'Feature:API:Liveness.Check',
           'Feature:API:SSLConfig',
-          'Feature:API:SSLSchemes',
+          # 'Feature:API:SSLSchemes', # TODO works for java
           'Feature:Auth:Bearer',
           'Feature:Auth:Custom',
           'Feature:Auth:Kerberos',
@@ -22,7 +22,7 @@ module Testkit::Backend::Messages
           'Feature:Impersonation',
           # 'Feature:TLS:1.1', # probably not supported by jruby
           'Feature:TLS:1.2',
-          'Feature:TLS:1.3',
+          # 'Feature:TLS:1.3', # TODO works for java
           'AuthorizationExpiredTreatment',
           # 'Optimization:ConnectionReuse', #
           'Optimization:EagerTransactionBegin',
