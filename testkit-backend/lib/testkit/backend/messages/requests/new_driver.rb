@@ -16,7 +16,7 @@ module Testkit::Backend::Messages
           connection_liveness_check_timeout: timeout_duration(livenessCheckTimeoutMs),
           max_connection_pool_size: maxConnectionPoolSize,
           connection_acquisition_timeout: timeout_duration(connectionAcquisitionTimeoutMs),
-          encrypted: encrypted,
+          encryption: encrypted,
         }
         config = config.merge({ resolver: method(:callback_resolver) }) if resolverRegistered
         if domainNameResolverRegistered
