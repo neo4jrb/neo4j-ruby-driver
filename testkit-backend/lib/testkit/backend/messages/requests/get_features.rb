@@ -4,11 +4,11 @@ module Testkit::Backend::Messages
       def process
         named_entity('FeatureList', features: [
           'Feature:API:Driver.IsEncrypted',
-          'Feature:API:Result.Peek', # TODO works for java
+          # 'Feature:API:Result.Peek', # TODO works for java
           'Feature:API:Result.List',
           'Feature:API:Result.Single',
           'Feature:API:Liveness.Check',
-          # 'Feature:API:SSLConfig', # TODO works for java
+          'Feature:API:SSLConfig', # TODO works for java
           # 'Feature:API:SSLSchemes', # TODO works for java
           'Feature:Auth:Bearer',
           'Feature:Auth:Custom',
