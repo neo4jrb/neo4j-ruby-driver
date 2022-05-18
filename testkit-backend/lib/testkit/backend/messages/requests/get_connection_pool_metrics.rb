@@ -3,7 +3,7 @@ module Testkit::Backend::Messages
     class GetConnectionPoolMetrics < Request
       def process
         uri = Neo4j::Driver::Internal::BoltServerAddress.uri_from(address)
-        pool_metrics = fetch(driverId).metrics.connection_pool_metrics.find do |pm|
+        pool_metrics = fetch(driver_id).metrics.connection_pool_metrics.find do |pm|
           pm_address = pm.address
           pm_address.host == uri.host && pm_address.port == uri.port
         end
