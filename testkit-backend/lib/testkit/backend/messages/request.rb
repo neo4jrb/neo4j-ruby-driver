@@ -54,7 +54,7 @@ module Testkit::Backend::Messages
 
     def named_entity(name, **hash)
       { name: name }.tap do |entity|
-        entity[:data] = hash unless hash.empty?
+        entity[:data] = hash.deep_transform_keys{|key| key.to_s.camelize(:lower)} unless hash.empty?
       end
     end
 
