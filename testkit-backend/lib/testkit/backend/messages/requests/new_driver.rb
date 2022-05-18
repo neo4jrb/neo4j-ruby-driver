@@ -12,11 +12,11 @@ module Testkit::Backend::Messages
           connection_timeout: timeout_duration(connection_timeout_ms),
           fetch_size: fetch_size,
           driver_metrics: true,
-          max_transaction_retry_time: timeout_duration(max_tx_retry_time_ms),
-          connection_liveness_check_timeout: timeout_duration(liveness_check_timeout_ms),
-          max_connection_pool_size: max_connection_pool_size,
-          connection_acquisition_timeout: timeout_duration(connection_acquisition_timeout_ms),
-          encrypted: encrypted,
+          max_transaction_retry_time: timeout_duration(maxTxRetryTimeMs),
+          connection_liveness_check_timeout: timeout_duration(livenessCheckTimeoutMs),
+          max_connection_pool_size: maxConnectionPoolSize,
+          connection_acquisition_timeout: timeout_duration(connectionAcquisitionTimeoutMs),
+          encryption: encrypted,
         }
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         if domain_name_resolver_registered
