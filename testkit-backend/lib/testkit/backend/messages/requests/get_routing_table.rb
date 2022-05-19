@@ -10,7 +10,7 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        @obj ||= fetch(driverId).session_factory.connection_provider.routing_table_registry
+        @obj ||= fetch(driver_id).session_factory.connection_provider.routing_table_registry
                                 .routing_table_handler(database).routing_table
       end
     end

@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        delete(sessionId).tap(&:close)
+        delete(session_id).tap(&:close)
       end
     end
   end
