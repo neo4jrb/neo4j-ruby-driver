@@ -1,7 +1,6 @@
 module Testkit
   module Backend
     class CommandProcessor
-
       def initialize(socket)
         @socket = socket
         @buffer = String.new

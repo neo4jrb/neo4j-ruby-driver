@@ -5,7 +5,7 @@ module Testkit::Backend::Messages
     attr_reader :data
 
     def self.from(request, objects = nil)
-      Requests.const_get(request.with_indifferent_access[:name]).new(request.with_indifferent_access[:data].transform_keys(&:underscore), objects)
+      Requests.const_get(request[:name]).new(request[:data].transform_keys{|key| key.to_s.underscore}, objects)
     end
 
     def self.object_from(request)
