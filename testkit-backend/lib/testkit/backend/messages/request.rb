@@ -5,7 +5,7 @@ module Testkit::Backend::Messages
     attr_reader :data
 
     def self.from(request, objects = nil)
-      Requests.const_get(request[:name]).new(request[:data], objects)
+      Requests.const_get(request[:name]).new(request[:data].transform_keys{|key| key.to_s.underscore}, objects)
     end
 
     def self.object_from(request)
@@ -54,7 +54,7 @@ module Testkit::Backend::Messages
 
     def named_entity(name, **hash)
       { name: name }.tap do |entity|
-        entity[:data] = hash unless hash.empty?
+        entity[:data] = hash.transform_keys{|key| key.to_s.camelize(:lower)} unless hash.empty?
       end
     end
 

@@ -61,15 +61,15 @@ module Testkit::Backend::Messages
       ]
 
       def process
-        if SKIPPED_TESTS.key?(testName)
-          skip(SKIPPED_TESTS[testName])
-        elsif reason = SKIPPED_PATTERN.find { |expr, _| testName.match?(expr) }&.last
+        if SKIPPED_TESTS.key?(test_name)
+          skip(SKIPPED_TESTS[test_name])
+        elsif reason = SKIPPED_PATTERN.find { |expr, _| test_name.match?(expr) }&.last
           skip(reason)
-        elsif BACKEND_INCOMPLETE.any?(&testName.method(:match?))
+        elsif BACKEND_INCOMPLETE.any?(&test_name.method(:match?))
           skip('Backend Incomplete')
-        elsif RUBY_DRIVER_PROBLEMS.include?(testName)
+        elsif RUBY_DRIVER_PROBLEMS.include?(test_name)
           skip('ruby driver problem')
-        elsif RUBY_PLATFORM == 'java' && DOMAIN_RESOLVER_ON_JAVA.any?(&testName.method(:match?))
+        elsif RUBY_PLATFORM == 'java' && DOMAIN_RESOLVER_ON_JAVA.any?(&test_name.method(:match?))
           skip('Domain Resolver hard to implement on jruby due to default visibility and protected not implemented correctly in jruby')
         else
           run

@@ -2,13 +2,13 @@ module Testkit::Backend::Messages
   module Requests
     class SessionRun < Request
       def response
-        Responses::Result.new(fetch(sessionId).run(cypher, to_params, to_config))
+        Responses::Result.new(fetch(session_id).run(cypher, to_params, to_config))
       end
 
       private
 
       def to_config
-        { metadata: txMeta, timeout: timeout_duration }
+        { metadata: tx_meta, timeout: timeout_duration }
       end
     end
   end
