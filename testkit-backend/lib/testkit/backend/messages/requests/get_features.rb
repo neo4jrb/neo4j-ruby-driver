@@ -22,7 +22,7 @@ module Testkit::Backend::Messages
           'Feature:Impersonation',
           # 'Feature:TLS:1.1', # TODO works for java, probably not supported by jruby
           'Feature:TLS:1.2',
-          # 'Feature:TLS:1.3', # TODO works for java
+          'Feature:TLS:1.3',
           'AuthorizationExpiredTreatment',
           # 'Optimization:ConnectionReuse', #
           'Optimization:EagerTransactionBegin',
