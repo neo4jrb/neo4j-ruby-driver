@@ -21,6 +21,13 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq param }
     end
 
+    context 'when DateTime as plain Time' do
+      let(:param) { Time.now }
+
+      it { is_expected.to be_a Time }
+      it { is_expected.to eq param }
+    end
+
     context 'when DateTime as DateTime' do
       let(:param) { DateTime.now }
 

@@ -43,13 +43,9 @@ module Neo4j::Driver::Internal::Util
       end
 
       def fatal?(error)
-        if error.is_a?(Neo4j::Driver::Exceptions::Neo4jException)
-          error_code = error.code
-          return true if protocol_violation_error?(error_code)
-          return false if client_or_transient_error?(error_code)
-        end
-
-        true
+        !error.is_a?(Neo4j::Driver::Exceptions::Neo4jException) ||
+          protocol_violation_error?(error.code) ||
+          !client_or_transient_error?(error.code)
       end
 
       def rethrow_async_exception(exception)

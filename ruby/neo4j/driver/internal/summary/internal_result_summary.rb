@@ -3,8 +3,8 @@
 module Neo4j::Driver::Internal::Summary
   class InternalResultSummary < Struct.new(:query, :server, :database, :query_type, :counters, :plan, :profile,
                                            :notifications, :result_available_after, :result_consumed_after)
-    alias plan? plan
-    alias profile? profile
+    alias has_plan? plan
+    alias has_profile? profile
 
     def counters
       super || InternalSummaryCounters::EMPTY_STATS

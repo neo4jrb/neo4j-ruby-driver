@@ -57,7 +57,9 @@ module Neo4j::Driver
 
             # we should not continue using channel after a fatal error
             # fire error event back to the pipeline and avoid sending RESET
-            return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.fatal?(current_error)
+
+            # return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.fatal?(current_error)
+            raise current_error if Util::ErrorUtil.fatal?(current_error) # TODO clarify
 
             if current_error.is_a?(Exceptions::AuthorizationExpiredException)
               Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(current_error, @channel)

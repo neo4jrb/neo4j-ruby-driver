@@ -82,7 +82,7 @@ module Neo4j::Driver
           end
 
           def discard_all
-            connection.writeAndFlush(Messaging::Request::DiscardMessage.new_discard_all_message(@run_response_handler.query_id), self)
+            @connection.write_and_flush(Messaging::Request::DiscardMessage.new_discard_all_message(@run_response_handler.query_id), self)
           end
 
           def install_summary_consumer(&summary_consumer)

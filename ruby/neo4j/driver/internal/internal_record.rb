@@ -14,12 +14,8 @@ module Neo4j
         end
 
         def [](key)
-          field_index = key.is_a?(Integer) ? key : index(key)
+          field_index = key.is_a?(Integer) ? key : @keys.index(key.to_sym)
           @values[field_index] if field_index
-        end
-
-        def index(key)
-          @keys.index(key.to_s)
         end
 
         def to_h

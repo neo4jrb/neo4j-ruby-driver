@@ -8,34 +8,38 @@ module Neo4j::Driver
       end
 
       def commit
-        org.neo4j.driver.internal.util.Futures.blockingGet(@tx.commitAsync) do
-          terminateConnectionOnThreadInterrupt("Thread interrupted while committing the transaction")
-        end
+        @tx.commit_async
+        # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.commit_async) do
+        #   terminate_connection_on_thread_interrupt('Thread interrupted while committing the transaction')
+        # end
       end
 
       def rollback
-        org.neo4j.driver.internal.util.Futures.blockingGet(@tx.rollbackAsync) do
-          terminateConnectionOnThreadInterrupt("Thread interrupted while rolling back the transaction")
-        end
+        @tx.rollback_async
+        # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.rollback_async) do
+        #   terminate_connection_on_thread_interrupt('Thread interrupted while rolling back the transaction')
+        # end
       end
 
       def close
-        org.neo4j.driver.internal.util.Futures.blockingGet(@tx.closeAsync) do
-          terminateConnectionOnThreadInterrupt("Thread interrupted while closing the transaction")
-        end
+        @tx.close_async
+      # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.close_async) do
+      #     terminate_connection_on_thread_interrupt('Thread interrupted while closing the transaction')
+      #   end
       end
 
-      def run(query, parameters = {})
-        cursor = org.neo4j.driver.internal.util.Futures.blockingGet(@tx.runAsync(to_statement(query, parameters))) do
-          terminateConnectionOnThreadInterrupt("Thread interrupted while running query in transaction")
-        end
+      def run(query, **parameters)
+        cursor = @tx.run_async(Query.new(query, **parameters))
+        # cursor = org.neo4j.driver.internal.util.Futures.blockingGet(@tx.run_async(to_statement(query, parameters))) do
+        #   terminate_connection_on_thread_interrupt('Thread interrupted while running query in transaction')
+        # end
         InternalResult.new(@tx.connection, cursor)
       end
 
       private
 
-      def terminateConnectionOnThreadInterrupt(reason)
-        @tx.connection.terminateAndRelease(reason)
+      def terminate_connection_on_thread_interrupt(reason)
+        @tx.connection.terminate_and_release(reason)
       end
     end
   end
