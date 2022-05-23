@@ -12,10 +12,12 @@ module Testkit
             value_entity('CypherInt', object)
           when Float
             value_entity('CypherFloat', float_encode(object))
-          when Neo4j::Driver::Types::Bytes
-            value_entity('CypherBytes', object.bytes.map { |byte| "%02x" % byte }.join(' '))
           when String
-            value_entity('CypherString', object)
+            if object.encoding == Encoding::BINARY
+              value_entity('CypherBytes', object.bytes.map { |byte| "%02x" % byte }.join(' '))
+            else
+              value_entity('CypherString', object)
+            end
           when Symbol
             to_testkit(object.to_s)
           when Neo4j::Driver::Types::Path
