@@ -4,6 +4,9 @@
 
 ######################################
 # Getting Started
+######################################
+
+######################################
 # Example 4. Hello World
 ######################################
 
@@ -21,6 +24,9 @@ end # driver auto closed at the end of the block if one given
 
 ######################################
 # Client Application
+######################################
+
+######################################
 # Example 1. The driver lifecycle
 ######################################
 
@@ -29,7 +35,6 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 driver.close
 
 ######################################
-# Client Application
 # Example 2. Custom Address Resolver
 ######################################
 
@@ -50,12 +55,7 @@ def add_person(name)
 end
 
 ######################################
-# Client Application
-# Example 3. Connecting to a service
-######################################
-
-######################################
-# Example 3.1 Neo4j Aura Secured with full certificate
+# Table 3 Neo4j Aura Secured with full certificate
 ######################################
 
 uri = 'neo4j+s://graph.example.com:7687'
@@ -69,7 +69,7 @@ uri = 'neo4j://graph.example.com:7687'
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: true)
 
 ######################################
-# Example 3.2 Neo4j 4.x Unsecured
+# Table 4 Neo4j 4.x Unsecured
 ######################################
 
 uri = 'neo4j://graph.example.com:7687'
@@ -77,7 +77,7 @@ uri = 'neo4j://graph.example.com:7687'
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
 
 ######################################
-# Example 3.3 Neo4j 4.x Secured with full certificate
+# Table 5 Neo4j 4.x Secured with full certificate
 ######################################
 
 uri = 'neo4j+s://graph.example.com:7687'
@@ -91,7 +91,7 @@ uri = 'neo4j://graph.example.com:7687'
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: true)
 
 ######################################
-# Example 3.4 Neo4j 4.x Secured with self-signed certificate
+# Table 6 Neo4j 4.x Secured with self-signed certificate
 ######################################
 
 uri = 'neo4j+ssc://graph.example.com:7687'
@@ -103,10 +103,10 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 uri = 'neo4j://graph.example.com:7687'
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
-                                             trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates, encryption: true)
+                                             trust_strategy: { strategy: :trust_all_certificates }, encryption: true)
 
 ######################################
-# Example 3.5 Neo4j 3.x Secured with full certificate
+# Table 7 Neo4j 3.x Secured with full certificate
 ######################################
 
 uri = 'neo4j+s://graph.example.com:7687'
@@ -120,7 +120,7 @@ uri = 'neo4j://graph.example.com:7687'
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: true)
 
 ######################################
-# Example 3.6 Neo4j 3.x Secured with self-signed certificate
+# Table 8 Neo4j 3.x Secured with self-signed certificate
 ######################################
 
 uri = 'neo4j+ssc://graph.example.com:7687'
@@ -132,11 +132,10 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
 uri = 'neo4j://graph.example.com:7687'
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
-                                             trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates, encryption: true)
-
+                                             trust_strategy: { strategy: :trust_all_certificates }, encryption: true)
 
 ######################################
-# Example 3.7 Neo4j 3.x Unsecured
+# Table 9 Neo4j 3.x Unsecured
 ######################################
 
 uri = 'neo4j://graph.example.com:7687'
@@ -144,28 +143,24 @@ uri = 'neo4j://graph.example.com:7687'
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
 
 ######################################
-# Client Application
 # Example 4. Basic authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password))
 
 ######################################
-# Client Application
 # Example 5. Kerberos authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.kerberos(ticket))
 
 ######################################
-# Client Application
 # Example 6. Bearer authentication
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.bearer(bearer_token))
 
 ######################################
-# Client Application
 # Example 7. Custom authentication
 ######################################
 
@@ -173,7 +168,6 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.cust
                                                                                    scheme, parameters))
 
 ######################################
-# Client Application
 # Example 8. Configure connection pool
 ######################################
 
@@ -183,7 +177,6 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
                                              connection_acquisition_timeout: 2.minutes)
 
 ######################################
-# Client Application
 # Example 9. Configure connection timeout
 ######################################
 
@@ -191,14 +184,12 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
                                              connection_timeout: 15.seconds)
 
 ######################################
-# Client Application
 # Example 10. Unencrypted configuration
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password), encryption: false)
 
 ######################################
-# Client Application
 # Example 11. Configure maximum retry time
 ######################################
 
@@ -206,81 +197,18 @@ driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basi
                                              max_transaction_retry_time: 15.seconds)
 
 ######################################
-# Client Application
 # Example 12. Configure trusted certificates
 ######################################
 
 driver = Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, password),
                                              trust_strategy: Neo4j::Driver::Config::TrustStrategy.trust_all_certificates)
 
-
 ######################################
-# Example 13. Service unavailable
-######################################
-
-def add_item
-  driver.session do |session|
-    session.write_transaction do |tx|
-      tx.run('CREATE (a:Item)')
-      true
-    end
-  rescue Neo4j::Driver::Exceptions::ServiceUnavailableException
-    false
-  end
-end
-
-######################################
-# Example 3.1. Session
+# Cypher Workflow
 ######################################
 
-def add_person(name)
-  driver.session do |session|
-    session.write_transaction do |tx|
-      tx.run('CREATE (a:Person {name: $name})', name: name)
-    end
-  end
-end
-
 ######################################
-# Example 3.2. Auto-commit transaction
-######################################
-
-def add_person(name)
-  driver.session do |session|
-    session.run('CREATE (a:Person {name: $name})', name: name)
-  end
-end
-
-######################################
-# Example 3.3. Transaction function
-######################################
-
-def add_person(name)
-  driver.session do |session|
-    session.write_transaction { |tx| create_person_node(tx, name) }
-  end
-end
-
-def create_person_node(tx, name)
-  tx.run('CREATE (a:Person {name: $name})', name: name)
-end
-
-######################################
-# 3.2.3. Explicit transactions
-######################################
-
-def add_person(name)
-  driver.session(Neo4j::Driver::AccessMode::WRITE) do |session|
-    tx = session.begin_transaction
-    tx.run('CREATE (a:Person {name: $name})', name: name)
-    tx.commit
-  ensure
-    tx&.close
-  end
-end
-
-######################################
-# Example 3.4. Passing bookmarks between sessions
+# Example 1. Pass bookmarks
 ######################################
 
 # Create a company node
@@ -349,7 +277,7 @@ def add_employ_and_make_friends
 end
 
 ######################################
-# Example 3.5. Read-write transaction
+# Example 3. Read-write transaction
 ######################################
 
 def add_person(name)
@@ -368,7 +296,20 @@ def match_person_node(tx, name)
 end
 
 ######################################
-# Example 4.1. Map Neo4j types to native language types
+# Example 4. Database selection on session creation
+######################################
+
+driver.session(database: 'examples') do |session|
+  session.run("CREATE (a:Greeting {message: 'Hello, Example-Database'}) RETURN a").consume
+end
+
+driver.session(database: 'examples', default_access_mode: org.neo4j.driver.AccessMode::READ) do |session|
+  msg = session.run('MATCH (a:Greeting) RETURN a.message as msg').single.first['msg'].to_s
+  puts msg
+end
+
+######################################
+# Example 5. Map Neo4j types to native language types
 ######################################
 
 # Neo4j type    Ruby type
@@ -396,7 +337,34 @@ end
 # * A ruby DateTime passed as a parameter will always be implicitly converted to Time
 
 ######################################
-# Example 4.2. Consuming the stream
+# Session API - Simple Sessions 
+# Transaction function
+######################################
+
+def add_person(name)
+  driver.session do |session|
+    session.write_transaction { |tx| create_person_node(tx, name) }
+  end
+end
+
+def create_person_node(tx, name)
+  tx.run('CREATE (a:Person {name: $name})', name: name)
+end
+
+######################################
+# Session API - Simple Session
+# Auto-commit transaction
+######################################
+
+def add_person(name)
+  driver.session do |session|
+    session.run('CREATE (a:Person {name: $name})', name: name)
+  end
+end
+
+######################################
+# Session API - Simple Session
+# Consuming the stream
 ######################################
 
 def people
@@ -410,7 +378,8 @@ def match_person_nodes(tx)
 end
 
 ######################################
-# Example 4.3. Retain results for further processing
+# Session API - Simple Session
+# Retain results for further processing
 ######################################
 
 def add_employees(company_name)
@@ -431,4 +400,60 @@ end
 
 def match_person_nodes(tx)
   tx.run('MATCH (a:Person) RETURN a.name AS name').to_a
+end
+
+######################################
+# Session API - Transaction configuration
+# Transaction Timeout
+######################################
+
+def add_person(name)
+  driver.session do |session|
+    session.write_transaction(max_transaction_retry_time: 5.seconds) { |tx| create_person_node(tx, name) }
+  end
+end
+
+def create_person_node(tx, name)
+  tx.run('CREATE (a:Person {name: $name})', name: name)
+end
+
+######################################
+# Example 13. Service unavailable
+######################################
+
+def add_item
+  driver.session do |session|
+    session.write_transaction do |tx|
+      tx.run('CREATE (a:Item)')
+      true
+    end
+  rescue Neo4j::Driver::Exceptions::ServiceUnavailableException
+    false
+  end
+end
+
+######################################
+# Example 3.1. Session
+######################################
+
+def add_person(name)
+  driver.session do |session|
+    session.write_transaction do |tx|
+      tx.run('CREATE (a:Person {name: $name})', name: name)
+    end
+  end
+end
+
+######################################
+# 3.2.3. Explicit transactions
+######################################
+
+def add_person(name)
+  driver.session(Neo4j::Driver::AccessMode::WRITE) do |session|
+    tx = session.begin_transaction
+    tx.run('CREATE (a:Person {name: $name})', name: name)
+    tx.commit
+  ensure
+    tx&.close
+  end
 end
