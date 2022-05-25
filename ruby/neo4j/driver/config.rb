@@ -72,7 +72,7 @@ module Neo4j
       private
 
       def init_security_and_trust_config(config)
-        trust_strategy = config.key?(:trust_strategy) ? TrustStrategy.new(config) : DEFAULTS[:trust_strategy]
+        trust_strategy = config.key?(:trust_strategy) ? TrustStrategy.new(**config) : DEFAULTS[:trust_strategy]
         encryption = config.key?(:encryption) ? config[:encryption] : DEFAULTS[:encryption]
         customized = %i[encryption trust_strategy].any?(&config.method(:key?))
         merge!(

@@ -13,7 +13,7 @@ module Neo4j::Driver
         end
 
         def begin_transaction_async(**config)
-          @session.begin_transaction_async(**config).then_apply(&InternalAsyncTransaction.method(:new))
+          @session.begin_transaction_async(**config).then(&InternalAsyncTransaction.method(:new))
         end
 
         def read_transaction_async(**config, &work)

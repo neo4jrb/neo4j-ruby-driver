@@ -119,11 +119,11 @@ RSpec.describe Neo4j::Driver do
   end
 
   context 'when bytes' do
-    let(:param) { Neo4j::Driver::Types::Bytes.new([1, 2, 3].pack('C*')) }
+    let(:param) { [1, 2, 3].pack('C*') }
 
     it { is_expected.to eq param }
-    it { is_expected.to be_a Neo4j::Driver::Types::Bytes }
-    its(:encoding) { is_expected.to eq Encoding::ASCII_8BIT }
+    it { is_expected.to be_a String }
+    its(:encoding) { is_expected.to eq Encoding::BINARY }
   end
 
   context 'when unknown type' do

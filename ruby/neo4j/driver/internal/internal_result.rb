@@ -12,7 +12,7 @@ module Neo4j::Driver
         @keys ||=
           begin
             @cursor.peek_async
-            @cursor.keys.map(&:to_sym)
+            @cursor.keys
           end
       end
 

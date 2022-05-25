@@ -7,7 +7,7 @@ module Neo4j
         include ExceptionCheckable
         include RunOverride
 
-        def run(statement, parameters = {})
+        def run(statement, **parameters)
           check { super(to_statement(statement, parameters)) }
         end
 
