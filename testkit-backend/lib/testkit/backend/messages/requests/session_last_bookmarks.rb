@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        fetch(sessionId).last_bookmark
+        fetch(session_id).last_bookmark
       end
     end
   end

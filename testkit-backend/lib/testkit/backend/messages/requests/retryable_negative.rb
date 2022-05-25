@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def process
-        raise errorId.present? ? fetch(errorId) : RollbackException
+        raise error_id.present? ? fetch(error_id) : RollbackException
       end
     end
   end
