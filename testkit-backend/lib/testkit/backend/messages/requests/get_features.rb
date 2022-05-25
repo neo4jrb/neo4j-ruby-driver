@@ -3,9 +3,13 @@ module Testkit::Backend::Messages
     class GetFeatures < Request
       def process
         named_entity('FeatureList', features: [
+          'Feature:API:Driver.IsEncrypted',
+          'Feature:API:Result.Peek',
           'Feature:API:Result.List',
-          # 'Feature:API:Result.Peek',
           'Feature:API:Result.Single',
+          'Feature:API:Liveness.Check',
+          # 'Feature:API:SSLConfig', # TODO works for java
+          'Feature:API:SSLSchemes',
           'Feature:Auth:Bearer',
           'Feature:Auth:Custom',
           'Feature:Auth:Kerberos',
@@ -16,14 +20,17 @@ module Testkit::Backend::Messages
           'Feature:Bolt:4.3',
           'Feature:Bolt:4.4',
           'Feature:Impersonation',
-          # 'Feature:TLS:1.1', # probably not supported by jruby
+          # 'Feature:TLS:1.1', # TODO works for java, probably not supported by jruby
           'Feature:TLS:1.2',
+          # 'Feature:TLS:1.3', # TODO works for java
           'AuthorizationExpiredTreatment',
-          # 'Optimization:ImplicitDefaultArguments', #
-          # 'Optimization:MinimalResets', #
           # 'Optimization:ConnectionReuse', #
-          # 'Optimization:EagerTransactionBegin', #
+          'Optimization:EagerTransactionBegin',
+          # 'Optimization:ImplicitDefaultArguments', # TODO works for java
+          # 'Optimization:MinimalResets', #
           'Optimization:PullPipelining',
+          'Optimization:ResultListFetchAll',
+          'Detail:DefaultSecurityConfigValueEquality',
           'ConfHint:connection.recv_timeout_seconds',
         ])
       end

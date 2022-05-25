@@ -326,12 +326,12 @@ end
 # Neo4j type    Ruby type
 # null          nil
 # List          Enumerable
-# Map           Hash
+# Map           Hash (symbolized keys)
 # Boolean       TrueClass/FalseClass
-# Integer       Integer*
+# Integer       Integer (String)*
 # Float         Float
-# String        String (Symbol)*
-# ByteArray     Neo4j::Driver::Types::Bytes
+# String        String (Symbol)* (encoding: UTF-8)
+# ByteArray     String (encoding: BINARY)
 # Date          Date
 # Time          Neo4j::Driver::Types::OffsetTime
 # LocalTime     Neo4j::Driver::Types::LocalTime
@@ -344,7 +344,7 @@ end
 # Path          Neo4j::Driver::Types::Path
 
 # * An Integer smaller than -2 ** 63 or lager than 2 ** 63 will always be implicitly converted to String
-# * A Symbol passed as a parameter will always be implicitly converted to String
+# * A Symbol passed as a parameter will always be implicitly converted to String. All Strings other then BINARY encoded when stored in neo4j are converte to UTF-8
 # * A ruby DateTime passed as a parameter will always be implicitly converted to Time
 
 ######################################
