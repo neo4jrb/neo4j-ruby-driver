@@ -17,6 +17,7 @@ module Testkit::Backend::Messages
           max_connection_pool_size: max_connection_pool_size,
           connection_acquisition_timeout: timeout_duration(connection_acquisition_timeout_ms),
           encryption: encrypted,
+          trusted_certificates: trusted_certificates
         }
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         if domain_name_resolver_registered

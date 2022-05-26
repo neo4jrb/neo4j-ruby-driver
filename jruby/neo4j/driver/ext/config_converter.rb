@@ -32,10 +32,37 @@ module Neo4j
             value = ->(address) { java.util.HashSet.new(proc.call(address)) }
           when 'bookmarks'
             return [method, *value]
+          when 'trust_strategy'
+            value = trust_strategy(**value)
           else
             value = to_neo(value, skip_unknown: true)
           end
           [method, value, unit].compact
+        end
+
+        def trust_strategy(**config)
+          strategy = config[:strategy]
+          case strategy
+          when :trust_custom_certificates
+            Config::TrustStrategy.trust_custom_certificates_signed_by(*config[:cert_files].map(&java.io.File.method(:new)))
+          else
+            Config::TrustStrategy.send(strategy)
+          end.send(revocation_strategy(config[:revocation_strategy])).send(hostname_verification(config[:hostname_verification]))
+        end
+
+        def revocation_strategy(revocation_strategy)
+          return :itself unless revocation_strategy
+
+          case revocation_strategy
+          when Neo4j::Driver::Internal::RevocationStrategy::NO_CHECKS
+            'without_certificate_revocation_checks'
+          else
+            "with_#{revocation_strategy}_revocation_checks"
+          end
+        end
+
+        def hostname_verification(hostname_verification)
+          "with#{'out' unless hostname_verification}_hostname_verification"
         end
       end
     end
