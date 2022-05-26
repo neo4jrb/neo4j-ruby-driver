@@ -44,12 +44,12 @@ module Testkit::Backend::Messages
 
       def trust_strategy(trusted_certificates)
         if trusted_certificates.nil?
-          {strategy: trust_system_certificates}
+          {strategy: :trust_system_certificates}
         elsif trusted_certificates.empty?
-          {strategy: trust_all_certificates}
+          {strategy: :trust_all_certificates}
         else
           certs = trusted_certificates.map{ |cert| "/usr/local/share/custom-ca-certificates/#{cert}" }
-          {strategy: trust_custom_certificates, cert_files: certs}
+          {strategy: :trust_custom_certificates, cert_files: certs}
         end
       end
     end
