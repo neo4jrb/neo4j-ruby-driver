@@ -44,7 +44,8 @@ module Testkit::Backend::Messages
 
       def trust_strategy(trusted_certificates)
         if trusted_certificates.nil?
-          {strategy: :trust_system_certificates}
+          nil # TODO need to figure out way for using encryption with trust strategy
+          # {strategy: :trust_system_certificates}
         elsif trusted_certificates.empty?
           {strategy: :trust_all_certificates}
         else
