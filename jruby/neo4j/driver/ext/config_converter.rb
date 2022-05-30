@@ -44,7 +44,7 @@ module Neo4j
           strategy = config[:strategy]
           case strategy
           when :trust_custom_certificates
-            Config::TrustStrategy.trust_custom_certificates_signed_by(*config[:cert_files].map(&java.io.File.method(:new)))
+            Config::TrustStrategy.trust_custom_certificate_signed_by(*config[:cert_files].map(&java.io.File.method(:new)))
           else
             Config::TrustStrategy.send(strategy)
           end.send(revocation_strategy(config[:revocation_strategy])).send(hostname_verification(config[:hostname_verification]))
