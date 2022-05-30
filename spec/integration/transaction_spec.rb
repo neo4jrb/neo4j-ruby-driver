@@ -85,7 +85,7 @@ RSpec.describe 'Transaction' do
   end
 
   it 'rolls back tx if error with consume' do
-    skip
+    skip # TODO: temporary skipped
     expect do
       session.begin_transaction do |tx|
         result = tx.run('invalid')
@@ -130,7 +130,7 @@ RSpec.describe 'Transaction' do
   end
 
   it 'rolls back when marked successful but one statement fails' do
-    skip
+    skip # TODO: temporary skipped
     expect do
       session.begin_transaction do |tx|
         tx.run('CREATE (:Node1)')

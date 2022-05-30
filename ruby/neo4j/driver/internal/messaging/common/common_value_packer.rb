@@ -67,7 +67,7 @@ module Neo4j::Driver
           end
 
           def pack_date_time(time)
-            pack_integer(time.to_i)
+            pack_integer(time.to_i + time.utc_offset)
             pack_integer(time.nsec)
           end
 

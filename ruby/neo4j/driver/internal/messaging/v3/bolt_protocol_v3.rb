@@ -37,15 +37,11 @@ module Neo4j::Driver
           end
 
           def commit_transaction(connection)
-            connection.write_and_flush(Request::CommitMessage::COMMIT, Handlers::CommitTxResponseHandler.new(commit_future))
-            commit_future
+            connection.write_and_flush(Request::CommitMessage::COMMIT, Handlers::CommitTxResponseHandler.new)
           end
 
           def rollback_transaction(connection)
-            rollback_future = java.util.concurrent.CompletableFuture.new
-            connection.write_and_flush(Request::RollbackMessage::ROLLBACK, Handlers::RollbackTxResponseHandler.new(rollback_future))
-
-            rollback_future
+            connection.write_and_flush(Request::RollbackMessage::ROLLBACK, Handlers::RollbackTxResponseHandler.new)
           end
 
           def run_in_auto_commit_transaction(connection, query, bookmark_holder, config, fetch_size)

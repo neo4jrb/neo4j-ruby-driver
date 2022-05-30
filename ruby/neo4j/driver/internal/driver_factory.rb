@@ -72,7 +72,7 @@ module Neo4j::Driver::Internal
         assert_no_routing_context(uri, routing_settings)
         createDirectDriver(security_plan, address, connection_pool, retryLogic, metricsProvider, config)
       end
-    rescue Exception => driverError
+    rescue => driverError
       # we need to close the connection pool if driver creation threw exception
       closeConnectionPoolAndSuppressError(connection_pool, driverError)
       raise driverError

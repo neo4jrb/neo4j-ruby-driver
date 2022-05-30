@@ -1,6 +1,7 @@
 module Neo4j::Driver
   module Internal
     class InternalBookmark < Set
+      include Bookmark
       EMPTY = new
 
       def initialize(enum = nil)
