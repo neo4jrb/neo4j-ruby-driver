@@ -37,6 +37,7 @@ module Neo4j::Driver
         def discard_all_failure_async
           # runError has priority over other errors and is expected to have been reported to user by now
           consume_async #.chain { |_fulfilled, _summary, error| @run_error ? nil : error }
+          nil
         end
 
         def pull_all_failure_async

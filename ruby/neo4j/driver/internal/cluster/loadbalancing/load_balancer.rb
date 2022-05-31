@@ -12,7 +12,8 @@ module Neo4j::Driver
 
           delegate :close, to: :@connection_pool
 
-          def initialize(initial_router, settings, connection_pool, event_executor_group, clock, logger, load_balancing_strategy, resolver, domain_name_resolver)
+          def initialize(initial_router, settings, connection_pool, event_executor_group, logger, load_balancing_strategy, resolver, &domain_name_resolver)
+            clock = Util::Clock::System
             @connection_pool = connection_pool
             @rediscovery = create_rediscovery(event_executor_group, initial_router, resolver, settings, clock, logger, domain_name_resolver)
             @routing_tables = create_routing_tables(connection_pool, @rediscovery, settings, clock, logger)

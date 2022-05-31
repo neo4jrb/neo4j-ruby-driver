@@ -199,11 +199,18 @@ module Neo4j::Driver
           end
 
           def unpack_date_time_with_zone_offset
-            Time.at(unpack, unpack, :nsec, in: unpack)
+            # Time.at(unpack, unpack, :nsec, in: unpack)
+            sec = unpack
+            nsec = unpack
+            offset = unpack
+            time = Time.at(sec, nsec, :nsec).utc
+            Time.new(time.year, time.month, time.mday, time.hour, time.min, time.sec + Rational(nsec, 1_000_000_000),
+                     offset)
           end
 
           def unpack_date_time_with_zone_id
-            Time.at(unpack, unpack, :nsec).in_time_zone(TZInfo::Timezone.get(unpack))
+            time = Time.at(unpack, unpack, :nsec).in_time_zone(TZInfo::Timezone.get(unpack))
+            time - time.utc_offset
           end
 
           def unpack_duration

@@ -59,21 +59,21 @@ module Neo4j::Driver
               raise Neo4j::Driver::Exceptions::ClientException, commit ? CANT_COMMIT_ROLLED_BACK_MSG : CANT_ROLLBACK_ROLLED_BACK_MSG
             else
               if commit
-                if @rollback_future
+                if @rollback_pending
                   raise Neo4j::Driver::Exceptions::ClientException, CANT_COMMIT_ROLLING_BACK_MSG
-                elsif @commit_future
-                  @commit_future
+                elsif @commit_pending
+                  @commit_pending
                 else
-                  @commit_future = Concurrent::Promises.resolvable_future
+                  @commit_pending = true
                   nil
                 end
               else
-                if @commit_future
+                if @commit_pending
                   raise Neo4j::Driver::Exceptions::ClientException, CANT_ROLLBACK_COMMITTING_MSG
-                elsif @rollback_future
-                  @rollback_future
+                elsif @rollback_pending
+                  @rollback_pending
                 else
-                  @rollback_future = Concurrent::Promises.resolvable_future
+                  @rollback_pending = true
                   nil
                 end
               end
@@ -81,20 +81,20 @@ module Neo4j::Driver
           end ||
             begin
               if commit
-                target_future = @commit_future
+                target_future = @commit_pending
                 target_action = lambda { |throwable|
                   do_commit_async(throwable)
                   handle_commit_or_rollback(throwable)
                 }
               else
-                target_future = @rollback_future
+                target_future = @rollback_pending
                 target_action = lambda { |throwable|
                   do_rollback_async
                   handle_commit_or_rollback(throwable)
                 }
               end
 
-              @result_cursors.retrieve_not_consumed_error&.call(target_action)
+              @result_cursors.retrieve_not_consumed_error.then(&target_action)
               handle_transaction_completion(commit, nil)
               target_future
             rescue => throwable
