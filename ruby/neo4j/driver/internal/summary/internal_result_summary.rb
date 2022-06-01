@@ -6,6 +6,11 @@ module Neo4j::Driver::Internal::Summary
     alias has_plan? plan
     alias has_profile? profile
 
+    def initialize(*args)
+      super
+      self.plan = resolve_plan(plan, profile)
+    end
+
     def counters
       super || InternalSummaryCounters::EMPTY_STATS
     end

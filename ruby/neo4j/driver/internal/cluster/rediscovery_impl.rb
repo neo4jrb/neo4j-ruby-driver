@@ -15,7 +15,7 @@ module Neo4j::Driver
           @provider = provider
           @resolver = resolver
           @event_executor_group = event_executor_group
-          @domain_name_resolver = java.util.Objects.require_non_null(domain_name_resolver)
+          @domain_name_resolver = Internal::Validator.require_non_nil!(domain_name_resolver)
         end
 
         # Given a database and its current routing table, and the global connection pool, use the global cluster composition provider to fetch a new cluster

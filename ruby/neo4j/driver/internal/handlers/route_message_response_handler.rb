@@ -1,23 +1,19 @@
 module Neo4j::Driver
   module Internal
     module Handlers
-      class RouteMessageResponseHandler < Struct.new(:completable_future)
+      class RouteMessageResponseHandler < Struct.new(:completion_listener)
         include Spi::ResponseHandler
 
         def on_success(metadata)
-          begin
-            completable_future.complete(metadata[:rt])
-          rescue StandardError => ex
-            completable_future.complete_exceptionally(ex)
-          end
+          completion_listener.routing_table = metadata[:rt]
         end
 
         def on_failure(error)
-          completable_future.complete_exceptionally(error)
+          raise error
         end
 
         def on_record(fields)
-          completable_future.complete_exceptionally(java.lang.UnsupportedOperationException.new("Route is not expected to receive records: #{fields}"))
+          raise "Route is not expected to receive records: #{fields}"
         end
       end
     end

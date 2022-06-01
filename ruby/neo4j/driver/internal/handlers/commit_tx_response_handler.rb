@@ -4,8 +4,12 @@ module Neo4j::Driver
       class CommitTxResponseHandler
         include Spi::ResponseHandler
 
+        def initialize(completion_listener)
+          @completion_listener = completion_listener
+        end
+
         def on_success(metadata)
-          @bookmark = metadata['bookmark']&.then(&InternalBookmark.method(:parse))
+          @completion_listener.bookmark = metadata[:bookmark]&.then(&InternalBookmark.method(:parse))
         end
 
         def on_failure(error)
