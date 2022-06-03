@@ -14,8 +14,8 @@ module Neo4j
             Exceptions::ClientException.unable_to_convert(object)
           when Enumerable
             object.map(&method(:to_neo))
-          when Types::Bytes
-            object.to_java_bytes
+          when String
+            object.encoding == Encoding::BINARY ? object.to_java_bytes : object
           when ActiveSupport::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(
               *Driver::Internal::DurationNormalizer.normalize(object)
@@ -38,7 +38,7 @@ module Neo4j
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when Symbol
             object.to_s
-          when nil, true, false, Integer, Float, String
+          when nil, true, false, Integer, Float
             object
           else
             if skip_unknown

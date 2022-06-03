@@ -8,6 +8,12 @@ RSpec.describe ActiveSupport::Duration do
       end
     end
 
+    context 'when nil' do
+      let(:param) { nil }
+
+      it { is_expected.to eq param }
+    end
+
     context 'when 1 day' do
       let(:param) { described_class.days(1) }
 

@@ -45,6 +45,7 @@ module Neo4j::Driver
           end
 
           def ensure_response_handling
+            # probably should be synchronized
             return if @handling_active
             @handling_active = true
             while @message_dispatcher.queued_handlers_count > 0 do

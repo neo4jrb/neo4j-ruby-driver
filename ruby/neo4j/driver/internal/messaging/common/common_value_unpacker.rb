@@ -131,7 +131,7 @@ module Neo4j::Driver
           end
 
           def unpack_node
-            InternalNode.new(unpack, unpack.map(&:to_sym), **unpack)
+            InternalNode.new(unpack, *unpack.map(&:to_sym), **unpack)
           end
 
           def unpack_path
@@ -199,7 +199,13 @@ module Neo4j::Driver
           end
 
           def unpack_date_time_with_zone_offset
-            Time.at(unpack, unpack, :nsec, tz: unpack)
+            # Time.at(unpack, unpack, :nsec, in: unpack)
+            sec = unpack
+            nsec = unpack
+            offset = unpack
+            time = Time.at(sec, nsec, :nsec).utc
+            Time.new(time.year, time.month, time.mday, time.hour, time.min, time.sec + Rational(nsec, 1_000_000_000),
+                     offset)
           end
 
           def unpack_date_time_with_zone_id

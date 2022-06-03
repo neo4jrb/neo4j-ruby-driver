@@ -4,7 +4,7 @@ module Neo4j::Driver
       module PackOutput
         ## Produce a single byte
         def write_byte(value)
-          write_value(value, 'c')
+          value.is_a?(String) ? write(value) : write_value(value, 'c')
         end
 
         ## Produce a 4-byte signed integer

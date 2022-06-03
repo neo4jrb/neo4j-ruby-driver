@@ -21,6 +21,13 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq param }
     end
 
+    context 'when DateTime as plain Time' do
+      let(:param) { Time.now }
+
+      it { is_expected.to be_a Time }
+      it { is_expected.to eq param }
+    end
+
     context 'when DateTime as DateTime' do
       let(:param) { DateTime.now }
 
@@ -53,7 +60,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq result }
     end
 
-    context 'when DateTime with offset' do
+    context 'when DateTime with offset and no zone' do
       let(:datetime) { '2018-12-05T12:34:00+01:00' }
       let(:function) { %{datetime("#{datetime}")} }
       let(:result) { ActiveSupport::TimeZone.new('Europe/Berlin').parse('2018-12-05T12:34:00') }

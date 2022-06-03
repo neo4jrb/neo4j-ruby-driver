@@ -7,9 +7,9 @@ module Neo4j::Driver::Internal::Util
       'Note that the default encryption setting has changed in Neo4j 4.0.'.freeze
 
     SEC_EXCEPTION_CODE_MAPPING = {
-      'Neo.ClientError.Security.Unauthorized': Neo4j::Driver::Exceptions::AuthenticationException,
-      'Neo.ClientError.Security.AuthorizationExpired': Neo4j::Driver::Exceptions::AuthorizationExpiredException,
-      'Neo.ClientError.Security.TokenExpired': Neo4j::Driver::Exceptions::TokenExpiredException
+      'Neo.ClientError.Security.Unauthorized' => Neo4j::Driver::Exceptions::AuthenticationException,
+      'Neo.ClientError.Security.AuthorizationExpired' => Neo4j::Driver::Exceptions::AuthorizationExpiredException,
+      'Neo.ClientError.Security.TokenExpired' => Neo4j::Driver::Exceptions::TokenExpiredException
     }.freeze
 
     class << self
@@ -26,30 +26,24 @@ module Neo4j::Driver::Internal::Util
       end
 
       def new_neo4j_error(code, message)
-        exception_class = case extract_error_class(code)
-                          when 'ClientError'
-                            if extract_error_sub_class(code) == 'Security'
-                              SEC_EXCEPTION_CODE_MAPPING[code] || Neo4j::Driver::Exceptions::SecurityException
-                            else
-                              code == 'Neo.ClientError.Database.DatabaseNotFound' ? Neo4j::Driver::Exceptions::FatalDiscoveryException : Neo4j::Driver::Exceptions::ClientException
-                            end
-                          when 'TransientError'
-                            Neo4j::Driver::Exceptions::TransientException
-                          else
-                            Neo4j::Driver::Exceptions::DatabaseException
-                          end
-
-        exception_class.new(code, message)
+        case extract_error_class(code)
+        when 'ClientError'
+          if extract_error_sub_class(code) == 'Security'
+            SEC_EXCEPTION_CODE_MAPPING[code] || Neo4j::Driver::Exceptions::SecurityException
+          else
+            code == 'Neo.ClientError.Database.DatabaseNotFound' ? Neo4j::Driver::Exceptions::FatalDiscoveryException : Neo4j::Driver::Exceptions::ClientException
+          end
+        when 'TransientError'
+          Neo4j::Driver::Exceptions::TransientException
+        else
+          Neo4j::Driver::Exceptions::DatabaseException
+        end.new(code, message)
       end
 
       def fatal?(error)
-        if error.is_a?(Neo4j::Driver::Exceptions::Neo4jException)
-          error_code = error.code
-          return true if protocol_violation_error?(error_code)
-          return false if client_or_transient_error?(error_code)
-        end
-
-        true
+        !error.is_a?(Neo4j::Driver::Exceptions::Neo4jException) ||
+          protocol_violation_error?(error.code) ||
+          !client_or_transient_error?(error.code)
       end
 
       def rethrow_async_exception(exception)
@@ -65,7 +59,7 @@ module Neo4j::Driver::Internal::Util
       end
 
       def add_suppressed(main_error, error)
-        main_error.add_suppressed(error) if main_error != error
+        main_error.add_suppressed(error) if main_error.is_a?(Exceptions::Neo4jException) && main_error != error
       end
 
       def get_root_cause(error)

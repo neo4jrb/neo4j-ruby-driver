@@ -14,6 +14,7 @@ module Neo4j::Driver
             @connection = Validator.require_non_nil!(connection)
             @completion_listener = Validator.require_non_nil!(completion_listener)
             @state = State::READY_STATE
+            @to_request = 0
           end
 
           def state=(state)
@@ -63,7 +64,7 @@ module Neo4j::Driver
           end
 
           def success_has_more
-            if @to_request.nil? || @to_request > 0
+            if @to_request > 0 || @to_request == FetchSizeUtil::UNLIMITED_FETCH_SIZE
               request(@to_request)
               @to_request = 0
             end
@@ -82,7 +83,7 @@ module Neo4j::Driver
           end
 
           def discard_all
-            connection.writeAndFlush(Messaging::Request::DiscardMessage.new_discard_all_message(@run_response_handler.query_id), self)
+            @connection.write_and_flush(Messaging::Request::DiscardMessage.new_discard_all_message(@run_response_handler.query_id), self)
           end
 
           def install_summary_consumer(&summary_consumer)
@@ -107,19 +108,19 @@ module Neo4j::Driver
           end
 
           private def add_to_request(to_add)
-            return unless @to_request
+            return if @to_request == FetchSizeUtil::UNLIMITED_FETCH_SIZE
 
             # pull all
-            return @to_request = nil unless to_add
+            return @to_request = FetchSizeUtil::UNLIMITED_FETCH_SIZE if to_add == FetchSizeUtil::UNLIMITED_FETCH_SIZE
 
             if to_add <= 0
-              raise java.lang.IllegalArgumentException, "Cannot request record amount that is less than or equal to 0. Request amount: #{to_add}"
+              raise ArgumentError, "Cannot request record amount that is less than or equal to 0. Request amount: #{to_add}"
             end
 
             @to_request += to_add
 
             # to_add is already at least 1, we hit buffer overflow
-            @to_request = java.lang.Long::MAX_VALUE if @to_request <= 0
+            @to_request = [@to_request, LONG_MAX_VALUE].min
           end
 
           private def assert_record_and_summary_consumer_installed

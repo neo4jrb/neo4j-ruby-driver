@@ -4,18 +4,19 @@ module Neo4j::Driver
       module Pulln
         class AutoPullResponseHandler < BasicPullResponseHandler
           UNINITIALIZED_RECORDS = ::Async::Queue.new
+          LONG_MAX_VALUE = 2 ** 63 -1
 
           def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener, fetch_size)
             super(query, run_response_handler, connection, metadata_extractor, completion_listener)
             @fetch_size = fetch_size
 
             # For pull everything ensure conditions for disabling auto pull are never met
-            if fetch_size
+            if fetch_size == FetchSizeUtil::UNLIMITED_FETCH_SIZE
+              @high_record_watermark = LONG_MAX_VALUE
+              @low_record_watermark = LONG_MAX_VALUE
+            else
               @high_record_watermark = fetch_size * 0.7
               @low_record_watermark = fetch_size * 0.3
-            else
-              @high_record_watermark = java.lang.Math::Long::MAX_VALUE
-              @low_record_watermark = java.lang.Math::Long::MAX_VALUE
             end
 
             @records = UNINITIALIZED_RECORDS
@@ -96,7 +97,7 @@ module Neo4j::Driver
           def pull_all_async
             return completed_with_value_if_no_failure(@summary) if done?
 
-            request(nil)
+            request(FetchSizeUtil::UNLIMITED_FETCH_SIZE)
 
             @summary_future = java.util.concurrent.CompletableFuture.new if @summary_future.nil?
 

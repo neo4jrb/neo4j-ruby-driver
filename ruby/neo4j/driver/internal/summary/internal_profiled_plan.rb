@@ -13,7 +13,7 @@ module Neo4j::Driver::Internal::Summary
       ) }
 
     # Builds a regular plan without profiling information - eg. a plan that came as a result of an `EXPLAIN` query
-    PROFILED_PLAN_FROM_VALUE = Converter.new(&PROFILED_PLAN)
+    PROFILED_PLAN_FROM_VALUE = Converter.new(&PROFILED_PLAN).method(:apply)
 
     def initialize(operator_type, arguments, identifiers, children, db_hits, records, page_cache_hits, page_cache_misses, page_cache_hit_ratio, time)
       super(operator_type, arguments, identifiers, children)
