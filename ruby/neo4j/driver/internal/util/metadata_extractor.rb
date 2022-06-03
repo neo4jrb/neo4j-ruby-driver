@@ -38,7 +38,7 @@ module Neo4j::Driver
           end
 
           def extract_bookmarks(metadata)
-            bookmark_value = metadata['bookmark']
+            bookmark_value = metadata[:bookmark]
 
             return InternalBookmark.parse(bookmark_value) if bookmark_value&.is_a? String
 
@@ -65,40 +65,37 @@ module Neo4j::Driver
           end
 
           def extract_counters(metadata)
-            counters_value = metadata[:stat]
-
+            counters_value = metadata[:stats]
             counters_value &&
               Summary::InternalSummaryCounters.new(
-                counter_value(counters_value, "nodes-created"),
-                counter_value(counters_value, "nodes-deleted"),
-                counter_value(counters_value, "relationships-created"),
-                counter_value(counters_value, "relationships-deleted"),
-                counter_value(counters_value, "properties-set"),
-                counter_value(counters_value, "labels-added"),
-                counter_value(counters_value, "labels-removed"),
-                counter_value(counters_value, "indexes-added"),
-                counter_value(counters_value, "indexes-removed"),
-                counter_value(counters_value, "constraints-added"),
-                counter_value(counters_value, "constraints-removed"),
-                counter_value(counters_value, "system-updates")
+                *%i[
+                nodes-created
+                nodes-deleted
+                relationships-created
+                relationships-deleted
+                properties-set
+                labels-added
+                labels-removed
+                indexes-added
+                indexes-removed
+                constraints-added
+                constraints-removed
+                system-updates
+            ].map { |key| counters_value[key].to_i }
               )
           end
 
-          def counter_value(counters_value, name)
-            counters_value[name]&.to_i || 0
-          end
-
           def extract_plan(metadata)
-            metadata['plan']&.then(Summary::InternalPlan::EXPLAIN_PLAN_FROM_VALUE)
+            metadata[:plan]&.then(&Summary::InternalPlan::EXPLAIN_PLAN_FROM_VALUE)
           end
 
           def extract_profiled_plan(metadata)
-            metadata['profile']&.then(Summary::InternalProfiledPlan::PROFILED_PLAN_FROM_VALUE)
+            metadata[:profile]&.then(&Summary::InternalProfiledPlan::PROFILED_PLAN_FROM_VALUE)
           end
 
           def extract_notifications(metadata)
-            metadata['notifications']&.then do |notifications|
-              notifications.map(Summary::InternalNotification::VALUE_TO_NOTIFICATION)
+            metadata[:notifications]&.then do |notifications|
+              notifications.map(&Summary::InternalNotification::VALUE_TO_NOTIFICATION)
             end
           end
 

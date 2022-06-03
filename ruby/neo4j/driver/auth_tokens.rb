@@ -26,7 +26,7 @@ module Neo4j
         end
 
         def none
-          Internal::Security::InternalAuthToken.new
+          Internal::Security::InternalAuthToken[scheme: 'none']
         end
       end
     end

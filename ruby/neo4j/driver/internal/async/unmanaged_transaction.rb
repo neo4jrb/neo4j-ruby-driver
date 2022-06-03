@@ -176,7 +176,7 @@ module Neo4j::Driver
           if exception
             Util::Futures.failed_future(exception)
           else
-            @protocol.commit_transaction(@connection).then(&@bookmark_holder.method(:set_bookmark))
+            @protocol.commit_transaction(@connection, @bookmark_holder)
           end
         end
 
