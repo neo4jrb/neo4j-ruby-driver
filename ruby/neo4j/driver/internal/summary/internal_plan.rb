@@ -13,7 +13,7 @@ module Neo4j::Driver::Internal::Summary
       end
 
       def apply(plan)
-        operator_type = plan[:operator_type].to_s
+        operator_type = plan[:operatorType]
 
         arguments_value = plan[:args]
         arguments = arguments_value || {}

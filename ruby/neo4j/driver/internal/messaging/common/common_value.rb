@@ -21,6 +21,9 @@ module Neo4j::Driver
           POINT_2D_STRUCT_SIZE = 3
           POINT_3D_STRUCT_TYPE = 'Y'
           POINT_3D_STRUCT_SIZE = 4
+
+          EPOCH = Date.parse('1970-01-01')
+          NANO_FACTOR = 1_000_000_000
         end
       end
     end

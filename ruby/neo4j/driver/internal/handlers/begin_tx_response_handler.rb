@@ -12,7 +12,7 @@ module Neo4j::Driver
         end
 
         def on_record(fields)
-          raise java.lang.UnsupportedOperationException, "Transaction begin is not expected to receive records: #{fields}"
+          raise "Transaction begin is not expected to receive records: #{fields}"
         end
       end
     end

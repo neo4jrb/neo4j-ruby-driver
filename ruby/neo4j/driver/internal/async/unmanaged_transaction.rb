@@ -23,6 +23,7 @@ module Neo4j::Driver
         CANT_COMMIT_ROLLING_BACK_MSG = "Can't commit, transaction has been requested to be rolled back"
         CANT_ROLLBACK_COMMITTING_MSG = "Can't rollback, transaction has been requested to be committed"
         OPEN_STATES = [State::ACTIVE, State::TERMINATED]
+        attr :connection
 
         def initialize(connection, bookmark_holder, fetch_size, result_cursors = ResultCursorsHolder.new)
           @connection = connection
@@ -30,7 +31,7 @@ module Neo4j::Driver
           @bookmark_holder = bookmark_holder
           @result_cursors = result_cursors
           @fetch_size = fetch_size
-          @lock = Mutex.new
+          @lock = Util::Mutex.new
           @state = State::ACTIVE
         end
 
@@ -49,30 +50,30 @@ module Neo4j::Driver
         end
 
         def close_async(commit = false, complete_with_null_if_not_open = true)
-          Util::LockUtil.execute_with_lock(@lock) do
+          @lock.synchronize do
             if complete_with_null_if_not_open && !open?
-              Util.Futures.completed_with_null
+              nil
             elsif @state == State::COMMITTED
-              Util.Futures.failed_future(Neo4j::Driver::Exceptions::ClientException.new(commit ? CANT_COMMIT_COMMITTED_MSG : CANT_ROLLBACK_COMMITTED_MSG))
+              raise Neo4j::Driver::Exceptions::ClientException, commit ? CANT_COMMIT_COMMITTED_MSG : CANT_ROLLBACK_COMMITTED_MSG
             elsif @state == State::ROLLED_BACK
-              Util.Futures.failed_future(Neo4j::Driver::Exceptions::ClientException.new(commit ? CANT_COMMIT_ROLLED_BACK_MSG : CANT_ROLLBACK_ROLLED_BACK_MSG))
+              raise Neo4j::Driver::Exceptions::ClientException, commit ? CANT_COMMIT_ROLLED_BACK_MSG : CANT_ROLLBACK_ROLLED_BACK_MSG
             else
               if commit
-                if @rollback_future
-                  Util.Futures.failed_future(Neo4j::Driver::Exceptions::ClientException.new(CANT_COMMIT_ROLLING_BACK_MSG))
-                elsif @commit_future
-                  @commit_future
+                if @rollback_pending
+                  raise Neo4j::Driver::Exceptions::ClientException, CANT_COMMIT_ROLLING_BACK_MSG
+                elsif @commit_pending
+                  @commit_pending
                 else
-                  @commit_future = Concurrent::Promises.resolvable_future
+                  @commit_pending = true
                   nil
                 end
               else
-                if @commit_future
-                  Util.Futures.failed_future(Neo4j::Driver::Exceptions::ClientException.new(CANT_ROLLBACK_COMMITTING_MSG))
-                elsif !@rollback_future.nil?
-                  @rollback_future
+                if @commit_pending
+                  raise Neo4j::Driver::Exceptions::ClientException, CANT_ROLLBACK_COMMITTING_MSG
+                elsif @rollback_pending
+                  @rollback_pending
                 else
-                  @rollback_future = Concurrent::Promises.resolvable_future
+                  @rollback_pending = true
                   nil
                 end
               end
@@ -80,19 +81,24 @@ module Neo4j::Driver
           end ||
             begin
               if commit
-                target_future = @commit_future
-                target_action = -> (throwable) { do_commit_async(throwable).chain(&handle_commit_or_rollback(throwable)) }
+                target_future = @commit_pending
+                target_action = lambda { |throwable|
+                  do_commit_async(throwable)
+                  handle_commit_or_rollback(throwable)
+                }
               else
-                target_future = @rollback_future
-                target_action = -> (throwable) { do_rollback_async.chain(&handle_commit_or_rollback(throwable)) }
+                target_future = @rollback_pending
+                target_action = lambda { |throwable|
+                  do_rollback_async
+                  handle_commit_or_rollback(throwable)
+                }
               end
 
-              @result_cursors.retrieve_not_consumed_error.then_flat(&target_action)
-                             .on_resolution do |_fulfilled, _ignored, throwable|
-                handle_transaction_completion(commit, throwable)
-              end.on_resolution(&Util::Futures.method(:future_completing_consumer).curry.call(target_future))
-
+              @result_cursors.retrieve_not_consumed_error.then(&target_action)
+              handle_transaction_completion(commit, nil)
               target_future
+            rescue => throwable
+              handle_transaction_completion(commit, throwable)
             end
         end
 
@@ -106,9 +112,9 @@ module Neo4j::Driver
 
         def run_async(query)
           ensure_can_run_queries
-          cursor_stage = @protocol.run_in_unmanaged_transaction(@connection, query, self, @fetch_size).async_result
-          @result_cursors << cursor_stage
-          cursor_stage.then_flat(&:map_successful_run_completion_async)
+          cursor = @protocol.run_in_unmanaged_transaction(@connection, query, self, @fetch_size).async_result
+          @result_cursors << cursor
+          cursor.map_successful_run_completion_async
         end
 
         def run_rx(query)
@@ -170,7 +176,7 @@ module Neo4j::Driver
           if exception
             Util::Futures.failed_future(exception)
           else
-            @protocol.commit_transaction(@connection).then(&@bookmark_holder.method(:set_bookmark))
+            @protocol.commit_transaction(@connection, @bookmark_holder)
           end
         end
 

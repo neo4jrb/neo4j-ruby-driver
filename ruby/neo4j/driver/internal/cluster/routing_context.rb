@@ -3,9 +3,8 @@ module Neo4j::Driver
     module Cluster
       class RoutingContext
         include Scheme
-
         EMPTY = new
-        ROUTING_ADDRESS_KEY = 'address'
+        ROUTING_ADDRESS_KEY = :address
 
         def initialize(uri = nil)
           if uri
@@ -46,7 +45,7 @@ module Neo4j::Driver
             key_value = pair.split('=')
 
             if key_value.size != 2
-              raise Exceptions::IllegalArgumentException, "Invalid parameters: '#{pair}' in URI '#{uri}'"
+              raise ArgumentError, "Invalid parameters: '#{pair}' in URI '#{uri}'"
             end
 
             key = trim_and_verify_key(key_value[0], 'key', uri)
@@ -62,7 +61,7 @@ module Neo4j::Driver
         def trim_and_verify_key(s, key, uri)
           trim_and_verify(s, key, uri).tap do |trimmed|
             if trimmed == ROUTING_ADDRESS_KEY
-              raise Exceptions::IllegalArgumentException, "The key 'address' is reserved for routing context."
+              raise ArgumentError, "The key 'address' is reserved for routing context."
             end
           end
         end

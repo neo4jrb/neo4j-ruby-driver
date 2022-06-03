@@ -30,8 +30,6 @@ module Neo4j::Driver
 
           private
 
-          EPOCH = Date.parse('1970-01-01')
-
           def pack_date(local_date)
             pack_struct_header(DATE_STRUCT_SIZE, DATE)
             pack_integer((local_date - EPOCH).to_i)
@@ -46,8 +44,6 @@ module Neo4j::Driver
           def pack_utc_offset(time)
             pack_integer(time.utc_offset)
           end
-
-          NANO_FACTOR = 1_000_000_000
 
           def pack_nano_of_day(local_time)
             pack_integer(((local_time.hour * 60 + local_time.min) * 60 + local_time.sec) * NANO_FACTOR + local_time.nsec)
@@ -88,9 +84,9 @@ module Neo4j::Driver
 
           def pack_point(point)
             case point.coordinates.size
-            when POINT_2D_STRUCT_SIZE
+            when 2
               pack_struct_header(POINT_2D_STRUCT_SIZE, POINT_2D_STRUCT_TYPE)
-            when POINT_3D_STRUCT_SIZE
+            when 3
               pack_struct_header(POINT_3D_STRUCT_SIZE, POINT_3D_STRUCT_TYPE)
             else
               raise IOError, "Unknown type: type: #{point.class}, value: #{point.to_s}"
