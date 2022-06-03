@@ -100,12 +100,12 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
   #end
 
   it 'begin transaction raises for invalid bookmark' do
-    invalid_bookmark = Neo4j::Driver::Bookmark.from(Set['hi, this is an invalid bookmark'])
+    invalid_bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
 
     create_driver(leader.bolt_uri) do |driver|
       driver.session(bookmarks: invalid_bookmark) do |session|
         expect { session.begin_transaction }
-          .to raise_error Neo4j::Driver::Exceptions::ClientException, Regexp.new(invalid_bookmark.to_set.first)
+          .to raise_error Neo4j::Driver::Exceptions::ClientException, Regexp.new(invalid_bookmark.values.first)
       end
     end
   end
