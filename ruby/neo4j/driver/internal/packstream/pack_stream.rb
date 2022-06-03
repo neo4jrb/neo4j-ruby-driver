@@ -112,6 +112,8 @@ module Neo4j::Driver
               value = value.to_a
               pack_list_header(value.size)
               value.each(&method(:pack))
+            when Bookmark
+              pack(value.values)
             else
               raise Exceptions::ClientException, "Unable to convert #{value.class.name} to Neo4j Value."
             end
