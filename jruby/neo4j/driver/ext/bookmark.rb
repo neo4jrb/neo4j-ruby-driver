@@ -5,15 +5,8 @@ module Neo4j
     module Ext
       module Bookmark
         module ClassMethods
-          def from(values)
+          def from(*values)
             super(java.util.HashSet.new(values))
-          end
-        end
-
-        module InstanceMethods
-          extend ActiveSupport::Concern
-          included do
-            delegate :to_set, to: :values
           end
         end
       end

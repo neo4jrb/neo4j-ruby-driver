@@ -27,9 +27,9 @@ RSpec.describe 'Bookmark' do
   def expect_single_value(bookmark, value)
     expect(bookmark).to be_present
     expect(bookmark).to be_a Neo4j::Driver::Bookmark
-    set = bookmark.to_set
-    expect(set.size).to eq 1
-    expect(set.first).to start_with(value)
+    values = bookmark.values
+    expect(values.size).to eq 1
+    expect(values.first).to start_with(value)
   end
 
   it 'raises for invalid bookmark' do
@@ -93,12 +93,12 @@ RSpec.describe 'Bookmark' do
   # end
 
   it 'creates session with initial bookmark' do
-    bookmark = Neo4j::Driver::Bookmark.from(Set['TheBookmark'])
+    bookmark = Neo4j::Driver::Bookmark.from('TheBookmark')
     expect(driver.session(bookmarks: bookmark, &:last_bookmark)).to eq bookmark
   end
 
   it 'creates session with AccessMode and initial bookmark' do
-    bookmark = Neo4j::Driver::Bookmark.from(Set['TheBookmark'])
+    bookmark = Neo4j::Driver::Bookmark.from('TheBookmark')
     expect(driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: bookmark, &:last_bookmark))
       .to eq bookmark
   end

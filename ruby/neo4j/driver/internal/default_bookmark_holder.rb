@@ -1,7 +1,5 @@
 module Neo4j::Driver
   module Internal
-
-    # @since 2.0
     class DefaultBookmarkHolder
       attr_reader :bookmark
 

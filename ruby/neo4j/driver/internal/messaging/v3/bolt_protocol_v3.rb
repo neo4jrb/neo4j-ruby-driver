@@ -5,7 +5,7 @@ module Neo4j::Driver
         class BoltProtocolV3
           VERSION = BoltProtocolVersion.new(3, 0)
           INSTANCE = new
-          METADATA_EXTRACTOR = Util::MetadataExtractor.new('t_first', 't_last')
+          METADATA_EXTRACTOR = Util::MetadataExtractor.new(:t_first, :t_last)
 
           def create_message_format
             MessageFormatV3.new
@@ -36,16 +36,12 @@ module Neo4j::Driver
             connection.write_and_flush(begin_message, Handlers::BeginTxResponseHandler.new)
           end
 
-          def commit_transaction(connection)
-            connection.write_and_flush(Request::CommitMessage::COMMIT, Handlers::CommitTxResponseHandler.new(commit_future))
-            commit_future
+          def commit_transaction(connection, bookmark_holder)
+            connection.write_and_flush(Request::CommitMessage::COMMIT, Handlers::CommitTxResponseHandler.new(bookmark_holder))
           end
 
           def rollback_transaction(connection)
-            rollback_future = java.util.concurrent.CompletableFuture.new
-            connection.write_and_flush(Request::RollbackMessage::ROLLBACK, Handlers::RollbackTxResponseHandler.new(rollback_future))
-
-            rollback_future
+            connection.write_and_flush(Request::RollbackMessage::ROLLBACK, Handlers::RollbackTxResponseHandler.new)
           end
 
           def run_in_auto_commit_transaction(connection, query, bookmark_holder, config, fetch_size)

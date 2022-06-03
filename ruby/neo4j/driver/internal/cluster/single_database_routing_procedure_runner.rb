@@ -43,7 +43,8 @@ module Neo4j::Driver
 
         def run_procedure(connection, procedure, bookmark_holder)
           connection.protocol
-                    .run_in_auto_commit_transaction(connection, procedure, bookmark_holder, TransactionConfig.empty, nil)
+                    .run_in_auto_commit_transaction(connection, procedure, bookmark_holder, TransactionConfig.empty,
+                                                    Handlers::Pulln::FetchSizeUtil::UNLIMITED_FETCH_SIZE)
                     .async_result.then_compose(Async::ResultCursor::list_async)
         end
 
