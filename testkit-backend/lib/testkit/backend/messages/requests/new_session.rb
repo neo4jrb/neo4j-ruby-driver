@@ -8,7 +8,7 @@ module Testkit::Backend::Messages
       def to_object
         fetch(driver_id).session(
           default_access_mode: access_mode == 'r' ? Neo4j::Driver::AccessMode::READ : Neo4j::Driver::AccessMode::WRITE,
-          bookmarks: bookmarks&.map { |bookmark| Neo4j::Driver::Bookmark.from(Array(bookmark)) },
+          bookmarks: Neo4j::Driver::Bookmark.from(*bookmarks),
           database: database,
           fetch_size: fetch_size,
           impersonated_user: impersonated_user
