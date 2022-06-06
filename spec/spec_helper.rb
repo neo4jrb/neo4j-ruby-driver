@@ -2,7 +2,7 @@
 
 $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', RUBY_PLATFORM == 'java' ? 'jruby' : 'ruby')
 
-# require 'async'
+require 'async'
 # require 'async/rspec' unless RUBY_PLATFORM == 'java'
 # require 'async/rspec/reactor'
 require 'active_support/logger'
