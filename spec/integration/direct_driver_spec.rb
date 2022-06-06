@@ -1,19 +1,19 @@
 # frozen_string_literal: true
 
 RSpec.describe 'DirectDriverSpec' do
-  it 'allows IPv6 address', async_io: true do
+  it 'allows IPv6 address' do
     Neo4j::Driver::GraphDatabase
       .driver("bolt://[::1]:#{port}", basic_auth_token) do |driver|
       # verifying address is implementation dependent and goes beyond integration testing
     end
   end
 
-  it 'rejects invalid address', async_io: true do
+  it 'rejects invalid address' do
     expect { Neo4j::Driver::GraphDatabase.driver('*', basic_auth_token) }
       .to raise_error ArgumentError, 'Scheme must not be null'
   end
 
-  it 'registers single server', async_io: true do
+  it 'registers single server' do
     Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token) do |driver|
       # verifying address is implementation dependent and goes beyond integration testing
     end

@@ -2,10 +2,10 @@ module Neo4j::Driver
   module Internal
     module Async
       class ImmutableConnectionContext
-        attr_reader :database_name_future, :mode, :rediscovery_bookmark, :impersonated_user
+        attr :database_name, :mode, :rediscovery_bookmark, :impersonated_user
 
         def initialize(database_name, bookmark, mode)
-          @database_name_future = Concurrent::Promises.fulfilled_future(database_name)
+          @database_name = database_name
           @rediscovery_bookmark = bookmark
           @mode = mode
         end

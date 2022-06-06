@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 RSpec.describe 'Parameters' do
   let(:session) { driver.session }
   after(:example) { session.close }
