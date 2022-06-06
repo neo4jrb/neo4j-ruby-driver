@@ -510,11 +510,10 @@ RSpec.describe 'Session' do
   end
 
   it 'does not retry on connection acquisition timeout' do
-    skip # TODO: temporary skipped
     max_pool_size = 3
     config = {
       max_connection_pool_size: max_pool_size,
-      connection_acquisition_timeout: 0,
+      connection_acquisition_timeout: 0.seconds,
       max_transaction_retry_time: 42.days # retry for a really long time
     }
     Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, **config) do |driver|
@@ -523,7 +522,7 @@ RSpec.describe 'Session' do
       invocations = Concurrent::AtomicFixnum.new
       expect { driver.session.write_transaction { invocations.increment } }
         .to raise_error Neo4j::Driver::Exceptions::ClientException,
-                        'Unable to acquire connection from the pool within configured maximum time of 0ms'
+                        'Unable to acquire connection from the pool within configured maximum time of 0 seconds'
       # work should never be invoked
       expect(invocations.value).to be_zero
     end

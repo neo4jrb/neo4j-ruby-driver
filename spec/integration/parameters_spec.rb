@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 RSpec.describe 'Parameters' do
   let(:session) { driver.session }
   after(:example) { session.close }
@@ -127,9 +126,7 @@ RSpec.describe 'Parameters' do
     end
 
     it 'setting invalid parameter type directly throws helpful error' do
-      expect { session.run('anything', value) }
-        .to raise_error ArgumentError,
-                        /^The parameters should be provided as Map type. Unsupported parameters type: .*Node/
+      expect { session.run('anything', value) }.to raise_error TypeError, /^no implicit conversion of .*Node into Hash/
     end
 
     context 'is not possible to use Node as parameter in map value' do

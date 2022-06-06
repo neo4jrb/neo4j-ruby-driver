@@ -53,13 +53,15 @@ module Neo4j::Driver
         # caller thread will also be the one who sleeps between retries;
         # it is unsafe to execute retries in the event loop threads because this can cause a deadlock
         # event loop thread will bock and wait for itself to read some data
-        @session.retry_logic.retry do
-          tx = private_begin_transaction(mode, **config)
-          result = yield tx
-          tx.commit if tx.open? # if a user has not explicitly committed or rolled back the transaction
-          result
-        ensure
-          tx&.close
+        Sync do
+          @session.retry_logic.retry do
+            tx = private_begin_transaction(mode, **config)
+            result = yield tx
+            tx.commit if tx.open? # if a user has not explicitly committed or rolled back the transaction
+            result
+          ensure
+            tx&.close
+          end
         end
       end
 
