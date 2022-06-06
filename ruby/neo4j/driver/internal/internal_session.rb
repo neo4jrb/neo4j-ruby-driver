@@ -12,6 +12,7 @@ module Neo4j::Driver
 
       def run(query, parameters = {}, config = {})
         parameters ||= {}
+        Validator.require_hash_parameters!(parameters)
         Sync do
           cursor = @session.run_async(Query.new(query, **parameters), **TransactionConfig.new(**config)) do
             terminate_connection_on_thread_interrupt('Thread interrupted while running query in session')
@@ -32,8 +33,10 @@ module Neo4j::Driver
       end
 
       def begin_transaction(**config)
-        tx = @session.begin_transaction_async(**config) do
-          terminate_connection_on_thread_interrupt("Thread interrupted while starting a transaction")
+        tx = Sync do
+          @session.begin_transaction_async(**config) do
+            terminate_connection_on_thread_interrupt("Thread interrupted while starting a transaction")
+          end
         end
         InternalTransaction.new(tx)
       end

@@ -522,7 +522,7 @@ RSpec.describe 'Session' do
       invocations = Concurrent::AtomicFixnum.new
       expect { driver.session.write_transaction { invocations.increment } }
         .to raise_error Neo4j::Driver::Exceptions::ClientException,
-                        'Unable to acquire connection from the pool within configured maximum time of 0 seconds'
+                        /^Unable to acquire connection from the pool within configured maximum time of 0/
       # work should never be invoked
       expect(invocations.value).to be_zero
     end
