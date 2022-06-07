@@ -21,7 +21,7 @@ end.spec 'neo4j-ruby-driver' do
 
   dependency 'activesupport', '>= 0'
   dependency 'async', '>= 0'
-  dependency 'async-rspec', '>= 0', :dev
+  # dependency 'async-rspec', '>= 0', :dev
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
   dependency 'hoe-bundler', '>= 0', :dev

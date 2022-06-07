@@ -7,7 +7,7 @@ module Neo4j::Driver
           attr_accessor :version, :protocol, :message_format, :message_dispatcher
           attr :attributes # should be attr
 
-          def initialize(address, connector, connection_acquisition_timeout, logger)
+          def initialize(address, connector, logger)
             super()
             @attributes = Connection::ChannelAttributes.new
             @stream = Connection::Stream.new(connector.connect(address))
