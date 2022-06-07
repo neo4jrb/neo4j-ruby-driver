@@ -9,14 +9,18 @@ module Neo4j
         private
 
         def to_java_config(builder_class, **hash)
-          hash.compact.reduce(builder_class.builder) { |object, key_value| object.send(*config_method(*key_value)) }.build
+          apply_to(builder_class.builder, **hash).build
+        end
+
+        def apply_to(builder, **hash)
+          hash.compact.reduce(builder) { |object, key_value| object.send(*config_method(*key_value)) }
         end
 
         def config_method(key, value)
           method = :"with_#{key}"
           unit = nil
           case key.to_s
-          when 'encryption', 'driver_metrics'
+          when 'encryption', 'driver_metrics', 'hostname_verification'
             method = :"without_#{key}" unless value
             value = nil
           when 'timeout'
@@ -34,6 +38,13 @@ module Neo4j
             return [method, *value]
           when 'trust_strategy'
             value = trust_strategy(**value)
+          when 'revocation_strategy'
+            method = case value
+                     when Neo4j::Driver::Internal::RevocationStrategy::NO_CHECKS
+                       'without_certificate_revocation_checks'
+                     else
+                       "with_#{value}_revocation_checks"
+                     end
           else
             value = to_neo(value, skip_unknown: true)
           end
@@ -41,28 +52,16 @@ module Neo4j
         end
 
         def trust_strategy(**config)
-          strategy = config[:strategy]
-          case strategy
-          when :trust_custom_certificates
-            Config::TrustStrategy.trust_custom_certificate_signed_by(*config[:cert_files].map(&java.io.File.method(:new)))
-          else
-            Config::TrustStrategy.send(strategy)
-          end.send(revocation_strategy(config[:revocation_strategy])).send(hostname_verification(config[:hostname_verification]))
-        end
-
-        def revocation_strategy(revocation_strategy)
-          return :itself unless revocation_strategy
-
-          case revocation_strategy
-          when Neo4j::Driver::Internal::RevocationStrategy::NO_CHECKS
-            'without_certificate_revocation_checks'
-          else
-            "with_#{revocation_strategy}_revocation_checks"
-          end
-        end
-
-        def hostname_verification(hostname_verification)
-          "with#{'out' unless hostname_verification}_hostname_verification"
+          strategy = config.delete(:strategy)
+          trust_strategy =
+            case strategy
+            when :trust_custom_certificates
+              Config::TrustStrategy
+                .trust_custom_certificate_signed_by(*config.delete(:cert_files).map(&java.io.File.method(:new)))
+            else
+              Config::TrustStrategy.send(strategy)
+            end
+          apply_to(trust_strategy, **config)
         end
       end
     end

@@ -18,7 +18,7 @@ module Testkit::Backend::Messages
           connection_acquisition_timeout: timeout_duration(connection_acquisition_timeout_ms),
           encryption: encrypted,
           trust_strategy: trust_strategy(trusted_certificates)
-        }
+        }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         if domain_name_resolver_registered
           Neo4j::Driver::GraphDatabase.internal_driver(
@@ -44,13 +44,12 @@ module Testkit::Backend::Messages
 
       def trust_strategy(trusted_certificates)
         if trusted_certificates.nil?
-          nil # TODO need to figure out way for using encryption with trust strategy
-          # {strategy: :trust_system_certificates}
+          { strategy: :trust_system_certificates }
         elsif trusted_certificates.empty?
-          {strategy: :trust_all_certificates}
+          { strategy: :trust_all_certificates }
         else
-          certs = trusted_certificates.map{ |cert| "/usr/local/share/custom-ca-certificates/#{cert}" }
-          {strategy: :trust_custom_certificates, cert_files: certs.sort}
+          certs = trusted_certificates.map { |cert| "/usr/local/share/custom-ca-certificates/#{cert}" }
+          { strategy: :trust_custom_certificates, cert_files: certs }
         end
       end
     end
