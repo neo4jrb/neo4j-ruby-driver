@@ -34,7 +34,7 @@ module Neo4j::Driver::Internal
       connector = create_connector(settings, security_plan, config, clock, routing_context)
       pool_settings = Async::Pool::PoolSettings.new(
         config[:max_connection_pool_size],
-        config[:connection_acquisition_timeout].in_milliseconds,
+        config[:connection_acquisition_timeout],
         config[:max_connection_lifetime].in_milliseconds,
         config[:idle_time_before_connection_test]&.in_milliseconds || -1 # TODO: remember to get rid of -1
       )

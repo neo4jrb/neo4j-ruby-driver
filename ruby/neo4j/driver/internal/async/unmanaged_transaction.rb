@@ -147,7 +147,8 @@ module Neo4j::Driver
             when State::ROLLED_BACK
               raise Neo4j::Driver::Exceptions::ClientException, 'Cannot run more queries in this transaction, it has been rolled back'
             when State::TERMINATED
-              raise Neo4j::Driver::Exceptions::ClientException, 'Cannot run more queries in this transaction, it has either experienced an fatal error or was explicitly terminated', @cause_of_termination
+              # TODO clunky positional arguments of Neo4jException#initialize, move to named parameters
+              raise Neo4j::Driver::Exceptions::ClientException, 'Cannot run more queries in this transaction, it has either experienced an fatal error or was explicitly terminated'#, # TODO should be able to pass @cause_of_termination
             end
           end
         end
