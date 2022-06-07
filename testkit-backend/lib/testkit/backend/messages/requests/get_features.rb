@@ -8,7 +8,7 @@ module Testkit::Backend::Messages
           'Feature:API:Result.List',
           'Feature:API:Result.Single',
           'Feature:API:Liveness.Check',
-          # 'Feature:API:SSLConfig', # TODO works for java
+          'Feature:API:SSLConfig',
           'Feature:API:SSLSchemes',
           'Feature:Auth:Bearer',
           'Feature:Auth:Custom',
