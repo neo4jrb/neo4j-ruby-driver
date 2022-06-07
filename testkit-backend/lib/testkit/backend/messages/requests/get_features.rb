@@ -24,10 +24,10 @@ module Testkit::Backend::Messages
           'Feature:TLS:1.2',
           # 'Feature:TLS:1.3', # TODO works for java
           'AuthorizationExpiredTreatment',
-          # 'Optimization:ConnectionReuse', #
+          'Optimization:ConnectionReuse',
           'Optimization:EagerTransactionBegin',
           'Optimization:ImplicitDefaultArguments',
-          # 'Optimization:MinimalResets', #
+          'Optimization:MinimalResets',
           'Optimization:PullPipelining',
           'Optimization:ResultListFetchAll',
           'Detail:DefaultSecurityConfigValueEquality',
