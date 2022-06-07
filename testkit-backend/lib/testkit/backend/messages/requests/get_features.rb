@@ -26,7 +26,7 @@ module Testkit::Backend::Messages
           'AuthorizationExpiredTreatment',
           # 'Optimization:ConnectionReuse', #
           'Optimization:EagerTransactionBegin',
-          'Optimization:ImplicitDefaultArguments', # TODO works for java
+          'Optimization:ImplicitDefaultArguments',
           # 'Optimization:MinimalResets', #
           'Optimization:PullPipelining',
           'Optimization:ResultListFetchAll',
