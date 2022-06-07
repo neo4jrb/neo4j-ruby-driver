@@ -4,6 +4,9 @@ module Testkit::Backend::Messages
       SKIPPED_TESTS = {
         'neo4j.test_direct_driver.TestDirectDriver.test_custom_resolver': 'Does not call resolver for direct connections',
         'stub.iteration.test_iteration_tx_run.TestIterationTxRun.test_nested': 'completely pulls the first query before running the second',
+        'stub.optimizations.test_optimizations.TestOptimizations.test_uses_implicit_default_arguments': 'Driver does not implement optimization for qid in explicit transaction',
+        'stub.optimizations.test_optimizations.TestOptimizations.test_uses_implicit_default_arguments_multi_query': 'Driver does not implement optimization for qid in explicit transaction',
+        'stub.optimizations.test_optimizations.TestOptimizations.test_uses_implicit_default_arguments_multi_query_nested': 'Driver does not implement optimization for qid in explicit transaction',
         'stub.retry.test_retry.TestRetry.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
         'stub.retry.test_retry_clustering.TestRetryClustering.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
         'stub.session_run_parameters.test_session_run_parameters.TestSessionRunParameters.test_empty_query': 'rejects empty string',
