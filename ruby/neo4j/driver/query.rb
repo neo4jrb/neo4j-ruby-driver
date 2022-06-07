@@ -10,7 +10,7 @@ module Neo4j
     # @since 1.0
     class Query < Struct.new(:text, :parameters)
       def initialize(text, **parameters)
-        super(self.class.validated_query_text(text), parameters)
+        super(self.class.validated_query_text(text), Values.value!(parameters))
       end
 
       # @param newText the new query text

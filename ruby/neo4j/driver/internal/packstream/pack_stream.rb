@@ -102,6 +102,8 @@ module Neo4j::Driver
               end
             when Symbol
               pack_string(value.to_s)
+            when InternalPath
+              unpackable(value)
             when Hash
               pack_map_header(value.size)
               value.each do |key, val|
@@ -115,8 +117,12 @@ module Neo4j::Driver
             when Bookmark
               pack(value.values)
             else
-              raise Exceptions::ClientException, "Unable to convert #{value.class.name} to Neo4j Value."
+              unpackable(value)
             end
+          end
+
+          private def unpackable(value)
+            raise UnPackable, "Cannot pack object #{value}"
           end
 
           def pack_integer(value)
