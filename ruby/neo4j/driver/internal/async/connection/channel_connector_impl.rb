@@ -24,6 +24,8 @@ module Neo4j::Driver
             # install_handshake_completed_listeners(handshake_completed, connection_initialized)
 
             channel_connected
+          rescue Errno::ECONNREFUSED => e
+            raise Exceptions::ServiceUnavailableException, e.message
           end
 
           def initialize_channel(channel, protocol)
