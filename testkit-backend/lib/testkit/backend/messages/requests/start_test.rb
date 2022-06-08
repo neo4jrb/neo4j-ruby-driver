@@ -4,6 +4,9 @@ module Testkit::Backend::Messages
       SKIPPED_TESTS = {
         'neo4j.test_direct_driver.TestDirectDriver.test_custom_resolver': 'Does not call resolver for direct connections',
         'stub.iteration.test_iteration_tx_run.TestIterationTxRun.test_nested': 'completely pulls the first query before running the second',
+        'stub.optimizations.test_optimizations.TestOptimizations.test_uses_implicit_default_arguments': 'Driver does not implement optimization for qid in explicit transaction',
+        'stub.optimizations.test_optimizations.TestOptimizations.test_uses_implicit_default_arguments_multi_query': 'Driver does not implement optimization for qid in explicit transaction',
+        'stub.optimizations.test_optimizations.TestOptimizations.test_uses_implicit_default_arguments_multi_query_nested': 'Driver does not implement optimization for qid in explicit transaction',
         'stub.retry.test_retry.TestRetry.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
         'stub.retry.test_retry_clustering.TestRetryClustering.test_disconnect_on_commit': 'Keeps retrying on commit despite connection being dropped',
         'stub.session_run_parameters.test_session_run_parameters.TestSessionRunParameters.test_empty_query': 'rejects empty string',
@@ -26,9 +29,6 @@ module Testkit::Backend::Messages
         /test_routing_v.*\.RoutingV.*\.test_should_read_successfully_on_empty_discovery_result_using_session_run/, #
         /test_routing_v.*\.RoutingV.*\.test_should_revert_to_initial_router_if_known_router_throws_protocol_errors/, #
         /test_versions\.TestProtocolVersions\.test_should_reject_server_using_verify_connectivity_bolt_3x0/,
-        # /test_multi_db_various_databases/,
-
-      # After features enabled
         /stub\.authorization\.test_authorization\.TestAuthenticationSchemes\.test_custom_scheme_empty/,
         /stub\.iteration\.test_result_list\.TestResultList\.test_.*_result_list_pulls_all_records_at_once.*/,
         /stub.routing.test_no_routing_v4x1.NoRoutingV4x1.test_should_pull_custom_size_and_then_all_using_session_configuration/,
