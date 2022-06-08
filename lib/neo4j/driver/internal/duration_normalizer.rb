@@ -18,7 +18,7 @@ module Neo4j
           end
 
           def milliseconds(duration)
-            duration.in_milliseconds.round
+            duration&.in_milliseconds&.round
           end
 
           private

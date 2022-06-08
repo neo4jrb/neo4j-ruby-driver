@@ -1,6 +1,8 @@
 module Neo4j::Driver
   module Internal
     class InternalTransaction
+      extend Synchronizable
+      sync :commit, :rollback, :close, :run
       delegate :open?, to: :@tx
 
       def initialize(tx)
@@ -8,28 +10,28 @@ module Neo4j::Driver
       end
 
       def commit
-        Sync { @tx.commit_async }
+        @tx.commit_async
         # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.commit_async) do
         #   terminate_connection_on_thread_interrupt('Thread interrupted while committing the transaction')
         # end
       end
 
       def rollback
-        Sync { @tx.rollback_async }
+        @tx.rollback_async
         # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.rollback_async) do
         #   terminate_connection_on_thread_interrupt('Thread interrupted while rolling back the transaction')
         # end
       end
 
       def close
-        Sync { @tx.close_async }
-      # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.close_async) do
-      #     terminate_connection_on_thread_interrupt('Thread interrupted while closing the transaction')
-      #   end
+        @tx.close_async
+        # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.close_async) do
+        #     terminate_connection_on_thread_interrupt('Thread interrupted while closing the transaction')
+        #   end
       end
 
       def run(query, **parameters)
-        cursor = Sync { @tx.run_async(Query.new(query, **parameters)) }
+        cursor = @tx.run_async(Query.new(query, **parameters))
         # cursor = org.neo4j.driver.internal.util.Futures.blockingGet(@tx.run_async(to_statement(query, parameters))) do
         #   terminate_connection_on_thread_interrupt('Thread interrupted while running query in transaction')
         # end

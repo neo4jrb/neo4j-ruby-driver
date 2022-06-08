@@ -26,7 +26,7 @@ module Neo4j
           when 'timeout'
             value = java.time.Duration.ofMillis(Driver::Internal::DurationNormalizer.milliseconds(value))
           when /time(out)?$/
-            value = Driver::Internal::DurationNormalizer.milliseconds(value)
+            value = Driver::Internal::DurationNormalizer.milliseconds(value) || -1
             unit = java.util.concurrent.TimeUnit::MILLISECONDS
           when 'logger'
             method = :with_logging

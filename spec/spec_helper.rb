@@ -34,6 +34,7 @@ RSpec.configure do |config|
   end
   config.before(:suite, &:clean)
   config.after(:suite) { driver.close }
+  config.around { |example| Sync(&example) }
   config.around { |example| cleaning(&example.method(:run)) }
 
   config.filter_run_excluding auth: :none
