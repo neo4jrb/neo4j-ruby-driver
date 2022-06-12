@@ -26,7 +26,6 @@ module Neo4j::Driver
           elsif error.is_a?(Exceptions::ConnectionReadTimeoutException)
             connection.terminate_and_release(error.message)
           end
-          raise error
         end
 
         def on_record(_fields)

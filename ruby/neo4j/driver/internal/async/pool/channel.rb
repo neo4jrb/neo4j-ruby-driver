@@ -52,6 +52,9 @@ module Neo4j::Driver
               @common_message_reader.read(@message_dispatcher)
             end
             @handling_active = false
+          # rescue
+          #   @handling_active = false
+          #   raise
           end
         end
       end

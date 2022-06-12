@@ -56,7 +56,7 @@ module Neo4j::Driver
             elsif record
               begin
                 yield record
-              rescue StandardError => action_error
+              rescue => action_error
                 result_future.reject(action_error)
                 return
               end

@@ -4,6 +4,7 @@ module Neo4j::Driver
       module Inbound
         class InboundMessageDispatcher
           attr_reader :fatal_error_occurred, :current_error
+
           def initialize(channel, logger)
             @handlers = []
             @channel = Validator.require_non_nil!(channel)
@@ -39,30 +40,26 @@ module Neo4j::Driver
           end
 
           def handle_record_message(fields)
-            if @log.debug?
-              @log.debug("S: RECORD #{fields}")
-            end
+            @log.debug { "S: RECORD #{fields}" }
 
-            handler = @handlers.first
-            if handler.nil?
-              rails Neo4j::Driver::Exceptions::IllegalStateException.new("No handler exists to handle RECORD message with fields #{fields}")
-            end
-
-            handler.on_record(fields)
+            (@handlers.first or
+              raise Exceptions::IllegalStateException,
+                    "No handler exists to handle RECORD message with fields #{fields}")
+              .on_record(fields)
           end
 
           def handle_failure_message(code:, message:)
             @log.debug("S: FAILURE #{code}, '#{message}'")
-            current_error = Util::ErrorUtil.new_neo4j_error(code, message)
+            @current_error = Util::ErrorUtil.new_neo4j_error(code, message)
 
             # we should not continue using channel after a fatal error
             # fire error event back to the pipeline and avoid sending RESET
 
             # return @channel.pipeline.fire_exception_caught(current_error) if Util::ErrorUtil.fatal?(current_error)
-            raise current_error if Util::ErrorUtil.fatal?(current_error) # TODO clarify
+            raise @current_error if Util::ErrorUtil.fatal?(@current_error) # TODO clarify
 
-            if current_error.is_a?(Exceptions::AuthorizationExpiredException)
-              Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(current_error, @channel)
+            if @current_error.is_a?(Exceptions::AuthorizationExpiredException)
+              Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(@current_error, @channel)
             else
               # write a RESET to "acknowledge" the failure
               enqueue(Handlers::ResetResponseHandler.new(self))
@@ -71,18 +68,18 @@ module Neo4j::Driver
 
             invoke_before_last_handler_hook(HandlerHook::FAILURE)
             handler = remove_handler
-            handler.on_failure(current_error)
+            handler.on_failure(@current_error)
           end
 
           def handle_ignored_message
-            log.debug('S: IGNORED')
+            @log.debug('S: IGNORED')
             handler = remove_handler
 
-            if current_error
-              error = current_error
+            if @current_error
+              error = @current_error
             else
-              log.warn("Received IGNORED message for handler #{handler} but error is missing and RESET is not in progress. Current handlers #{@handlers}")
-              error = Neo4j::Driver::Exceptions::ClientException('Database ignored the request')
+              @log.warn("Received IGNORED message for handler #{handler} but error is missing and RESET is not in progress. Current handlers #{@handlers}")
+              error = Exceptions::ClientException.new('Database ignored the request')
             end
 
             handler.on_failure(error)
@@ -99,9 +96,9 @@ module Neo4j::Driver
           end
 
           def handle_channel_error(error)
-            if current_error
+            if @current_error
               # we already have an error, this new error probably is caused by the existing one, thus we chain the new error on this current error
-              Util::ErrorUtil.add_suppressed(current_error, error)
+              Util::ErrorUtil.add_suppressed(@current_error, error)
             else
               @current_error = error
             end
@@ -110,14 +107,16 @@ module Neo4j::Driver
 
             while !@handlers.empty?
               handler = remove_handler
-              handler.on_failure(current_error)
+              handler.on_failure(@current_error)
             end
 
-            error_log.trace_or_debug('Closing channel because of a failure', error)
+            @error_log.trace_or_debug('Closing channel because of a failure', error)
             @channel.close
           end
 
           def clear_current_error
+            raise @current_error if @current_error
+          ensure
             @current_error = nil
           end
 
