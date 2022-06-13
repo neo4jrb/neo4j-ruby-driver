@@ -43,9 +43,8 @@ RSpec.describe 'ResultStream' do
   end
 
   it 'is able to reuse session after failure' do
-    skip # TODO: temporary skipped
     driver.session do |session|
-      expect{session.run('INVALID')}.to raise_error Neo4j::Driver::Exceptions::ClientException
+      expect { session.run('INVALID') }.to raise_error Neo4j::Driver::Exceptions::ClientException
       res2 = session.run('RETURN 1')
       expect(res2).to have_next
       expect(res2.keys).to eq [:'1']
@@ -130,7 +129,7 @@ RSpec.describe 'ResultStream' do
     end
   end
 
-  it 'comsumes large result as parallel stream' do
+  it 'consumes large result as parallel stream' do
     # skip # TODO: temporary skipped
     driver.session do |session|
       received_list = Parallel.map(session.run("UNWIND range(1, 200000) AS x RETURN 'value-' + x"), &:first)
