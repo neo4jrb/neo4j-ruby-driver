@@ -2,9 +2,9 @@ module Neo4j::Driver
   module Internal
     module Messaging
       class AbstractMessageWriter
-        def initialize(packer, encoders_by_message_signature)
+        def initialize(packer)
           @packer = Internal::Validator.require_non_nil!(packer)
-          @encoders_by_message_signature = Internal::Validator.require_non_nil!(encoders_by_message_signature)
+          @encoders_by_message_signature = Internal::Validator.require_non_nil!(build_encoders)
         end
 
         def write(msg)
