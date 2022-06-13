@@ -19,6 +19,7 @@ module Testkit::Backend::Messages
 
       SKIPPED_PATTERN = {
         /stub\.bookmarks\.test_bookmarks_v.\.TestBookmarksV.\.test_sequence_of_writing_and_reading_tx/ => 'random timeouts',
+        /stub\.routing\.test_routing_v4x1\.RoutingV4x1\.test_should_pass_bookmark_from_tx_to_tx_using_tx_run$/ => 'random timeouts',
         /stub\.routing\.test_routing_v4x4\.RoutingV4x4\.test_should_send_system_bookmark_with_route$/ => 'random timeouts',
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_on_routing_table_with_no_reader/ => 'needs routing table API support',
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_successfully_get_routing_table$/ => 'needs routing table API support',
