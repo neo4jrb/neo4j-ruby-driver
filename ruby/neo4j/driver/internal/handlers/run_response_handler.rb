@@ -3,7 +3,7 @@ module Neo4j::Driver
     module Handlers
       class RunResponseHandler
         include Spi::ResponseHandler
-        attr_reader :query_keys, :result_available_after, :query_id
+        attr :query_keys, :result_available_after, :query_id, :error
 
         def initialize(metadata_extractor, connection, tx)
           @query_keys = []
@@ -26,7 +26,7 @@ module Neo4j::Driver
           elsif error.is_a?(Exceptions::ConnectionReadTimeoutException)
             connection.terminate_and_release(error.message)
           end
-          raise error
+          @error = error
         end
 
         def on_record(_fields)

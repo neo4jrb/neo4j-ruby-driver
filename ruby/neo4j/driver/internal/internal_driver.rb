@@ -2,10 +2,12 @@ module Neo4j::Driver
   module Internal
     class InternalDriver
       extend AutoClosable
+      extend Synchronizable
       attr_reader :session_factory, :metrics_provider
       # delegate :verify_connectivity, to: :session_factory
       delegate :metrics, :metrics_enabled?, to: :metrics_provider
       auto_closable :session
+      sync :close, :supports_multi_db?, :verify_connectivity
 
       def initialize(security_plan, session_factory, metrics_provider, logger)
         @closed = Concurrent::AtomicBoolean.new(false)
@@ -16,7 +18,7 @@ module Neo4j::Driver
       end
 
       def session(**session_config)
-        Sync { InternalSession.new(new_session(**session_config)) }
+        InternalSession.new(new_session(**session_config))
       end
 
       def rx_session(**session_config)
@@ -33,7 +35,7 @@ module Neo4j::Driver
       end
 
       def close
-        Sync { close_async }
+        close_async
       end
 
       def close_async
@@ -47,7 +49,7 @@ module Neo4j::Driver
       end
 
       def supports_multi_db?
-        Sync { supports_multi_db_async? }
+        supports_multi_db_async?
       end
 
       def supports_multi_db_async?
@@ -55,7 +57,7 @@ module Neo4j::Driver
       end
 
       def verify_connectivity
-        Sync { verify_connectivity_async }
+        verify_connectivity_async
       end
 
       def new_session(**config)

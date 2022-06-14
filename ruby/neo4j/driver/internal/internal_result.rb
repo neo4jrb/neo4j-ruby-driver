@@ -1,7 +1,9 @@
 module Neo4j::Driver
   module Internal
     class InternalResult
+      extend Synchronizable
       include Enumerable
+      sync :keys, :has_next?, :next, :single, :peek, :consume
 
       def initialize(connection, cursor)
         @connection = connection

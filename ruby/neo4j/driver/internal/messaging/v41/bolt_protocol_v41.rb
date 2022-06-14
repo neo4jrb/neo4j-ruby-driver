@@ -7,7 +7,7 @@ module Neo4j::Driver
           INSTANCE = new
 
           def create_message_format
-            V44::MessageFormatV4.new
+            V4::MessageFormatV4.new
           end
 
           def build_result_cursor_factory(connection, query, bookmark_holder, tx, run_message, fetch_size)

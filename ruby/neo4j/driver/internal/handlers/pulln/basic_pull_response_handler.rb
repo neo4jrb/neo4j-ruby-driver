@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     module Handlers
       module Pulln
-        class BasicPullResponseHandler < ::Async::Notification
+        class BasicPullResponseHandler
           include Spi::ResponseHandler
           attr :state
 

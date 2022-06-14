@@ -24,7 +24,7 @@ module Neo4j::Driver
               process_acquisition_error(pool, address, error)
             end
             assert_not_closed(address, channel, pool)
-            NetworkConnection.new(channel, pool, @logger)
+            NetworkConnection.new(channel, pool, @log)
           end
 
           def retain_all(addresses_to_retain)
