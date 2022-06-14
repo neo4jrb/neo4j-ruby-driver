@@ -3,10 +3,6 @@ module Neo4j::Driver
     module Messaging
       module V44
         class MessageWriterV44 < AbstractMessageWriter
-          def initialize(output)
-            super(output, build_encoders)
-          end
-
           private
 
           def build_encoders

@@ -3,11 +3,10 @@ module Neo4j::Driver
     module Cursor
       # Used by Bolt V1, V2, V3
       class AsyncResultCursorOnlyFactory
-        def initialize(connection, run_message, run_handler, run_future, pull_handler)
+        def initialize(connection, run_message, run_handler, pull_handler)
           @connection = Internal::Validator.require_non_nil!(connection)
           @run_message = Internal::Validator.require_non_nil!(run_message)
           @run_handler = Internal::Validator.require_non_nil!(run_handler)
-          @run_future = Internal::Validator.require_non_nil!(run_future)
 
           @pull_all_handler = Internal::Validator.require_non_nil!(pull_handler)
         end
@@ -17,7 +16,7 @@ module Neo4j::Driver
           @connection.write(@run_message, @run_handler) # queues the run message, will be flushed with pull message together
           @pull_all_handler.pre_populate_records
 
-          @run_future.handle { |_ignored, error| DisposableAsyncResultCursor.new(AsyncResultCursorImpl.new(error, @run_handler, @pull_all_handler)) }
+          DisposableAsyncResultCursor.new(AsyncResultCursorImpl.new(@run_handler, @pull_all_handler))
         end
 
         def rx_result

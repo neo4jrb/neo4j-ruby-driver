@@ -4,7 +4,9 @@ module Neo4j::Driver
   class GraphDatabase
     class << self
       extend AutoClosable
+      extend Synchronizable
       auto_closable :driver, :routing_driver
+      sync :driver
 
       GOGOBOLT = ["6060B017"].pack('H*')
 
@@ -67,9 +69,7 @@ module Neo4j::Driver
       end
 
       def driver(uri, auth_token = nil, **config)
-        Sync do
-          internal_driver(uri, auth_token, config, Internal::DriverFactory.new)
-        end
+        internal_driver(uri, auth_token, config, Internal::DriverFactory.new)
       end
 
       def internal_driver(uri, auth_token, config, factory)

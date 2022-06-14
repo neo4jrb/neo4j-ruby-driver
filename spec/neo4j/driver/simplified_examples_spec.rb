@@ -111,4 +111,10 @@ RSpec.describe Neo4j::Driver do
       expect(session.run('RETURN 1').next.first).to eq 1
     end
   end
+
+  it 'session handles long results' do
+    driver.session do |session|
+      expect(session.run('UNWIND range(1, 20000) AS x RETURN x').to_a.size).to eq 20000
+    end
+  end
 end

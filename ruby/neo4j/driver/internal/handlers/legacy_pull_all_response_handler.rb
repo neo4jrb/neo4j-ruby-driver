@@ -175,13 +175,9 @@ module Neo4j::Driver
         end
 
         def extract_failure
-          if @failure.nil?
-            raise Exceptions::IllegalStateException, "Can't extract failure because it does not exist"
-          end
-
-          error = @failure
+          @failure or raise Exceptions::IllegalStateException, "Can't extract failure because it does not exist"
+        ensure
           @failure = nil # propagate failure only once
-          error
         end
 
         def complete_record_future(record)

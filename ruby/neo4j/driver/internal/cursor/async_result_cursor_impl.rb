@@ -26,7 +26,7 @@ module Neo4j::Driver
         end
 
         def each_async(&action)
-          internal_for_each_async(result_future, &action)
+          internal_for_each_async(&action)
           consume_async
         end
 
@@ -42,33 +42,25 @@ module Neo4j::Driver
 
         def pull_all_failure_async
           # runError has priority over other errors and is expected to have been reported to user by now
-          @pull_all_handler.pull_all_failure_async.then { |error| @run_error ? nil : error }
+          @pull_all_handler.pull_all_failure_async.then { |error| run_error ? nil : error }
         end
 
-        private def internal_for_each_async(result_future, &action)
-          record_future = next_async
-
-          # use async completion listener because of recursion, otherwise it is possible for
-          # the caller thread to get StackOverflowError when result is large and buffered
-          record_future.on_complete do |_fulfilled, record, error|
-            if error
-              result_future.reject(error)
-            elsif record
-              begin
-                yield record
-              rescue StandardError => action_error
-                result_future.reject(action_error)
-                return
-              end
-              internal_for_each_async(result_future, &action)
-            else
-              result_future.fulfill(nil)
+        private def internal_for_each_async
+          while record = next_async
+            begin
+              yield record
+            rescue
+              nil
             end
           end
         end
 
         def map_successful_run_completion_async
-          @run_error || self
+          run_error || self
+        end
+
+        def run_error
+          @run_handler.error
         end
       end
     end

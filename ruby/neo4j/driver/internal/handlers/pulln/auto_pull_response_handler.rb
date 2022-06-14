@@ -3,8 +3,9 @@ module Neo4j::Driver
     module Handlers
       module Pulln
         class AutoPullResponseHandler < BasicPullResponseHandler
+          delegate :signal, to: :@records
           UNINITIALIZED_RECORDS = ::Async::Queue.new
-          LONG_MAX_VALUE = 2 ** 63 -1
+          LONG_MAX_VALUE = 2 ** 63 - 1
 
           def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener, fetch_size)
             super(query, run_response_handler, connection, metadata_extractor, completion_listener)
@@ -40,11 +41,9 @@ module Neo4j::Driver
             end
 
             install_summary_consumer do |summary, error|
-              unless error.nil?
-                handle_failure(error)
-              end
+              handle_failure(error) if error
 
-              unless summary.nil?
+              if summary
                 @summary = summary
                 complete_summary_future(summary)
               end
@@ -64,7 +63,7 @@ module Neo4j::Driver
 
           def peek_async
             while @records.empty? && !done?
-              wait
+              @records.wait
             end
             @records.items.first
           end
@@ -116,7 +115,7 @@ module Neo4j::Driver
 
             if @records.size <= @low_record_watermark
               # if not in streaming state we need to restart streaming
-              request(@fetch_size) if state == !State::STREAMING_STATE
+              request(@fetch_size) if state != State::STREAMING_STATE
 
               @auto_pull_enabled = true
             end
@@ -124,26 +123,18 @@ module Neo4j::Driver
             record
           end
 
-          def records_as_list(map_function)
-            if done?
+          def records_as_list(&map_function)
+            unless done?
               raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
             end
 
-            result = []
-
-            @records.each do |record|
-              result << map_function.apply(record)
-            end
-
-            @records.clear
-            result
+            @records.each.map(&map_function)
           end
 
           def extract_failure
-            raise Exceptions::IllegalStateException, "Can't extract failure because it does not exist" unless @failure
-            error = @failure
+            @failure or raise Exceptions::IllegalStateException, "Can't extract failure because it does not exist"
+          ensure
             @failure = nil # propagate failure only once
-            error
           end
 
           def complete_record_future(record)

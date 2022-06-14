@@ -81,7 +81,7 @@ module Neo4j::Driver
         def terminate_and_release(reason)
           if @status.compare_and_set(Status::OPEN, Status::TERMINATED)
             Connection::ChannelAttributes.set_termination_reason(@channel, reason)
-            Util::Futurs.as_completion_stage(@channel.close).exceptionally(-> (_throwable) { nil }).then_compose(-> (_ignored) { @channel_pool.release(@channel) }).when_complete do |_ignored, _throwable|
+            Util::Futures.as_completion_stage(@channel.close).exceptionally(-> (_throwable) { nil }).then_compose(-> (_ignored) { @channel_pool.release(@channel) }).when_complete do |_ignored, _throwable|
               @release_future.complete(nil)
               @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
             end

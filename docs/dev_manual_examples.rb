@@ -303,8 +303,8 @@ driver.session(database: 'examples') do |session|
   session.run("CREATE (a:Greeting {message: 'Hello, Example-Database'}) RETURN a").consume
 end
 
-driver.session(database: 'examples', default_access_mode: org.neo4j.driver.AccessMode::READ) do |session|
-  msg = session.run('MATCH (a:Greeting) RETURN a.message as msg').single.first['msg'].to_s
+driver.session(database: 'examples', default_access_mode: :read) do |session|
+  msg = session.run('MATCH (a:Greeting) RETURN a.message as msg').single[:msg]
   puts msg
 end
 
@@ -332,7 +332,7 @@ end
 # Relationship  Neo4j::Driver::Types::Relationship
 # Path          Neo4j::Driver::Types::Path
 
-# * An Integer smaller than -2 ** 63 or lager than 2 ** 63 will always be implicitly converted to String
+# * An Integer smaller than -2 ** 63 or larger than 2 ** 63 will always be implicitly converted to String
 # * A Symbol passed as a parameter will always be implicitly converted to String. All Strings other then BINARY encoded when stored in neo4j are converte to UTF-8
 # * A ruby DateTime passed as a parameter will always be implicitly converted to Time
 
