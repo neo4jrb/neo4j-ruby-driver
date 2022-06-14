@@ -58,11 +58,10 @@ module Neo4j::Driver
           end
 
           def build_result_cursor_factory(connection, query, bookmark_holder, tx, run_message, ignored)
-            run_future = java.util.concurrent.CompletableFuture.new
-            run_handler = Handlers::RunResponseHandler.new(run_future, METADATA_EXTRACTOR, connection, tx)
+            run_handler = Handlers::RunResponseHandler.new(METADATA_EXTRACTOR, connection, tx)
             pull_handler = Handlers::PullHandlers.new_bolt_v3_pull_all_handler(query, run_handler, connection, bookmark_holder, tx)
 
-            Cursor::AsyncResultCursorOnlyFactory.new(connection, run_message, run_handler, run_future, pull_handler)
+            Cursor::AsyncResultCursorOnlyFactory.new(connection, run_message, run_handler, pull_handler)
           end
 
           def verify_database_name_before_transaction(database_name)
