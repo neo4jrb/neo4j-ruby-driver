@@ -79,8 +79,8 @@ module Neo4j::Driver
             @summary
           end
 
-          def list_async(map_function)
-            pull_all_async.then_apply(-> (summary) { records_as_list(map_function) })
+          def list_async(&map_function)
+            pull_all_async.then_apply(-> (summary) { records_as_list(&map_function) })
           end
 
           def pull_all_failure_async
