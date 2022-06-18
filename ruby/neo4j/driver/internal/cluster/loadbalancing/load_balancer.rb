@@ -26,7 +26,7 @@ module Neo4j::Driver
             @routing_tables.ensure_routing_table(context).then_flat do |handler|
               acquire(context.mode, handler.routing_table).then do |connection|
                 Async::Connection::RoutingConnection.new(connection,
-                                                         Util::Futures.join_now_or_else_throw(context.database_name_future, Async::ConnectionContext::PENDING_DATABASE_NAME_EXCEPTION_SUPPLIER),
+                                                         Util::Futures.join_now_or_else_throw(context.database_name, Async::ConnectionContext::PENDING_DATABASE_NAME_EXCEPTION_SUPPLIER),
                                                          context.mode, context.impersonated_user, handler)
               end
             end

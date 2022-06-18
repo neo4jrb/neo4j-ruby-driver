@@ -67,36 +67,35 @@ module Neo4j::Driver::Internal
 
     def create_driver(uri, security_plan, address, connection_pool, eventExecutorGroup, routing_settings, retryLogic, metricsProvider, config)
       if routing_scheme?(uri.scheme.downcase)
-        createRoutingDriver(security_plan, address, connection_pool, eventExecutorGroup, routing_settings, retryLogic, metricsProvider, config)
+        create_routing_driver(security_plan, address, connection_pool, eventExecutorGroup, routing_settings, retryLogic, metricsProvider, config)
       else
         assert_no_routing_context(uri, routing_settings)
-        createDirectDriver(security_plan, address, connection_pool, retryLogic, metricsProvider, config)
+        create_direct_driver(security_plan, address, connection_pool, retryLogic, metricsProvider, config)
       end
     rescue => driver_error
       # we need to close the connection pool if driver creation threw exception
-      closeConnectionPoolAndSuppressError(connection_pool, driver_error)
-      raise driver_error
+      close_connection_pool_and_suppress_error(connection_pool, driver_error)
+      raise
     end
 
-    def createDirectDriver(securityPlan, address, connection_pool, retryLogic, metricsProvider, config)
+    def create_direct_driver(securityPlan, address, connection_pool, retryLogic, metricsProvider, config)
       connection_provider = DirectConnectionProvider.new(address, connection_pool)
       driver(:Direct, securityPlan, address, connection_provider, retryLogic, metricsProvider, config)
     end
 
-    def createRoutingDriver(securityPlan, address, connection_pool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
-      connection_provider = createLoadBalancer(address, connection_pool, eventExecutorGroup, config, routingSettings)
+    def create_routing_driver(securityPlan, address, connection_pool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
+      connection_provider = create_load_balancer(address, connection_pool, eventExecutorGroup, config, routingSettings)
       driver(:Routing, securityPlan, address, connection_provider, retryLogic, metricsProvider, config)
     end
 
     def driver(type, security_plan, address, connection_provider, retry_logic, metrics_provider, config)
       session_factory = SessionFactoryImpl.new(connection_provider, retry_logic, config)
       InternalDriver.new(security_plan, session_factory, metrics_provider, config[:logger]).tap do |driver|
-        log = config[:logger]
-        log.info { "#{type} driver instance #{driver.object_id} created for server address #{address}" }
+        config[:logger]&.info { "#{type} driver instance #{driver.object_id} created for server address #{address}" }
       end
     end
 
-    def createLoadBalancer(address, connection_pool, eventExecutorGroup, config, routingSettings)
+    def create_load_balancer(address, connection_pool, eventExecutorGroup, config, routingSettings)
       load_balancing_strategy = Cluster::Loadbalancing::LeastConnectedLoadBalancingStrategy.new(connection_pool, config[:logger])
       resolver = create_resolver(config)
       Cluster::Loadbalancing::LoadBalancer.new(
@@ -110,7 +109,7 @@ module Neo4j::Driver::Internal
 
     protected
 
-    def closeConnectionPoolAndSuppressError(connection_pool, main_error)
+    def close_connection_pool_and_suppress_error(connection_pool, main_error)
       connection_pool.close
     rescue => close_error
       Util::ErrorUtil.add_suppressed(main_error, close_error)

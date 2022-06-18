@@ -117,4 +117,17 @@ RSpec.describe Neo4j::Driver do
       expect(session.run('UNWIND range(1, 20000) AS x RETURN x').to_a.size).to eq 20000
     end
   end
+
+  describe 'long query text' do
+    [2 ** 8 - 1, 2 ** 8, 2 ** 9, 2 ** 16 - 1, 2 ** 16].each do |size|
+      it "when #{size}" do
+        query = 'RETURN 1 AS '
+        query = query + 'a' * (size - query.size)
+
+        driver.session do |session|
+          expect { session.run(query) }.not_to raise_error
+        end
+      end
+    end
+  end
 end

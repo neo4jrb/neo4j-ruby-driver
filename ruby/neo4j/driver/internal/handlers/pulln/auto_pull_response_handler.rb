@@ -167,6 +167,10 @@ module Neo4j::Driver
           def completed_with_value_if_no_failure(value)
             @failure ? extract_failure : value
           end
+
+          # def request(size)
+          #   @auto_pull_enabled ? Async { super } : super
+          # end
         end
       end
     end
