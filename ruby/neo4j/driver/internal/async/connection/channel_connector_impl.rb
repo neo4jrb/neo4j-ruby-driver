@@ -21,7 +21,7 @@ module Neo4j::Driver
 
             endpoint = ::Async::IO::Endpoint.tcp(socket_host, address.port)
             if @security_plan.requires_encryption?
-              endpoint = Async::IO::SSLEndpoint.new(endpoint, ssl_context: @security_plan.ssl_context,
+              endpoint = ::Async::IO::SSLEndpoint.new(endpoint, ssl_context: @security_plan.ssl_context,
                                                     hostname: address.host)
             end
             channel_connected = endpoint.connect
