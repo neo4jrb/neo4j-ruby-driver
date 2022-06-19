@@ -5,15 +5,15 @@ module Neo4j
     class Config < Hash
       class TrustStrategy
         TRUST_ALL_CERTIFICATES = :trust_all_certificates
-        TRUST_CUSTOM_CA_SIGNED_CERTIFICATES = :trust_custom_ca_signed_certificates
-        TRUST_SYSTEM_CA_SIGNED_CERTIFICATES = :trust_system_ca_signed_certificates
+        TRUST_CUSTOM_CA_SIGNED_CERTIFICATES = :trust_system_certificates
+        TRUST_SYSTEM_CA_SIGNED_CERTIFICATES = :trust_system_certificates
 
         attr_reader :strategy, :cert_files, :revocation_strategy
 
         # Sample config:
         # {
         #   trust_strategy: {
-        #     strategy: :trust_custom_ca_signed_certificates,
+        #     strategy: :trust_system_certificates,
         #     cert_files: ['some_path', 'another_path'],
         #     revocation_strategy: :no_checks, # or :verify_if_present, :strict
         #     hostname_verification: true
