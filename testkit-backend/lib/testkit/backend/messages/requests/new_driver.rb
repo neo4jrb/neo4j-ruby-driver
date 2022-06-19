@@ -49,7 +49,7 @@ module Testkit::Backend::Messages
           { strategy: :trust_all_certificates }
         else
           certs = trusted_certificates.map { |cert| "/usr/local/share/custom-ca-certificates/#{cert}" }
-          { strategy: :trust_system_certificates, cert_files: certs }
+          { strategy: :trust_custom_certificates, cert_files: certs }
         end
       end
     end

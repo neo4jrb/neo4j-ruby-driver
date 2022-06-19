@@ -55,7 +55,7 @@ module Neo4j
           strategy = config.delete(:strategy)
           trust_strategy =
             case strategy
-            when :trust_system_certificates
+            when :trust_custom_certificates
               Config::TrustStrategy
                 .trust_custom_certificate_signed_by(*config.delete(:cert_files).map(&java.io.File.method(:new)))
             else
