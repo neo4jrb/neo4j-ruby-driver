@@ -171,7 +171,7 @@ module Neo4j::Driver
             elsif size < PLUS_2_TO_THE_8
               write_byte(STRING_8).write_byte(size)
             elsif size < PLUS_2_TO_THE_16
-              write_byte(BYTES_16).write_short(size)
+              write_byte(STRING_16).write_short(size)
             else
               write_byte(STRING_32).write_int(size)
             end
