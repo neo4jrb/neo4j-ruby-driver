@@ -212,7 +212,7 @@ module Neo4j::Driver
 
         def extract_result_summary(metadata)
           result_available_after = @run_response_handler.result_available_after
-          @metadataExtractor.extract_summary(@query, @connection, result_available_after, metadata)
+          @metadata_extractor.extract_summary(@query, @connection, result_available_after, metadata)
         end
 
         def enable_auto_read
