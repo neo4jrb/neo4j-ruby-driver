@@ -151,7 +151,7 @@ module Neo4j::Driver
               @auto_read_managing_handler.disable_auto_read_management
 
               # restore the default value of auto-read
-              @channel.config.set_auto_read(true)
+              @channel.auto_read = true
             end
 
             @auto_read_managing_handler = new_handler
