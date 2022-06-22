@@ -38,12 +38,10 @@ RSpec.describe 'Session' do
   end
 
   it 'rolls back write transaction in read session when function throws exception' do
-    skip # TODO: temporary skipped
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ)
   end
 
   it 'rolls back write transaction in write session when function throws exception' do
-    skip # TODO: temporary skipped
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE)
   end
 

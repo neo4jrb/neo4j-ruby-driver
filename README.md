@@ -42,6 +42,7 @@ This gem includes 2 different implementations: java driver wrapper and pure ruby
 ## Testing
 
 To run the tests the following tools need to be installed:
+
     $ brew install python
     $ pip3 install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit
     $ neoctrl-install -e 4.4.5 servers
