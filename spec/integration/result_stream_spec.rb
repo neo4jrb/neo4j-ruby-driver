@@ -131,10 +131,12 @@ RSpec.describe 'ResultStream' do
 
   it 'consumes large result as parallel stream' do
     driver.session do |session|
-      async_results = session.run("UNWIND range(1, 200000) AS x RETURN 'value-' + x").map do |ele|
-        Async { ele.first }
+      Async do
+        async_results = session.run("UNWIND range(1, 200000) AS x RETURN 'value-' + x").map do |ele|
+          Async { ele.first }
+        end
+        expect(async_results.map(&:wait)).to eq Array.new(200_000) { |i| "value-#{i + 1}" }
       end
-      expect(async_results.map(&:result)).to eq Array.new(200_000) { |i| "value-#{i + 1}" }    
     end
   end
 end
