@@ -10,13 +10,11 @@ module Neo4j::Driver
         @properties = properties
       end
 
-      def eql?(other)
-        id.eql?(other.id)
+      def ==(other)
+        equal?(other) || self.class == other.class && id == other.id
       end
 
-      def ==(other)
-        id == other.id
-      end
+      alias eql? ==
     end
   end
 end

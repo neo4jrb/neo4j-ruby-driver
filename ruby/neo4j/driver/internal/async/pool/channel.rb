@@ -6,6 +6,7 @@ module Neo4j::Driver
           attr :stream
           attr_accessor :version, :protocol, :message_format, :message_dispatcher
           attr :attributes # should be attr
+          attr_accessor :auto_read
 
           def initialize(address, connector, logger)
             super()
