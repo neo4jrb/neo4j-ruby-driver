@@ -26,7 +26,6 @@ end.spec 'neo4j-ruby-driver' do
   dependency 'hoe', '>= 0', :dev
   dependency 'hoe-bundler', '>= 0', :dev
   dependency 'hoe-gemspec', '>= 0', :dev
-  dependency 'parallel', '>= 0', :dev
   dependency 'rake', '>= 0', :dev
   dependency 'rspec-its', '>= 0', :dev
   dependency 'rspec-mocks', '>= 0', :dev
