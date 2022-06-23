@@ -130,4 +130,20 @@ RSpec.describe Neo4j::Driver do
       end
     end
   end
+
+  it 'handles multiple queries in a session' do
+    driver.session do |session|
+      session.run('RETURN 1')
+      expect(session.run('RETURN 1').to_a.size).to eq 1
+    end
+  end
+
+  it 'handles multiple queries in a transaction' do
+    driver.session do |session|
+      session.read_transaction do |tx|
+        tx.run('RETURN 1')
+        expect(tx.run('RETURN 1').to_a.size).to eq 1
+      end
+    end
+  end
 end
