@@ -4,7 +4,6 @@ module Neo4j::Driver
       module Pulln
         class AutoPullResponseHandler < BasicPullResponseHandler
           delegate :signal, to: :@records
-          UNINITIALIZED_RECORDS = ::Async::Queue.new
           LONG_MAX_VALUE = 2 ** 63 - 1
 
           def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener, fetch_size)
@@ -20,7 +19,7 @@ module Neo4j::Driver
               @low_record_watermark = fetch_size * 0.3
             end
 
-            @records = UNINITIALIZED_RECORDS
+            @records = ::Async::Queue.new
             @auto_pull_enabled = true
 
             install_record_and_summary_consumers
