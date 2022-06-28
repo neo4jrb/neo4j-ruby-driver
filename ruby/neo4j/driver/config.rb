@@ -79,7 +79,7 @@ module Neo4j
 
       def init_security_and_trust_config
         relevant = %i[encryption trust_strategy]
-        customized = slice(*relevant) == DEFAULTS.slice(*relevant)
+        customized = slice(*relevant) != DEFAULTS.slice(*relevant)
         merge!(security_settings: Neo4j::Driver::Internal::SecuritySetting.new(
           fetch(:encryption), TrustStrategy.new(**fetch(:trust_strategy)), customized),
         )
