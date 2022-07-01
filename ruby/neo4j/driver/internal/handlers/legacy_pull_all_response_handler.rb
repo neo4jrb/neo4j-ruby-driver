@@ -54,7 +54,7 @@ module Neo4j::Driver
           if @ignore_records
             complete_record_future(nil)
           else
-            record = InternalRecord.new(run_response_handler.query_keys, fields)
+            record = InternalRecord.new(@run_response_handler.query_keys, fields)
             enqueue_record(record)
             complete_record_future(record)
           end
@@ -76,19 +76,21 @@ module Neo4j::Driver
 
             @record_future
           else
-            java.util.concurrent.CompletableFuture.completed_future(record)
+            # java.util.concurrent.CompletableFuture.completed_future(record)
+
+            Concurrent::Promises.fulfilled_future(record).value
           end
         end
 
         def next_async
-          peek_async.then_apply(-> (_ignore) { dequeue_record })
+          peek_async.then { dequeue_record }
         end
 
         def consume_async
           @ignore_records = true
           @records.clear
 
-          pull_all_failure_async.then_apply do |error|
+          pull_all_failure_async do |error|
             unless error.nil?
               raise Util::Futures.as_completion_exception, error
             end
@@ -139,7 +141,7 @@ module Neo4j::Driver
           # when failure is requested we have to buffer all remaining records and then return the error
           # do not disable auto-read in this case, otherwise records will not be consumed and trailing
           # SUCCESS or FAILURE message will not arrive as well, so callers will get stuck waiting for the error
-          if !should_buffer_all_records && records.size > RECORD_BUFFER_HIGH_WATERMARK
+          if !should_buffer_all_records && @records.size > RECORD_BUFFER_HIGH_WATERMARK
             # more than high watermark records are already queued, tell connection to stop auto-reading from network
             # this is needed to deal with slow consumers, we do not want to buffer all records in memory if they are
             # fetched from network faster than consumed
