@@ -90,7 +90,7 @@ module Neo4j::Driver
           @ignore_records = true
           @records.clear
 
-          pull_all_failure_async do |error|
+          pull_all_failure_async.then do |error|
             unless error.nil?
               raise Util::Futures.as_completion_exception, error
             end
