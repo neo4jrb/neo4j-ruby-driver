@@ -39,7 +39,7 @@ module Neo4j::Driver
 
           failed_record_future = fail_record_future(error)
 
-          if fail_record_future
+          if failed_record_future
             # error propagated through the record future
             complete_failure_future(nil)
           else
@@ -67,30 +67,29 @@ module Neo4j::Driver
         def peek_async
           record = @records.first
 
-          if record.nil?
-            return Util::Futures.failed_future(extract_failure) unless @failure.nil?
+          # if record.nil?
+          #   return Util::Futures.failed_future(extract_failure) unless @failure.nil?
 
-            return Util::Futures.completed_with_null if @ignore_records || @finished
+          #   return Util::Futures.completed_with_null if @ignore_records || @finished
 
-            @record_future = java.util.concurrent.CompletableFuture.new if @record_future.nil?
+          #   @record_future = java.util.concurrent.CompletableFuture.new if @record_future.nil?
 
-            @record_future
-          else
-            # java.util.concurrent.CompletableFuture.completed_future(record)
-
-            Concurrent::Promises.fulfilled_future(record).value
-          end
+          #   @record_future
+          # else
+          #   # java.util.concurrent.CompletableFuture.completed_future(record)
+          #   record
+          # end
         end
 
         def next_async
-          peek_async.then { dequeue_record }
+          dequeue_record if peek_async
         end
 
         def consume_async
           @ignore_records = true
           @records.clear
 
-          pull_all_failure_async.then do |error|
+          pull_all_failure_async do |error|
             unless error.nil?
               raise Util::Futures.as_completion_exception, error
             end
@@ -150,7 +149,7 @@ module Neo4j::Driver
         end
 
         def dequeue_record
-          record = @records.drop(1)
+          record = @records.shift
 
           if @records.size < RECORD_BUFFER_LOW_WATERMARK
             # less than low watermark records are now available in the buffer, tell connection to pre-fetch more
