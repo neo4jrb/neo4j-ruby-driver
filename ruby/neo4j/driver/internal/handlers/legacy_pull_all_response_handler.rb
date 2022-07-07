@@ -89,13 +89,19 @@ module Neo4j::Driver
           @ignore_records = true
           @records.clear
 
-          pull_all_failure_async do |error|
-            unless error.nil?
-              raise Util::Futures.as_completion_exception, error
-            end
-
+          if pull_all_failure_async.nil?
             @summary
+          else
+            raise Util::Futures.as_completion_exception, pull_all_failure_async
           end
+
+          # pull_all_failure_async do |error|
+          #   unless error.nil?
+          #     raise Util::Futures.as_completion_exception, error
+          #   end
+
+          #   @summary
+          # end
         end
 
         def list_async(map_function)
@@ -116,7 +122,8 @@ module Neo4j::Driver
           if !@failure.nil?
             return java.util.concurrent.CompletableFuture.completed_future(extract_failure)
           elsif @finished
-            return Util::Futures.completed_with_null
+            return nil
+            # return Util::Futures.completed_with_null
           else
             if @failure_future.nil?
               # neither SUCCESS nor FAILURE message has arrived, register future to be notified when it arrives
