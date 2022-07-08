@@ -2,10 +2,12 @@ module Neo4j::Driver
   module Internal
     module Messaging
       class BoltProtocolVersion < Struct.new(:major_version, :minor_version)
+        include Comparable
+
         def self.from_raw_bytes(raw_version)
           major = raw_version & 0x000000FF
           minor = (raw_version >> 8) & 0x000000FF
-          new(major,minor)
+          new(major, minor)
         end
 
         def to_int

@@ -6,18 +6,13 @@ module Neo4j::Driver
         # instance can provide the wanted service.
         # <p>
         # This message is used to fetch this routing information.
+        #
+        # @param routingContext   The routing context used to define the routing table. Multi-datacenter deployments is one of its use cases.
+        # @param bookmark         The bookmark used when getting the routing table.
+        # @param databaseName     The name of the database to get the routing table for.
+        # @param impersonatedUser The name of the impersonated user to get the routing table for, should be {@code null} for non-impersonated requests
         class RouteMessage < Struct.new(:routing_context, :bookmark, :database_name, :impersonated_user)
           SIGNATURE = 0x66
-
-          # Constructor
-
-          # @param routingContext   The routing context used to define the routing table. Multi-datacenter deployments is one of its use cases.
-          # @param bookmark         The bookmark used when getting the routing table.
-          # @param databaseName     The name of the database to get the routing table for.
-          # @param impersonatedUser The name of the impersonated user to get the routing table for, should be {@code null} for non-impersonated requests
-          def initialize(routing_context, bookmark, database_name, impersonated_user)
-            super(routing_context.freeze, bookmark, database_name, impersonated_user)
-          end
 
           def signature
             SIGNATURE

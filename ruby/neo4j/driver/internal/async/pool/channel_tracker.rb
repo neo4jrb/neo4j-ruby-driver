@@ -2,22 +2,20 @@ module Neo4j::Driver
   module Internal
     module Async
       module Pool
-        class NettyChannelTracker
+        class ChannelTracker
           attr_reader :lock, :read, :write, :address_to_in_use_channel_count, :address_to_idle_channel_count, :log,
                       :metrics_listener, :close_listener, :all_channels
 
-          def initialize(metrics_listener, logger, options = {},event_executor = nil, channels = nil)
+          def initialize(metrics_listener, logger, **options)
             @metrics_listener = metrics_listener
             @log = logger
-            @all_channels = options[:channels] ? channels : Java::IoNettyChannelGroup::DefaultChannelGroup.new("all-connections", options[:event_executor])
-            @lock = java.util.concurrent.locks.ReentrantReadWriteLock.new
-            @read = lock.read_lock
-            @write = lock.write_lock
-            @close_listener = -> (future) { channel_closed(future.channel) }
+            @all_channels = options[:channels]
+            @lock = Concurrent::ReentrantReadWriteLock.new
+            @close_listener = method(:channel_closed)
           end
 
           def channel_released(channel)
-            do_in_write_lock do
+            @lock.with_write_lock do
               decrement_in_use(channel)
               increment_idle(channel)
               channel.close_future.add_listener(close_listener)

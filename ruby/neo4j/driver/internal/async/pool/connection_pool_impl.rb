@@ -32,8 +32,7 @@ module Neo4j::Driver
             @address_to_pool_lock.with_write_lock do
               @address_to_pool.each do |address, pool|
                 unless addresses_to_retain.include?(address)
-                  active_channels = @netty_channel_tracker.in_use_channel_count(address)
-                  if active_channels.zero?
+                  unless pool.busy?
                     # address is not present in updated routing table and has no active connections
                     # it's now safe to terminate corresponding connection pool and forget about it
                     @address_to_pool.delete(address)
@@ -48,7 +47,8 @@ module Neo4j::Driver
           end
 
           def in_use_connections(address)
-            @netty_channel_tracker.in_use_channel_count(address)
+            @address_to_pool[address]&.size || 0
+            # @netty_channel_tracker.in_use_channel_count(address)
           end
 
           def idle_connections(address)

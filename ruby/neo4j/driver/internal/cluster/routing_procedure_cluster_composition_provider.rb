@@ -20,18 +20,16 @@ module Neo4j::Driver
                     @single_database_routing_procedure_runner
                   end
 
-          runner.run(connection, database_name, bookmark, impersonated_user).then_apply do
-            self::process_routing_response
-          end
+          process_routing_response(runner.run(connection, database_name, bookmark, impersonated_user))
         end
 
         def process_routing_response(response)
-          if !response.success?
-            raise java.util.concurrent.CompletionException, "Failed to run '#{invoked_procedure_string(response)}' on server. Please make sure that there is a Neo4j server or cluster up running.", response.error
+          unless response.success?
+            raise response.error.class, "Failed to run '#{invoked_procedure_string(response)}' on server. Please make sure that there is a Neo4j server or cluster up running."
           end
 
           records = response.records
-          now = clock.millis
+          now = @clock.millis
 
           # the record size is wrong
           if records.size != 1
@@ -56,7 +54,7 @@ module Neo4j::Driver
 
         def invoked_procedure_string(response)
           query = response.procedure
-          query.text + '' + query.parameters
+          "#{query.text} #{query.parameters}"
         end
       end
     end

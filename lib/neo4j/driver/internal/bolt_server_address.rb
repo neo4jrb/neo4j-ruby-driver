@@ -67,7 +67,7 @@ module Neo4j::Driver
       LOCAL_DEFAULT = new(host: 'localhost', port: DEFAULT_PORT)
 
       def self.from(address)
-        address.is_a?(BoltServerAddress) ? address : new(address.host, address.port)
+        address.is_a?(BoltServerAddress) ? address : new(host: address.host, port: address.port)
       end
 
       def eql?(other)
@@ -86,8 +86,6 @@ module Neo4j::Driver
       def unicast_stream
         [self]
       end
-
-      private
 
       def attributes
         [@host, @connection_host, @port]

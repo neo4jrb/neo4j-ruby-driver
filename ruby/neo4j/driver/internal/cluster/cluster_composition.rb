@@ -14,17 +14,20 @@ module Neo4j::Driver
         end
 
         def has_writers?
-          @writers.present?
+          writers.present?
         end
 
         def has_routers_and_readers?
-          @routers.present? && @readers.present?
+          routers.present? && readers.present?
         end
 
         def self.parse(record, now)
-          return if record.nil?
-          new(expiration_timestamp: expiration_timestamp(now, record), database_name: record['db'],
-              **record['servers'].to_h { |value| [servers(value['role']), BoltServerAddress.new(value['addresses'])] })
+          return unless record
+          new(expiration_timestamp: expiration_timestamp(now, record), database_name: record[:db],
+              **record[:servers].to_h do |value|
+                [servers(value[:role]),
+                 value[:addresses].map { |address| BoltServerAddress.new(uri: BoltServerAddress.uri_from(address)) }]
+              end)
         end
 
         private
@@ -40,7 +43,7 @@ module Neo4j::Driver
           expiration_timestamp
         end
 
-        def servers(role)
+        def self.servers(role)
           case role
           when 'READ'
             :readers

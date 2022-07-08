@@ -8,8 +8,6 @@ module Neo4j::Driver
           CONNECTION_ACQUISITION_ATTEMPT_FAILURE_MESSAGE = "Failed to obtain a connection towards address %s, will try other addresses if available. Complete failure is reported separately from this entry."
           BOLT_SERVER_ADDRESSES_EMPTY_ARRAY = []
 
-          attr_reader :routing_tables
-
           delegate :close, to: :@connection_pool
 
           def initialize(initial_router, settings, connection_pool, event_executor_group, logger, load_balancing_strategy, resolver, &domain_name_resolver)
@@ -23,106 +21,72 @@ module Neo4j::Driver
           end
 
           def acquire_connection(context)
-            @routing_tables.ensure_routing_table(context).then_flat do |handler|
-              acquire(context.mode, handler.routing_table).then do |connection|
-                Async::Connection::RoutingConnection.new(connection,
-                                                         Util::Futures.join_now_or_else_throw(context.database_name, Async::ConnectionContext::PENDING_DATABASE_NAME_EXCEPTION_SUPPLIER),
-                                                         context.mode, context.impersonated_user, handler)
-              end
-            end
+            handler = @routing_tables.ensure_routing_table(context)
+            connection = acquire(context.mode, handler.routing_table)
+            Async::Connection::RoutingConnection.new(connection, context.database_name, context.mode,
+                                                     context.impersonated_user, handler)
           end
 
           def verify_connectivity
-            supports_multi_db?.then_flat do |supports|
-              @routing_tables.ensure_routing_table(Async::ImmutableConnectionContext.simple(supports)) do |_, error|
-                if error.is_a? Exceptions::ServiceUnavailableException
-                  raise Exceptions::ServiceUnavailableException.new(
-                    'Unable to connect to database management service, ensure the database is running and that there is a working network connection to it.',
-                    error)
-                end
-              end
-            end
+            @routing_tables.ensure_routing_table(Async::ImmutableConnectionContext.simple(supports_multi_db?))
+          rescue Exceptions::ServiceUnavailableException
+            raise Exceptions::ServiceUnavailableException,
+                  'Unable to connect to database management service, ensure the database is running and that there is a working network connection to it.'
+          end
+
+          def routing_table_registry
+            @routing_tables
           end
 
           def supports_multi_db?
-            begin
-              addresses = @rediscovery.resolve
-            rescue StandardError => error
-              return Util::Futures.failed_future(error)
-            end
-
-            result = Util::Futures.completed_with_null
+            addresses = @rediscovery.resolve
             base_error = Exceptions::ServiceUnavailableException.new("Failed to perform multi-databases feature detection with the following servers: #{addresses}")
-
-            addresses.each do |address|
-              result = Util::Futures.on_error_continue(result, base_error) do |error|
-                # We fail fast on security errors
-                if error.is_a? Exceptions::SecurityException
-                  Util::Futures.failed_future(error)
-                else
-                  private_suports_multi_db?(address)
-                end
-              end
-            end
-
-            Util::Futures.on_error_continue(result, base_error) do |error|
-              # If we failed with security errors, then we rethrow the security error out, otherwise we throw the chained errors.
-              Util::Futures.failed_future((error.is_a? Exceptions::SecurityException) ? error : base_error)
-            end
+            addresses.lazy.map do |address|
+              private_suports_multi_db?(address)
+            rescue Exceptions::SecurityException
+              raise
+            rescue => error
+              Util::Futures.combine_errors(base_error, error)
+            end.find { |result| !result.nil? } or raise base_error
           end
 
           private
 
           def private_suports_multi_db?(address)
-            @connection_pool.acquire(address).then_flat do |conn|
-              supports_multi_database = Messaging::Request::MultiDatabaseUtil.supports_multi_database(conn)
-              conn.release.then_apply(-> (_ignored) { supports_multi_database })
-            end
+            conn = @connection_pool.acquire(address)
+            Messaging::Request::MultiDatabaseUtil.supports_multi_database(conn)
+          ensure
+            conn&.release
           end
 
-          def acquire(mode, routing_table, result = nil, attempt_errors = nil)
-            unless result.present? && attempt_errors.present?
-              result = java.util.concurrent.CompletableFuture.new
-              attempt_exceptions = []
-            end
-
+          def acquire(mode, routing_table, attempt_errors = [])
             addresses = addresses_by_mode(mode, routing_table)
             address = select_address(mode, addresses)
 
-            if address.nil?
-              completion_error = Exceptions::SessionExpiredException.new(CONNECTION_ACQUISITION_COMPLETION_EXCEPTION_MESSAGE % [mode, routing_table])
-              attempt_errors.each { completion_error::add_suppressed }
-
-              @log.error(CONNECTION_ACQUISITION_COMPLETION_FAILURE_MESSAGE % completion_error)
-              result.complete_exceptionally(completion_error)
-              return
+            unless address
+              error = Exceptions::SessionExpiredException.new(CONNECTION_ACQUISITION_COMPLETION_EXCEPTION_MESSAGE % [mode, routing_table])
+              attempt_errors.each(&error.method(:add_suppressed))
+              @log.error(CONNECTION_ACQUISITION_COMPLETION_FAILURE_MESSAGE)
+              @log.error(error)
+              raise error
             end
 
-            @connection_pool.acquire(address).when_complete do |connection, completion_error|
-              error = Util::Futures.completion_exception_cause(completion_error)
-
-              if error.nil?
-                result.complete(connection)
-              else
-                if !error.is_a? Exceptions::ServiceUnavailableException
-                  result.complete_exceptionally(error)
-                else
-                  attempt_message = CONNECTION_ACQUISITION_ATTEMPT_FAILURE_MESSAGE % address
-                  @log.warn(attempt_message)
-                  @log.debug(attempt_message, error)
-                  attempt_errors << error
-                  routing_table.forget(address)
-                  @event_executor_group.next.execute(-> () { acquire(mode, routing_table, result, attempt_errors) })
-                end
-              end
+            begin
+              @connection_pool.acquire(address)
+            rescue Exceptions::ServiceUnavailableException => error
+              @log.warn { CONNECTION_ACQUISITION_ATTEMPT_FAILURE_MESSAGE % address }
+              @log.debug(error)
+              attempt_errors << error
+              routing_table.forget(address)
+              acquire(mode, routing_table, attempt_errors)
             end
           end
 
           def addresses_by_mode(mode, routing_table)
             case mode
-            when READ
+            when AccessMode::READ
               routing_table.readers
-            when WRITE
+            when AccessMode::WRITE
               routing_table.writers
             else
               raise unknown_mode mode
@@ -131,9 +95,9 @@ module Neo4j::Driver
 
           def select_address(mode, addresses)
             case mode
-            when READ
+            when AccessMode::READ
               @load_balancing_strategy.select_reader(addresses)
-            when WRITE
+            when AccessMode::WRITE
               @load_balancing_strategy.select_writer(addresses)
             else
               raise unknown_mode mode

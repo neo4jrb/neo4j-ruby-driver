@@ -28,10 +28,9 @@ module Neo4j::Driver
 
           def select(addresses, addresses_index, address_type)
             size = addresses.size
-
             if size == 0
               @log.debug("Unable to select #{address_type}, no known addresses given")
-              return nil
+              return
             end
 
             # choose start index for iteration in round-robin fashion
@@ -39,22 +38,22 @@ module Neo4j::Driver
             index = start_index
 
             least_connected_address = nil
-            least_active_connections = java.lang.Integer::MAX_VALUE
+            least_active_connections = nil
 
             # iterate over the array to find the least connected address
             loop do
               address = addresses[index]
               active_connections = @connection_pool.in_use_connections(address)
 
-              if active_connections < least_active_connections
+              if least_active_connections.nil? || active_connections < least_active_connections
                 least_connected_address = address
                 least_active_connections = active_connections
               end
 
               # loop over to the start of the array when end is reached
-              index = (index == size - 1) ? 0 : index += 1
+              index = (index + 1) % size
 
-              break if index != start_index
+              break if index == start_index
             end
 
             @log.debug("Selected #{address_type} with address: '#{least_connected_address}' and active connections: #{least_active_connections}")
