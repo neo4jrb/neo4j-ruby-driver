@@ -26,7 +26,7 @@ module Neo4j::Driver
         private
 
         def connection(connection)
-          Async::Connection::DirectConnection.new(connection, default_database, AccessMode::WRITE, nil)
+          Async::Connection::DirectConnection.new(connection, DatabaseNameUtil.default_database, AccessMode::WRITE, nil)
         end
 
         def procedure_query(server_version, database_name)
