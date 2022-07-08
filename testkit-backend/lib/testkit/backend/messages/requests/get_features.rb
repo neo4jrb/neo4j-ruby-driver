@@ -20,9 +20,9 @@ module Testkit::Backend::Messages
           'Feature:Bolt:4.3',
           'Feature:Bolt:4.4',
           'Feature:Impersonation',
-          # 'Feature:TLS:1.1', # TODO works for java,
+          'Feature:TLS:1.1', # TODO works for java,
           'Feature:TLS:1.2',
-          # 'Feature:TLS:1.3', # TODO works for java
+          'Feature:TLS:1.3', # TODO works for java
           'AuthorizationExpiredTreatment',
           # 'Optimization:ConnectionReuse', # disabled for java
           'Optimization:EagerTransactionBegin',
