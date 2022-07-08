@@ -19,14 +19,16 @@ jobs:
   testkit:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    continue-on-error: ${{ startsWith(matrix.ruby, 'ruby') }}
+    continue-on-error: ${{ matrix.ruby[0] == 'ruby' }}
     timeout-minutes: 60
 
     strategy:
 #      max-parallel: 1
       fail-fast: false
       matrix:
-        ruby: ['jruby:9.3.4.0', 'ruby:latest']
+        ruby:
+          - [jruby, 9.3.4.0]
+          - [ruby, latest]
 
     steps:
       - uses: actions/checkout@v2
@@ -61,7 +63,7 @@ jobs:
       - name: Run TestKit
         env:
           # to learn what these variables do, see https://github.com/neo4j-drivers/testkit
-          TESTKIT_DRIVER_BUILD_ARG_RUBY: ${{ matrix.ruby }}
+          TESTKIT_DRIVER_BUILD_ARG_RUBY: ${{ join(matrix.ruby, ':') }}
           TEST_DRIVER_NAME: ruby
           TEST_DRIVER_REPO: ${{ github.workspace }}/driver
           TEST_RUN_ALL_TESTS: "true"
@@ -77,5 +79,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v2
         with:
-          name: artifacts ${{ matrix.ruby }}
+          name: artifacts ${{ matrix.ruby[0] }}
           path: ${{ github.workspace }}/testkit/artifacts
