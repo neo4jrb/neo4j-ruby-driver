@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - [jruby, 9.3.5.0]
+          - [jruby, latest]
           - [ruby, latest]
 
     steps:
