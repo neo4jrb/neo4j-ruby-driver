@@ -1,6 +1,6 @@
 # Install Maven 3.6, Java 11, Java 8 and Python3
-ARG RUBY=jruby
-FROM $RUBY:latest
+ARG RUBY=jruby:latest
+FROM $RUBY
 
 RUN apt-get --quiet --quiet update \
     && apt-get --quiet --quiet install -y bash python3 maven \
