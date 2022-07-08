@@ -39,7 +39,7 @@ module Neo4j::Driver
 
           failed_record_future = fail_record_future(error)
 
-          if fail_record_future
+          if failed_record_future
             # error propagated through the record future
             complete_failure_future(nil)
           else
@@ -54,7 +54,7 @@ module Neo4j::Driver
           if @ignore_records
             complete_record_future(nil)
           else
-            record = InternalRecord.new(run_response_handler.query_keys, fields)
+            record = InternalRecord.new(@run_response_handler.query_keys, fields)
             enqueue_record(record)
             complete_record_future(record)
           end
@@ -67,34 +67,41 @@ module Neo4j::Driver
         def peek_async
           record = @records.first
 
-          if record.nil?
-            return Util::Futures.failed_future(extract_failure) unless @failure.nil?
+          # if record.nil?
+          #   return Util::Futures.failed_future(extract_failure) unless @failure.nil?
 
-            return Util::Futures.completed_with_null if @ignore_records || @finished
+          #   return Util::Futures.completed_with_null if @ignore_records || @finished
 
-            @record_future = java.util.concurrent.CompletableFuture.new if @record_future.nil?
+          #   @record_future = java.util.concurrent.CompletableFuture.new if @record_future.nil?
 
-            @record_future
-          else
-            java.util.concurrent.CompletableFuture.completed_future(record)
-          end
+          #   @record_future
+          # else
+          #   # java.util.concurrent.CompletableFuture.completed_future(record)
+          #   record
+          # end
         end
 
         def next_async
-          peek_async.then_apply(-> (_ignore) { dequeue_record })
+          dequeue_record if peek_async
         end
 
         def consume_async
           @ignore_records = true
           @records.clear
 
-          pull_all_failure_async.then_apply do |error|
-            unless error.nil?
-              raise Util::Futures.as_completion_exception, error
-            end
-
+          if pull_all_failure_async.nil?
             @summary
+          else
+            raise Util::Futures.as_completion_exception, pull_all_failure_async
           end
+
+          # pull_all_failure_async do |error|
+          #   unless error.nil?
+          #     raise Util::Futures.as_completion_exception, error
+          #   end
+
+          #   @summary
+          # end
         end
 
         def list_async(map_function)
@@ -115,7 +122,8 @@ module Neo4j::Driver
           if !@failure.nil?
             return java.util.concurrent.CompletableFuture.completed_future(extract_failure)
           elsif @finished
-            return Util::Futures.completed_with_null
+            return nil
+            # return Util::Futures.completed_with_null
           else
             if @failure_future.nil?
               # neither SUCCESS nor FAILURE message has arrived, register future to be notified when it arrives
@@ -139,7 +147,7 @@ module Neo4j::Driver
           # when failure is requested we have to buffer all remaining records and then return the error
           # do not disable auto-read in this case, otherwise records will not be consumed and trailing
           # SUCCESS or FAILURE message will not arrive as well, so callers will get stuck waiting for the error
-          if !should_buffer_all_records && records.size > RECORD_BUFFER_HIGH_WATERMARK
+          if !should_buffer_all_records && @records.size > RECORD_BUFFER_HIGH_WATERMARK
             # more than high watermark records are already queued, tell connection to stop auto-reading from network
             # this is needed to deal with slow consumers, we do not want to buffer all records in memory if they are
             # fetched from network faster than consumed
@@ -148,7 +156,7 @@ module Neo4j::Driver
         end
 
         def dequeue_record
-          record = @records.drop(1)
+          record = @records.shift
 
           if @records.size < RECORD_BUFFER_LOW_WATERMARK
             # less than low watermark records are now available in the buffer, tell connection to pre-fetch more
