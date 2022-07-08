@@ -9,11 +9,11 @@ module Neo4j::Driver
         RECORD_BUFFER_HIGH_WATERMARK = ENV['record_buffer_high_watermark']&.to_i || 1000
 
         def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener)
-          @query = Util::Validator.require_non_nil!(query)
-          @run_response_handler = Util::Validator.require_non_nil!(run_response_handler)
-          @metadata_extractor = Util::Validator.require_non_nil!(metadata_extractor)
-          @connection = Util::Validator.require_non_nil!(connection)
-          @completion_listener = Util::Validator.require_non_nil!(completion_listener)
+          @query = Internal::Validator.require_non_nil!(query)
+          @run_response_handler = Internal::Validator.require_non_nil!(run_response_handler)
+          @metadata_extractor = Internal::Validator.require_non_nil!(metadata_extractor)
+          @connection = Internal::Validator.require_non_nil!(connection)
+          @completion_listener = Internal::Validator.require_non_nil!(completion_listener)
           @records = UNINITIALIZED_RECORDS
         end
 
@@ -212,7 +212,7 @@ module Neo4j::Driver
 
         def extract_result_summary(metadata)
           result_available_after = @run_response_handler.result_available_after
-          @metadataExtractor.extract_summary(@query, @connection, result_available_after, metadata)
+          @metadata_extractor.extract_summary(@query, @connection, result_available_after, metadata)
         end
 
         def enable_auto_read

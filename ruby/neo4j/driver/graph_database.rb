@@ -8,66 +8,6 @@ module Neo4j::Driver
       auto_closable :driver, :routing_driver
       sync :driver
 
-      GOGOBOLT = ["6060B017"].pack('H*')
-
-      def handshake_concurrent(*versions)
-        remote_port = 7687
-        remote_addr = 'localhost'
-        selector = NIO::Selector.new
-        socket = Socket.new(Socket::AF_INET, Socket::SOCK_STREAM, 0)
-        begin
-          socket.connect_nonblock Socket.sockaddr_in(remote_port, remote_addr)
-        rescue Errno::EINPROGRESS
-          # Ruby's a-tryin' to connect us, we swear!
-          selector.register(socket, :w)
-        end
-        selector.select do |monitor|
-          case monitor.io
-          when Socket
-            if monitor.writable?
-              begin
-                socket.connect_nonblock Socket.sockaddr_in(remote_port, remote_addr)
-              rescue Errno::EISCONN
-                # SUCCESS! Since Ruby is crazy we discover we're successful via an exception
-              end
-            end
-          end
-        end
-        socket.write_nonblock(GOGOBOLT)
-        socket.write_nonblock(bolt_versions(*versions))
-
-        @data = nil
-        begin
-          @data = socket.read_nonblock(16384)
-        rescue IO::WaitReadable
-          monitor = selector.register(socket, :r)
-          monitor.value = proc do
-            @data = socket.read_nonblock(16384)
-          end
-        end
-        Concurrent::Promises.future do
-          selector.select do |monitor|
-            monitor.value.call
-          end
-          ruby_version(@data)
-        end
-      end
-
-      class Connection < Async::Pool::Resource
-        attr :version, true
-        attr :io
-
-        def initialize
-          super
-          @io = Async::IO::Endpoint.tcp('localhost', 7687).connect
-        end
-
-        def close
-          super
-          @io.close
-        end
-      end
-
       def driver(uri, auth_token = nil, **config)
         internal_driver(uri, auth_token, config, Internal::DriverFactory.new)
       end

@@ -20,6 +20,7 @@ module Neo4j::Driver
 
             begin
               channel = pool.acquire
+              @log.debug{"Channel #{channel.object_id} acquired"}
             rescue => error
               process_acquisition_error(pool, address, error)
             end

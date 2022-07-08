@@ -4,7 +4,6 @@ module Neo4j::Driver
       module Pulln
         class AutoPullResponseHandler < BasicPullResponseHandler
           delegate :signal, to: :@records
-          UNINITIALIZED_RECORDS = ::Async::Queue.new
           LONG_MAX_VALUE = 2 ** 63 - 1
 
           def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener, fetch_size)
@@ -20,7 +19,7 @@ module Neo4j::Driver
               @low_record_watermark = fetch_size * 0.3
             end
 
-            @records = UNINITIALIZED_RECORDS
+            @records = ::Async::Queue.new
             @auto_pull_enabled = true
 
             install_record_and_summary_consumers
@@ -79,8 +78,8 @@ module Neo4j::Driver
             @summary
           end
 
-          def list_async(map_function)
-            pull_all_async.then_apply(-> (summary) { records_as_list(map_function) })
+          def list_async(&map_function)
+            pull_all_async.then_apply(-> (summary) { records_as_list(&map_function) })
           end
 
           def pull_all_failure_async
@@ -167,6 +166,10 @@ module Neo4j::Driver
           def completed_with_value_if_no_failure(value)
             @failure ? extract_failure : value
           end
+
+          # def request(size)
+          #   @auto_pull_enabled ? Async { super } : super
+          # end
         end
       end
     end

@@ -16,9 +16,15 @@ module Neo4j::Driver
           end
 
           def connect(address)
-            socket_host = (@domain_name_resolver.call(address.connection_host).first.ip_address rescue nil) || bracketless(address.connection_host)
+            socket_host = (@domain_name_resolver.call(address.connection_host).first.ip_address rescue nil) ||
+              bracketless(address.connection_host)
 
-            channel_connected = ::Async::IO::Endpoint.tcp(socket_host, address.port).connect
+            endpoint = ::Async::IO::Endpoint.tcp(socket_host, address.port)
+            if @security_plan.requires_encryption?
+              endpoint = ::Async::IO::SSLEndpoint.new(endpoint, ssl_context: @security_plan.ssl_context,
+                                                    hostname: address.host)
+            end
+            channel_connected = endpoint.connect
 
             # install_channel_connected_listeners(address, channel_connected, handshake_completed)
             # install_handshake_completed_listeners(handshake_completed, connection_initialized)

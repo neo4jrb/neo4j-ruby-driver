@@ -56,10 +56,21 @@ $ bin/setup
 $ rspec spec
 ```
 
-In case of heap space memory error (`org.neo4j.driver.exceptions.DatabaseException: Java heap space`), you should limit the dbms memory, for example:
+Known errors:
+
+1. In case of heap space memory error (`org.neo4j.driver.exceptions.DatabaseException: Java heap space`), you should limit the dbms memory, for example:
 
 ```console
 $ neoctrl-configure servers/neo4j-enterprise-4.4.5 dbms.memory.pagecache.size=600m dbms.memory.heap.max_size=600m dbms.memory.heap.initial_size=600m dbms.directories.import= dbms.connectors.default_listen_address=::
+```
+
+2. When using command `pip3 install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit`, if you have m1 mac chip, you may get error when pip3 tries to install `cryptography`. Steps to take in that case (reference https://stackoverflow.com/a/70074869/2559490)
+
+```console
+$ pip uninstall cffi
+$ python -m pip install --upgrade pip
+$ pip install cffi
+$ pip install cryptography
 ```
 
 ## Contributing

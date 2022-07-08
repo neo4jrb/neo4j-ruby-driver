@@ -4,7 +4,7 @@ module Neo4j::Driver
       class RoutingTableRegistryImpl
         def initialize(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
           @factory = RoutingTableHandlerFactory.new(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
-          @routing_table_handlers = {}
+          @routing_table_handlers = Concurrent::Hash.new
           @principal_to_database_name_stage = {}
           @clock = clock
           @connection_pool = connection_pool

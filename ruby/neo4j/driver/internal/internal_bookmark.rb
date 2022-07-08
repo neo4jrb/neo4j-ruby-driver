@@ -10,13 +10,11 @@ module Neo4j::Driver
         @values = values.to_set
       end
 
-      def eql?(other)
-        values.eql?(other.values)
+      def ==(other)
+        equal?(other) || self.class == other.class && values == other.values
       end
 
-      def ==(other)
-        values == other.values
-      end
+      alias eql? ==
 
       def to_s
         "Bookmark{values=#{values}}"
