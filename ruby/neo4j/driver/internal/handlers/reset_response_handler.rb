@@ -9,7 +9,7 @@ module Neo4j::Driver
           @completion_future = completion_future
         end
 
-        def on_success(_metadata)
+        def on_success(_metadata = {})
           reset_completed(true)
         end
 

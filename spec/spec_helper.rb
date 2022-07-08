@@ -8,7 +8,6 @@ require 'async'
 require 'active_support/logger'
 require 'ffaker'
 require 'neo4j_ruby_driver'
-require 'parallel'
 require 'rspec/its'
 require 'support/driver_helper'
 require 'support/neo4j_cleaner'
@@ -34,8 +33,8 @@ RSpec.configure do |config|
   end
   config.before(:suite, &:clean)
   config.after(:suite) { driver.close }
-  # config.threadsafe = false
-  config.around { |example| Sync(&example) }
+  config.threadsafe = false
+  # config.around { |example| Sync(&example) }
   config.around { |example| cleaning(&example.method(:run)) }
 
   config.filter_run_excluding auth: :none

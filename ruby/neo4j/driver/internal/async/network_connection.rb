@@ -33,11 +33,11 @@ module Neo4j::Driver
         end
 
         def enable_auto_read
-          set_auto_read(true) if open?
+          @channel.auto_read = true if open?
         end
 
         def disable_auto_read
-          set_auto_read(false) if open?
+          @channel.auto_read = false if open?
         end
 
         def flush
@@ -69,13 +69,12 @@ module Neo4j::Driver
 
         def release
           if @status.compare_and_set(Status::OPEN, Status::RELEASED)
-            @channel_pool.release(@channel)
+            handler = Handlers::ChannelReleasingResetResponseHandler.new(@channel, @channel_pool, @message_dispatcher, @log, @release)
+            write_reset_message_if_needed(handler, false)
+            # @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
+            # end
+            # @release_future
           end
-          # handler = Handlers::ChannelReleasingResetResponseHandler.new(@channel, @channel_pool, @message_dispatcher, @clock, @release)
-          # write_reset_message_if_needed(handler, false)
-          # @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
-          # end
-          # @release_future
         end
 
         def terminate_and_release(reason)
@@ -91,15 +90,13 @@ module Neo4j::Driver
         private
 
         def write_reset_message_if_needed(reset_handler, is_session_reset)
-          @channel.event_loop.execute do
-            if is_session_reset && !open?
-              reset_handler.on_success(java.util.Collections.empty_map)
-            else
-              # auto-read could've been disabled, re-enable it to automatically receive response for RESET
-              set_auto_read(true)
-              @message_dispatcher.enqueue(reset_handler)
-              @channel.write_and_flush(Messaging::Request::ResetMessage::RESET).add_listener(-> (_future) { register_connection_read_timeout(@channel) })
-            end
+          if is_session_reset && !open?
+            reset_handler.on_success
+          else
+            # auto-read could've been disabled, re-enable it to automatically receive response for RESET
+            @channel.auto_read = true
+            @message_dispatcher.enqueue(reset_handler)
+            @channel.write_and_flush(Messaging::Request::ResetMessage::RESET)#.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
           end
         end
 
@@ -114,7 +111,7 @@ module Neo4j::Driver
           @message_dispatcher.enqueue(handler)
 
           if flush
-            @channel.write_and_flush(message)#.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+            @channel.write_and_flush(message) #.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
           else
             @channel.write(message)
           end
@@ -133,10 +130,6 @@ module Neo4j::Driver
               @channel.write(message2, @channel.void_promise)
             end
           end
-        end
-
-        def set_auto_read(value)
-          @channel.config.set_auto_read(value)
         end
 
         def verify_open(handler1, handler2)

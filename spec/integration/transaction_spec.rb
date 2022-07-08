@@ -85,7 +85,6 @@ RSpec.describe 'Transaction' do
   end
 
   it 'rolls back tx if error with consume' do
-    skip # TODO: temporary skipped
     expect do
       session.begin_transaction do |tx|
         result = tx.run('invalid')
@@ -114,7 +113,6 @@ RSpec.describe 'Transaction' do
   # shouldThrowWhenConnectionKilledDuringTransactionMarkedForSuccess
 
   it 'disallows queries after failure when results are consumed' do
-    skip # TODO: temporary skipped
     session.begin_transaction do |tx|
       expect(tx.run('UNWIND [1,2,3] AS x CREATE (:Node) RETURN x').map(&:first)).to eq [1, 2, 3]
       expect { tx.run('RETURN unknown').consume }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
@@ -131,7 +129,6 @@ RSpec.describe 'Transaction' do
   end
 
   it 'rolls back when marked successful but one statement fails' do
-    skip # TODO: temporary skipped
     expect do
       session.begin_transaction do |tx|
         tx.run('CREATE (:Node1)')
