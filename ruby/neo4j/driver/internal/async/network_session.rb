@@ -10,8 +10,8 @@ module Neo4j::Driver
           @retry_logic = retry_logic
           @log = Logging::PrefixedLogger.new("[#{hash}]", logger)
           @bookmark_holder = bookmark_holder
-          @database_name = database_name.database_name
-          @connection_context = NetworkSessionConnectionContext.new(@database_name, @bookmark_holder.bookmark, impersonated_user)
+          # @database_name = database_name.database_name
+          @connection_context = NetworkSessionConnectionContext.new(database_name, @bookmark_holder.bookmark, impersonated_user)
           @fetch_size = fetch_size
           @open = Concurrent::AtomicBoolean.new(true)
         end
