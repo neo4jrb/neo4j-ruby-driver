@@ -3,13 +3,17 @@ module Testkit::Backend::Messages
     class GetFeatures < Request
       def process
         named_entity('FeatureList', features: [
+          # 'Feature:API:ConnectionAcquisitionTimeout',
           'Feature:API:Driver.IsEncrypted',
-          'Feature:API:Result.Peek',
-          'Feature:API:Result.List',
-          'Feature:API:Result.Single',
           'Feature:API:Liveness.Check',
+          'Feature:API:Result.List',
+          'Feature:API:Result.Peek',
+          'Feature:API:Result.Single',
+          # 'Feature:API:SessionConnectionTimeout',
           'Feature:API:SSLConfig',
           'Feature:API:SSLSchemes',
+          # 'Feature:API:Type.Temporal',
+          # 'Feature:API:UpdateRoutingTableTimeout',
           'Feature:Auth:Bearer',
           'Feature:Auth:Custom',
           'Feature:Auth:Kerberos',
@@ -19,6 +23,7 @@ module Testkit::Backend::Messages
           'Feature:Bolt:4.2',
           'Feature:Bolt:4.3',
           'Feature:Bolt:4.4',
+          'Feature:Bolt:Patch:UTC',
           'Feature:Impersonation',
           # 'Feature:TLS:1.1', # TODO works for java,
           'Feature:TLS:1.2',
@@ -31,6 +36,7 @@ module Testkit::Backend::Messages
           'Optimization:PullPipelining',
           'Optimization:ResultListFetchAll',
           'Detail:DefaultSecurityConfigValueEquality',
+          # 'Detail:ResultStreamWorksAfterBrokenRecord',
           'ConfHint:connection.recv_timeout_seconds',
         ])
       end

@@ -22,7 +22,7 @@ module Neo4j::Driver
 
       def supports_multi_db?
         private_acquire_connection.then do |conn|
-          supports_multi_database?(conn)
+          Messaging::Request::MultiDatabaseUtil.supports_multi_database?(conn)
         ensure
           conn.release
         end

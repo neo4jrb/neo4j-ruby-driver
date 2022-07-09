@@ -16,7 +16,7 @@ module Neo4j::Driver
 
         def procedure_query(server_version, database_name)
           map = {
-            SingleDatabaseRoutingProcedureRunner::ROUTING_CONTEXT => context.to_h,
+            SingleDatabaseRoutingProcedureRunner::ROUTING_CONTEXT => @context.to_h,
             DATABASE_NAME => database_name.database_name
           }
           Query.new(MULTI_DB_GET_ROUTING_TABLE, **map)

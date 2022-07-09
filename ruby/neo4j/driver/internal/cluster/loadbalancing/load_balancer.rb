@@ -54,7 +54,7 @@ module Neo4j::Driver
 
           def private_suports_multi_db?(address)
             conn = @connection_pool.acquire(address)
-            Messaging::Request::MultiDatabaseUtil.supports_multi_database(conn)
+            Messaging::Request::MultiDatabaseUtil.supports_multi_database?(conn)
           ensure
             conn&.release
           end

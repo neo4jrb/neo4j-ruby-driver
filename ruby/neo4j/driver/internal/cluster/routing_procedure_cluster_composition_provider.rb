@@ -12,9 +12,9 @@ module Neo4j::Driver
         end
 
         def get_cluster_composition(connection, database_name, bookmark, impersonated_user)
-          runner = if Messaging::Request::MultiDatabaseUtil.supports_route_message(connection)
+          runner = if Messaging::Request::MultiDatabaseUtil.supports_route_message?(connection)
                     @route_message_routing_procedure_runner
-                  elsif Messaging::Request::MultiDatabaseUtil.supports_multi_database(connection)
+                  elsif Messaging::Request::MultiDatabaseUtil.supports_multi_database?(connection)
                     @multi_database_routing_procedure_runner
                   else
                     @single_database_routing_procedure_runner
