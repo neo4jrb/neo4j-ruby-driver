@@ -3,6 +3,7 @@
 RSpec.describe 'Transaction' do
   let(:session) { driver.session }
   after(:example) { session.close }
+  around { |example| Sync(&example) }
 
   it 'runs and commits' do
     session.begin_transaction do |tx|

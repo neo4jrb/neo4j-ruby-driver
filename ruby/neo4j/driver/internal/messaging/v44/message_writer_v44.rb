@@ -10,7 +10,7 @@ module Neo4j::Driver
               Request::HelloMessage::SIGNATURE => Encode::HelloMessageEncoder.new,
               Request::GoodbyeMessage::SIGNATURE => Encode::GoodbyeMessageEncoder.new,
               Request::RunWithMetadataMessage::SIGNATURE => Encode::RunWithMetadataMessageEncoder.new,
-              Request::RouteMessage::SIGNATURE => Encode::RouteMessageEncoder.new,
+              Request::RouteMessage::SIGNATURE => Encode::RouteV44MessageEncoder.new,
               Request::DiscardMessage::SIGNATURE => Encode::DiscardMessageEncoder.new,
               Request::PullMessage::SIGNATURE => Encode::PullMessageEncoder.new,
               Request::BeginMessage::SIGNATURE => Encode::BeginMessageEncoder.new,

@@ -13,7 +13,7 @@ module Neo4j::Driver
 
           def initialize_channel(channel, user_agent, auth_token, routing_context)
             message = Request::HelloMessage.new(user_agent, auth_token,
-                                                (routing_context.to_map if routing_context.server_routing_enabled?))
+                                                (routing_context.to_h if routing_context.server_routing_enabled?))
             handler = Handlers::HelloResponseHandler.new(channel, VERSION)
 
             channel.message_dispatcher.enqueue(handler)

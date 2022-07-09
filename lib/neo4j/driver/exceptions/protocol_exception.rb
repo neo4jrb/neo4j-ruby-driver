@@ -8,8 +8,8 @@ module Neo4j
       class ProtocolException < Neo4jException
         CODE = "Protocol violation: "
 
-        def initialize(message, e)
-          super("#{CODE}message", e)
+        def initialize(message, e = nil)
+          super(nil, "#{CODE}#{message}", e)
         end
       end
     end

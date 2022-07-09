@@ -5,7 +5,7 @@ module Neo4j::Driver
       # This implementation of the {@link RoutingProcedureRunner} works with single database versions of Neo4j calling
       # the procedure `dbms.cluster.routing.getRoutingTable`
       class SingleDatabaseRoutingProcedureRunner
-        ROUTING_CONTEXT = 'context'
+        ROUTING_CONTEXT = :context
         GET_ROUTING_TABLE = "CALL dbms.cluster.routing.getRoutingTable($#{ROUTING_CONTEXT})"
 
         def initialize(context)
@@ -26,7 +26,7 @@ module Neo4j::Driver
         private
 
         def connection(connection)
-          Async::Connection::DirectConnection.new(connection, default_database, AccessMode::WRITE, nil)
+          Async::Connection::DirectConnection.new(connection, DatabaseNameUtil.default_database, AccessMode::WRITE, nil)
         end
 
         def procedure_query(server_version, database_name)

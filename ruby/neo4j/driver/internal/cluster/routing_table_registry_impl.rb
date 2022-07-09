@@ -4,76 +4,55 @@ module Neo4j::Driver
       class RoutingTableRegistryImpl
         def initialize(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
           @factory = RoutingTableHandlerFactory.new(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
-          @routing_table_handlers = Concurrent::Hash.new
-          @principal_to_database_name_stage = {}
+          @routing_table_handlers = Concurrent::Map.new
+          @principal_to_database_name = {}
           @clock = clock
           @connection_pool = connection_pool
           @rediscovery = rediscovery
           @log = logger
+          @mutex = Mutex.new
         end
 
         def ensure_routing_table(context)
-          ensure_database_name_is_completed(context).then_compose do |ctx_and_handler|
-            completed_context = ctx_and_handler.context
-            handler = ctx_and_handler.handler.nil? ? get_or_create(Util::Futures.join_now_or_else_throw(completed_context.database_name_future, Async::ConnectionContext::PENDING_DATABASE_NAME_EXCEPTION_SUPPLIER)) : ctx_and_handler.handler
-            handler.ensure_routing_table(completed_context).then_apply(-> (_ignored) { handler })
-          end
+          ctx_and_handler = ensure_database_name_is_completed(context)
+          (ctx_and_handler.handler || get_or_create(context.database_name))
+            .tap { |handler| handler.ensure_routing_table(ctx_and_handler.context) }
         end
 
         private def ensure_database_name_is_completed(context)
-          context_database_name_future = context.database_name_future
+          context_database_name = context.database_name
 
-          if context_database_name_future.done?
-            context_and_handler_stage = java.util.concurrent.CompletableFuture.completed_future(ConnectionContextAndHandler.new(context, nil))
-          else
+          return ConnectionContextAndHandler.new(context, nil) if context_database_name
+          @mutex.synchronize do
+            return ConnectionContextAndHandler.new(context, nil) if context_database_name
+
             impersonated_user = context.impersonated_user
             principal = Principal.new(impersonated_user)
-            database_name_stage = @principal_to_database_name_stage[principal]
-            handler_ref = java.util.concurrent.atomic.AtomicReference.new
+            database_name = @principal_to_database_name[principal]
+            handler_ref = Concurrent::AtomicReference.new
 
-            if database_name_stage.nil?
-              database_name_future = java.util.concurrent.CompletableFuture.new
-              @principal_to_database_name_stage[principal] = database_name_future
-              database_name_stage = database_name_future
+            if database_name.nil?
+              @principal_to_database_name[principal] = database_name
 
               routing_table = ClusterRoutingTable.new(DatabaseNameUtil::DEFAULT_DATABASE, @clock)
 
-              @rediscovery.lookup_cluster_composition(routing_table, @connection_pool, context.rediscovery_bookmark, impersonated_user).then_compose do |composition_lookup_result|
-                database_name = DatabaseNameUtil.database(composition_lookup_result.cluster_composition.database_name)
-                handler = get_or_create(database_name)
-                handler_ref.set(handler)
-                handler.update_routing_table(composition_lookup_result).then_apply(-> (_ignored) { database_name })
-              end.when_complete do |database_name, _throwable|
-                    @principal_to_database_name_stage.delete(principal)
-                  end.when_complete do |database_name, throwable|
-                        if throwable.nil?
-                          database_name_future.complete(database_name)
-                        else
-                          database_name_future.complete_exceptionally(throwable)
-                        end
-                      end
+              composition_lookup_result = @rediscovery.lookup_cluster_composition(routing_table, @connection_pool, context.rediscovery_bookmark, impersonated_user)
+              database_name = DatabaseNameUtil.database(composition_lookup_result.cluster_composition.database_name)
+              handler = get_or_create(database_name)
+              handler_ref.set(handler)
+              handler.update_routing_table(composition_lookup_result)
+              @principal_to_database_name.delete(principal)
             end
 
-            context_and_handler_stage =
-            database_name_stage.then_apply do |database_name|
-              context_database_name_future.complete(database_name)
-              ConnectionContextAndHandler.new(context, handler_ref)
-            end
+            context.database_name = database_name
+            ConnectionContextAndHandler.new(context, handler_ref.get)
           end
-
-          context_and_handler_stage
         end
 
         def all_servers
           # obviously we just had a snapshot of all servers in all routing tables
           # after we read it, the set could already be changed.
-          servers = []
-
-          @routing_table_handlers.values.each do |table_handler|
-            servers << table_handler.servers
-          end
-
-          servers
+          @routing_table_handlers.values.flat_map(&:servers).to_set
         end
 
         def remove(database_name)
@@ -90,17 +69,18 @@ module Neo4j::Driver
           end
         end
 
-        def get_routing_table_handler(database_name)
-          java.util.Optional.of_nullable(@routing_table_handlers[database_name])
+        def routing_table_handler(database_name)
+          @routing_table_handlers[database_name]
         end
 
-        def contains(database_name)
-          @routing_table_handlers.keys.include?(database_name)
-        end
+        # For tests
+        delegate :key?, to: :@routing_table_handlers
 
         def get_or_create(database_name)
-          @routing_table_handlers.compute_if_absent(database_name) do |name|
-            handler = @factory.new_instance(name, self)
+          @routing_table_handlers.compute_if_absent(database_name) do
+            # TODO: Verify if applies
+            # Note: Atomic methods taking a block do not allow the self instance to be used within the block. Doing so will cause a deadlock.
+            handler = @factory.new_instance(database_name, self)
             @log.debug("Routing table handler for database '#{database_name.description}' is added.")
             handler
           end

@@ -59,7 +59,7 @@ module Neo4j::Driver::Internal::Util
       end
 
       def add_suppressed(main_error, error)
-        main_error.add_suppressed(error) if main_error.is_a?(Exceptions::Neo4jException) && main_error != error
+        main_error.add_suppressed(error) if main_error.is_a?(Neo4j::Driver::Exceptions::Neo4jException) && main_error != error
       end
 
       def get_root_cause(error)

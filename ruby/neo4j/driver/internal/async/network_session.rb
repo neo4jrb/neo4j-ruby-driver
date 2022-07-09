@@ -133,7 +133,8 @@ module Neo4j::Driver
           # This bookmark is only used for rediscovery.
           # It has to be the initial bookmark given at the creation of the session.
           # As only that bookmark could carry extra system bookmarks
-          attr_reader :database_name, :mode, :rediscovery_bookmark, :impersonated_user
+          attr_accessor :database_name
+          attr :mode, :rediscovery_bookmark, :impersonated_user
 
           def initialize(database_name, bookmark, impersonated_user)
             @database_name = database_name
