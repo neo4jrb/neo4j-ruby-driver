@@ -64,7 +64,10 @@ module Neo4j::Driver
         end
 
         def peek_async
-          record = @records.items.first
+          while @records.empty? && !@record_future.nil?
+            @records.wait
+          end
+          @records.items.first
 
           # if record.nil?
           #   return Util::Futures.failed_future(extract_failure) unless @failure.nil?
