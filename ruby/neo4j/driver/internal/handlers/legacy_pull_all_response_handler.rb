@@ -64,7 +64,7 @@ module Neo4j::Driver
         end
 
         def peek_async
-          while @records.empty? && !@record_future.nil?
+          while @records.empty? && !(@ignore_records || @finished)
             @records.wait
           end
           @records.items.first
