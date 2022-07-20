@@ -4,21 +4,20 @@ module Neo4j::Driver
       class ClusterRoutingTable
         MIN_ROUTERS = 1
 
-        def initialize(of_database, clock, *routing_addresses)
+        def initialize(of_database, _clock, *routing_addresses)
           @database_name = of_database
-          @clock = clock
-          @expiration_timestamp = clock.millis - 1
-          @routers = routing_addresses.freeze
+          @expiration_timestamp = Time.now
+          @routers = routing_addresses.to_set.freeze
           @table_lock = Concurrent::ReentrantReadWriteLock.new
           @prefer_initial_router = true
           @disused = Set.new
-          @readers = []
-          @writers = []
+          @readers = Set.new
+          @writers = Set.new
         end
 
         def stale_for?(mode)
           @table_lock.with_read_lock do
-            @expiration_timestamp < @clock.millis ||
+            @expiration_timestamp <= Time.now ||
               routers.size < MIN_ROUTERS ||
               (mode == AccessMode::READ && @readers.size == 0) ||
               (mode == AccessMode::WRITE && @writers.size == 0)
@@ -26,8 +25,7 @@ module Neo4j::Driver
         end
 
         def has_been_stale_for?(extra_time)
-          total_time = @table_lock.with_read_lock { @expiration_timestamp } + extra_time
-          total_time < @clock.millis
+          Time.now - @table_lock.with_read_lock { @expiration_timestamp } >= extra_time
         end
 
         def update(cluster)
@@ -64,7 +62,7 @@ module Neo4j::Driver
 
         def servers
           @table_lock.with_write_lock do
-            [@readers, @writers, @routers, @disused].flatten.to_set
+            [@readers, @writers, @routers, @disused].reduce(&:+)
           end
         end
 
@@ -93,7 +91,7 @@ module Neo4j::Driver
 
         def to_s
           @table_lock.with_read_lock do
-            "Ttl #{@expiration_timestamp}, currentTime #{@clock.millis}, routers #{@routers}, writers #{@writers}, readers #{@readers}, database '#{@database_name.description}'"
+            "Ttl #{@expiration_timestamp}, currentTime #{Time.now}, routers #{@routers}, writers #{@writers}, readers #{@readers}, database '#{@database_name.description}'"
           end
         end
 
@@ -108,7 +106,7 @@ module Neo4j::Driver
         end
 
         def new_with_reused_addresses(current_addresses, disused_addresses, new_addresses)
-          (current_addresses.to_set + disused_addresses + new_addresses).to_a.freeze
+          (current_addresses + disused_addresses + new_addresses).freeze
         end
 
         def to_bolt_server_address(address)

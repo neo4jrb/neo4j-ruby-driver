@@ -111,35 +111,38 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
   end
 
   it 'handles graceful leader switch' do
-    cluster_address = Neo4j::Driver::Net::ServerAddress.of('cluster', 7687)
-    cluster_uri = "neo4j://#{cluster_address.host}:#{cluster_address.port}"
-    core_addresses = cluster.cores.map(&:bolt_address)
-    config = { resolver: ->(address) { address == cluster_address ? core_addresses : [address] } }
+    # TODO: should not be necessary, but the current way async-io used requires it
+    Sync do
+      cluster_address = Neo4j::Driver::Net::ServerAddress.of('cluster', 7687)
+      cluster_uri = "neo4j://#{cluster_address.host}:#{cluster_address.port}"
+      core_addresses = cluster.cores.map(&:bolt_address)
+      config = { resolver: ->(address) { address == cluster_address ? core_addresses : [address] } }
 
-    create_driver(cluster_uri, config) do |driver|
-      session1 = driver.session
-      tx1 = session1.begin_transaction
+      create_driver(cluster_uri, config) do |driver|
+        session1 = driver.session
+        tx1 = session1.begin_transaction
 
-      # gracefully stop current leader to force re-election
-      cluster.stop(leader)
+        # gracefully stop current leader to force re-election
+        cluster.stop(leader)
 
-      expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
-        .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
-      session1.close
+        expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
+          .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
+        session1.close
 
-      bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
-        session.begin_transaction do |tx|
-          tx.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr')
-          tx.commit
+        bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
+          session.begin_transaction do |tx|
+            tx.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr')
+            tx.commit
+          end
+          session.last_bookmark
         end
-        session.last_bookmark
-      end
 
-      driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ, bookmarks: bookmark) do |session2|
-        session2.begin_transaction do |tx2|
-          record = tx2.run('MATCH (n:Person) RETURN COUNT(*) AS count').next
-          tx2.commit
-          expect(record[:count]).to eq 1
+        driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ, bookmarks: bookmark) do |session2|
+          session2.begin_transaction do |tx2|
+            record = tx2.run('MATCH (n:Person) RETURN COUNT(*) AS count').next
+            tx2.commit
+            expect(record[:count]).to eq 1
+          end
         end
       end
     end
@@ -176,12 +179,12 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
   end
 
   it 'routing tables' do
-    create_driver(leader.routing_uri) do |driver|
+    create_driver(leader.routing_uri, routing_table_purge_delay: 3.minutes) do |driver|
       driver.session do |session|
         session.read_transaction { |tx| tx.run('RETURN 1').consume }
       end
       expect(driver.session_factory.connection_provider.routing_table_registry
-                   .routing_table_handler(('neo4j' if version?('>=4.4'))).routing_table.routers.to_a.size).to eq 3
+                   .routing_table_handler(Neo4j::Driver::Internal::DatabaseNameUtil.default_database).routing_table.routers.to_a.size).to eq 3
     end
   end
 
@@ -214,7 +217,7 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
   end
 
   def discover_driver(routing_uris, &block)
-    Neo4j::Driver::GraphDatabase.routing_driver(routing_uris, default_auth_token, config_without_logging, &block)
+    Neo4j::Driver::GraphDatabase.routing_driver(routing_uris, default_auth_token, **config_without_logging, &block)
   end
 
   def execute_write_and_read(session)

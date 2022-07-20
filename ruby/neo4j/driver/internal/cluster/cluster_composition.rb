@@ -2,13 +2,6 @@ module Neo4j::Driver
   module Internal
     module Cluster
       class ClusterComposition < Struct.new(:expiration_timestamp, :readers, :writers, :routers, :database_name)
-        private
-
-        MAX_LONG = 2 ^ 63 - 1
-        MAX_TTL = MAX_LONG / 1000
-
-        public
-
         def initialize(expiration_timestamp:, database_name:, readers: [], writers: [], routers: [])
           super(expiration_timestamp, readers, writers, routers, database_name)
         end
@@ -34,13 +27,7 @@ module Neo4j::Driver
 
         def self.expiration_timestamp(now, record)
           ttl = record['ttl']
-          expiration_timestamp = now + ttl * 1000
-
-          if ttl < 0 || ttl >= MAX_TTL || expiration_timestamp < 0
-            expiration_timestamp = MAX_LONG
-          end
-
-          expiration_timestamp
+          now + (ttl.negative? ? 1000.years : ttl.seconds)
         end
 
         def self.servers(role)

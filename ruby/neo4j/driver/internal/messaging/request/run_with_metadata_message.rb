@@ -29,9 +29,11 @@ module Neo4j::Driver
             SIGNATURE
           end
 
-          def eql?(other)
-            super && query.eql?(other.query) && parameters.eql?(other.parameters)
+          def ==(other)
+            super && query == other.query && parameters == other.parameters
           end
+
+          alias eql? ==
 
           def hash
             [query, parameters, metadata].hash
