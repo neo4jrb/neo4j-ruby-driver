@@ -58,7 +58,7 @@ module Neo4j
             end
 
             def debug?
-              ENV['debug'] == 'true'
+              ENV['DEBUG'] == 'true'
             end
           end
         end

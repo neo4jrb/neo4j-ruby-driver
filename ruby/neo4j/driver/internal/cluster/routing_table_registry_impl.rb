@@ -70,6 +70,7 @@ module Neo4j::Driver
         end
 
         def routing_table_handler(database_name)
+          database_name = Internal::DatabaseNameUtil.database(database_name) if database_name.is_a?(String)
           @routing_table_handlers[database_name]
         end
 
