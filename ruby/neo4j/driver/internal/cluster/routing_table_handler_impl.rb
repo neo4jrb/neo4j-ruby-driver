@@ -6,14 +6,14 @@ module Neo4j::Driver
 
         delegate :servers, to: :routing_table
 
-        def initialize(routing_table, rediscovery, connection_pool, routing_table_registry, logger, routing_table_purge_delay_ms)
+        def initialize(routing_table, rediscovery, connection_pool, routing_table_registry, logger, routing_table_purge_delay)
           @routing_table = routing_table
           @database_name = routing_table.database
           @rediscovery = rediscovery
           @connection_pool = connection_pool
           @routing_table_registry = routing_table_registry
           @log = logger
-          @routing_table_purge_delay_ms = routing_table_purge_delay_ms
+          @routing_table_purge_delay = routing_table_purge_delay
           @mutex = Concurrent::ReentrantReadWriteLock.new
         end
 
@@ -60,7 +60,7 @@ module Neo4j::Driver
           @log.debug("Fetched cluster composition for database '#{@database_name.description}'. #{composition_lookup_result.cluster_composition}")
           @routing_table.update(composition_lookup_result.cluster_composition)
           @routing_table_registry.remove_aged
-          addresses_to_retain = @routing_table_registry.all_servers.flat_map(&:unicast_stream).to_set
+          addresses_to_retain = @routing_table_registry.all_servers.map(&:unicast_stream).reduce(&:+)
 
           composition_lookup_result.resolved_initial_routers&.then do |addresses|
             addresses_to_retain << addresses
@@ -87,7 +87,7 @@ module Neo4j::Driver
 
         # This method cannot be synchronized as it will be visited by all routing table handler's threads concurrently
         def routing_table_aged?
-          @mutex.with_read_lock { @routing_table.has_been_stale_for?(@routing_table_purge_delay_ms) }
+          @mutex.with_read_lock { @routing_table.has_been_stale_for?(@routing_table_purge_delay) }
         end
       end
     end

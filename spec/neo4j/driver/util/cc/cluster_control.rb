@@ -12,7 +12,17 @@ module Neo4j
             end
 
             def start_cluster(path)
-              execute_command('neoctrl-cluster', 'start', path)
+              if debug?
+                <<~END
+                  http://127.0.0.1:20010 bolt://127.0.0.1:20009 test-cluster4.4.8/cores/core-1/neo4j-enterprise-4.4.8
+                  http://127.0.0.1:20004 bolt://127.0.0.1:20003 test-cluster4.4.8/cores/core-0/neo4j-enterprise-4.4.8
+                  http://127.0.0.1:20016 bolt://127.0.0.1:20015 test-cluster4.4.8/cores/core-2/neo4j-enterprise-4.4.8
+                  http://127.0.0.1:20024 bolt://127.0.0.1:20023 test-cluster4.4.8/read-replicas/read-replica-1/neo4j-enterprise-4.4.8
+                  http://127.0.0.1:20019 bolt://127.0.0.1:20018 test-cluster4.4.8/read-replicas/read-replica-0/neo4j-enterprise-4.4.8
+                END
+              else
+                execute_command('neoctrl-cluster', 'start', path)
+              end
             end
 
             def start_cluster_member(path)
@@ -20,7 +30,7 @@ module Neo4j
             end
 
             def stop_cluster(path)
-              execute_command('neoctrl-cluster', 'stop', path)
+              execute_command('neoctrl-cluster', 'stop', path) unless debug?
             end
 
             def stop_cluster_member(path)
@@ -45,6 +55,10 @@ module Neo4j
 
             def execute_command(*args)
               `#{args.join ' '}`
+            end
+
+            def debug?
+              ENV['DEBUG'] == 'true'
             end
           end
         end

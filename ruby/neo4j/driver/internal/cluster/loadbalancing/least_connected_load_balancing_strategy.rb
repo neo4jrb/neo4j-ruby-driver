@@ -41,6 +41,7 @@ module Neo4j::Driver
             least_active_connections = nil
 
             # iterate over the array to find the least connected address
+            addresses = addresses.to_a
             loop do
               address = addresses[index]
               active_connections = @connection_pool.in_use_connections(address)

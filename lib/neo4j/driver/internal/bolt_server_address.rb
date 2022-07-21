@@ -70,9 +70,11 @@ module Neo4j::Driver
         address.is_a?(BoltServerAddress) ? address : new(host: address.host, port: address.port)
       end
 
-      def eql?(other)
-        attributes.eql?(other&.attributes)
+      def ==(other)
+        attributes == other&.attributes
       end
+
+      alias eql? ==
 
       def to_s
         "#{host}#{"(#{connection_host})" unless host == connection_host}:#{port}"
@@ -84,7 +86,7 @@ module Neo4j::Driver
 
       # @return stream of unicast addresses.
       def unicast_stream
-        [self]
+        Set[self]
       end
 
       def attributes

@@ -30,9 +30,11 @@ module Neo4j
           end
         end
 
-        def eql?(other)
-          other.is_a?(self.class) && self.class.significant_fields.all? { |elem| send(elem).eql?(other.send(elem)) }
+        def ==(other)
+          other.is_a?(self.class) && self.class.significant_fields.all? { |elem| send(elem) == other.send(elem) }
         end
+
+        alias eql? ==
 
         def +(numeric)
           self.class.new(@time + numeric)

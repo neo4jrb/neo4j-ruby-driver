@@ -25,7 +25,7 @@ module Neo4j
             value = nil
           when 'timeout'
             value = java.time.Duration.ofMillis(Driver::Internal::DurationNormalizer.milliseconds(value))
-          when /time(out)?$/
+          when /time(out)?$/, 'routing_table_purge_delay'
             value = Driver::Internal::DurationNormalizer.milliseconds(value) || -1
             unit = java.util.concurrent.TimeUnit::MILLISECONDS
           when 'logger'

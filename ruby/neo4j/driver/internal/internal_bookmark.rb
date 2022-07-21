@@ -2,13 +2,13 @@ module Neo4j::Driver
   module Internal
     class InternalBookmark
       include Bookmark
-      EMPTY = new
       attr :values
       delegate :hash, :empty?, to: :values
 
       private def initialize(*values)
         @values = values.to_set
       end
+      EMPTY = new.freeze
 
       def ==(other)
         equal?(other) || self.class == other.class && values == other.values

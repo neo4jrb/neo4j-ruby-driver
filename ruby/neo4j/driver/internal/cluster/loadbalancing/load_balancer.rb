@@ -105,7 +105,7 @@ module Neo4j::Driver
           end
 
           def create_routing_tables(connection_pool, rediscovery, settings, clock, logger)
-            RoutingTableRegistryImpl.new(connection_pool, rediscovery, clock, logger, DurationNormalizer.milliseconds(settings.routing_table_purge_delay))
+            RoutingTableRegistryImpl.new(connection_pool, rediscovery, clock, logger, settings.routing_table_purge_delay)
           end
 
           def create_rediscovery(event_executor_group, initial_router, resolver, settings, clock, logger, domain_name_resolver)

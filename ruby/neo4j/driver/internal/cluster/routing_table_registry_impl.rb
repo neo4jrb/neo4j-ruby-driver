@@ -2,8 +2,8 @@ module Neo4j::Driver
   module Internal
     module Cluster
       class RoutingTableRegistryImpl
-        def initialize(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
-          @factory = RoutingTableHandlerFactory.new(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
+        def initialize(connection_pool, rediscovery, clock, logger, routing_table_purge_delay)
+          @factory = RoutingTableHandlerFactory.new(connection_pool, rediscovery, clock, logger, routing_table_purge_delay)
           @routing_table_handlers = Concurrent::Map.new
           @principal_to_database_name = {}
           @clock = clock
@@ -52,7 +52,7 @@ module Neo4j::Driver
         def all_servers
           # obviously we just had a snapshot of all servers in all routing tables
           # after we read it, the set could already be changed.
-          @routing_table_handlers.values.flat_map(&:servers).to_set
+          @routing_table_handlers.values.map(&:servers).reduce(&:+)
         end
 
         def remove(database_name)
@@ -70,6 +70,7 @@ module Neo4j::Driver
         end
 
         def routing_table_handler(database_name)
+          database_name = Internal::DatabaseNameUtil.database(database_name) if database_name.is_a?(String)
           @routing_table_handlers[database_name]
         end
 
@@ -89,17 +90,17 @@ module Neo4j::Driver
         private
 
         class RoutingTableHandlerFactory
-          def initialize(connection_pool, rediscovery, clock, logger, routing_table_purge_delay_ms)
+          def initialize(connection_pool, rediscovery, clock, logger, routing_table_purge_delay)
             @connection_pool = connection_pool
             @rediscovery = rediscovery
             @clock = clock
             @logger = logger
-            @routing_table_purge_delay_ms = routing_table_purge_delay_ms
+            @routing_table_purge_delay = routing_table_purge_delay
           end
 
           def new_instance(database_name, all_tables)
             routing_table = ClusterRoutingTable.new(database_name, @clock)
-            RoutingTableHandlerImpl.new(routing_table, @rediscovery, @connection_pool, all_tables, @logger, @routing_table_purge_delay_ms)
+            RoutingTableHandlerImpl.new(routing_table, @rediscovery, @connection_pool, all_tables, @logger, @routing_table_purge_delay)
           end
         end
 
