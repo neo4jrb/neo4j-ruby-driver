@@ -9,7 +9,7 @@ module Neo4j::Driver
           class << self
             def auto_commit_tx_run_message(query, config, database_name, mode, bookmark, impersonated_user)
               metadata = Request::TransactionMetadataBuilder.build_metadata(
-                tx_timeout: config[:timeout], tx_metadata: config[:metadata], database_name: database_name, mode: mode,
+                timeout: config[:timeout], tx_metadata: config[:metadata], database_name: database_name, mode: mode,
                 bookmark: bookmark, impersonated_user: impersonated_user)
               new(query.text, query.parameters, metadata)
             end

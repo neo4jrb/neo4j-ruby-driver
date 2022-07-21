@@ -7,9 +7,8 @@ module Neo4j::Driver
 
           def initialize(bookmark, config, database_name, mode, impersonated_user)
             super(Request::TransactionMetadataBuilder.build_metadata(
-              tx_timeout: config[:timeout]&.then(&DurationNormalizer.method(:milliseconds)),
-              tx_metadata: config[:metadata], database_name: database_name, mode: mode, bookmark: bookmark,
-              impersonated_user: impersonated_user))
+              timeout: config[:timeout], tx_metadata: config[:metadata], database_name: database_name, mode: mode,
+              bookmark: bookmark, impersonated_user: impersonated_user))
           end
 
           def signature
