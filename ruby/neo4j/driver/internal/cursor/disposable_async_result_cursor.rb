@@ -2,6 +2,7 @@ module Neo4j::Driver
   module Internal
     module Cursor
       class DisposableAsyncResultCursor
+        include Enumerable
         delegate :keys, :pull_all_failure_async, to: :@delegate
 
         def initialize(delegate)
@@ -14,25 +15,23 @@ module Neo4j::Driver
         end
 
         def next_async
-          assert_not_disposed.then_compose(-> (_ignored) { @delegate.next_async })
+          assert_not_disposed
+          @delegate.next_async
         end
 
         def peek_async
-          assert_not_disposed.then_compose(-> (_ignored) { @delegate.peek_async })
+          assert_not_disposed
+          @delegate.peek_async
         end
 
         def single_async
-          assert_not_disposed.then_compose(-> (_ignored) { @delegate.single_async })
+          assert_not_disposed
+          @delegate.single_async
         end
 
-        def for_each_async(action)
-          assert_not_disposed.then_compose(-> (_ignored) { @delegate.for_each_async(action) })
-        end
-
-        def list_async(map_function = nil)
-          return assert_not_disposed.then_compose(-> (_ignored) { @delegate.list_async(map_function) }) if map_function.present?
-
-          assert_not_disposed.then_compose(-> (_ignored) { @delegate.list_async })
+        def each(&action)
+          assert_not_disposed
+          @delegate.each(&action)
         end
 
         def discard_all_failure_async
@@ -41,9 +40,7 @@ module Neo4j::Driver
         end
 
         private def assert_not_disposed
-          return Util::Futures.failed_future(new_result_consumed_error) if @disposed
-
-          Util::Futures.completed_with_null
+          raise Neo4j::Driver::Internal::Util.new_result_consumed_error if @disposed
         end
 
         def disposed?
