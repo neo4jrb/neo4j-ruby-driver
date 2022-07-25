@@ -2,6 +2,7 @@ module Neo4j::Driver
   module Internal
     module Cursor
       class AsyncResultCursorImpl
+        include Enumerable
         delegate :consume_async, :next_async, :peek_async, to: :@pull_all_handler
 
         def initialize(run_handler, pull_all_handler)
@@ -25,7 +26,7 @@ module Neo4j::Driver
           first_record
         end
 
-        def each_async(&action)
+        def each(&action)
           internal_for_each_async(&action)
           consume_async
         end

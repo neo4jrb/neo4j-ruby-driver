@@ -16,11 +16,9 @@ module Neo4j::Driver
           delegate = connection(connection)
           procedure = procedure_query(connection.server_version, database_name)
           bookmark_holder = bookmark_holder(bookmark)
-          run_procedure(delegate, procedure, bookmark_holder).then_compose do |records|
-            release_connection(delegate, records).handle do |records, error|
-              process_procedure_response(procedure, records, error)
-            end
-          end
+          records = run_procedure(delegate, procedure, bookmark_holder)
+          release_connection(delegate)
+          process_procedure_response(procedure, records, error)
         end
 
         private
@@ -45,16 +43,16 @@ module Neo4j::Driver
           connection.protocol
                     .run_in_auto_commit_transaction(connection, procedure, bookmark_holder, TransactionConfig.empty,
                                                     Handlers::Pulln::FetchSizeUtil::UNLIMITED_FETCH_SIZE)
-                    .async_result.then_compose(Async::ResultCursor::list_async)
+                    .async_result.to_a
         end
 
-        def release_connection(connection, records)
+        def release_connection(connection)
           # It is not strictly required to release connection after routing procedure invocation because it'll
           # be released by the PULL_ALL response handler after result is fully fetched. Such release will happen
           # in background. However, releasing it early as part of whole chain makes it easier to reason about
           # rediscovery in stub server tests. Some of them assume connections to instances not present in new
           # routing table will be closed immediately.
-          connection.release.then_apply(->(_ignore) { records } )
+          connection.release
         end
 
         def process_procedure_response(procedure, records, error)

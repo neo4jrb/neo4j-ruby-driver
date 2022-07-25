@@ -35,7 +35,7 @@ module Neo4j
         merge!(timeout: timeout, metadata: metadata)
       end
 
-      def empty
+      def self.empty
         EMPTY
       end
 
