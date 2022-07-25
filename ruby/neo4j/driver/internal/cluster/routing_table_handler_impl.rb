@@ -33,7 +33,7 @@ module Neo4j::Driver
               @log.debug("Routing table for database '#{@database_name.description}' is stale. #{@routing_table}")
 
               fresh_cluster_composition_fetched(
-                @rediscovery.lookup_cluster_composition(routing_table, @connection_pool, context.rediscovery_bookmark,
+                @rediscovery.lookup_cluster_composition(@routing_table, @connection_pool, context.rediscovery_bookmark,
                                                         nil))
             else
               # existing routing table is fresh, use it

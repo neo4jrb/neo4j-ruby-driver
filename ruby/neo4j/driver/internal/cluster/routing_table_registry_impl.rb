@@ -34,7 +34,7 @@ module Neo4j::Driver
             if database_name.nil?
               @principal_to_database_name[principal] = database_name
 
-              routing_table = ClusterRoutingTable.new(DatabaseNameUtil::DEFAULT_DATABASE, @clock)
+              routing_table = ClusterRoutingTable.new(DatabaseNameUtil.default_database, @clock)
 
               composition_lookup_result = @rediscovery.lookup_cluster_composition(routing_table, @connection_pool, context.rediscovery_bookmark, impersonated_user)
               database_name = DatabaseNameUtil.database(composition_lookup_result.cluster_composition.database_name)
