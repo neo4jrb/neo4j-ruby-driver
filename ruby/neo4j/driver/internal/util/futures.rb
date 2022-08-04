@@ -31,7 +31,7 @@ module Neo4j::Driver
             interrupted = false
             begin
               loop do
-                break stage.value!
+                break stage.values
               rescue Interrupt => e
                 # this thread was interrupted while waiting
                 # computation denoted by the future might still be running
@@ -40,6 +40,9 @@ module Neo4j::Driver
                 # run the interrupt handler and ignore if it throws
                 # need to wait for IO thread to actually finish, can't simply re-rethrow
                 yield rescue nil
+
+              rescue => e
+                ErrorUtil.rethrow_async_exception(e)
                 # rescue java.util.concurrent.ExecutionException => e
                 #   ErrorUtil.rethrow_async_exception(e)
               end

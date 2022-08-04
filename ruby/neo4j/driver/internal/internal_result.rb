@@ -19,19 +19,19 @@ module Neo4j::Driver
       end
 
       def has_next?
-        @cursor.peek_async
+        !blocking_get(@cursor.peek_async).nil?
       end
 
       def next
-        @cursor.next_async || raise(Exceptions::NoSuchRecordException.no_more)
+        blocking_get(@cursor.next_async) || raise(Exceptions::NoSuchRecordException.no_more)
       end
 
       def single
-        @cursor.single_async
+        blocking_get(@cursor.single_async)
       end
 
       def peek
-        @cursor.peek_async or raise Exceptions::NoSuchRecordException.no_peek_past
+        blocking_get(@cursor.peek_async) or raise Exceptions::NoSuchRecordException.no_peek_past
       end
 
       def each
@@ -39,7 +39,7 @@ module Neo4j::Driver
       end
 
       def consume
-        @cursor.consume_async
+        blocking_get(@cursor.consume_async)
       end
 
       def remove
