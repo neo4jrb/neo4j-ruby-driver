@@ -31,7 +31,7 @@ module Neo4j::Driver
             interrupted = false
             begin
               loop do
-                break stage.values
+                break stage
               rescue Interrupt => e
                 # this thread was interrupted while waiting
                 # computation denoted by the future might still be running
