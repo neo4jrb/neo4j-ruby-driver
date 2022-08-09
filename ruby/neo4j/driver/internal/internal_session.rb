@@ -17,7 +17,7 @@ module Neo4j::Driver
         Validator.require_hash_parameters!(parameters)
         cursor = @session.run_async(Query.new(query, **parameters), **TransactionConfig.new(**config.compact)) do
           terminate_connection_on_thread_interrupt('Thread interrupted while running query in session')
-        end
+        end.result!
 
         # query executed, it is safe to obtain a connection in a blocking way
         connection = @session.connection_async

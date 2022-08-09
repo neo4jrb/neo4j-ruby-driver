@@ -115,8 +115,6 @@ module Neo4j::Driver
           end
 
           def clear_current_error
-            raise @current_error if @current_error
-          ensure
             @current_error = nil
           end
 
