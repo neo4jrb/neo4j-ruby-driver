@@ -10,21 +10,21 @@ module Neo4j::Driver
       end
 
       def commit
-        @tx.commit_async
+        @tx.commit_async.result!
         # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.commit_async) do
         #   terminate_connection_on_thread_interrupt('Thread interrupted while committing the transaction')
         # end
       end
 
       def rollback
-        @tx.rollback_async
+        @tx.rollback_async.result!
         # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.rollback_async) do
         #   terminate_connection_on_thread_interrupt('Thread interrupted while rolling back the transaction')
         # end
       end
 
       def close
-        @tx.close_async
+        @tx.close_async.result!
         # org.neo4j.driver.internal.util.Futures.blockingGet(@tx.close_async) do
         #     terminate_connection_on_thread_interrupt('Thread interrupted while closing the transaction')
         #   end

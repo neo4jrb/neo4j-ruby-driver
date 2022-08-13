@@ -75,9 +75,8 @@ module Neo4j::Driver
 
           def consume_async
             @records.items.clear
-            return completed_with_value_if_no_failure(@summary) if done?
-            cancel
-            @summary_future ||= Util::ResultHolder.new
+            cancel unless done?
+            completed_with_value_if_no_failure(@summary)
           end
 
           def each
@@ -133,13 +132,11 @@ module Neo4j::Driver
 
           def complete_record_future(record)
             @record_future&.succeed(record)
-          ensure
             @record_future = nil
           end
 
           def complete_summary_future(summary)
             @summary_future&.succeed(summary)
-          ensure
             @summary_future = nil
           end
 

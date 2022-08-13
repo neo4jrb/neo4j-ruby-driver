@@ -35,6 +35,7 @@ module Neo4j::Driver
       end
 
       def each
+        @cursor #<---------------
         yield self.next while has_next?
       end
 

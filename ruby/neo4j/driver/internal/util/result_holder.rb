@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     module Util
       class ResultHolder
-        def self.successful(result)
+        def self.successful(result = nil)
           new.tap { |holder| holder.succeed(result) }
         end
 
@@ -10,7 +10,7 @@ module Neo4j::Driver
           new.tap { |holder| holder.fail(error) }
         end
 
-        def succeed(result)
+        def succeed(result = nil)
           if @completed
             false
           else
@@ -48,6 +48,21 @@ module Neo4j::Driver
 
         def chain
           ResultHolder.successful(yield(@result, @error))
+        rescue => error
+          ResultHolder.failed(error)
+        end
+
+        def side
+          yield(@result, @error)
+          self
+        end
+
+        def copy_to(result_holder)
+          if @error
+            result_holder.fail(@error)
+          else
+            result_holder.succeed(@result)
+          end
         end
       end
     end
