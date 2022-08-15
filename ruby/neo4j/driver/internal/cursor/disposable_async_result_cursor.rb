@@ -40,7 +40,7 @@ module Neo4j::Driver
         end
 
         private def assert_not_disposed
-          raise Neo4j::Driver::Internal::Util.new_result_consumed_error if @disposed
+          raise Util::ErrorUtil.new_result_consumed_error if @disposed
         end
 
         def disposed?
@@ -48,7 +48,7 @@ module Neo4j::Driver
         end
 
         def map_successful_run_completion_async
-          @delegate.map_successful_run_completion_async
+          @delegate.map_successful_run_completion_async.then { self }
         end
       end
     end
