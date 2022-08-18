@@ -3,11 +3,17 @@ module Neo4j::Driver
     module Handlers
       class RollbackTxResponseHandler
         include Spi::ResponseHandler
+
+        def initialize(result_holder)
+          @result_holder = result_holder
+        end
+
         def on_success(_metadata)
+          @result_holder.succeed
         end
 
         def on_failure(error)
-          raise error
+          @result_holder.fail(error)
         end
 
         def on_record(fields)

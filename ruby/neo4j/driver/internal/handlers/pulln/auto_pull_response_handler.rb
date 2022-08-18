@@ -3,6 +3,7 @@ module Neo4j::Driver
     module Handlers
       module Pulln
         class AutoPullResponseHandler < BasicPullResponseHandler
+          include Enumerable
           delegate :signal, to: :@records
           LONG_MAX_VALUE = 2 ** 63 - 1
 
@@ -55,7 +56,7 @@ module Neo4j::Driver
 
           private def handle_failure(error)
             # error has not been propagated to the user, remember it
-            unless fail_record_future(error) && fail_summary_future(error)
+            unless fail_record_future(error) || fail_summary_future(error)
               @failure = error
             end
           end
@@ -64,26 +65,31 @@ module Neo4j::Driver
             while @records.empty? && !done?
               @records.wait
             end
-            @records.items.first
+            @records.items.first&.then(&Util::ResultHolder.method(:successful)) or
+              completed_with_value_if_no_failure(nil)
           end
 
           def next_async
-            dequeue_record if peek_async
+            peek_async.then { |record| dequeue_record if record }
           end
 
           def consume_async
             @records.items.clear
-            return completed_with_value_if_no_failure(@summary) if done?
-            cancel
-            @summary
+            cancel unless done?
+            completed_with_value_if_no_failure(@summary)
           end
 
-          def list_async(&map_function)
-            pull_all_async.then_apply(-> (summary) { records_as_list(&map_function) })
+          def each
+            pull_all_async.then do
+              unless done?
+                raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
+              end
+              @records.each { |record| yield record }
+            end
           end
 
           def pull_all_failure_async
-            pull_all_async
+            pull_all_async.chain { |_, error| error }
           end
 
           def pre_populate_records
@@ -94,12 +100,8 @@ module Neo4j::Driver
 
           def pull_all_async
             return completed_with_value_if_no_failure(@summary) if done?
-
             request(FetchSizeUtil::UNLIMITED_FETCH_SIZE)
-
-            @summary_future = java.util.concurrent.CompletableFuture.new if @summary_future.nil?
-
-            @summary_future
+            @summary_future ||= Util::ResultHolder.new
           end
 
           def enqueue_record(record)
@@ -122,14 +124,6 @@ module Neo4j::Driver
             record
           end
 
-          def records_as_list(&map_function)
-            unless done?
-              raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
-            end
-
-            @records.each.map(&map_function)
-          end
-
           def extract_failure
             @failure or raise Exceptions::IllegalStateException, "Can't extract failure because it does not exist"
           ensure
@@ -137,39 +131,34 @@ module Neo4j::Driver
           end
 
           def complete_record_future(record)
-            unless @record_future.nil?
-              future = @record_future
-              @record_future = nil
-              future.complete(record)
-            end
+            @record_future&.succeed(record)
+            @record_future = nil
           end
 
           def complete_summary_future(summary)
-            unless @summary_future.nil?
-              future = @summary_future
-              @summary_future = nil
-              future.complete(summary)
-            end
+            @summary_future&.succeed(summary)
+            @summary_future = nil
           end
 
           def fail_record_future(error)
-            unless @record_future.nil?
-              future = @record_future
-              @record_future = nil
-              future.complete(record)
-              return true
-            end
+            @record_future&.fail(error)
+          ensure
+            @record_future = nil
+          end
 
-            false
+          def fail_summary_future(error)
+            @summary_future&.fail(error)
+          ensure
+            @summary_future = nil
           end
 
           def completed_with_value_if_no_failure(value)
-            @failure ? extract_failure : value
+            if @failure
+              Util::ResultHolder.failed(extract_failure)
+            else
+              Util::ResultHolder.successful(value)
+            end
           end
-
-          # def request(size)
-          #   @auto_pull_enabled ? Async { super } : super
-          # end
         end
       end
     end

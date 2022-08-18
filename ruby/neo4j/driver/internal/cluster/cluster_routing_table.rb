@@ -105,8 +105,8 @@ module Neo4j::Driver
           addresses.map { |address| address == old_address ? new_address : address }.freeze
         end
 
-        def new_with_reused_addresses(current_addresses, disused_addresses, new_addresses)
-          (current_addresses + disused_addresses + new_addresses).freeze
+        def new_with_reused_addresses(*addresses)
+          addresses.map(&:to_set).reduce(&:+).freeze
         end
 
         def to_bolt_server_address(address)

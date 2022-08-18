@@ -52,28 +52,30 @@ module Neo4j::Driver
         def close_async(commit = false, complete_with_null_if_not_open = true)
           @lock.synchronize do
             if complete_with_null_if_not_open && !open?
-              nil
+              Util::ResultHolder.successful(nil)
             elsif @state == State::COMMITTED
-              raise Neo4j::Driver::Exceptions::ClientException, commit ? CANT_COMMIT_COMMITTED_MSG : CANT_ROLLBACK_COMMITTED_MSG
+              Util::ResultHolder.failed(Neo4j::Driver::Exceptions::ClientException.new(
+                commit ? CANT_COMMIT_COMMITTED_MSG : CANT_ROLLBACK_COMMITTED_MSG))
             elsif @state == State::ROLLED_BACK
-              raise Neo4j::Driver::Exceptions::ClientException, commit ? CANT_COMMIT_ROLLED_BACK_MSG : CANT_ROLLBACK_ROLLED_BACK_MSG
+              Util::ResultHolder.failed(Neo4j::Driver::Exceptions::ClientException.new(
+                commit ? CANT_COMMIT_ROLLED_BACK_MSG : CANT_ROLLBACK_ROLLED_BACK_MSG))
             else
               if commit
                 if @rollback_pending
-                  raise Neo4j::Driver::Exceptions::ClientException, CANT_COMMIT_ROLLING_BACK_MSG
+                  Util::ResultHolder.failed(Neo4j::Driver::Exceptions::ClientException.new(CANT_COMMIT_ROLLING_BACK_MSG))
                 elsif @commit_pending
                   @commit_pending
                 else
-                  @commit_pending = true
+                  @commit_pending = Util::ResultHolder.new
                   nil
                 end
               else
                 if @commit_pending
-                  raise Neo4j::Driver::Exceptions::ClientException, CANT_ROLLBACK_COMMITTING_MSG
+                  Util::ResultHolder.failed(Neo4j::Driver::Exceptions::ClientException.new(CANT_ROLLBACK_COMMITTING_MSG))
                 elsif @rollback_pending
                   @rollback_pending
                 else
-                  @rollback_pending = true
+                  @rollback_pending = Util::ResultHolder.new
                   nil
                 end
               end
@@ -83,22 +85,18 @@ module Neo4j::Driver
               if commit
                 target_future = @commit_pending
                 target_action = lambda { |throwable|
-                  do_commit_async(throwable)
-                  handle_commit_or_rollback(throwable)
+                  do_commit_async(throwable).chain(&handle_commit_or_rollback(throwable))
                 }
               else
                 target_future = @rollback_pending
                 target_action = lambda { |throwable|
-                  do_rollback_async
-                  handle_commit_or_rollback(throwable)
+                  do_rollback_async.chain(&handle_commit_or_rollback(throwable))
                 }
               end
 
               @result_cursors.retrieve_not_consumed_error.then(&target_action)
-              handle_transaction_completion(commit, nil)
+                             .side { |_, error| handle_transaction_completion(commit, error) }.copy_to(target_future)
               target_future
-            rescue => throwable
-              handle_transaction_completion(commit, throwable)
             end
         end
 
@@ -148,7 +146,7 @@ module Neo4j::Driver
               raise Neo4j::Driver::Exceptions::ClientException, 'Cannot run more queries in this transaction, it has been rolled back'
             when State::TERMINATED
               # TODO clunky positional arguments of Neo4jException#initialize, move to named parameters
-              raise Neo4j::Driver::Exceptions::ClientException, 'Cannot run more queries in this transaction, it has either experienced an fatal error or was explicitly terminated'#, # TODO should be able to pass @cause_of_termination
+              raise Neo4j::Driver::Exceptions::ClientException, 'Cannot run more queries in this transaction, it has either experienced an fatal error or was explicitly terminated' #, # TODO should be able to pass @cause_of_termination
             end
           end
         end
@@ -175,23 +173,23 @@ module Neo4j::Driver
           end
 
           if exception
-            Util::Futures.failed_future(exception)
+            Util::ResultHolder.failed(exception)
           else
-            @protocol.commit_transaction(@connection, @bookmark_holder)
+            @protocol.commit_transaction(@connection).then(&@bookmark_holder.method(:bookmark=))
           end
         end
 
         def do_rollback_async
           if @lock.synchronize { @state } == State::TERMINATED
-            Util::Futures.completed_with_null
+            Util::ResultHolder.successful(nil)
           else
             @protocol.rollback_transaction(@connection)
           end
         end
 
         def handle_commit_or_rollback(cursor_failure)
-          lambda { |_fulfilled, _value, commit_or_rollback_error|
-            combined_error = Util::Futures.combined_error(cursor_failure, commit_or_rollback_error)
+          lambda { |_value, commit_or_rollback_error|
+            combined_error = Util::Futures.combine_errors(cursor_failure, commit_or_rollback_error)
             raise combined_error if combined_error
           }
         end

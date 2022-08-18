@@ -5,7 +5,11 @@ module DriverHelper
     mattr_accessor :single_driver
 
     def uri
-      "bolt://#{ENV.fetch('TEST_NEO4J_HOST', '127.0.0.1')}:#{ENV.fetch('TEST_NEO4J_PORT', 7687)}"
+      "#{scheme}://#{ENV.fetch('TEST_NEO4J_HOST', '127.0.0.1')}:#{ENV.fetch('TEST_NEO4J_PORT', 7687)}"
+    end
+
+    def scheme
+      ENV.fetch('TEST_NEO4J_SCHEME', 'bolt')
     end
 
     def port

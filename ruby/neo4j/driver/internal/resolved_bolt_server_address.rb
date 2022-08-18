@@ -22,7 +22,7 @@ module Neo4j::Driver
         @string_value
       end
 
-      private def attributes
+      def attributes
         super + [@resolved_addresses]
       end
 
