@@ -6,8 +6,8 @@ module Neo4j::Driver
 
       private
 
-      DEFAULT_DATABASE = Struct.new(:database_name, :description).new(nil, '<default database>')
-      SYSTEM_DATABASE = InternalDatabaseName.new(SYSTEM_DATABASE_NAME)
+      DEFAULT_DATABASE = InternalDatabaseName.new(description: '<default database>')
+      SYSTEM_DATABASE = InternalDatabaseName.new(database_name: SYSTEM_DATABASE_NAME)
 
       public
 
@@ -27,7 +27,7 @@ module Neo4j::Driver
           when SYSTEM_DATABASE_NAME
             system_database
           else
-            InternalDatabaseName.new(name)
+            InternalDatabaseName.new(database_name: name)
           end
         end
       end

@@ -16,9 +16,9 @@ module Neo4j::Driver
             Messaging::Request::RouteMessage.new(@routing_context, bookmark, database_name.database_name,
                                                  impersonated_user),
             Handlers::RouteMessageResponseHandler.new(self))
-          RoutingProcedureResponse.new(query(database_name), to_record(routing_table))
+          RoutingProcedureResponse.new(query(database_name), records: [to_record(@routing_table)])
         rescue => e
-          RoutingProcedureResponse.new(query(database_name), e)
+          RoutingProcedureResponse.new(query(database_name), error: e)
         ensure
           direct_connection.release
         end

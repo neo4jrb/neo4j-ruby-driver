@@ -32,7 +32,11 @@ module Neo4j
       def initialize(timeout: nil, metadata: {})
         Internal::Util::Preconditions.check_argument(timeout.nil? || timeout.positive?, 'Transaction timeout should be positive')
         Internal::Validator.require_non_nil!(metadata)
-        merge(timeout: timeout, metadata: metadata)
+        merge!(timeout: timeout, metadata: metadata)
+      end
+
+      def self.empty
+        EMPTY
       end
 
       # Check if this configuration object contains any values.

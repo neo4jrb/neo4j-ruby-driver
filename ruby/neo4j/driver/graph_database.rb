@@ -26,12 +26,12 @@ module Neo4j::Driver
         )
       end
 
-      def routing_driver(routing_uris, auth_toke, **config)
+      def routing_driver(routing_uris, auth_token, **config)
         assert_routing_uris(routing_uris)
         log = Config.new(**config)[:logger]
 
         routing_uris.each do |uri|
-          driver = driver(uri, auth_toke, **config)
+          driver = driver(uri, auth_token, **config)
           begin
             return driver.tap(&:verify_connectivity)
           rescue Exceptions::ServiceUnavailableException => e

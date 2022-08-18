@@ -4,7 +4,6 @@ module Neo4j::Driver
       # This is the Pull All response handler that handles pull all messages in Bolt v3 and previous protocol versions.
       class LegacyPullAllResponseHandler
         include Spi::ResponseHandler
-        UNINITIALIZED_RECORDS = []
         RECORD_BUFFER_LOW_WATERMARK = ENV['record_buffer_low_watermark']&.to_i || 300
         RECORD_BUFFER_HIGH_WATERMARK = ENV['record_buffer_high_watermark']&.to_i || 1000
 
@@ -14,7 +13,7 @@ module Neo4j::Driver
           @metadata_extractor = Internal::Validator.require_non_nil!(metadata_extractor)
           @connection = Internal::Validator.require_non_nil!(connection)
           @completion_listener = Internal::Validator.require_non_nil!(completion_listener)
-          @records = UNINITIALIZED_RECORDS
+          @records = ::Async::Queue.new
         end
 
         def can_manage_auto_read?
@@ -65,7 +64,10 @@ module Neo4j::Driver
         end
 
         def peek_async
-          record = @records.first
+          while @records.empty? && !(@ignore_records || @finished)
+            @records.wait
+          end
+          @records.items.first
 
           # if record.nil?
           #   return Util::Futures.failed_future(extract_failure) unless @failure.nil?
@@ -87,7 +89,7 @@ module Neo4j::Driver
 
         def consume_async
           @ignore_records = true
-          @records.clear
+          @records.items.clear
 
           if pull_all_failure_async.nil?
             @summary
@@ -156,7 +158,7 @@ module Neo4j::Driver
         end
 
         def dequeue_record
-          record = @records.shift
+          record = @records.dequeue
 
           if @records.size < RECORD_BUFFER_LOW_WATERMARK
             # less than low watermark records are now available in the buffer, tell connection to pre-fetch more
@@ -178,7 +180,7 @@ module Neo4j::Driver
             result << map_function.apply(record)
           end
 
-          @records.clear
+          @records.items.clear
           result
         end
 

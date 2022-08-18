@@ -83,8 +83,8 @@ module Neo4j::Driver::Internal
       driver(:Direct, securityPlan, address, connection_provider, retryLogic, metricsProvider, config)
     end
 
-    def create_routing_driver(securityPlan, address, connection_pool, eventExecutorGroup, routingSettings, retryLogic, metricsProvider, config)
-      connection_provider = create_load_balancer(address, connection_pool, eventExecutorGroup, config, routingSettings)
+    def create_routing_driver(securityPlan, address, connection_pool, eventExecutorGroup, routing_settings, retryLogic, metricsProvider, config)
+      connection_provider = create_load_balancer(address, connection_pool, eventExecutorGroup, config, routing_settings)
       driver(:Routing, securityPlan, address, connection_provider, retryLogic, metricsProvider, config)
     end
 
@@ -95,11 +95,11 @@ module Neo4j::Driver::Internal
       end
     end
 
-    def create_load_balancer(address, connection_pool, eventExecutorGroup, config, routingSettings)
+    def create_load_balancer(address, connection_pool, eventExecutorGroup, config, routing_settings)
       load_balancing_strategy = Cluster::Loadbalancing::LeastConnectedLoadBalancingStrategy.new(connection_pool, config[:logger])
       resolver = create_resolver(config)
       Cluster::Loadbalancing::LoadBalancer.new(
-        address, routingSettings, connection_pool, eventExecutorGroup,
+        address, routing_settings, connection_pool, eventExecutorGroup,
         config[:logger], load_balancing_strategy, resolver, &method(:domain_name_resolver))
     end
 

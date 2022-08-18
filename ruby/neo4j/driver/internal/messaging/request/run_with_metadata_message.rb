@@ -9,7 +9,7 @@ module Neo4j::Driver
           class << self
             def auto_commit_tx_run_message(query, config, database_name, mode, bookmark, impersonated_user)
               metadata = Request::TransactionMetadataBuilder.build_metadata(
-                tx_timeout: config[:timeout], tx_metadata: config[:metadata], database_name: database_name, mode: mode,
+                timeout: config[:timeout], tx_metadata: config[:metadata], database_name: database_name, mode: mode,
                 bookmark: bookmark, impersonated_user: impersonated_user)
               new(query.text, query.parameters, metadata)
             end
@@ -29,9 +29,11 @@ module Neo4j::Driver
             SIGNATURE
           end
 
-          def eql?(other)
-            super && query.eql?(other.query) && parameters.eql?(other.parameters)
+          def ==(other)
+            super && query == other.query && parameters == other.parameters
           end
+
+          alias eql? ==
 
           def hash
             [query, parameters, metadata].hash

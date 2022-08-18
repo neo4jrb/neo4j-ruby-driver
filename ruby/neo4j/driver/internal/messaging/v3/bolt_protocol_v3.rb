@@ -13,7 +13,7 @@ module Neo4j::Driver
 
           def initialize_channel(channel, user_agent, auth_token, routing_context)
             message = Request::HelloMessage.new(user_agent, auth_token,
-                                                (routing_context.to_map if routing_context.server_routing_enabled?))
+                                                (routing_context.to_h if routing_context.server_routing_enabled?))
             handler = Handlers::HelloResponseHandler.new(channel, VERSION)
 
             channel.message_dispatcher.enqueue(handler)
@@ -36,12 +36,16 @@ module Neo4j::Driver
             connection.write_and_flush(begin_message, Handlers::BeginTxResponseHandler.new)
           end
 
-          def commit_transaction(connection, bookmark_holder)
-            connection.write_and_flush(Request::CommitMessage::COMMIT, Handlers::CommitTxResponseHandler.new(bookmark_holder))
+          def commit_transaction(connection)
+            Util::ResultHolder.new.tap do |result_holder|
+              connection.write_and_flush(Request::CommitMessage::COMMIT, Handlers::CommitTxResponseHandler.new(result_holder))
+            end
           end
 
           def rollback_transaction(connection)
-            connection.write_and_flush(Request::RollbackMessage::ROLLBACK, Handlers::RollbackTxResponseHandler.new)
+            Util::ResultHolder.new.tap do |result_holder|
+              connection.write_and_flush(Request::RollbackMessage::ROLLBACK, Handlers::RollbackTxResponseHandler.new(result_holder))
+            end
           end
 
           def run_in_auto_commit_transaction(connection, query, bookmark_holder, config, fetch_size)

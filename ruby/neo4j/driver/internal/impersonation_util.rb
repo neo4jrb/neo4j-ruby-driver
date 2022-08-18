@@ -14,8 +14,8 @@ module Neo4j::Driver
       private
 
       def self.supports_impersonation?(connection)
-        connection.server_version.greater_than_or_equal(Util::ServerVersion::V4_4_0) &&
-        connection.protocol.version.compare_to( Messaging::V44::BoltProtocolV44::VERSION ) >= 0
+        connection.server_version >= Util::ServerVersion::V4_4_0 &&
+          connection.protocol.version >= Messaging::V44::BoltProtocolV44::VERSION
       end
     end
   end

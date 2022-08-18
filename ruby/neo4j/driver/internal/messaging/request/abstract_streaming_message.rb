@@ -4,7 +4,10 @@ module Neo4j::Driver
       module Request
         class AbstractStreamingMessage < Struct.new(:n, :qid)
           STREAM_LIMIT_UNLIMITED = -1
-          alias metadata to_h
+
+          def metadata
+            to_h.compact
+          end
 
           def to_s
             "#{name} #{metadata}"

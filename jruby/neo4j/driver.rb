@@ -15,6 +15,10 @@ module Neo4j
     Result = Java::OrgNeo4jDriverInternal::InternalResult
     Transaction = Java::OrgNeo4jDriverInternal::InternalTransaction
 
+    module Internal
+      java_import org.neo4j.driver.internal.DatabaseNameUtil
+    end
+
     module Net
       include_package 'org.neo4j.driver.net'
     end
