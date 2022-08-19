@@ -4,6 +4,7 @@ module Neo4j::Driver
       # This is the Pull All response handler that handles pull all messages in Bolt v3 and previous protocol versions.
       class LegacyPullAllResponseHandler
         include Spi::ResponseHandler
+        include Enumerable
         RECORD_BUFFER_LOW_WATERMARK = ENV['record_buffer_low_watermark']&.to_i || 300
         RECORD_BUFFER_HIGH_WATERMARK = ENV['record_buffer_high_watermark']&.to_i || 1000
 
@@ -67,7 +68,9 @@ module Neo4j::Driver
           while @records.empty? && !(@ignore_records || @finished)
             @records.wait
           end
-          @records.items.first
+          record = @records.items.first
+
+          Util::ResultHolder.successful(record)
 
           # if record.nil?
           #   return Util::Futures.failed_future(extract_failure) unless @failure.nil?
@@ -84,17 +87,25 @@ module Neo4j::Driver
         end
 
         def next_async
-          dequeue_record if peek_async
+          # dequeue_record if peek_async
+          peek_async.then { |record| dequeue_record if record }
         end
 
         def consume_async
           @ignore_records = true
           @records.items.clear
 
-          if pull_all_failure_async.nil?
-            @summary
+          # if pull_all_failure_async.nil?
+          #   # @summary.then(&Util::ResultHolder.method(:successful))
+          #   Util::ResultHolder.successful(@summary)
+          # else
+          #   raise pull_all_failure_async
+          # end
+
+          if @failure
+            Util::ResultHolder.failed(extract_failure)
           else
-            raise Util::Futures.as_completion_exception, pull_all_failure_async
+            Util::ResultHolder.successful(@summary)
           end
 
           # pull_all_failure_async do |error|
@@ -106,13 +117,22 @@ module Neo4j::Driver
           # end
         end
 
-        def list_async(map_function)
-          pull_all_failure_async.then_apply do |error|
-            unless error.nil?
-              raise Util::Futures.as_completion_exception, error
-            end
+        # def list_async(map_function)
+        #   pull_all_failure_async.then_apply do |error|
+        #     unless error.nil?
+        #       raise Util::Futures.as_completion_exception, error
+        #     end
 
-            records_as_list(map_function)
+        #     records_as_list(map_function)
+        #   end
+        # end
+
+        def each
+          pull_all_failure_async.then do
+            unless @finished
+              raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
+            end
+            @records.each { |record| yield record }
           end
         end
 
@@ -122,7 +142,8 @@ module Neo4j::Driver
 
         def pull_all_failure_async
           if !@failure.nil?
-            return java.util.concurrent.CompletableFuture.completed_future(extract_failure)
+            return Util::ResultHolder.failed(extract_failure)
+            # return java.util.concurrent.CompletableFuture.completed_future(extract_failure)
           elsif @finished
             return nil
             # return Util::Futures.completed_with_null
@@ -191,33 +212,41 @@ module Neo4j::Driver
         end
 
         def complete_record_future(record)
-          unless @record_future.nil?
-            future = @record_future
-            @record_future = nil
-            future.complete(record)
-          end
+          # unless @record_future.nil?
+          #   future = @record_future
+          #   @record_future = nil
+          #   future.complete(record)
+          # end
+          @record_future&.succeed(record)
+          @record_future = nil
         end
 
         def fail_record_future(error)
-          unless @record_future.nil?
-            future = @record_future
-            @record_future = nil
-            future.complete_exceptionally(error)
-            return true
-          end
+          # unless @record_future.nil?
+          #   future = @record_future
+          #   @record_future = nil
+          #   future.complete_exceptionally(error)
+          #   return true
+          # end
 
-          false
+          # false
+            @record_future&.fail(error)
+          ensure
+            @record_future = nil
         end
 
         def complete_failure_future(error)
-          unless @failure_future.nil?
-            future = @failure_future
-            @failure_future = nil
-            future.complete(error)
-            return true
-          end
+          # unless @failure_future.nil?
+          #   future = @failure_future
+          #   @failure_future = nil
+          #   future.complete(error)
+          #   return true
+          # end
 
-          false
+          # false
+          @failure_future&.fail(error)
+        ensure
+          @failure_future = nil
         end
 
         def extract_result_summary(metadata)
