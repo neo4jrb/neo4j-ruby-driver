@@ -16,9 +16,9 @@ module Neo4j::Driver
           delegate = connection(connection)
           procedure = procedure_query(connection.server_version, database_name)
           bookmark_holder = bookmark_holder(bookmark)
-          records = run_procedure(delegate, procedure, bookmark_holder)
-          release_connection(delegate)
-          process_procedure_response(procedure, records, error)
+          run_procedure(delegate, procedure, bookmark_holder)
+            .side { release_connection(delegate) }
+            .chain { |records, error| process_procedure_response(procedure, records, error) }
         end
 
         private
@@ -43,7 +43,7 @@ module Neo4j::Driver
           connection.protocol
                     .run_in_auto_commit_transaction(connection, procedure, bookmark_holder, TransactionConfig.empty,
                                                     Handlers::Pulln::FetchSizeUtil::UNLIMITED_FETCH_SIZE)
-                    .async_result.to_a
+                    .async_result.then(&:to_a)
         end
 
         def release_connection(connection)
@@ -56,17 +56,15 @@ module Neo4j::Driver
         end
 
         def process_procedure_response(procedure, records, error)
-          cause = Util::Futures.completion_exception_cause(error)
-
-          return RoutingProcedureResponse.new(procedure, records) if cause.nil?
-
-          handle_error(procedure, cause)
+          error ? handle_error(procedure, error) : RoutingProcedureResponse.new(procedure, records: records)
         end
 
         def handle_error(procedure, error)
-          return RoutingProcedureResponse.new(procedure, records) if error.is_a? Exceptions::ClientException
-
-          raise java.util.concurrent.CompletionException, error
+          if error.is_a? Exceptions::ClientException
+            RoutingProcedureResponse.new(procedure, error: error)
+          else
+            raise error
+          end
         end
       end
     end

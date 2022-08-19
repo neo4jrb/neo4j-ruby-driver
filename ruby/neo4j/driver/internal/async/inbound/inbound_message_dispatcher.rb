@@ -59,7 +59,8 @@ module Neo4j::Driver
             raise @current_error if Util::ErrorUtil.fatal?(@current_error) # TODO clarify
 
             if @current_error.is_a?(Exceptions::AuthorizationExpiredException)
-              Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(@current_error, @channel)
+              # TODO: ??????
+              # Connection::ChannelAttributes.authorization_state_listener(@channel).on_expired(@current_error, @channel)
             else
               # write a RESET to "acknowledge" the failure
               enqueue(Handlers::ResetResponseHandler.new(self))
