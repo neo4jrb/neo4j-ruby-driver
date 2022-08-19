@@ -32,7 +32,7 @@ module Neo4j::Driver
             raise Exceptions::FatalDiscoveryException, "Refreshing routing table for multi-databases is not supported in server version lower than 4.0. Current server version: #{server_version}. Database name: '#{database_name.description}'"
           end
 
-          Query.new(GET_ROUTING_TABLE, Values.parameters(ROUTING_CONTEXT, @context.to_map))
+          Query.new(GET_ROUTING_TABLE, ROUTING_CONTEXT => @context.to_h)
         end
 
         def bookmark_holder(_ignored)
