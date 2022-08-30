@@ -16,9 +16,14 @@ module Neo4j::Driver
           delegate = connection(connection)
           procedure = procedure_query(connection.server_version, database_name)
           bookmark_holder = bookmark_holder(bookmark)
-          run_procedure(delegate, procedure, bookmark_holder)
-            .side { release_connection(delegate) }
-            .chain { |records, error| process_procedure_response(procedure, records, error) }
+          begin
+            records = run_procedure(delegate, procedure, bookmark_holder)
+            RoutingProcedureResponse.new(procedure, records: records)
+          rescue => error
+            handle_error(procedure, error)
+          ensure
+            release_connection(delegate)
+          end
         end
 
         private
@@ -53,10 +58,6 @@ module Neo4j::Driver
           # rediscovery in stub server tests. Some of them assume connections to instances not present in new
           # routing table will be closed immediately.
           connection.release
-        end
-
-        def process_procedure_response(procedure, records, error)
-          error ? handle_error(procedure, error) : RoutingProcedureResponse.new(procedure, records: records)
         end
 
         def handle_error(procedure, error)

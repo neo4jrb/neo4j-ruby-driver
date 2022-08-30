@@ -99,7 +99,7 @@ module Neo4j::Driver
           end
 
           def done?
-            @state == State::SUCEEDED_STATE || @state == State::FAILURE_STATE
+            @state == State::SUCCEEDED_STATE || @state == State::FAILURE_STATE
           end
 
           private def extract_result_summary(**metadata)
@@ -147,7 +147,7 @@ module Neo4j::Driver
           end
 
           module State
-            READY_STATE = Class.new do
+            class Ready
               def on_success(context, metadata)
                 context.state = SUCCEEDED_STATE
                 context.complete_with_success(metadata)
@@ -171,15 +171,17 @@ module Neo4j::Driver
                 context.state = CANCELLED_STATE
                 context.discard_all
               end
-            end.new
+            end
 
-            STREAMING_STATE = Class.new do
+            READY_STATE = Ready.new
+
+            class Streaming
               def on_success(context, metadata)
                 if metadata[:has_more]
                   context.state = READY_STATE
                   context.success_has_more
                 else
-                  context.state = SUCEEDED_STATE
+                  context.state = SUCCEEDED_STATE
                   context.complete_with_success(metadata)
                 end
               end
@@ -202,15 +204,17 @@ module Neo4j::Driver
               def cancel(context)
                 context.state = CANCELLED_STATE
               end
-            end.new
+            end
 
-            CANCELLED_STATE = Class.new do
+            STREAMING_STATE = Streaming.new
+
+            class Cancelled
               def on_success(context, metadata)
                 if metadata[:has_more]
                   context.state = CANCELLED_STATE
                   context.discard_all
                 else
-                  context.state = SUCEEDED_STATE
+                  context.state = SUCCEEDED_STATE
                   context.complete_with_success(metadata)
                 end
               end
@@ -231,11 +235,13 @@ module Neo4j::Driver
               def cancel(context)
                 context.state = CANCELLED_STATE
               end
-            end.new
+            end
 
-            SUCEEDED_STATE = Class.new do
+            CANCELLED_STATE = Cancelled.new
+
+            class Succeeded
               def on_success(context, metadata)
-                context.state = SUCEEDED_STATE
+                context.state = SUCCEEDED_STATE
                 context.complete_with_success(metadata)
               end
 
@@ -245,21 +251,23 @@ module Neo4j::Driver
               end
 
               def on_record(context, _fields)
-                context.state = SUCEEDED_STATE
+                context.state = SUCCEEDED_STATE
               end
 
               def request(context, _n)
-                context.state = SUCEEDED_STATE
+                context.state = SUCCEEDED_STATE
               end
 
               def cancel(context)
-                context.state = SUCEEDED_STATE
+                context.state = SUCCEEDED_STATE
               end
-            end.new
+            end
 
-            FAILURE_STATE = Class.new do
+            SUCCEEDED_STATE = Succeeded.new
+
+            class Failed
               def on_success(context, metadata)
-                context.state = SUCEEDED_STATE
+                context.state = SUCCEEDED_STATE
                 context.complete_with_success(metadata)
               end
 
@@ -279,7 +287,9 @@ module Neo4j::Driver
               def cancel(context)
                 context.state = FAILURE_STATE
               end
-            end.new
+            end
+
+            FAILURE_STATE = Failed.new
           end
         end
       end

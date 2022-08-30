@@ -79,11 +79,10 @@ module Neo4j::Driver
 
         def terminate_and_release(reason)
           if @status.compare_and_set(Status::OPEN, Status::TERMINATED)
-            Connection::ChannelAttributes.set_termination_reason(@channel, reason)
-            Util::Futures.as_completion_stage(@channel.close).exceptionally(-> (_throwable) { nil }).then_compose(-> (_ignored) { @channel_pool.release(@channel) }).when_complete do |_ignored, _throwable|
-              @release_future.complete(nil)
-              @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
-            end
+            @channel.attributes[:termination_reason] = reason
+            @channel.close rescue nil
+            @channel_pool.release(@channel)
+            # @metrics_listener.after_connection_released(Connection::ChannelAttributes.pool_id(@channel), @in_use_event)
           end
         end
 
@@ -96,7 +95,7 @@ module Neo4j::Driver
             # auto-read could've been disabled, re-enable it to automatically receive response for RESET
             @channel.auto_read = true
             @message_dispatcher.enqueue(reset_handler)
-            @channel.write_and_flush(Messaging::Request::ResetMessage::RESET)#.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+            @channel.write_and_flush(Messaging::Request::ResetMessage::RESET) #.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
           end
         end
 
