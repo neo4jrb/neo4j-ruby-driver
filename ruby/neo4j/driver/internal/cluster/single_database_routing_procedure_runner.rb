@@ -16,9 +16,14 @@ module Neo4j::Driver
           delegate = connection(connection)
           procedure = procedure_query(connection.server_version, database_name)
           bookmark_holder = bookmark_holder(bookmark)
-          records = run_procedure(delegate, procedure, bookmark_holder)
-          release_connection(delegate)
-          process_procedure_response(procedure, records, error)
+          begin
+            records = run_procedure(delegate, procedure, bookmark_holder)
+            RoutingProcedureResponse.new(procedure, records: records)
+          rescue => error
+            handle_error(procedure, error)
+          ensure
+            release_connection(delegate)
+          end
         end
 
         private
@@ -32,7 +37,7 @@ module Neo4j::Driver
             raise Exceptions::FatalDiscoveryException, "Refreshing routing table for multi-databases is not supported in server version lower than 4.0. Current server version: #{server_version}. Database name: '#{database_name.description}'"
           end
 
-          Query.new(GET_ROUTING_TABLE, Values.parameters(ROUTING_CONTEXT, @context.to_map))
+          Query.new(GET_ROUTING_TABLE, ROUTING_CONTEXT => @context.to_h)
         end
 
         def bookmark_holder(_ignored)
@@ -43,7 +48,7 @@ module Neo4j::Driver
           connection.protocol
                     .run_in_auto_commit_transaction(connection, procedure, bookmark_holder, TransactionConfig.empty,
                                                     Handlers::Pulln::FetchSizeUtil::UNLIMITED_FETCH_SIZE)
-                    .async_result.to_a
+                    .async_result.then(&:to_a)
         end
 
         def release_connection(connection)
@@ -55,18 +60,12 @@ module Neo4j::Driver
           connection.release
         end
 
-        def process_procedure_response(procedure, records, error)
-          cause = Util::Futures.completion_exception_cause(error)
-
-          return RoutingProcedureResponse.new(procedure, records) if cause.nil?
-
-          handle_error(procedure, cause)
-        end
-
         def handle_error(procedure, error)
-          return RoutingProcedureResponse.new(procedure, records) if error.is_a? Exceptions::ClientException
-
-          raise java.util.concurrent.CompletionException, error
+          if error.is_a? Exceptions::ClientException
+            RoutingProcedureResponse.new(procedure, error: error)
+          else
+            raise error
+          end
         end
       end
     end

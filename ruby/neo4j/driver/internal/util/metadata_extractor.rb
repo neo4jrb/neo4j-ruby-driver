@@ -2,8 +2,6 @@ module Neo4j::Driver
   module Internal
     module Util
       class MetadataExtractor
-        ABSENT_QUERY_ID = -1
-
         def initialize(result_available_after_metadata_key, result_consumed_after_metadata_key)
           @result_available_after_metadata_key = result_available_after_metadata_key
           @result_consumed_after_metadata_key = result_consumed_after_metadata_key
@@ -14,7 +12,7 @@ module Neo4j::Driver
         end
 
         def extract_query_id(metadata)
-          metadata[:qid] || ABSENT_QUERY_ID
+          metadata[:qid]
         end
 
         def extract_result_available_after(metadata)

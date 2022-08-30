@@ -143,7 +143,7 @@ module Neo4j::Driver
         end
 
         def add_suppressed(error, suppressed_errors)
-          suppressed_errors&.reject(&error.method(:equal?))&.each(&error.method(:add_suppressed))
+          suppressed_errors&.reject(&error.method(:equal?))&.each(&error.method(:add_suppressed)) if error.is_a? Exceptions::Neo4jException
         end
       end
     end

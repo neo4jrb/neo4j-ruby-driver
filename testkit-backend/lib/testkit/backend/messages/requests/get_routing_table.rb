@@ -3,7 +3,7 @@ module Testkit::Backend::Messages
     class GetRoutingTable < Request
       def process
         named_entity('RoutingTable',
-                     %i[routers writers readers]
+                     **%i[routers writers readers]
                        .each_with_object(database: database, ttl: nil) do |method, hash|
                        hash[method] = to_object.send(method).to_a.map(&:to_s)
                      end)

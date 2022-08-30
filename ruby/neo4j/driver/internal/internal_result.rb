@@ -4,18 +4,11 @@ module Neo4j::Driver
       extend Synchronizable
       include Enumerable
       sync :keys, :has_next?, :next, :single, :peek, :consume
+      delegate :keys, to: :@cursor
 
       def initialize(connection, cursor)
         @connection = connection
         @cursor = cursor
-      end
-
-      def keys
-        @keys ||=
-          begin
-            @cursor.peek_async
-            @cursor.keys
-          end
       end
 
       def has_next?
@@ -47,10 +40,6 @@ module Neo4j::Driver
       end
 
       private
-
-      def blocking_get(stage)
-        Util::Futures.blocking_get(stage, &method(:terminate_connection_on_thread_interrupt))
-      end
 
       def terminate_connection_on_thread_interrupt
         @connection.terminate_and_release('Thread interrupted while waiting for result to arrive')
