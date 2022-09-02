@@ -73,7 +73,7 @@ jobs:
           # everything from --run-only-selected is to reduce the number of tests run in this
           # demonstation setup. In a real setup, you most likely don't want this.
           # python3 main.py --tests TESTKIT_TESTS STUB_TESTS TLS_TESTS
-          python3 main.py --tests TESTKIT_TESTS
+          python3 main.py --tests --run-only-selected tests.neo4j.test_direct_driver.TestDirectDriver.test_multi_db_non_existing  --config 4.1-enterprise-neo4j
           # --configs 4.3-enterprise --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back
 
       - name: Archive testkit artifacts
