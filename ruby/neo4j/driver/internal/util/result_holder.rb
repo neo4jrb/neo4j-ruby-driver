@@ -2,6 +2,8 @@ module Neo4j::Driver
   module Internal
     module Util
       class ResultHolder
+        attr :error
+
         def self.successful(result = nil)
           new.tap { |holder| holder.succeed(result) }
         end
