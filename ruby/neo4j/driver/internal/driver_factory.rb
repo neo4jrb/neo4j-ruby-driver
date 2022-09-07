@@ -89,6 +89,9 @@ module Neo4j::Driver::Internal
     end
 
     def driver(type, security_plan, address, connection_provider, retry_logic, metrics_provider, config)
+      p 8888888
+      p connection_provider
+      p 8888888
       session_factory = SessionFactoryImpl.new(connection_provider, retry_logic, config)
       InternalDriver.new(security_plan, session_factory, metrics_provider, config[:logger]).tap do |driver|
         config[:logger]&.info { "#{type} driver instance #{driver.object_id} created for server address #{address}" }
