@@ -67,9 +67,12 @@ module Neo4j::Driver
         def close_async
           return unless @open.make_false
           # there exists a cursor with potentially unconsumed error, try to extract and propagate it
-          @result_cursor&.discard_all_failure_async
-        ensure
+          error = @result_cursor&.discard_all_failure_async
           close_transaction_and_release_connection
+        rescue => tx_close_error
+          error = Util::Futures.combine_errors(error, tx_close_error)
+        ensure
+          raise error if error
         end
 
         def current_connection_open?
