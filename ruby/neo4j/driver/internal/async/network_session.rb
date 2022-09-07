@@ -97,6 +97,9 @@ module Neo4j::Driver
             # there somehow is an existing open connection, this should not happen, just a precondition
             raise Neo4j::Driver::Exceptions::IllegalStateException.new('Existing open connection detected')
           end
+          p 88888888888
+          p @connection_provider.class
+          p 88888888888
 
           @connection = @connection_provider.acquire_connection(@connection_context.context_with_mode(mode))
         end
