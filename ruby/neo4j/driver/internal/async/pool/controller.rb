@@ -2,22 +2,32 @@ module Neo4j::Driver
   module Internal
     module Async
       module Pool
-        class Controller < ::Async::Pool::Controller
-          def initialize(constructor, limit: nil, concurrency: nil, acquisition_timeout: nil)
-            super(constructor, limit: limit, concurrency: concurrency)
-            @acquisition_timeout = acquisition_timeout
+        class Controller < ConnectionPool
+          def initialize(limit: nil, acquisition_timeout: nil, &block)
+            super(size: limit, timeout: acquisition_timeout, &block)
+            @available = TimedStack.new(@size, &block)
           end
 
-          def wait_for_resource
-            case @acquisition_timeout
-            when nil
-              super
-            when 0
-              available_resource or raise ::Async::TimeoutError
-            else
-              ::Async::Task.current.with_timeout(@acquisition_timeout) { super }
-            end
+          def checkout(options = {})
+            @available.pop(options[:timeout] || @timeout)
           end
+
+          def checkin(resource)
+            @available.push(resource)
+            nil
+          end
+
+          def busy?
+            @available.any_resource_busy?
+          end
+
+          def shutdown
+            @available.shutdown { |channel| channel.close }
+          end
+
+          alias acquire checkout
+          alias release checkin
+          alias close shutdown
         end
       end
     end

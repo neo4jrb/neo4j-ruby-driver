@@ -109,7 +109,7 @@ module Neo4j::Driver
           end
 
           def new_pool(address)
-            Controller.wrap(limit: @settings.max_connection_pool_size, acquisition_timeout: @settings.connection_acquisition_timeout) { Channel.new(address, @connector, @log) }
+            Controller.new(limit: @settings.max_connection_pool_size, acquisition_timeout: @settings.connection_acquisition_timeout) { Channel.new(address, @connector, @log) }
           end
 
           def get_or_create_pool(address)

@@ -2,14 +2,14 @@ module Neo4j::Driver
   module Internal
     module Async
       module Pool
-        class Channel < ::Async::Pool::Resource
+        class Channel
           attr :stream
           attr_accessor :version, :protocol, :message_format, :message_dispatcher
           attr :attributes # should be attr
           attr_accessor :auto_read
 
           def initialize(address, connector, logger)
-            super()
+            @closed = false
             @attributes = Connection::ChannelAttributes.new
             @stream = Connection::Stream.new(connector.connect(address))
             @stream.write(Connection::BoltProtocolUtil.handshake_buf)
@@ -25,7 +25,7 @@ module Neo4j::Driver
           end
 
           def close
-            super unless closed? # Should this be conditional?
+            @closed = true
             @stream.close
           end
 
