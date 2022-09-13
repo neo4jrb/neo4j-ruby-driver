@@ -1,8 +1,6 @@
 module Neo4j::Driver
   module Internal
     class InternalTransaction
-      extend Synchronizable
-      sync :commit, :rollback, :close, :run
       delegate :open?, to: :@tx
 
       def initialize(tx)

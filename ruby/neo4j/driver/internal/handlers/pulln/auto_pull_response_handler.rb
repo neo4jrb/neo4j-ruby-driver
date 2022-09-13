@@ -20,7 +20,7 @@ module Neo4j::Driver
               @low_record_watermark = fetch_size * 0.3
             end
 
-            @records = ::Async::Queue.new
+            @records = Async::Overrides::Queue.new
             @auto_pull_enabled = true
 
             install_record_and_summary_consumers

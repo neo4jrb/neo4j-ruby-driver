@@ -14,6 +14,8 @@ module Neo4j::Driver
           @metadata_extractor = Internal::Validator.require_non_nil!(metadata_extractor)
           @connection = Internal::Validator.require_non_nil!(connection)
           @completion_listener = Internal::Validator.require_non_nil!(completion_listener)
+          # Not using overrided Queue class here
+          # Because this class doesn't call methods (#singal, #async) with Async dependancy
           @records = ::Async::Queue.new
         end
 
