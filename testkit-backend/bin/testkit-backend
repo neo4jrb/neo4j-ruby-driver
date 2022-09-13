@@ -3,6 +3,4 @@
 require "bundler/setup"
 require "testkit/backend"
 
-Async do
-  Testkit::Backend::Runner.new(9876).run
-end
+Testkit::Backend::Runner.new(9876).run
