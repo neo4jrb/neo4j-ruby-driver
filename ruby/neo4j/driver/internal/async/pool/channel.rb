@@ -11,7 +11,7 @@ module Neo4j::Driver
           def initialize(address, connector, logger)
             @closed = false
             @attributes = Connection::ChannelAttributes.new
-            @stream = Connection::Stream.new(connector.connect(address))
+            @stream = Connection::Stream.new(connect_to_io_socket(connector, address))
             @stream.write(Connection::BoltProtocolUtil.handshake_buf)
             @stream.flush
             Connection::HandshakeHandler.new(logger).decode(self)
@@ -40,6 +40,10 @@ module Neo4j::Driver
           end
 
           private
+
+          def connect_to_io_socket(connector, address)
+            Sync { connector.connect(address) }
+          end
 
           def bracketless(host)
             host.delete_prefix('[').delete_suffix(']')
