@@ -22,7 +22,7 @@ module Neo4j::Driver
           end
 
           def shutdown
-            @available.shutdown { |channel| channel.close }
+            @available.shutdown(&:close)
           end
 
           alias acquire checkout
