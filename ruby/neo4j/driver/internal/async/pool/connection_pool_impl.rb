@@ -77,7 +77,7 @@ module Neo4j::Driver
           private
 
           def process_acquisition_error(pool, server_address, error)
-            if error.is_a?(::Async::TimeoutError)
+            if error.is_a?(ConnectionPool::TimeoutError)
               # NettyChannelPool returns future failed with TimeoutException if acquire operation takes more than
               # configured time, translate this exception to a prettier one and re-throw
               raise Neo4j::Driver::Exceptions::ClientException.new("Unable to acquire connection from the pool within configured maximum time of #{@settings.connection_acquisition_timeout.inspect}")
