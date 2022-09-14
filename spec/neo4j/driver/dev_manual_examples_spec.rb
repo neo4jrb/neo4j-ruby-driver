@@ -34,8 +34,8 @@ RSpec.describe Neo4j::Driver do
 
     context 'Example 2.3. Custom Address Resolver' do
       let(:config) do
-        { resolver: lambda {
-          [Neo4j::Driver::Net::ServerAddress.of('a.acme.com', 7676),
+        { resolver: lambda { |_initial_route|
+          [Neo4j::Driver::Net::ServerAddress.of('localhost', 7687),
            Neo4j::Driver::Net::ServerAddress.of('b.acme.com', 8787),
            Neo4j::Driver::Net::ServerAddress.of('c.acme.com', 9898)]
         } }

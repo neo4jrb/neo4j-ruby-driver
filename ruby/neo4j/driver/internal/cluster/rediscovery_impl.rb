@@ -49,6 +49,7 @@ module Neo4j::Driver
             resolve_all_by_domain_name(server_address).unicast_stream
             # rescue java.net.UnknownHostException => e
           rescue => e
+            e = e.is_a?(SocketError) ? Exceptions::SocketException.new : e
             exception&.add_suppressed(e)
             exception ||= e
             []
