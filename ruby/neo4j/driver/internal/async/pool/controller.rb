@@ -8,13 +8,14 @@ module Neo4j::Driver
             @available = TimedStack.new(@size, &block)
           end
 
-          def checkout(options = {})
-            @available.pop(options[:timeout] || @timeout)
-          end
+          # def checkout(options = {})
+          #   @available.pop(options[:timeout] || @timeout)
+          # end
 
-          def checkin(resource)
-            @available.push(resource)
-            nil
+          def checkin(_resource)
+            # @available.push(resource)
+            # nil
+            super()
           end
 
           def busy?
