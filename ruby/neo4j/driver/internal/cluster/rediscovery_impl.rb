@@ -50,6 +50,7 @@ module Neo4j::Driver
             # rescue java.net.UnknownHostException => e
           rescue SocketError => e
             exception ||= e
+            []
           end
 
           # give up only if there are no addresses to work with at all

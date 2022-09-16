@@ -33,13 +33,15 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'Example 2.3. Custom Address Resolver' do
-      let(:scheme) { ENV.fetch('TEST_NEO4J_SCHEME', 'bolt') }
-      let(:uri) { "#{scheme}://#{ENV.fetch('TEST_NEO4J_HOST', '127.0.0.1')}:7687" }
+      let(:uri) { 'neo4j://g.example.com' }
       let(:config) do
         { resolver: lambda { |_initial_route|
-          [Neo4j::Driver::Net::ServerAddress.of('localhost', 7687),
-           Neo4j::Driver::Net::ServerAddress.of('b.acme.com', 8787),
-           Neo4j::Driver::Net::ServerAddress.of('c.acme.com', 9898)]
+          [
+            Neo4j::Driver::Net::ServerAddress.of('a.local', 7676),
+            Neo4j::Driver::Net::ServerAddress.of('b.local', 8787),
+            Neo4j::Driver::Net::ServerAddress.of('c.local', 9898),
+            Neo4j::Driver::Net::ServerAddress.of('localhost', 7687),
+          ]
         } }
       end
 
@@ -75,7 +77,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'Example 2.8. Trust' do
-      let(:config) { { trust_strategy: {strategy: :trust_all_certificates} } }
+      let(:config) { { trust_strategy: { strategy: :trust_all_certificates } } }
 
       it { is_expected.to be true }
     end
