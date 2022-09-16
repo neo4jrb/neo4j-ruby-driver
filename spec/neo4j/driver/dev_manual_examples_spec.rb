@@ -33,7 +33,8 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'Example 2.3. Custom Address Resolver' do
-      let(:uri) { "neo4j://#{ENV.fetch('TEST_NEO4J_HOST', '127.0.0.1')}:7687" }
+      let(:scheme) { ENV.fetch('TEST_NEO4J_SCHEME', 'bolt') }
+      let(:uri) { "#{scheme}://#{ENV.fetch('TEST_NEO4J_HOST', '127.0.0.1')}:7687" }
       let(:config) do
         { resolver: lambda { |_initial_route|
           [Neo4j::Driver::Net::ServerAddress.of('localhost', 7687),
