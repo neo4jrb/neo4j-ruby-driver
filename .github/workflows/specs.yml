@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         ruby: [ jruby, ruby ]
-        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.17, 4.4.10 ]
+        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.18, 4.4.11 ]
     env:
       NEO4J_EDITION_FLAG: -e
       NEO4J_VERSION: ${{ matrix.neo4j }}

@@ -32,18 +32,6 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.3. Custom Address Resolver' do
-      let(:config) do
-        { resolver: lambda {
-          [Neo4j::Driver::Net::ServerAddress.of('a.acme.com', 7676),
-           Neo4j::Driver::Net::ServerAddress.of('b.acme.com', 8787),
-           Neo4j::Driver::Net::ServerAddress.of('c.acme.com', 9898)]
-        } }
-      end
-
-      it { is_expected.to be true }
-    end
-
     context 'No authentication', auth: :none do
       let(:auth_tokens) { Neo4j::Driver::AuthTokens.none }
 
@@ -73,7 +61,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'Example 2.8. Trust' do
-      let(:config) { { trust_strategy: {strategy: :trust_all_certificates} } }
+      let(:config) { { trust_strategy: { strategy: :trust_all_certificates } } }
 
       it { is_expected.to be true }
     end
