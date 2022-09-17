@@ -41,7 +41,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v1
         with:
-          java-version: ${{ matrix.java-version || 11 }}
+          java-version: ${{ matrix.java-version || 17 }}
 
       - name: Setup Neo4j
         run: |
