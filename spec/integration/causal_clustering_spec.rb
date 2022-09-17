@@ -188,6 +188,22 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
     end
   end
 
+  it 'Example 2.3. Custom Address Resolver' do
+    create_driver('neo4j://g.example.com', resolver: lambda { |_address|
+      [
+        # Fake addresses
+        Neo4j::Driver::Net::ServerAddress.of('a.local', 7676),
+        Neo4j::Driver::Net::ServerAddress.of('b.local', 8787),
+        Neo4j::Driver::Net::ServerAddress.of('c.local', 9898),
+        # Valid address
+        leader.bolt_address,
+      ] }) do |driver|
+      driver.session do |session|
+        expect(session.read_transaction { |tx| tx.run('RETURN 1').single.first }).to eq 1
+      end
+    end
+  end
+
   private
 
   def execute_write_and_read_through_bolt(member)
