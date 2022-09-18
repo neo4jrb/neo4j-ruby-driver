@@ -20,9 +20,12 @@ jobs:
         ruby: [ jruby, ruby ]
         neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.18, 4.4.11 ]
     env:
-      NEO4J_EDITION_FLAG: -e
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
+      - name: Start neo4j
+#        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_dbms_connectors_default__listen__address=:: -p7687:7687 --volume=/tmp:/import --rm neo4j:${{ matrix.neo4j }} &
+        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass -p7687:7687 --volume=/tmp:/import --rm neo4j:${{ matrix.neo4j }} &
+
       - uses: actions/checkout@v2
 
       - name: Set up Ruby
@@ -30,15 +33,13 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
 
-      - name: Start neo4j
-        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass -p7687:7687 --rm neo4j:${{ matrix.neo4j }} &
-
       - name: Set up Java
         uses: actions/setup-java@v1
+        if: matrix.ruby == 'jruby'
         with:
           java-version: ${{ matrix.java-version || 17 }}
 
       - name: Install dependencies
         run: bin/setup
       - name: Run tests
-        run: bundle exec rspec
+        run: bundle exec rspec -t ~causal
