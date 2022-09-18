@@ -5,7 +5,7 @@ require 'tempfile'
 
 RSpec.describe 'LoadCsv', csv: true do
   let(:iris_class_names) { %w[Iris-setosa Iris-versicolor Iris-virginica] }
-  let(:file) { Tempfile.new(%w[file .csv]) }
+  let(:file) { Tempfile.new('', '/tmp') }
   let(:file_path) { file.path }
   let(:iris_data) do
                     %w[sepal_length,sepal_width,petal_length,petal_width,class_name
@@ -159,7 +159,7 @@ RSpec.describe 'LoadCsv', csv: true do
                      6.5,3.0,5.2,2.0,Iris-virginica
                      6.2,3.4,5.4,2.3,Iris-virginica
                      5.9,3.0,5.1,1.8,Iris-virginica]
-                  end
+  end
 
   before do
     driver.session do |session|
@@ -179,9 +179,6 @@ RSpec.describe 'LoadCsv', csv: true do
   end
 
   it 'loads CSV' do
-    puts "************************"
-    puts "file://#{file_path}"
-    puts "************************"
     driver.session do |session|
       result = session.run("USING PERIODIC COMMIT 40\n"\
                            "LOAD CSV WITH HEADERS FROM $csv_file_url AS l\n"\
@@ -190,7 +187,7 @@ RSpec.describe 'LoadCsv', csv: true do
                            " petal_length: l.petal_length, petal_width: l.petal_width})\n"\
                            'CREATE (c)<-[:HAS_CLASS]-(s) '\
                            'RETURN count(*) AS c',
-                           csv_file_url: "file://#{file_path}")
+                           csv_file_url: File.basename(file))
       expect(result.next[:c]).to eq(150)
       expect(result.has_next?).to be_falsey
     end
