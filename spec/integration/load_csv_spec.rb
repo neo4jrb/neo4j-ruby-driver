@@ -187,7 +187,7 @@ RSpec.describe 'LoadCsv', csv: true do
                            " petal_length: l.petal_length, petal_width: l.petal_width})\n"\
                            'CREATE (c)<-[:HAS_CLASS]-(s) '\
                            'RETURN count(*) AS c',
-                           csv_file_url: "file://File.basename(file)")
+                           csv_file_url: "file://#{File.basename(file)}")
       expect(result.next[:c]).to eq(150)
       expect(result.has_next?).to be_falsey
     end
