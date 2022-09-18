@@ -31,7 +31,7 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
 
       - name: Start neo4j
-        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass -p7687:7687 --rm neo4j:${{ matrix.neo4j }}
+        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass -p7687:7687 --rm neo4j:${{ matrix.neo4j }} &
 
       - name: Set up Java
         uses: actions/setup-java@v1
