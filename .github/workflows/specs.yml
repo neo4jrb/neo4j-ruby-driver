@@ -23,7 +23,6 @@ jobs:
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
       - name: Start neo4j
-#        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_dbms_connectors_default__listen__address=:: -p7687:7687 --volume=/tmp:/import --rm neo4j:${{ matrix.neo4j }} &
         run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass -p7687:7687 --volume=/tmp:/import --rm neo4j:${{ matrix.neo4j }} &
 
       - uses: actions/checkout@v2

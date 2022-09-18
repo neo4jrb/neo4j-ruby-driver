@@ -179,6 +179,9 @@ RSpec.describe 'LoadCsv', csv: true do
   end
 
   it 'loads CSV' do
+    puts "************************"
+    puts "file://#{file_path}"
+    puts "************************"
     driver.session do |session|
       result = session.run("USING PERIODIC COMMIT 40\n"\
                            "LOAD CSV WITH HEADERS FROM $csv_file_url AS l\n"\
