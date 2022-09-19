@@ -48,7 +48,7 @@ module Neo4j::Driver
           connection.protocol
                     .run_in_auto_commit_transaction(connection, procedure, bookmark_holder, TransactionConfig.empty,
                                                     Handlers::Pulln::FetchSizeUtil::UNLIMITED_FETCH_SIZE)
-                    .async_result.then(&:to_a)
+                    .async_result.map_successful_run_completion_async.result!.then(&:to_a)
         end
 
         def release_connection(connection)

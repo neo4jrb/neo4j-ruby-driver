@@ -24,7 +24,7 @@ module Neo4j::Driver
 
         def process_routing_response(response)
           unless response.success?
-            raise response.error.class, "Failed to run '#{invoked_procedure_string(response)}' on server. Please make sure that there is a Neo4j server or cluster up running."
+            raise response.error, "Failed to run '#{invoked_procedure_string(response)}' on server. Please make sure that there is a Neo4j server or cluster up running."
           end
 
           records = response.records
