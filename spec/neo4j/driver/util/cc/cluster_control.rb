@@ -13,7 +13,7 @@ module Neo4j
 
             def start_cluster(path)
               if debug?
-                (output_lines(:core, 3) + output_lines(:read_replica, 2)).join('')
+                (output_lines(:core, 20003, 6, 3) + output_lines(:read_replica, 20018, 5, 2)).join("\n")
               else
                 execute_command('neoctrl-cluster', 'start', path)
               end
@@ -59,12 +59,12 @@ module Neo4j
               ENV['NEO4J_VERSION']
             end
 
-            def output_line(type, i)
-              "http://127.0.0.1:20010 bolt://127.0.0.1:20009 test-cluster#{version}/#{type}s/#{type}-#{i}/neo4j-enterprise-#{version}\n"
+            def output_line(type, base, increment, i)
+              "x bolt://127.0.0.1:#{base + i * increment} db/neo4j/test-cluster#{version}/#{type}s/#{type}-#{i}/neo4j-enterprise-#{version}"
             end
 
-            def output_lines(type, n)
-              n.times.map(&method(:output_line).curry.call(type))
+            def output_lines(type, base, increment, n)
+              n.times.map(&method(:output_line).curry.call(type, base, increment))
             end
           end
         end
