@@ -18,11 +18,6 @@ module Neo4j::Driver
 
           DisposableAsyncResultCursor.new(AsyncResultCursorImpl.new(@run_handler, @pull_all_handler))
         end
-
-        def rx_result
-          @connection.write_and_flush(@run_message, @run_handler)
-          @run_future.handle { |_ignored, error| RxResultCursorImpl.new(error, @run_handler, @pull_handler) }
-        end
       end
     end
   end

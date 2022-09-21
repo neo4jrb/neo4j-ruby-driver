@@ -100,8 +100,9 @@ module Neo4j::Driver
 
           def pull_all_async
             return completed_with_value_if_no_failure(@summary) if done?
-            request(FetchSizeUtil::UNLIMITED_FETCH_SIZE)
-            @summary_future ||= Util::ResultHolder.new
+            (@summary_future ||= Util::ResultHolder.new).tap do |_|
+              request(FetchSizeUtil::UNLIMITED_FETCH_SIZE)
+            end
           end
 
           def enqueue_record(record)
