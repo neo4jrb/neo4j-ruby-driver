@@ -48,8 +48,7 @@ module Neo4j::Driver
           resolved_addresses = @resolver.call(@initial_router).flat_map do |server_address|
             resolve_all_by_domain_name(server_address).unicast_stream
             # rescue java.net.UnknownHostException => e
-          rescue => e
-            exception&.add_suppressed(e)
+          rescue SocketError => e
             exception ||= e
             []
           end
