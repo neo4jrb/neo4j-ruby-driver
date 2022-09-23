@@ -119,15 +119,15 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
       config = { resolver: ->(address) { address == cluster_address ? core_addresses : [address] } }
 
       create_driver(cluster_uri, config) do |driver|
-        session1 = driver.session
-        tx1 = session1.begin_transaction
+        driver.session do |session1|
+          tx1 = session1.begin_transaction
 
-        # gracefully stop current leader to force re-election
-        cluster.stop(leader)
+          # gracefully stop current leader to force re-election
+          cluster.stop(leader)
 
-        expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
-          .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
-        session1.close
+          expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
+            .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
+        end
 
         bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
           session.begin_transaction do |tx|
