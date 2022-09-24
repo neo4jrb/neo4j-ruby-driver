@@ -15,7 +15,7 @@ module Neo4j::Driver
           private
 
           def build_encoders
-            COMMOM_ENCODERS.merge(
+            COMMON_ENCODERS.merge(
               Request::DiscardAllMessage::SIGNATURE => Encode::DiscardAllMessageEncoder,
               Request::PullAllMessage::SIGNATURE => Encode::PullAllMessageEncoder,
             )
