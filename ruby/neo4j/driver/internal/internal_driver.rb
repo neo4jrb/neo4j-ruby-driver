@@ -21,10 +21,6 @@ module Neo4j::Driver
         InternalSession.new(new_session(**session_config))
       end
 
-      def rx_session(**session_config)
-        InternalRxSession.new(new_session(**session_config))
-      end
-
       def async_session(**session_config)
         InternalAsyncSession.new(new_session(**session_config))
       end

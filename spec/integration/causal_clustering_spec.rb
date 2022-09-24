@@ -119,15 +119,15 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
       config = { resolver: ->(address) { address == cluster_address ? core_addresses : [address] } }
 
       create_driver(cluster_uri, config) do |driver|
-        session1 = driver.session
-        tx1 = session1.begin_transaction
+        driver.session do |session1|
+          tx1 = session1.begin_transaction
 
-        # gracefully stop current leader to force re-election
-        cluster.stop(leader)
+          # gracefully stop current leader to force re-election
+          cluster.stop(leader)
 
-        expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
-          .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
-        session1.close
+          expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
+            .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
+        end
 
         bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
           session.begin_transaction do |tx|
@@ -180,11 +180,12 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
 
   it 'routing tables' do
     create_driver(leader.routing_uri, routing_table_purge_delay: 3.minutes) do |driver|
-      driver.session do |session|
+      database = version?('>=4.0') ? 'neo4j' : nil
+      driver.session(database: database) do |session|
         session.read_transaction { |tx| tx.run('RETURN 1').consume }
       end
       expect(driver.session_factory.connection_provider.routing_table_registry
-               .routing_table_handler(('neo4j' if version?('>=4.4'))).routing_table.routers.to_a.size).to eq 3
+                   .routing_table_handler(database).routing_table.routers.to_a.size).to eq 3
     end
   end
 

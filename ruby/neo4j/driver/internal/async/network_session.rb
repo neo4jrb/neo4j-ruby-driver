@@ -22,12 +22,6 @@ module Neo4j::Driver
           new_result_cursor.map_successful_run_completion_async
         end
 
-        def run_rx(query, **config)
-          new_result_cursor_stage = build_result_cursor_factory(query, config).then_flat(Cursor::ResultCursorFactory.rx_result)
-          @result_cursor_stage = new_result_cursor_stage.rescue {}
-          new_result_cursor_stage
-        end
-
         def begin_transaction_async(mode = @mode, **config)
           ensure_session_is_open
           ensure_no_open_tx_before_starting_tx
@@ -92,7 +86,7 @@ module Neo4j::Driver
 
         def acquire_connection(mode)
           # make sure previous result is fully consumed and connection is released back to the pool
-          @result_cursor&.pull_all_failure_async
+          @result_cursor&.pull_all_failure_async&.result!&.then(&method(:raise))
           if @connection&.open?
             # there somehow is an existing open connection, this should not happen, just a precondition
             raise Neo4j::Driver::Exceptions::IllegalStateException.new('Existing open connection detected')
