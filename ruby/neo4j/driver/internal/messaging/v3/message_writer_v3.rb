@@ -3,22 +3,22 @@ module Neo4j::Driver
     module Messaging
       module V3
         class MessageWriterV3 < AbstractMessageWriter
+          COMMON_ENCODERS = {
+            Request::HelloMessage::SIGNATURE => Encode::HelloMessageEncoder,
+            Request::GoodbyeMessage::SIGNATURE => Encode::GoodbyeMessageEncoder,
+            Request::RunWithMetadataMessage::SIGNATURE => Encode::RunWithMetadataMessageEncoder,
+            Request::BeginMessage::SIGNATURE => Encode::BeginMessageEncoder,
+            Request::CommitMessage::SIGNATURE => Encode::CommitMessageEncoder,
+            Request::RollbackMessage::SIGNATURE => Encode::RollbackMessageEncoder,
+            Request::ResetMessage::SIGNATURE => Encode::ResetMessageEncoder,
+          }
           private
 
           def build_encoders
-            {
-              Request::HelloMessage::SIGNATURE => Encode::HelloMessageEncoder.new,
-              Request::GoodbyeMessage::SIGNATURE => Encode::GoodbyeMessageEncoder.new,
-
-              Request::RunWithMetadataMessage::SIGNATURE => Encode::RunWithMetadataMessageEncoder.new,
-              Request::DiscardAllMessage::SIGNATURE => Encode::DiscardAllMessageEncoder.new,
-              Request::PullAllMessage::SIGNATURE => Encode::PullAllMessageEncoder.new,
-
-              Request::BeginMessage::SIGNATURE => Encode::BeginMessageEncoder.new,
-              Request::CommitMessage::SIGNATURE => Encode::CommitMessageEncoder.new,
-              Request::RollbackMessage::SIGNATURE => Encode::RollbackMessageEncoder.new,
-              Request::ResetMessage::SIGNATURE => Encode::ResetMessageEncoder.new,
-            }
+            COMMON_ENCODERS.merge(
+              Request::DiscardAllMessage::SIGNATURE => Encode::DiscardAllMessageEncoder,
+              Request::PullAllMessage::SIGNATURE => Encode::PullAllMessageEncoder,
+            )
           end
         end
       end

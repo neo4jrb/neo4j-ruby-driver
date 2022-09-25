@@ -2,22 +2,11 @@ module Neo4j::Driver
   module Internal
     module Messaging
       module V44
-        class MessageWriterV44 < AbstractMessageWriter
+        class MessageWriterV44 < V4::MessageWriterV4
           private
 
           def build_encoders
-            {
-              Request::HelloMessage::SIGNATURE => Encode::HelloMessageEncoder.new,
-              Request::GoodbyeMessage::SIGNATURE => Encode::GoodbyeMessageEncoder.new,
-              Request::RunWithMetadataMessage::SIGNATURE => Encode::RunWithMetadataMessageEncoder.new,
-              Request::RouteMessage::SIGNATURE => Encode::RouteV44MessageEncoder.new,
-              Request::DiscardMessage::SIGNATURE => Encode::DiscardMessageEncoder.new,
-              Request::PullMessage::SIGNATURE => Encode::PullMessageEncoder.new,
-              Request::BeginMessage::SIGNATURE => Encode::BeginMessageEncoder.new,
-              Request::CommitMessage::SIGNATURE => Encode::CommitMessageEncoder.new,
-              Request::RollbackMessage::SIGNATURE => Encode::RollbackMessageEncoder.new,
-              Request::ResetMessage::SIGNATURE => Encode::ResetMessageEncoder.new,
-            }
+            super.merge(Request::RouteMessage::SIGNATURE => Encode::RouteV44MessageEncoder)
           end
         end
       end
