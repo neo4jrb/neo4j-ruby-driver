@@ -8,7 +8,6 @@ module Neo4j::Driver
         attr_reader :server_agent, :server_address, :server_version
 
         def initialize(channel, channel_pool, logger)
-          @closed = false
           @log = logger
           @channel = channel
           @message_dispatcher = channel.attributes[:message_dispatcher]
@@ -21,10 +20,6 @@ module Neo4j::Driver
           # @clock = clock
           # @connection_read_timeout = Connection::ChannelAttributes.connection_read_timeout(channel) || nil
           @status = Concurrent::AtomicReference.new(Status::OPEN)
-        end
-
-        def close
-          @closed = true
         end
 
         def open?

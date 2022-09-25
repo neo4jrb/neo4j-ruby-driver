@@ -8,26 +8,22 @@ module Neo4j::Driver
             @available = TimedStack.new(@size, &block)
           end
 
-          def checkout(options = {})
+          def acquire(options = {})
             @available.pop(options[:timeout] || @timeout)
           end
 
-          def checkin(resource)
+          def release(resource)
             @available.push(resource)
             nil
+          end
+
+          def close
+            @available.shutdown(&:close)
           end
 
           def busy?
             @available.any_resource_busy?
           end
-
-          def shutdown
-            @available.shutdown { |channel| channel.close }
-          end
-
-          alias acquire checkout
-          alias release checkin
-          alias close shutdown
         end
       end
     end

@@ -9,7 +9,6 @@ module Neo4j::Driver
           attr_accessor :auto_read
 
           def initialize(address, connector, logger)
-            @closed = false
             @attributes = Connection::ChannelAttributes.new
             @stream = Connection::Stream.new(connect_to_io_socket(connector, address))
             @stream.write(Connection::BoltProtocolUtil.handshake_buf)
@@ -25,7 +24,6 @@ module Neo4j::Driver
           end
 
           def close
-            @closed = true
             @stream.close
           end
 
