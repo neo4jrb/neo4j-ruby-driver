@@ -83,12 +83,15 @@ module Neo4j::Driver
             Util::ResultHolder.successful(@summary)
         end
 
-        def each
-          pull_all_failure_async.then do
+        def list_async(&block)
+          pull_all_failure_async.then do |error|
+            raise error if error
             unless @finished
               raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
             end
-            @records.each { |record| yield record }
+            @records.items.map(&block)
+          ensure
+            @records.items.clear
           end
         end
 

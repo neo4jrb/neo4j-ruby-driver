@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     module Cursor
       class AsyncResultCursorImpl
-        include Enumerable
+        # include Enumerable
         delegate :consume_async, :next_async, :peek_async, to: :@pull_all_handler
 
         def initialize(run_handler, pull_all_handler)
@@ -29,13 +29,13 @@ module Neo4j::Driver
           end
         end
 
-        def each(&action)
-          result_holder = Util::ResultHolder.new
-          internal_for_each_async(result_holder, &action)
-          result_holder.then { consume_async }
-        end
+        # def each(&action)
+        #   result_holder = Util::ResultHolder.new
+        #   internal_for_each_async(result_holder, &action)
+        #   result_holder.then { consume_async }
+        # end
 
-        def to_async(&map_function)
+        def list_async(&map_function)
           @pull_all_handler.list_async(&block_given? ? map_function : :itself)
         end
 
@@ -49,22 +49,22 @@ module Neo4j::Driver
           @pull_all_handler.pull_all_failure_async.then { |error| run_error ? nil : error }
         end
 
-        private def internal_for_each_async(result_holder, &action)
-          next_async.chain do |record, error|
-            if error
-              result_holder.fail(error)
-            elsif record
-              begin
-                yield record
-              rescue => action_error
-                result_holder.fail(action_error)
-              end
-              internal_for_each_async(result_holder, &action)
-            else
-              result_holder.succeed(nil)
-            end
-          end
-        end
+        # private def internal_for_each_async(result_holder, &action)
+        #   next_async.chain do |record, error|
+        #     if error
+        #       result_holder.fail(error)
+        #     elsif record
+        #       begin
+        #         yield record
+        #       rescue => action_error
+        #         result_holder.fail(action_error)
+        #       end
+        #       internal_for_each_async(result_holder, &action)
+        #     else
+        #       result_holder.succeed(nil)
+        #     end
+        #   end
+        # end
 
         def map_successful_run_completion_async
           run_error&.then(&Util::ResultHolder.method(:failed)) || Util::ResultHolder.successful(self)

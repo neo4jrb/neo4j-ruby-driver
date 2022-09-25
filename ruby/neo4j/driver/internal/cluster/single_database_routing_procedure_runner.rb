@@ -17,8 +17,8 @@ module Neo4j::Driver
           procedure = procedure_query(connection.server_version, database_name)
           bookmark_holder = bookmark_holder(bookmark)
           begin
-            records = run_procedure(delegate, procedure, bookmark_holder)
-            RoutingProcedureResponse.new(procedure, records: records)
+            result = run_procedure(delegate, procedure, bookmark_holder)
+            RoutingProcedureResponse.new(procedure, **result.error ? { error: result.error } : { records: result.result! })
           rescue => error
             handle_error(procedure, error)
           ensure
@@ -48,7 +48,7 @@ module Neo4j::Driver
           connection.protocol
                     .run_in_auto_commit_transaction(connection, procedure, bookmark_holder, TransactionConfig.empty,
                                                     Handlers::Pulln::FetchSizeUtil::UNLIMITED_FETCH_SIZE)
-                    .async_result.then(&:to_a)
+                    .async_result.list_async
         end
 
         def release_connection(connection)
