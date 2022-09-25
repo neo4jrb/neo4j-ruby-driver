@@ -1,14 +1,13 @@
 module Neo4j::Driver
   module Internal
     module Async
-      class NetworkConnection < ::Async::Pool::Resource
+      class NetworkConnection
         include Spi::Connection
         delegate :protocol, to: :@channel
 
         attr_reader :server_agent, :server_address, :server_version
 
         def initialize(channel, channel_pool, logger)
-          super()
           @log = logger
           @channel = channel
           @message_dispatcher = channel.attributes[:message_dispatcher]
@@ -22,11 +21,6 @@ module Neo4j::Driver
           # @connection_read_timeout = Connection::ChannelAttributes.connection_read_timeout(channel) || nil
           @status = Concurrent::AtomicReference.new(Status::OPEN)
         end
-
-        # def close
-        #   super
-        #   @io.close
-        # end
 
         def open?
           @status.get == Status::OPEN
