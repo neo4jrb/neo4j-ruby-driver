@@ -4,7 +4,6 @@ module Neo4j::Driver
       # This is the Pull All response handler that handles pull all messages in Bolt v3 and previous protocol versions.
       class LegacyPullAllResponseHandler
         include Spi::ResponseHandler
-        include Enumerable
         RECORD_BUFFER_LOW_WATERMARK = ENV['record_buffer_low_watermark']&.to_i || 300
         RECORD_BUFFER_HIGH_WATERMARK = ENV['record_buffer_high_watermark']&.to_i || 1000
 
