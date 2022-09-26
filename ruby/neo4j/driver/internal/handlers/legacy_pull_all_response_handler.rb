@@ -4,7 +4,6 @@ module Neo4j::Driver
       # This is the Pull All response handler that handles pull all messages in Bolt v3 and previous protocol versions.
       class LegacyPullAllResponseHandler
         include Spi::ResponseHandler
-        include Enumerable
         RECORD_BUFFER_LOW_WATERMARK = ENV['record_buffer_low_watermark']&.to_i || 300
         RECORD_BUFFER_HIGH_WATERMARK = ENV['record_buffer_high_watermark']&.to_i || 1000
 
@@ -83,12 +82,15 @@ module Neo4j::Driver
             Util::ResultHolder.successful(@summary)
         end
 
-        def each
-          pull_all_failure_async.then do
+        def list_async(&block)
+          pull_all_failure_async.then do |error|
+            raise error if error
             unless @finished
               raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
             end
-            @records.each { |record| yield record }
+            @records.items.map(&block)
+          ensure
+            @records.items.clear
           end
         end
 
