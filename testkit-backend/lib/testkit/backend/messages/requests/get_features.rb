@@ -2,7 +2,7 @@ module Testkit::Backend::Messages
   module Requests
     class GetFeatures < Request
       def process
-        driver_specific_features = RUBY_PLATFORM == 'java' ? features_disabled_in_ruby : features_disabled_in_jruby
+        driver_specific_features = RUBY_PLATFORM == 'java' ? jruby_features : ruby_features
         features = common_features << driver_specific_features
         named_entity('FeatureList', features: features.flatten)
       end
@@ -37,7 +37,7 @@ module Testkit::Backend::Messages
         ]
       end
 
-      def features_disabled_in_ruby
+      def jruby_features
         [
           'Feature:API:ConnectionAcquisitionTimeout',
           'Feature:API:SessionConnectionTimeout',
@@ -45,14 +45,12 @@ module Testkit::Backend::Messages
           'Feature:API:UpdateRoutingTableTimeout',
           'Feature:TLS:1.1', # TODO works for java,
           'Feature:TLS:1.3', # TODO works for java
-          'Optimization:ConnectionReuse', # disabled for java
-          'Optimization:MinimalResets', # disabled for java
           'Detail:ResultStreamWorksAfterBrokenRecord',
           'ConfHint:connection.recv_timeout_seconds',
         ]
       end
 
-      def features_disabled_in_jruby
+      def ruby_features
         [
           'Optimization:ConnectionReuse', # disabled for java
           'Optimization:MinimalResets', # disabled for java
