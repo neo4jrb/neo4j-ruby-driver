@@ -39,21 +39,21 @@ module Testkit::Backend::Messages
 
       def jruby_features
         [
-          'Feature:API:ConnectionAcquisitionTimeout',
-          'Feature:API:SessionConnectionTimeout',
-          'Feature:API:Type.Temporal',
-          'Feature:API:UpdateRoutingTableTimeout',
-          'Feature:TLS:1.1', # TODO works for java,
-          'Feature:TLS:1.3', # TODO works for java
-          'Detail:ResultStreamWorksAfterBrokenRecord',
+          # 'Feature:API:ConnectionAcquisitionTimeout',
+          # 'Feature:API:SessionConnectionTimeout',
+          # 'Feature:API:Type.Temporal',
+          # 'Feature:API:UpdateRoutingTableTimeout',
+          # 'Feature:TLS:1.1', # TODO works for java,
+          # 'Feature:TLS:1.3', # TODO works for java
+          # 'Detail:ResultStreamWorksAfterBrokenRecord',
           'ConfHint:connection.recv_timeout_seconds',
         ]
       end
 
       def ruby_features
         [
-          'Optimization:ConnectionReuse', # disabled for java
-          'Optimization:MinimalResets', # disabled for java
+          # 'Optimization:ConnectionReuse', # disabled for java
+          # 'Optimization:MinimalResets', # disabled for java
         ]
       end
     end
