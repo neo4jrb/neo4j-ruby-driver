@@ -2,59 +2,49 @@ module Testkit::Backend::Messages
   module Requests
     class GetFeatures < Request
       def process
-        driver_specific_features = RUBY_PLATFORM == 'java' ? jruby_features : ruby_features
-        features = common_features << driver_specific_features
-        named_entity('FeatureList', features: features.flatten)
+        platform = RUBY_PLATFORM == 'java' ? 'jruby' : 'ruby'
+        features_list = features.select{|key, value| value == 'all' || value == platform}.keys
+        named_entity('FeatureList', features: features_list.flatten)
       end
 
-      def common_features
-        [
-          'Feature:API:Driver.IsEncrypted',
-          'Feature:API:Liveness.Check',
-          'Feature:API:Result.List',
-          'Feature:API:Result.Peek',
-          'Feature:API:Result.Single',
-          'Feature:API:SSLConfig',
-          'Feature:API:SSLSchemes',
-          'Feature:Auth:Bearer',
-          'Feature:Auth:Custom',
-          'Feature:Auth:Kerberos',
-          'Feature:Bolt:3.0',
-          'Feature:Bolt:4.0',
-          'Feature:Bolt:4.1',
-          'Feature:Bolt:4.2',
-          'Feature:Bolt:4.3',
-          'Feature:Bolt:4.4',
-          'Feature:Bolt:Patch:UTC',
-          'Feature:Impersonation',
-          'Feature:TLS:1.2',
-          'AuthorizationExpiredTreatment',
-          'Optimization:EagerTransactionBegin',
-          'Optimization:ImplicitDefaultArguments',
-          'Optimization:PullPipelining',
-          'Optimization:ResultListFetchAll',
-          'Detail:DefaultSecurityConfigValueEquality',
-        ]
-      end
-
-      def jruby_features
-        [
-          # 'Feature:API:ConnectionAcquisitionTimeout',
-          # 'Feature:API:SessionConnectionTimeout',
-          # 'Feature:API:Type.Temporal',
-          # 'Feature:API:UpdateRoutingTableTimeout',
-          # 'Feature:TLS:1.1', # TODO works for java,
-          # 'Feature:TLS:1.3', # TODO works for java
-          # 'Detail:ResultStreamWorksAfterBrokenRecord',
-          'ConfHint:connection.recv_timeout_seconds',
-        ]
-      end
-
-      def ruby_features
-        [
-          # 'Optimization:ConnectionReuse', # disabled for java
-          # 'Optimization:MinimalResets', # disabled for java
-        ]
+      def features
+        {
+          'Feature:API:Driver.IsEncrypted' => 'all',
+          'Feature:API:Liveness.Check' => 'all',
+          'Feature:API:Result.List' => 'all',
+          'Feature:API:Result.Peek' => 'all',
+          'Feature:API:Result.Single' => 'all',
+          'Feature:API:SSLConfig' => 'all',
+          'Feature:API:SSLSchemes' => 'all',
+          'Feature:Auth:Bearer' => 'all',
+          'Feature:Auth:Custom' => 'all',
+          'Feature:Auth:Kerberos' => 'all',
+          'Feature:Bolt:3.0' => 'all',
+          'Feature:Bolt:4.0' => 'all',
+          'Feature:Bolt:4.1' => 'all',
+          'Feature:Bolt:4.2' => 'all',
+          'Feature:Bolt:4.3' => 'all',
+          'Feature:Bolt:4.4' => 'all',
+          'Feature:Bolt:Patch:UTC' => 'all',
+          'Feature:Impersonation' => 'all',
+          'Feature:TLS:1.2' => 'all',
+          'AuthorizationExpiredTreatment' => 'all',
+          'Optimization:EagerTransactionBegin' => 'all',
+          'Optimization:ImplicitDefaultArguments' => 'all',
+          'Optimization:PullPipelining' => 'all',
+          'Optimization:ResultListFetchAll' => 'all',
+          'Detail:DefaultSecurityConfigValueEquality' => 'all',
+          'Feature:API:ConnectionAcquisitionTimeout' => 'none',
+          'Feature:API:SessionConnectionTimeout' => 'none',
+          'Feature:API:Type.Temporal' => 'none',
+          'Feature:API:UpdateRoutingTableTimeout' => 'none',
+          'Feature:TLS:1.1' => 'none', # TODO works for java
+          'Feature:TLS:1.3' => 'none', # TODO works for java
+          'Detail:ResultStreamWorksAfterBrokenRecord' => 'none',
+          'ConfHint:connection.recv_timeout_seconds' => 'jruby',
+          'Optimization:ConnectionReuse' => 'none', # disabled for java
+          'Optimization:MinimalResets' => 'none' # disabled for java
+        }
       end
     end
   end
