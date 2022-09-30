@@ -35,6 +35,7 @@ module Testkit::Backend::Messages
           # 'Optimization:MinimalResets', # disabled for java
           'Optimization:PullPipelining',
           'Optimization:ResultListFetchAll',
+          # 'Detail:ClosedDriverIsEncrypted',
           'Detail:DefaultSecurityConfigValueEquality',
           # 'Detail:ResultStreamWorksAfterBrokenRecord',
           'ConfHint:connection.recv_timeout_seconds',
