@@ -19,7 +19,7 @@ module Testkit::Backend::Messages
           'Feature:Auth:Kerberos' => 'jr',
           'Feature:Bolt:3.0' => 'j',
           'Feature:Bolt:4.0' => 'jr',
-          'Feature:Bolt:4.1' => 'j',
+          'Feature:Bolt:4.1' => 'jr',
           'Feature:Bolt:4.2' => 'jr',
           'Feature:Bolt:4.3' => 'j',
           'Feature:Bolt:4.4' => 'j',
