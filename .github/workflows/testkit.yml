@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - [jruby, 9.3.4.0]
+          - [jruby, latest]
           - [ruby, latest]
 
     steps:
@@ -72,7 +72,7 @@ jobs:
           cd testkit
           # everything from --run-only-selected is to reduce the number of tests run in this
           # demonstation setup. In a real setup, you most likely don't want this.
-          python3 main.py --tests TESTKIT_TESTS STUB_TESTS TLS_TESTS
+          python3 main.py --tests TLS_TESTS
           # --configs 4.3-enterprise --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back
 
       - name: Archive testkit artifacts
