@@ -7,7 +7,7 @@ module Neo4j::Driver
 
         attr_reader :server_agent, :server_address, :server_version
 
-        def initialize(channel, channel_pool, logger)
+        def initialize(channel, channel_pool, logger, &on_pool_shutdown)
           @log = logger
           @channel = channel
           @message_dispatcher = channel.attributes[:message_dispatcher]
@@ -16,6 +16,7 @@ module Neo4j::Driver
           @server_version = channel.attributes[:server_version]
           @protocol = Messaging::BoltProtocol.for_channel(channel)
           @channel_pool = channel_pool
+          @on_pool_shutdow = on_pool_shutdown
           # @release_future = java.util.concurrent.CompletableFuture.new
           # @clock = clock
           # @connection_read_timeout = Connection::ChannelAttributes.connection_read_timeout(channel) || nil
@@ -108,6 +109,12 @@ module Neo4j::Driver
           else
             @channel.write(message)
           end
+        rescue Exceptions::SessionExpiredException => e
+          terminate_and_release(e.message)
+          @channel_pool.shutdown(&:close)
+          @on_pool_shutdow.call
+          # should remove routing table entry as well
+          raise
         end
 
         def write_messages_in_event_loop(message1, handler1, message2, handler2, flush)
