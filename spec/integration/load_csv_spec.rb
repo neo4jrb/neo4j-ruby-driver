@@ -180,15 +180,16 @@ RSpec.describe 'LoadCsv', csv: true do
 
   it 'loads CSV' do
     driver.session do |session|
+      size = 40
       load = 'LOAD CSV WITH HEADERS FROM $csv_file_url AS l'
       subquery = "MATCH (c:Class {name: l.class_name}) CREATE (c)<-[:HAS_CLASS]-(s:Sample{sepal_length: l.sepal_length, sepal_width: l.sepal_width, petal_length: l.petal_length, petal_width: l.petal_width})"
       return_s = 'RETURN count(*) AS c'
       query = if version?('<4.4')
-                "USING PERIODIC COMMIT $size #{load} #{subquery} #{return_s}"
+                "USING PERIODIC COMMIT #{size} #{load} #{subquery} #{return_s}"
               else
-                "#{load} CALL { WITH l #{subquery} } IN TRANSACTIONS OF $size ROWS #{return_s}"
+                "#{load} CALL { WITH l #{subquery} } IN TRANSACTIONS OF #{size} ROWS #{return_s}"
               end
-      result = session.run(query, size: 40, csv_file_url: "file://#{file_path}")
+      result = session.run(query, csv_file_url: "file://#{file_path}")
       expect(result.next[:c]).to eq(150)
       expect(result.has_next?).to be_falsey
     end
