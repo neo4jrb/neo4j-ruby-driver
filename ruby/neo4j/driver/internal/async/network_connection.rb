@@ -90,8 +90,23 @@ module Neo4j::Driver
             # auto-read could've been disabled, re-enable it to automatically receive response for RESET
             @channel.auto_read = true
             @message_dispatcher.enqueue(reset_handler)
-            @channel.write_and_flush(Messaging::Request::ResetMessage::RESET) #.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+            write_to_channel(Messaging::Request::ResetMessage::RESET, true)
           end
+        end
+
+        def write_to_channel(message, flush = false)
+          if flush
+            @channel.write_and_flush(message) #.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+          else
+            @channel.write(message)
+          end
+        rescue EOFError, Errno::ECONNRESET, Errno::EPIPE => e
+          terminate_and_release(e.message)
+          @log.debug("Shutting down connection pool towards #{@server_address} due to error: #{e.message}")
+          @channel_pool.shutdown(&:close)
+          @on_pool_shutdow.call
+          # should remove routing table entry as well
+          raise Exceptions::SessionExpiredException, e.message
         end
 
         def flush_in_event_loop
@@ -104,17 +119,7 @@ module Neo4j::Driver
         def write_message_in_event_loop(message, handler, flush)
           @message_dispatcher.enqueue(handler)
 
-          if flush
-            @channel.write_and_flush(message) #.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
-          else
-            @channel.write(message)
-          end
-        rescue Exceptions::SessionExpiredException => e
-          terminate_and_release(e.message)
-          @channel_pool.shutdown(&:close)
-          @on_pool_shutdow.call
-          # should remove routing table entry as well
-          raise
+          write_to_channel(message, flush)
         end
 
         def write_messages_in_event_loop(message1, handler1, message2, handler2, flush)

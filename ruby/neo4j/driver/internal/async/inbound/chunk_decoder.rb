@@ -14,12 +14,12 @@ module Neo4j::Driver
             end
             if size > @remaining
               # (buffer ||= Buffer.new(capacity: size)) << super(@remaining)
-              (buffer ||= ::Async::IO::Buffer.new) << read_from_input_exactly(@remaining)
+              (buffer ||= ::Async::IO::Buffer.new) << @input.read_exactly(@remaining)
               size -= @remaining
               @remaining = 0
               read_exactly(size, buffer)
             else
-              data = read_from_input_exactly(size)
+              data = @input.read_exactly(size)
               @remaining -= size
               buffer ? buffer << data : data
             end
@@ -32,11 +32,7 @@ module Neo4j::Driver
           private
 
           def read_length_field
-            read_from_input_exactly(2).unpack1('S>')
-          end
-
-          def read_from_input_exactly(size)
-            @input.read_exactly(size, exception: Exceptions::SessionExpiredException)
+            @input.read_exactly(2).unpack1('S>')
           end
         end
       end
