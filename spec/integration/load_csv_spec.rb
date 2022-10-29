@@ -8,7 +8,7 @@ RSpec.describe 'LoadCsv', csv: true do
   let(:file) { Tempfile.new('', '/tmp') }
   let(:file_path) { file.path }
   let(:iris_data) do
-                    %w[sepal_length,sepal_width,petal_length,petal_width,class_name
+    %w[sepal_length,sepal_width,petal_length,petal_width,class_name
                      5.1,3.5,1.4,0.2,Iris-setosa
                      4.9,3.0,1.4,0.2,Iris-setosa
                      4.7,3.2,1.3,0.2,Iris-setosa
@@ -180,14 +180,14 @@ RSpec.describe 'LoadCsv', csv: true do
 
   it 'loads CSV' do
     driver.session do |session|
-      result = session.run("USING PERIODIC COMMIT 40\n"\
-                           "LOAD CSV WITH HEADERS FROM $csv_file_url AS l\n"\
-                           "MATCH (c:Class {name: l.class_name})\n"\
-                           'CREATE (s:Sample {sepal_length: l.sepal_length, sepal_width: l.sepal_width,'\
-                           " petal_length: l.petal_length, petal_width: l.petal_width})\n"\
-                           'CREATE (c)<-[:HAS_CLASS]-(s) '\
-                           'RETURN count(*) AS c',
-                           csv_file_url: "file:///#{File.basename(file)}")
+      load = 'LOAD CSV WITH HEADERS FROM $csv_file_url AS l'
+      subquery = "MATCH (c:Class {name: l.class_name}) CREATE (s:Sample{sepal_length: l.sepal_length, sepal_width: l.sepal_width, petal_length: l.petal_length, petal_width: l.petal_width}) CREATE (c)<-[:HAS_CLASS]-(s) RETURN count(*) AS c"
+      query = if version?('<5.0')
+                "USING PERIODIC COMMIT 40 #{load} #{subquery}"
+              else
+                "#{load} CALL { WITH l #{subquery} } IN TRANSACTIONS OF 40 ROWS"
+              end
+      result = session.run(query, csv_file_url: "file://#{File.basename(file)}")
       expect(result.next[:c]).to eq(150)
       expect(result.has_next?).to be_falsey
     end
