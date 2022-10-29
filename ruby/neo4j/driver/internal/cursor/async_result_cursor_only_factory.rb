@@ -18,10 +18,6 @@ module Neo4j::Driver
 
           DisposableAsyncResultCursor.new(AsyncResultCursorImpl.new(@run_handler, @pull_all_handler))
         end
-
-        def rx_result
-          Util::Futures.failed_future(Exceptions::ClientException.new('Driver is connected to the database that does not support driver reactive API. In order to use the driver reactive API, please upgrade to neo4j 4.0.0 or later.'))
-        end
       end
     end
   end

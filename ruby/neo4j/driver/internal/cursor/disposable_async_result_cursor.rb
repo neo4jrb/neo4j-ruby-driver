@@ -34,6 +34,11 @@ module Neo4j::Driver
           @delegate.each(&action)
         end
 
+        def list_async(&block)
+          assert_not_disposed
+          @delegate.list_async(&block)
+        end
+
         def discard_all_failure_async
           @disposed = true
           @delegate.discard_all_failure_async

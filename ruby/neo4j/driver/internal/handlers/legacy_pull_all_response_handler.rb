@@ -4,7 +4,6 @@ module Neo4j::Driver
       # This is the Pull All response handler that handles pull all messages in Bolt v3 and previous protocol versions.
       class LegacyPullAllResponseHandler
         include Spi::ResponseHandler
-        include Enumerable
         RECORD_BUFFER_LOW_WATERMARK = ENV['record_buffer_low_watermark']&.to_i || 300
         RECORD_BUFFER_HIGH_WATERMARK = ENV['record_buffer_high_watermark']&.to_i || 1000
 
@@ -68,71 +67,30 @@ module Neo4j::Driver
           while @records.empty? && !(@ignore_records || @finished)
             @records.wait
           end
-          record = @records.items.first
-
-          Util::ResultHolder.successful(record)
-
-          # if record.nil?
-          #   return Util::Futures.failed_future(extract_failure) unless @failure.nil?
-
-          #   return Util::Futures.completed_with_null if @ignore_records || @finished
-
-          #   @record_future = java.util.concurrent.CompletableFuture.new if @record_future.nil?
-
-          #   @record_future
-          # else
-          #   # java.util.concurrent.CompletableFuture.completed_future(record)
-          #   record
-          # end
+          @records.items.first&.then(&Util::ResultHolder.method(:successful)) or
+            @failure ? Util::ResultHolder.failed(extract_failure) : Util::ResultHolder.successful(nil)
         end
 
         def next_async
-          # dequeue_record if peek_async
           peek_async.then { |record| dequeue_record if record }
         end
 
         def consume_async
           @ignore_records = true
           @records.items.clear
-
-          # if pull_all_failure_async.nil?
-          #   # @summary.then(&Util::ResultHolder.method(:successful))
-          #   Util::ResultHolder.successful(@summary)
-          # else
-          #   raise pull_all_failure_async
-          # end
-
-          if @failure
-            Util::ResultHolder.failed(extract_failure)
-          else
+          pull_all_failure_async.result!&.then(&Util::ResultHolder.method(:failed)) or
             Util::ResultHolder.successful(@summary)
-          end
-
-          # pull_all_failure_async do |error|
-          #   unless error.nil?
-          #     raise Util::Futures.as_completion_exception, error
-          #   end
-
-          #   @summary
-          # end
         end
 
-        # def list_async(map_function)
-        #   pull_all_failure_async.then_apply do |error|
-        #     unless error.nil?
-        #       raise Util::Futures.as_completion_exception, error
-        #     end
-
-        #     records_as_list(map_function)
-        #   end
-        # end
-
-        def each
-          pull_all_failure_async.then do
+        def list_async(&block)
+          pull_all_failure_async.then do |error|
+            raise error if error
             unless @finished
               raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
             end
-            @records.each { |record| yield record }
+            @records.items.map(&block)
+          ensure
+            @records.items.clear
           end
         end
 
@@ -141,22 +99,17 @@ module Neo4j::Driver
         end
 
         def pull_all_failure_async
-          if !@failure.nil?
-            return Util::ResultHolder.failed(extract_failure)
-            # return java.util.concurrent.CompletableFuture.completed_future(extract_failure)
+          if @failure
+            Util::ResultHolder.successful(extract_failure)
           elsif @finished
-            return nil
-            # return Util::Futures.completed_with_null
+            Util::ResultHolder.successful
           else
-            if @failure_future.nil?
+            (@failed_future ||= Util::ResultHolder.new).tap do |_|
               # neither SUCCESS nor FAILURE message has arrived, register future to be notified when it arrives
               # future will be completed with null on SUCCESS and completed with Throwable on FAILURE
               # enable auto-read, otherwise we might not read SUCCESS/FAILURE if records are not consumed
               enable_auto_read
-              @failure_future = java.util.concurrent.CompletableFuture.new
             end
-
-            @failure_future
           end
         end
 
@@ -212,38 +165,17 @@ module Neo4j::Driver
         end
 
         def complete_record_future(record)
-          # unless @record_future.nil?
-          #   future = @record_future
-          #   @record_future = nil
-          #   future.complete(record)
-          # end
           @record_future&.succeed(record)
           @record_future = nil
         end
 
         def fail_record_future(error)
-          # unless @record_future.nil?
-          #   future = @record_future
-          #   @record_future = nil
-          #   future.complete_exceptionally(error)
-          #   return true
-          # end
-
-          # false
-            @record_future&.fail(error)
-          ensure
-            @record_future = nil
+          @record_future&.fail(error)
+        ensure
+          @record_future = nil
         end
 
         def complete_failure_future(error)
-          # unless @failure_future.nil?
-          #   future = @failure_future
-          #   @failure_future = nil
-          #   future.complete(error)
-          #   return true
-          # end
-
-          # false
           @failure_future&.fail(error)
         ensure
           @failure_future = nil

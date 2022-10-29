@@ -1,14 +1,13 @@
 module Neo4j::Driver
   module Internal
     module Async
-      class NetworkConnection < ::Async::Pool::Resource
+      class NetworkConnection
         include Spi::Connection
         delegate :protocol, to: :@channel
 
         attr_reader :server_agent, :server_address, :server_version
 
-        def initialize(channel, channel_pool, logger)
-          super()
+        def initialize(channel, channel_pool, logger, &on_pool_shutdown)
           @log = logger
           @channel = channel
           @message_dispatcher = channel.attributes[:message_dispatcher]
@@ -17,16 +16,12 @@ module Neo4j::Driver
           @server_version = channel.attributes[:server_version]
           @protocol = Messaging::BoltProtocol.for_channel(channel)
           @channel_pool = channel_pool
+          @on_pool_shutdow = on_pool_shutdown
           # @release_future = java.util.concurrent.CompletableFuture.new
           # @clock = clock
           # @connection_read_timeout = Connection::ChannelAttributes.connection_read_timeout(channel) || nil
           @status = Concurrent::AtomicReference.new(Status::OPEN)
         end
-
-        # def close
-        #   super
-        #   @io.close
-        # end
 
         def open?
           @status.get == Status::OPEN
@@ -95,8 +90,23 @@ module Neo4j::Driver
             # auto-read could've been disabled, re-enable it to automatically receive response for RESET
             @channel.auto_read = true
             @message_dispatcher.enqueue(reset_handler)
-            @channel.write_and_flush(Messaging::Request::ResetMessage::RESET) #.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+            write_to_channel(Messaging::Request::ResetMessage::RESET, true)
           end
+        end
+
+        def write_to_channel(message, flush = false)
+          if flush
+            @channel.write_and_flush(message) #.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
+          else
+            @channel.write(message)
+          end
+        rescue EOFError, Errno::ECONNRESET, Errno::EPIPE => e
+          terminate_and_release(e.message)
+          @log.debug("Shutting down connection pool towards #{@server_address} due to error: #{e.message}")
+          @channel_pool.shutdown(&:close)
+          @on_pool_shutdow.call
+          # should remove routing table entry as well
+          raise Exceptions::SessionExpiredException, e.message
         end
 
         def flush_in_event_loop
@@ -109,11 +119,7 @@ module Neo4j::Driver
         def write_message_in_event_loop(message, handler, flush)
           @message_dispatcher.enqueue(handler)
 
-          if flush
-            @channel.write_and_flush(message) #.add_listener(-> (_future) { register_connection_read_timeout(@channel) })
-          else
-            @channel.write(message)
-          end
+          write_to_channel(message, flush)
         end
 
         def write_messages_in_event_loop(message1, handler1, message2, handler2, flush)

@@ -3,7 +3,6 @@ module Neo4j::Driver
     module Handlers
       module Pulln
         class AutoPullResponseHandler < BasicPullResponseHandler
-          include Enumerable
           delegate :signal, to: :@records
           LONG_MAX_VALUE = 2 ** 63 - 1
 
@@ -79,12 +78,14 @@ module Neo4j::Driver
             completed_with_value_if_no_failure(@summary)
           end
 
-          def each
+          def list_async(&block)
             pull_all_async.then do
               unless done?
                 raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
               end
-              @records.each { |record| yield record }
+              @records.items.map(&block)
+            ensure
+              @records.items.clear
             end
           end
 
@@ -100,8 +101,9 @@ module Neo4j::Driver
 
           def pull_all_async
             return completed_with_value_if_no_failure(@summary) if done?
-            request(FetchSizeUtil::UNLIMITED_FETCH_SIZE)
-            @summary_future ||= Util::ResultHolder.new
+            (@summary_future ||= Util::ResultHolder.new).tap do |_|
+              request(FetchSizeUtil::UNLIMITED_FETCH_SIZE)
+            end
           end
 
           def enqueue_record(record)

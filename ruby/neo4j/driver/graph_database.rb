@@ -66,7 +66,7 @@ module Neo4j::Driver
 
       def close_driver(driver, uri, log)
         driver.close
-      rescue StandardError => close_error
+      rescue => close_error
         log.warn { "Unable to close driver towards URI: #{uri}\n#{close_error}" }
       end
 

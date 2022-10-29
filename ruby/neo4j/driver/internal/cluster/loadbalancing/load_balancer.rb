@@ -41,13 +41,15 @@ module Neo4j::Driver
           def supports_multi_db?
             addresses = @rediscovery.resolve
             base_error = Exceptions::ServiceUnavailableException.new("Failed to perform multi-databases feature detection with the following servers: #{addresses}")
-            addresses.lazy.map do |address|
-              private_suports_multi_db?(address)
+            addresses.each do |address|
+              return private_suports_multi_db?(address)
             rescue Exceptions::SecurityException
               raise
             rescue => error
               Util::Futures.combine_errors(base_error, error)
-            end.find { |result| !result.nil? } or raise base_error
+            end
+
+            raise base_error
           end
 
           private
