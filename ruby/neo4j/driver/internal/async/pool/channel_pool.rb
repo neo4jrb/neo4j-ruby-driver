@@ -2,7 +2,7 @@ module Neo4j::Driver
   module Internal
     module Async
       module Pool
-        class Controller < ConnectionPool
+        class ChannelPool < ConnectionPool
           def initialize(limit: nil, acquisition_timeout: nil, &block)
             super(size: limit, timeout: acquisition_timeout, &block)
             @available = TimedStack.new(@size, &block)

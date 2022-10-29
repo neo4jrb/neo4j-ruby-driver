@@ -20,12 +20,12 @@ module Neo4j::Driver
 
             begin
               channel = pool.acquire
-              @log.debug{"Channel #{channel.object_id} acquired"}
+              @log.debug { "Channel #{channel.object_id} acquired" }
             rescue => error
               process_acquisition_error(pool, address, error)
             end
             assert_not_closed(address, channel, pool)
-            NetworkConnection.new(channel, pool, @log)
+            NetworkConnection.new(channel, pool, @log) { remove(pool) }
           end
 
           def retain_all(addresses_to_retain)
@@ -43,6 +43,12 @@ module Neo4j::Driver
                   end
                 end
               end
+            end
+          end
+
+          def remove(pool)
+            @address_to_pool_lock.with_write_lock do
+              @address_to_pool.each { |address, value| @address_to_pool.delete(address) if value == pool }
             end
           end
 
@@ -81,7 +87,7 @@ module Neo4j::Driver
               # NettyChannelPool returns future failed with TimeoutException if acquire operation takes more than
               # configured time, translate this exception to a prettier one and re-throw
               raise Neo4j::Driver::Exceptions::ClientException.new("Unable to acquire connection from the pool within configured maximum time of #{@settings.connection_acquisition_timeout.inspect}")
-            # elsif pool.closed?
+              # elsif pool.closed?
               # There is a race condition where a thread tries to acquire a connection while the pool is closed by another concurrent thread.
               # Treat as failed to obtain connection for a direct driver. For a routing driver, this error should be retried.
               # raise Neo4j::Driver::Exceptions::ServiceUnavailableException, "Connection pool for server #{server_address} is closed while acquiring a connection."
@@ -109,7 +115,7 @@ module Neo4j::Driver
           end
 
           def new_pool(address)
-            Controller.new(limit: @settings.max_connection_pool_size, acquisition_timeout: @settings.connection_acquisition_timeout) { Channel.new(address, @connector, @log) }
+            ChannelPool.new(limit: @settings.max_connection_pool_size, acquisition_timeout: @settings.connection_acquisition_timeout) { Channel.new(address, @connector, @log) }
           end
 
           def get_or_create_pool(address)
