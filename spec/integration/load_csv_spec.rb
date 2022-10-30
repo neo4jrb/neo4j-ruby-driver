@@ -189,7 +189,7 @@ RSpec.describe 'LoadCsv', csv: true do
               else
                 "#{load} CALL { WITH l #{subquery} } IN TRANSACTIONS OF #{size} ROWS #{return_s}"
               end
-      result = session.run(query, csv_file_url: "file://#{file_path}")
+      result = session.run(query, csv_file_url: "file:///tmp/#{File.basename(file)}")
       expect(result.next[:c]).to eq(150)
       expect(result.has_next?).to be_falsey
     end
