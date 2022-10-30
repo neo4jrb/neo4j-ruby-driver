@@ -19,11 +19,17 @@ jobs:
       matrix:
         ruby: [ jruby, ruby ]
         neo4j: [ 4.3.19, 4.4.12, 5.1.0 ]
+        include:
+          - ruby: jruby
+            java-version: 17
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
       - name: Start neo4j
         run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_ACCEPT_LICENSE_AGREEMENT=yes -p7687:7687 --volume=/tmp:/import --rm neo4j:${{ matrix.neo4j }}-enterprise &
+
+      - name: try sleeping
+        run: sleep 60
 
       - uses: actions/checkout@v2
 
@@ -34,9 +40,9 @@ jobs:
 
       - name: Set up Java
         uses: actions/setup-java@v1
-        if: matrix.ruby == 'jruby'
+        if: matrix.ruby
         with:
-          java-version: ${{ matrix.java-version || 17 }}
+          java-version: ${{ matrix.java-version }}
 
       - name: Install dependencies
         run: bin/setup
