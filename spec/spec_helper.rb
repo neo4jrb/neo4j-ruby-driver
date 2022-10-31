@@ -11,6 +11,8 @@ require 'neo4j_ruby_driver'
 require 'rspec/its'
 require 'support/driver_helper'
 require 'support/neo4j_cleaner'
+require 'support/driver_internal_data_accessor'
+require 'support/timeout_helper'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -28,6 +30,7 @@ RSpec.configure do |config|
   # config.include Neo4jCleaner
   include DriverHelper::Helper
   include Neo4jCleaner
+  include TimeoutHelper
   config.define_derived_metadata do |metadata|
     metadata[:timeout] = 9999
   end
