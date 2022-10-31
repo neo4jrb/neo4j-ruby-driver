@@ -4,7 +4,6 @@ RSpec.describe 'Session' do
   describe 'thread interrupted after acquiring connection' do
     context 'with thread#raise' do
       it 'releases connection back into pool' do
-        require 'pry'
         driver = Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token)
         session = driver.session
         session.read_transaction {}
@@ -16,7 +15,6 @@ RSpec.describe 'Session' do
 
         wait_for { !channel_pool.busy? }
         expect(channel_pool.busy?).to be true
-        binding.pry
         thr.raise("Bhadako!")
 
         wait_for { channel_pool.busy? }
@@ -24,9 +22,8 @@ RSpec.describe 'Session' do
       end
     end
 
-    context 'with thread#raise' do
+    context 'with thread#kill' do
       it 'releases connection back into pool' do
-        require 'pry'
         driver = Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token)
         session = driver.session
         session.read_transaction {}
@@ -38,7 +35,6 @@ RSpec.describe 'Session' do
 
         wait_for { !channel_pool.busy? }
         expect(channel_pool.busy?).to be true
-        binding.pry
         thr.kill
 
         wait_for { channel_pool.busy? }
