@@ -18,11 +18,24 @@ jobs:
       fail-fast: false
       matrix:
         ruby: [ jruby, ruby ]
-        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.19, 4.4.12 ]
+        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.19, 4.4.12, 5.1.0 ]
+        java-version: 11
+        include:
+          - neo4j: 5.1.0
+            ruby: ruby
+            java-version: 17
+          - neo4j: 5.1.0
+            ruby: jruby
+            options: "-t ~causal"
     env:
-      NEO4J_EDITION_FLAG: -e
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
+      - name: Start neo4j
+        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_ACCEPT_LICENSE_AGREEMENT=yes -p7687:7687 --volume=/tmp:/import --rm neo4j:${{ matrix.neo4j }}-enterprise &
+
+#      - name: try sleeping
+#        run: sleep 60
+
       - uses: actions/checkout@v2
 
       - name: Set up Ruby
@@ -41,18 +54,9 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v1
         with:
-          java-version: ${{ matrix.java-version || 11 }}
-
-      - name: Setup Neo4j
-        run: |
-          neoctrl-install $NEO4J_EDITION_FLAG $NEO4J_VERSION servers
-          if [ -n "$NEO4J_EDITION_FLAG" ]; then NEO4J_EDITION=enterprise; else NEO4J_EDITION=community; fi
-          NEO4J_DIR=servers/neo4j-$NEO4J_EDITION-$NEO4J_VERSION
-          neoctrl-configure $NEO4J_DIR dbms.memory.pagecache.size=600m dbms.memory.heap.max_size=600m dbms.memory.heap.initial_size=600m dbms.directories.import= dbms.connectors.default_listen_address=::
-          neoctrl-set-initial-password pass $NEO4J_DIR
-          neoctrl-start $NEO4J_DIR
+          java-version: ${{ matrix.java-version }}
 
       - name: Install dependencies
         run: bin/setup
       - name: Run tests
-        run: bundle exec rspec
+        run: bundle exec rspec ${{ matrix.options

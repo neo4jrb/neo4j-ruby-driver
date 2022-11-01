@@ -5,7 +5,7 @@ require 'tempfile'
 
 RSpec.describe 'LoadCsv', csv: true do
   let(:iris_class_names) { %w[Iris-setosa Iris-versicolor Iris-virginica] }
-  let(:file) { Tempfile.new(%w[file .csv]) }
+  let(:file) { Tempfile.new('', '/tmp') }
   let(:file_path) { file.path }
   let(:iris_data) do
     %w[sepal_length,sepal_width,petal_length,petal_width,class_name
@@ -189,7 +189,7 @@ RSpec.describe 'LoadCsv', csv: true do
               else
                 "#{load} CALL { WITH l #{subquery} } IN TRANSACTIONS OF #{size} ROWS #{return_s}"
               end
-      result = session.run(query, csv_file_url: "file://#{file_path}")
+      result = session.run(query, csv_file_url: "file:///#{File.basename(file)}")
       expect(result.next[:c]).to eq(150)
       expect(result.has_next?).to be_falsey
     end
