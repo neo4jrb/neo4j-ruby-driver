@@ -19,7 +19,6 @@ jobs:
       matrix:
         ruby: [ jruby, ruby ]
         neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.19, 4.4.12, 5.1.0 ]
-        java-version: 11
         include:
           - neo4j: 5.1.0
             ruby: ruby
@@ -54,7 +53,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v1
         with:
-          java-version: ${{ matrix.java-version }}
+          java-version: ${{ matrix.java-version || 11 }}
 
       - name: Install dependencies
         run: bin/setup
