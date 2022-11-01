@@ -58,4 +58,4 @@ jobs:
       - name: Install dependencies
         run: bin/setup
       - name: Run tests
-        run: bundle exec rspec ${{ matrix.options
+        run: bundle exec rspec ${{ matrix.options }}
