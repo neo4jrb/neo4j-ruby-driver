@@ -11,13 +11,17 @@ RSpec.describe 'Session' do
         channel_pool = DriverInternalDataAccessor.channel_pool_from_session(session)
         expect(channel_pool.busy?).to be false
 
-        thr = Thread.new { session.read_transaction { |_tx| sleep(60) } }
+        thr = Thread.new do
+          thr_session = driver.session
+          thr_session.read_transaction { |_tx| sleep(60) }
+        end
 
-        wait_for { !channel_pool.busy? }
+        wait_till { channel_pool.busy? }
         expect(channel_pool.busy?).to be true
+
         thr.raise("Bhadako!")
 
-        wait_for { channel_pool.busy? }
+        wait_till { !channel_pool.busy? }
         expect(channel_pool.busy?).to be false
       end
     end
@@ -31,13 +35,16 @@ RSpec.describe 'Session' do
         channel_pool = DriverInternalDataAccessor.channel_pool_from_session(session)
         expect(channel_pool.busy?).to be false
 
-        thr = Thread.new { session.read_transaction { |_tx| sleep(60) } }
+        thr = Thread.new do
+          thr_session = driver.session
+          thr_session.read_transaction { |_tx| sleep(60) }
+        end
 
-        wait_for { !channel_pool.busy? }
+        wait_till { channel_pool.busy? }
         expect(channel_pool.busy?).to be true
         thr.kill
 
-        wait_for { channel_pool.busy? }
+        wait_till { !channel_pool.busy? }
         expect(channel_pool.busy?).to be false
       end
     end
