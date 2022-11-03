@@ -2,12 +2,10 @@ module Neo4j::Driver
   module Internal
     class InternalDriver
       extend AutoClosable
-      extend Synchronizable
       attr_reader :session_factory, :metrics_provider
       # delegate :verify_connectivity, to: :session_factory
       delegate :metrics, :metrics_enabled?, to: :metrics_provider
       auto_closable :session
-      sync :close, :supports_multi_db?, :verify_connectivity, :session
 
       def initialize(security_plan, session_factory, metrics_provider, logger)
         @closed = Concurrent::AtomicBoolean.new(false)
