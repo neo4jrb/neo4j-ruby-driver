@@ -18,23 +18,24 @@ jobs:
       fail-fast: false
       matrix:
         ruby: [ jruby, ruby ]
-        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.19, 4.4.12, 5.1.0 ]
-        include:
-          - neo4j: 5.1.0
-            ruby: ruby
-            java-version: 17
-          - neo4j: 5.1.0
-            ruby: jruby
-            options: "-t ~causal"
+#        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.19, 4.4.12, 5.1.0 ]
+        neo4j: [ 4.4.12 ]
+#        include:
+#          - neo4j: 5.1.0
+#            ruby: ruby
+#            java-version: 17
+#          - neo4j: 5.1.0
+#            ruby: jruby
+#            options: "-t ~causal"
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
 #      - run: echo $PWD
-#      - run: mkdir -p $PWD/tmp
-#      - run: chmod go+xwr $PWD/tmp
+      - run: mkdir -p $PWD/tmp
+      - run: chmod go+xwr $PWD/tmp
 
       - name: Start neo4j
-        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_ACCEPT_LICENSE_AGREEMENT=yes -p7687:7687 --volume=/tmp:/var/lib/neo4j/import --rm neo4j:${{ matrix.neo4j }}-enterprise &
+        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_ACCEPT_LICENSE_AGREEMENT=yes -p7687:7687 --volume=`pwd`/tmp:/var/lib/neo4j/import --rm neo4j:${{ matrix.neo4j }}-enterprise &
 
       - uses: actions/checkout@v3
 

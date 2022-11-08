@@ -5,7 +5,7 @@ require 'tempfile'
 
 RSpec.describe 'LoadCsv', csv: true do
   let(:iris_class_names) { %w[Iris-setosa Iris-versicolor Iris-virginica] }
-  let(:file) { Tempfile.new }
+  let(:file) { Tempfile.new('', 'tmp') }
   let(:file_path) { file.path }
   let(:iris_data) do
     %w[sepal_length,sepal_width,petal_length,petal_width,class_name
