@@ -29,8 +29,11 @@ jobs:
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
+#      - run: echo $PWD
+#      - run: mkdir -p $PWD/tmp
       - name: Start neo4j
         run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_ACCEPT_LICENSE_AGREEMENT=yes -p7687:7687 --volume=$PWD/tmp:/var/lib/neo4j/import --rm neo4j:${{ matrix.neo4j }}-enterprise &
+      - run: chmod go+xwr $PWD/tmp
 
       - uses: actions/checkout@v3
 
