@@ -38,13 +38,23 @@ RSpec.describe 'Summary' do
       expect(session.run('CREATE (n {magic: 42})').consume.counters.contains_updates?).to be true
       expect(session.run('MATCH (n:ALabel) REMOVE n:ALabel ').consume.counters.labels_removed).to eq 1
 
-      expect(session.run('CREATE INDEX ON :ALabel(prop)').consume.counters.indexes_added).to eq 1
-      expect(session.run('DROP INDEX ON :ALabel(prop)').consume.counters.indexes_removed).to eq 1
+      if version?('>4.3')
+        expect(session.run('CREATE INDEX name FOR (l:ALabel) ON (l.prop)').consume.counters.indexes_added).to eq 1
+        expect(session.run('DROP INDEX name').consume.counters.indexes_removed).to eq 1
 
-      expect(session.run('CREATE CONSTRAINT ON (book:Book) ASSERT book.isbn IS UNIQUE')
-               .consume.counters.constraints_added).to eq 1
-      expect(session.run('DROP CONSTRAINT ON (book:Book) ASSERT book.isbn IS UNIQUE')
-               .consume.counters.constraints_removed).to eq 1
+        expect(session.run('CREATE CONSTRAINT name FOR (book:Book) REQUIRE book.isbn IS UNIQUE')
+                      .consume.counters.constraints_added).to eq 1
+        expect(session.run('DROP CONSTRAINT name')
+                      .consume.counters.constraints_removed).to eq 1
+      else
+        expect(session.run('CREATE INDEX ON :ALabel(prop)').consume.counters.indexes_added).to eq 1
+        expect(session.run('DROP INDEX ON :ALabel(prop)').consume.counters.indexes_removed).to eq 1
+
+        expect(session.run('CREATE CONSTRAINT ON (book:Book) ASSERT book.isbn IS UNIQUE')
+                      .consume.counters.constraints_added).to eq 1
+        expect(session.run('DROP CONSTRAINT ON (book:Book) ASSERT book.isbn IS UNIQUE')
+                      .consume.counters.constraints_removed).to eq 1
+      end
     end
   end
 
@@ -56,10 +66,17 @@ RSpec.describe 'Summary' do
         .to eq Neo4j::Driver::Summary::QueryType::WRITE_ONLY
       expect(session.run('CREATE (n) RETURN (n)').consume.query_type)
         .to eq Neo4j::Driver::Summary::QueryType::READ_WRITE
-      expect(session.run('CREATE INDEX ON :User(p)').consume.query_type)
-        .to eq Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
-      expect(session.run('DROP INDEX ON :User(p)').consume.query_type)
-        .to eq Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
+      if version?('>4.3')
+        expect(session.run('CREATE INDEX name for (u:User) ON (u.p)').consume.query_type)
+          .to eq Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
+        expect(session.run('DROP INDEX name').consume.query_type)
+          .to eq Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
+      else
+        expect(session.run('CREATE INDEX ON :User(p)').consume.query_type)
+          .to eq Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
+        expect(session.run('DROP INDEX ON :User(p)').consume.query_type)
+          .to eq Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE
+      end
     end
   end
 
