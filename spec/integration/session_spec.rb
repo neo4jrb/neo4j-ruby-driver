@@ -454,7 +454,7 @@ RSpec.describe 'Session' do
     expect(result).to eq 'Hello'
   end
 
-  it 'Throws Run Failure Immediately And Closes Successfully' do
+  it 'Throws Run Failure Immediately And Closes Successfully', version: '<5' do
     driver.session do |session|
       expect { session.run('RETURN 10 / 0') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     end
@@ -473,7 +473,7 @@ RSpec.describe 'Session' do
     expect { result.map { |record| record[0] } }.to raise_error Neo4j::Driver::Exceptions::ResultConsumedException
   end
 
-  it 'Throw Run Failure Immediately After Multiple Successful Runs And Close Successfully' do
+  it 'Throw Run Failure Immediately After Multiple Successful Runs And Close Successfully', version: '<5' do
     driver.session do |session|
       session.run('CREATE ()')
       session.run('CREATE ()')
@@ -481,7 +481,7 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'Throw Run Failure Immediately And Accept Subsequent Run' do
+  it 'Throw Run Failure Immediately And Accept Subsequent Run', version: '<5' do
     driver.session do |session|
       session.run('CREATE ()')
       session.run('CREATE ()')
