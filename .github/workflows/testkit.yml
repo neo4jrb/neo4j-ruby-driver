@@ -6,9 +6,9 @@ name: TestKit
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ 4.4 ]
+    branches: [ 5.1 ]
   pull_request:
-    branches: [ 4.4 ]
+    branches: [ 5.1 ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - [jruby, 9.3.4.0]
+          - [jruby, latest]
           - [ruby, latest]
         tests:
           - TESTKIT_TESTS
@@ -43,7 +43,7 @@ jobs:
         with:
           repository: neo4j-drivers/testkit
           path: testkit
-          ref: 4.4
+          ref: '5.0'
 
       - name: Install dependencies
         run: |
