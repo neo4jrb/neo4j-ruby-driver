@@ -18,14 +18,14 @@ jobs:
       fail-fast: false
       matrix:
         ruby: [ jruby-9.3.9.0, ruby ]
-        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.22, 4.4.15, 5.3.0 ]
+        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.22, 4.4.15, 5.2.0 ]
         include:
-          - neo4j: 5.3.0
+          - neo4j: 5.2.0
             ruby: ruby
             java-version: 17
             options: "-t ~causal"
-          - neo4j: 5.3.0
-            ruby: jruby
+          - neo4j: 5.2.0
+            ruby: jruby-9.3.9.0
             options: "-t ~causal"
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
