@@ -57,8 +57,13 @@ jobs:
       - name: Install dependencies
         run: bin/setup
 
+#      - name: Wait for neo4j
+#        run: while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done
+
       - name: Wait for neo4j
-        run: while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done
+        run: | 
+          curl localhost:7474/
+          echo $?
 
       - name: Run tests
         run: bundle exec rspec -t ~csv ${{ matrix.options }}
