@@ -31,7 +31,7 @@ jobs:
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
       - name: Start neo4j
-        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_ACCEPT_LICENSE_AGREEMENT=yes -p7687:7687 p7474:7474 -v `pwd`/tmp:/var/lib/neo4j/import --rm neo4j:${{ matrix.neo4j }}-enterprise &
+        run: docker run --name neo4j --env NEO4J_AUTH=neo4j/pass --env NEO4J_ACCEPT_LICENSE_AGREEMENT=yes -p7687:7687 -p7474:7474 -v `pwd`/tmp:/var/lib/neo4j/import --rm neo4j:${{ matrix.neo4j }}-enterprise &
 
       - uses: actions/checkout@v3
 
@@ -57,13 +57,13 @@ jobs:
       - name: Install dependencies
         run: bin/setup
 
-#      - name: Wait for neo4j
-#        run: while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done
-
       - name: Wait for neo4j
-        run: | 
-          curl localhost:7474/
-          echo $?
+        run: while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done
 
+#      - name: Wait for neo4j
+#        run: |
+#          curl localhost:7474/
+#          echo $?
+#
       - name: Run tests
         run: bundle exec rspec -t ~csv ${{ matrix.options }}
