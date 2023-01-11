@@ -21,11 +21,6 @@ jobs:
         neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.23, 4.4.16, 5.3.0 ]
         include:
           - neo4j: 5.3.0
-            ruby: ruby
-            java-version: 17
-            options: "-t ~causal"
-          - neo4j: 5.3.0
-            ruby: jruby-9.3.9.0
             options: "-t ~causal"
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
