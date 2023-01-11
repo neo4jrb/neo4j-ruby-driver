@@ -28,7 +28,7 @@ jobs:
       matrix:
         ruby:
           - [jruby, 9.3.4.0]
-          - [ruby, latest]
+          - [ruby, 3.1.3]
         tests:
           - TESTKIT_TESTS
           - STUB_TESTS
