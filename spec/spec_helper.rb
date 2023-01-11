@@ -23,9 +23,7 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 
-  # config.include_context Async::RSpec::Reactor
   config.include DriverHelper::Helper
-  # config.include Neo4jCleaner
   include DriverHelper::Helper
   include Neo4jCleaner
   config.define_derived_metadata do |metadata|
@@ -34,7 +32,6 @@ RSpec.configure do |config|
   config.before(:suite, &:clean)
   config.after(:suite) { driver.close }
   config.threadsafe = false
-  # config.around { |example| Sync(&example) }
   config.around { |example| cleaning(&example.method(:run)) }
 
   config.filter_run_excluding auth: :none

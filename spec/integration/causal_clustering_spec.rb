@@ -111,38 +111,35 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
   end
 
   it 'handles graceful leader switch' do
-    # TODO: should not be necessary, but the current way async-io used requires it
-    Sync do
-      cluster_address = Neo4j::Driver::Net::ServerAddress.of('cluster', 7687)
-      cluster_uri = "neo4j://#{cluster_address.host}:#{cluster_address.port}"
-      core_addresses = cluster.cores.map(&:bolt_address)
-      config = { resolver: ->(address) { address == cluster_address ? core_addresses : [address] } }
+    cluster_address = Neo4j::Driver::Net::ServerAddress.of('cluster', 7687)
+    cluster_uri = "neo4j://#{cluster_address.host}:#{cluster_address.port}"
+    core_addresses = cluster.cores.map(&:bolt_address)
+    config = { resolver: ->(address) { address == cluster_address ? core_addresses : [address] } }
 
-      create_driver(cluster_uri, config) do |driver|
-        driver.session do |session1|
-          tx1 = session1.begin_transaction
+    create_driver(cluster_uri, config) do |driver|
+      driver.session do |session1|
+        tx1 = session1.begin_transaction
 
-          # gracefully stop current leader to force re-election
-          cluster.stop(leader)
+        # gracefully stop current leader to force re-election
+        cluster.stop(leader)
 
-          expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
-            .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
+        expect { tx1.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr') }
+          .to raise_error Neo4j::Driver::Exceptions::SessionExpiredException
+      end
+
+      bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
+        session.begin_transaction do |tx|
+          tx.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr')
+          tx.commit
         end
+        session.last_bookmark
+      end
 
-        bookmark = in_expirable_session(driver, ->(driver, &block) { driver.session(&block) }) do |session|
-          session.begin_transaction do |tx|
-            tx.run('CREATE (person:Person {name: $name, title: $title})', name: 'Webber', title: 'Mr')
-            tx.commit
-          end
-          session.last_bookmark
-        end
-
-        driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ, bookmarks: bookmark) do |session2|
-          session2.begin_transaction do |tx2|
-            record = tx2.run('MATCH (n:Person) RETURN COUNT(*) AS count').next
-            tx2.commit
-            expect(record[:count]).to eq 1
-          end
+      driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ, bookmarks: bookmark) do |session2|
+        session2.begin_transaction do |tx2|
+          record = tx2.run('MATCH (n:Person) RETURN COUNT(*) AS count').next
+          tx2.commit
+          expect(record[:count]).to eq 1
         end
       end
     end
