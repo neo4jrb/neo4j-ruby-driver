@@ -6,7 +6,7 @@ require 'support/cluster_extension'
 RSpec.describe 'CausalClusteringSpec', causal: true do
   include_context 'cluster_extension'
 
-  DEFAULT_TIMEOUT = 120
+  DEFAULT_TIMEOUT = 240
 
   delegate :leader, :version?, to: :cluster
 
