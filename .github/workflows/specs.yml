@@ -23,12 +23,8 @@ jobs:
           - neo4j: 3.5.35
             jave-version: 8
           - neo4j: 5.4.0
-            options: "-t ~causal"
-          - neo4j: 5.4.0
-            ruby: jruby-9.3.9.0
             java-version: 17
             options: "-t ~causal"
-
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
