@@ -2,7 +2,7 @@
 
 require 'active_support/core_ext/hash/keys'
 require 'neo4j-ruby-driver_jars'
-require 'shared'
+require 'loader'
 
 Loader.load
 

@@ -8,7 +8,7 @@ require 'async/io/stream'
 require 'async/queue'
 require 'connection_pool'
 require 'bigdecimal'
-require 'shared'
+require 'loader'
 
 Loader.load
 
