@@ -7,7 +7,6 @@ require 'active_support/core_ext/numeric/time'
 require 'active_support/duration'
 require 'active_support/time'
 require 'date'
-require 'loader'
 require 'uri'
 require 'zeitwerk'
 
