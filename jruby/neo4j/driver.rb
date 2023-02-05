@@ -2,12 +2,12 @@
 
 require 'active_support/core_ext/hash/keys'
 require 'neo4j-ruby-driver_jars'
-require 'loader'
-
-Loader.load
+require 'neo4j-ruby-driver_loader'
 
 module Neo4j
   module Driver
+    Loader.load
+
     include_package 'org.neo4j.driver'
 
     Record = Java::OrgNeo4jDriverInternal::InternalRecord

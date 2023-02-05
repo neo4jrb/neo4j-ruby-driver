@@ -6,14 +6,14 @@ require 'active_support/logger'
 require 'async/io'
 require 'async/io/stream'
 require 'async/queue'
-require 'connection_pool'
 require 'bigdecimal'
-require 'loader'
-
-Loader.load
+require 'connection_pool'
+require 'neo4j-ruby-driver_loader'
 
 module Neo4j
   module Driver
+    Loader.load
+
     Record = Neo4j::Driver::Internal::InternalRecord
     Result = Neo4j::Driver::Internal::InternalResult
     Transaction = Neo4j::Driver::Internal::InternalTransaction
