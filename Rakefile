@@ -12,7 +12,7 @@ end
 
 HOE = Class.new(Hoe) do
   def read_manifest
-    Dir[*%w[README.md LICENSE.txt lib/neo4j_ruby_driver.rb lib/loader.rb]] +
+    Dir[*%w[README.md LICENSE.txt lib/neo4j-ruby-driver.rb lib/neo4j_ruby_driver.rb lib/neo4j-ruby-driver_loader.rb]] +
       Dir['lib/neo4j/**/*.rb'] +
       Dir["#{jruby? ? 'jruby' : 'ruby'}/**/*.rb"]
   end
