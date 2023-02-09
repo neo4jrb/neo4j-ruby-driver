@@ -28,6 +28,7 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
+  spec.add_dependency 'async', '< 2' if RUBY_PLATFORM == 'java'
   spec.add_dependency 'async-io'
   spec.add_dependency 'nio4r'
   spec.add_dependency 'zeitwerk'
