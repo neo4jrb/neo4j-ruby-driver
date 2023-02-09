@@ -20,7 +20,6 @@ end.spec 'neo4j-ruby-driver' do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
 
   dependency 'activesupport', '>= 0'
-  dependency 'async', jruby? ? '< 2' : '>= 2', :dev
   # dependency 'async-rspec', '>= 0', :dev
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
@@ -37,6 +36,7 @@ end.spec 'neo4j-ruby-driver' do
 
   if jruby?
     require_ruby_version '>= 2.6'
+    dependency 'async', '< 2', :dev
     dependency 'concurrent-ruby-edge', '>= 0.6.0'
     dependency 'jar-dependencies', '= 0.4.1'
     dependency 'ruby-maven', '>= 0', :dev
