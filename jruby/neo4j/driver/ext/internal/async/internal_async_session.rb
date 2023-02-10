@@ -13,7 +13,7 @@ module Neo4j
             def run_async(statement, parameters = {}, config = {})
               to_future(
                 java_method(:runAsync, [org.neo4j.driver.Query, org.neo4j.driver.TransactionConfig])
-                  .call(to_statement(statement, parameters), to_java_config(Neo4j::Driver::TransactionConfig, config)))
+                  .call(to_statement(statement, parameters), to_java_config(Neo4j::Driver::TransactionConfig, **config)))
             end
           end
         end
