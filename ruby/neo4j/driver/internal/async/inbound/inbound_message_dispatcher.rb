@@ -111,7 +111,7 @@ module Neo4j::Driver
               handler.on_failure(@current_error)
             end
 
-            @error_log.trace_or_debug('Closing channel because of a failure', error)
+            @error_log.debug('Closing channel because of a failure', error)
             @channel.close
           end
 

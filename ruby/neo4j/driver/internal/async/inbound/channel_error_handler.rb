@@ -37,7 +37,7 @@ module Neo4j::Driver
 
           def exception_caught(ctx, error)
             if @failed
-              @error_log.trace_or_debug('Another fatal error occurred in the pipeline', error)
+              @error_log.debug('Another fatal error occurred in the pipeline', error)
             else
               @failed = true
               log_unexpected_error_warning(error)
@@ -49,7 +49,7 @@ module Neo4j::Driver
 
           def log_unexpected_error_warning(error)
             unless error.is_a?(Exceptions::ConnectionReadTimeoutException)
-              @error_log.trace_or_debug('Fatal error occurred in the pipeline', error)
+              @error_log.debug('Fatal error occurred in the pipeline', error)
             end
           end
 
