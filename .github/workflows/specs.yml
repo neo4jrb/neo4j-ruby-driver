@@ -49,4 +49,4 @@ jobs:
         run: while [ $((curl localhost:7474/ > /dev/null 2>&1); echo $?) -ne 0 ]; do sleep 1; done
 
       - name: Run tests
-        run: bundle exec rspec -t ~causal
+        run: bundle exec rspec -t ~csv -t ~causal
