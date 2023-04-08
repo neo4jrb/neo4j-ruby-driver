@@ -12,7 +12,7 @@ end
 
 HOE = Class.new(Hoe) do
   def read_manifest
-    Dir[*%w[README.md LICENSE.txt lib/neo4j_ruby_driver.rb lib/loader.rb]] +
+    Dir[*%w[README.md LICENSE.txt lib/neo4j-ruby-driver.rb lib/neo4j_ruby_driver.rb lib/neo4j-ruby-driver_loader.rb]] +
       Dir['lib/neo4j/**/*.rb'] +
       Dir["#{jruby? ? 'jruby' : 'ruby'}/**/*.rb"]
   end
@@ -20,7 +20,6 @@ end.spec 'neo4j-ruby-driver' do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
 
   dependency 'activesupport', '>= 0'
-  dependency 'async', '>= 0', :dev
   # dependency 'async-rspec', '>= 0', :dev
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
@@ -37,11 +36,12 @@ end.spec 'neo4j-ruby-driver' do
 
   if jruby?
     require_ruby_version '>= 2.6'
+    dependency 'async', '< 2', :dev
     dependency 'concurrent-ruby-edge', '>= 0.6.0'
     dependency 'jar-dependencies', '= 0.4.1'
     dependency 'ruby-maven', '>= 0', :dev
 
-    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 5.1.0' }
+    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 5.7.0' }
     spec_extras[:platform] = 'java'
   else
     require_ruby_version '>= 3.1'
