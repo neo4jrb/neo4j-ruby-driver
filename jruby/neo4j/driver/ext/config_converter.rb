@@ -13,7 +13,7 @@ module Neo4j
         end
 
         def apply_to(builder, **hash)
-          hash.compact.reduce(builder) { |object, key_value| object.send(*config_method(*key_value)) }
+          hash.compact.reduce(builder) { |object, (key, value)| object.send(*config_method(key, value)) }
         end
 
         def config_method(key, value)

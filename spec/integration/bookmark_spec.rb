@@ -17,13 +17,6 @@ RSpec.describe 'Bookmark' do
     bookmark
   end
 
-  it 'receives bookmark on successfull commit', version: '<4' do
-    driver.session do |session|
-      preamble(session)
-      expect_single_value(session.last_bookmark, 'neo4j:bookmark:v1:tx')
-    end
-  end
-
   def expect_single_value(bookmark, value)
     expect(bookmark).to be_present
     expect(bookmark).to be_a Neo4j::Driver::Bookmark
@@ -33,7 +26,7 @@ RSpec.describe 'Bookmark' do
   end
 
   it 'raises for invalid bookmark' do
-    invalid_bookmark = Neo4j::Driver::Bookmark.from(Set['hi, this is an invalid bookmark'])
+    invalid_bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
     expect { driver.session(bookmarks: invalid_bookmark, &:begin_transaction) }
       .to raise_error Neo4j::Driver::Exceptions::ClientException
   end

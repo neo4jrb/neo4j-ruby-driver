@@ -454,9 +454,10 @@ RSpec.describe 'Session' do
     expect(result).to eq 'Hello'
   end
 
-  it 'Throws Run Failure Immediately And Closes Successfully', version: '<5' do
+  it 'Throws Run Failure Immediately And Closes Successfully' do
     driver.session do |session|
-      expect { session.run('RETURN 10 / 0') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+      expect { session.run('RETURN 1 * "x"') }
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, 'Type mismatch'
     end
   end
 
@@ -473,19 +474,21 @@ RSpec.describe 'Session' do
     expect { result.map { |record| record[0] } }.to raise_error Neo4j::Driver::Exceptions::ResultConsumedException
   end
 
-  it 'Throw Run Failure Immediately After Multiple Successful Runs And Close Successfully', version: '<5' do
+  it 'Throw Run Failure Immediately After Multiple Successful Runs And Close Successfully' do
     driver.session do |session|
       session.run('CREATE ()')
       session.run('CREATE ()')
-      expect { session.run('RETURN 10 / 0') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+      expect { session.run('RETURN 1 * "x"') }
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, 'Type mismatch'
     end
   end
 
-  it 'Throw Run Failure Immediately And Accept Subsequent Run', version: '<5' do
+  it 'Throw Run Failure Immediately And Accept Subsequent Run' do
     driver.session do |session|
       session.run('CREATE ()')
       session.run('CREATE ()')
-      expect { session.run('RETURN 10 / 0') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+      expect { session.run('RETURN 1 * "x"') }
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, 'Type mismatch'
       session.run('CREATE ()')
     end
   end
