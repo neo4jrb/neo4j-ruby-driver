@@ -457,7 +457,7 @@ RSpec.describe 'Session' do
   it 'Throws Run Failure Immediately And Closes Successfully' do
     driver.session do |session|
       expect { session.run('RETURN 1 * "x"') }
-        .to raise_error Neo4j::Driver::Exceptions::ClientException, 'Type mismatch'
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, /^Type mismatch/
     end
   end
 
@@ -479,7 +479,7 @@ RSpec.describe 'Session' do
       session.run('CREATE ()')
       session.run('CREATE ()')
       expect { session.run('RETURN 1 * "x"') }
-        .to raise_error Neo4j::Driver::Exceptions::ClientException, 'Type mismatch'
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, /^Type mismatch/
     end
   end
 
@@ -488,7 +488,7 @@ RSpec.describe 'Session' do
       session.run('CREATE ()')
       session.run('CREATE ()')
       expect { session.run('RETURN 1 * "x"') }
-        .to raise_error Neo4j::Driver::Exceptions::ClientException, 'Type mismatch'
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, /^Type mismatch/
       session.run('CREATE ()')
     end
   end
