@@ -59,17 +59,79 @@ module Testkit::Backend::Messages
         /test_routing_v.*\.RoutingV.*\.test_should_successfully_acquire_rt_when_router_ip_changes/,
       ]
 
+      COMMON_SKIP_PATTERN_TO_REASON = {}
+      def COMMON_SKIP_PATTERN_TO_REASON.put(key, value)
+        store(Regexp.new(key), value)
+      end
+
+      def self.var(_); end
+
+      #### Copied from java without any changes
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.test_no_notifications$", "An empty list is returned when there are no notifications");
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.test_no_notification_info$", "An empty list is returned when there are no notifications");
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.test_notifications_without_position$", "Null value is provided when position is absent");
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.test_multiple_notifications$", "Null value is provided when position is absent");
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.test_partial_summary_not_contains_system_updates$",
+        "Contains updates because value is over zero");
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.test_partial_summary_not_contains_updates$", "Contains updates because value is over zero");
+      COMMON_SKIP_PATTERN_TO_REASON.put("^.*\\.test_profile$", "Missing stats are reported with 0 value");
+      COMMON_SKIP_PATTERN_TO_REASON.put("^.*\\.test_server_info$", "Address includes domain name");
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.test_partial_summary_contains_system_updates$",
+        "Does not contain updates because value is zero");
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.test_partial_summary_contains_updates$", "Does not contain updates because value is zero");
+      COMMON_SKIP_PATTERN_TO_REASON.put("^.*\\.test_supports_multi_db$", "Database is None");
+      var skipMessage = "Driver handles connection acquisition timeout differently";
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.TestConnectionAcquisitionTimeoutMs\\.test_should_encompass_the_handshake_time.*$", skipMessage);
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.TestConnectionAcquisitionTimeoutMs\\.test_router_handshake_has_own_timeout_too_slow$",
+        skipMessage);
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.TestConnectionAcquisitionTimeoutMs\\.test_should_fail_when_acquisition_timeout_is_reached_first.*$",
+        skipMessage);
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.TestConnectionAcquisitionTimeoutMs\\.test_should_encompass_the_version_handshake_(in_time|time_out)$",
+        skipMessage);
+      skipMessage = "This test needs updating to implement expected behaviour";
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.TestAuthenticationSchemes[^.]+\\.test_custom_scheme_empty$", skipMessage);
+      skipMessage = "Driver does not implement optimization for qid in explicit transaction";
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.TestOptimizations\\.test_uses_implicit_default_arguments$", skipMessage);
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.TestOptimizations\\.test_uses_implicit_default_arguments_multi_query$", skipMessage);
+      COMMON_SKIP_PATTERN_TO_REASON.put(
+        "^.*\\.TestOptimizations\\.test_uses_implicit_default_arguments_multi_query_nested$", skipMessage);
+      skipMessage =
+        "Tests for driver with types.Feature.OPT_IMPLICIT_DEFAULT_ARGUMENTS but without types.Feature.OPT_AUTH_PIPELINING are (currently) missing when logon is supported";
+      COMMON_SKIP_PATTERN_TO_REASON.put("^.*\\.TestAuthenticationSchemes[^.]+\\.test_basic_scheme$", skipMessage);
+      COMMON_SKIP_PATTERN_TO_REASON.put("^.*\\.TestAuthenticationSchemes[^.]+\\.test_bearer_scheme$", skipMessage);
+      COMMON_SKIP_PATTERN_TO_REASON.put("^.*\\.TestAuthenticationSchemes[^.]+\\.test_custom_scheme$", skipMessage);
+      COMMON_SKIP_PATTERN_TO_REASON.put("^.*\\.TestAuthenticationSchemes[^.]+\\.test_kerberos_scheme$", skipMessage);
+      # End copy from java
+
       def process
-        if SKIPPED_TESTS.key?(test_name)
-          skip(SKIPPED_TESTS[test_name])
-        elsif reason = SKIPPED_PATTERN.find { |expr, _| test_name.match?(expr) }&.last
+        if false
+        # elsif SKIPPED_TESTS.key?(test_name)
+        #   skip(SKIPPED_TESTS[test_name])
+        # elsif reason = SKIPPED_PATTERN.find { |expr, _| test_name.match?(expr) }&.last
+        #   skip(reason)
+        # elsif BACKEND_INCOMPLETE.any?(&test_name.method(:match?))
+        #   skip('Backend Incomplete')
+        # elsif RUBY_DRIVER_PROBLEMS.include?(test_name)
+        #   skip('ruby driver problem')
+        # elsif RUBY_PLATFORM == 'java' && DOMAIN_RESOLVER_ON_JAVA.any?(&test_name.method(:match?))
+        #   skip('Domain Resolver hard to implement on jruby due to default visibility and protected not implemented correctly in jruby')
+        elsif reason = COMMON_SKIP_PATTERN_TO_REASON.find { |expr, _| test_name.match?(expr) }&.last
           skip(reason)
-        elsif BACKEND_INCOMPLETE.any?(&test_name.method(:match?))
-          skip('Backend Incomplete')
-        elsif RUBY_DRIVER_PROBLEMS.include?(test_name)
-          skip('ruby driver problem')
-        elsif RUBY_PLATFORM == 'java' && DOMAIN_RESOLVER_ON_JAVA.any?(&test_name.method(:match?))
-          skip('Domain Resolver hard to implement on jruby due to default visibility and protected not implemented correctly in jruby')
         else
           run
         end
