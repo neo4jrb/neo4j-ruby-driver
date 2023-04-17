@@ -6,7 +6,7 @@ module Testkit::Backend::Messages
       end
 
       def to_object
-        fetch(session_id).begin_transaction(metadata: tx_meta, timeout: timeout_duration)
+        fetch(session_id).begin_transaction(metadata: decode(tx_meta), timeout: timeout_duration)
       end
     end
   end

@@ -41,9 +41,10 @@ jobs:
       - name: Checkout TestKit (testing tool)
         uses: actions/checkout@v3
         with:
-          repository: neo4j-drivers/testkit
+#          repository: neo4j-drivers/testkit
+          repository: klobuczek/testkit
           path: testkit
-          ref: '5.0'
+          ref: error_mapping
 
       - name: Install dependencies
         run: |

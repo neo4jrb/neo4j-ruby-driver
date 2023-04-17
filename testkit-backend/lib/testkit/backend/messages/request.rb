@@ -44,8 +44,8 @@ module Testkit::Backend::Messages
       Responses::DriverError.new(e).to_testkit
     end
 
-    def to_params
-      params&.transform_values(&Request.method(:object_from)) || {}
+    def decode(request)
+      request&.transform_values(&Request.method(:object_from)) || {}
     end
 
     def reference(name)

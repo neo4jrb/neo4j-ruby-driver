@@ -27,12 +27,14 @@ module Testkit
           when Enumerable
             value_entity('CypherList', object.map(&method(:to_testkit)))
           when Neo4j::Driver::Types::Node
-            named_entity('Node', id: to_testkit(object.id), labels: to_testkit(object.labels),
-                         props: to_testkit(object.properties))
+            named_entity('Node', id: to_testkit(object.id), elementId: to_testkit(object.element_id),
+                         labels: to_testkit(object.labels), props: to_testkit(object.properties))
           when Neo4j::Driver::Types::Relationship
-            named_entity('Relationship', id: to_testkit(object.id), startNodeId: to_testkit(object.start_node_id),
-                         endNodeId: to_testkit(object.end_node_id), type: to_testkit(object.type),
-                         props: to_testkit(object.properties))
+            named_entity('Relationship', id: to_testkit(object.id), elementId: to_testkit(object.element_id),
+                         startNodeId: to_testkit(object.start_node_id), endNodeId: to_testkit(object.end_node_id),
+                         startNodeElementId: to_testkit(object.start_node_element_id),
+                         endNodeElementId: to_testkit(object.end_node_element_id),
+                         type: to_testkit(object.type), props: to_testkit(object.properties))
           else
             raise "Not implemented #{object.class.name}:#{object.inspect}"
           end
