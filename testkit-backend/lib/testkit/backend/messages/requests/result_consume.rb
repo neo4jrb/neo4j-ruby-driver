@@ -24,7 +24,7 @@ module Testkit::Backend::Messages
       end
 
       def to_map(o, *methods)
-        methods.map { |name| [key(name), o.send(name)] }.to_h
+        methods.map { |name| [key(name), o.send(name).then { |obj| block_given? ? yield(obj) : obj }] }.to_h
       end
 
       def key(name)
@@ -36,7 +36,11 @@ module Testkit::Backend::Messages
       end
 
       def notifications(ns)
-        ns.map { |n| to_map(n, *%w[code title description severity]).merge(map_entry(n, :position, :column, :line, :offset)) }
+        ns.map do |n|
+          to_map(n, *%w[code title description raw_category severity raw_severity_level])
+            .merge(to_map(n, *%w[category severity_level]) { |o| o&.type || 'UNKNOWN' })
+            .merge(map_entry(n, :position, :column, :line, :offset))
+        end
       end
     end
   end

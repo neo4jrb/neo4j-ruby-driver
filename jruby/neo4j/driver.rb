@@ -43,6 +43,8 @@ Java::OrgNeo4jDriverInternal::InternalBookmark.prepend Neo4j::Driver::Ext::Inter
 Java::OrgNeo4jDriverInternal::InternalDriver.prepend Neo4j::Driver::Ext::InternalDriver
 Java::OrgNeo4jDriverInternal::InternalEntity.include Neo4j::Driver::Ext::InternalEntity
 Java::OrgNeo4jDriverInternal::InternalNode.prepend Neo4j::Driver::Ext::InternalNode
+Java::OrgNeo4jDriverInternal::InternalNotificationCategory.prepend Neo4j::Driver::Ext::Internal::InternalNotificationCommon
+Java::OrgNeo4jDriverInternal::InternalNotificationSeverity.prepend Neo4j::Driver::Ext::Internal::InternalNotificationCommon
 Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
@@ -54,5 +56,6 @@ Java::OrgNeo4jDriverInternalAsync::InternalAsyncSession.prepend Neo4j::Driver::E
 Java::OrgNeo4jDriverInternalCluster::RoutingTableRegistryImpl.include Neo4j::Driver::Ext::Internal::Cluster::RoutingTableRegistryImpl
 Java::OrgNeo4jDriverInternalCursor::DisposableAsyncResultCursor.prepend Neo4j::Driver::Ext::Internal::Cursor::DisposableAsyncResultCursor
 Java::OrgNeo4jDriverInternalMetrics::InternalConnectionPoolMetrics.include Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics
+Java::OrgNeo4jDriverInternalSummary::InternalNotification.prepend Neo4j::Driver::Ext::Internal::Summary::InternalNotification
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter

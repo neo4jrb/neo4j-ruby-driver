@@ -5,7 +5,7 @@ module Testkit::Backend::Messages
     attr_reader :data
 
     def self.from(request, objects = nil)
-      Requests.const_get(request[:name]).new(request[:data].transform_keys{|key| key.to_s.underscore}, objects)
+      Requests.const_get(request[:name]).new(request[:data].transform_keys { |key| key.to_s.underscore }, objects)
     end
 
     def self.object_from(request)
@@ -22,7 +22,9 @@ module Testkit::Backend::Messages
       process
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
       driver_error(e)
-    rescue Neo4j::Driver::Exceptions::IllegalStateException, Neo4j::Driver::Exceptions::NoSuchRecordException, ArgumentError => e
+    rescue Neo4j::Driver::Exceptions::IllegalStateException, Neo4j::Driver::Exceptions::NoSuchRecordException,
+      Neo4j::Driver::Exceptions::NoSuchRecordException, Neo4j::Driver::Exceptions::UntrustedServerException,
+      ArgumentError => e
       puts e
       puts e.backtrace_locations
       driver_error(e)
@@ -54,7 +56,7 @@ module Testkit::Backend::Messages
 
     def named_entity(name, **hash)
       { name: name }.tap do |entity|
-        entity[:data] = hash.transform_keys{|key| key.to_s.camelize(:lower)} unless hash.empty?
+        entity[:data] = hash.transform_keys { |key| key.to_s.camelize(:lower) } unless hash.empty?
       end
     end
 
