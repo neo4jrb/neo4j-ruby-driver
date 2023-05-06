@@ -17,7 +17,9 @@ module Testkit::Backend::Messages
           max_connection_pool_size: max_connection_pool_size,
           connection_acquisition_timeout: timeout_duration(connection_acquisition_timeout_ms),
           encryption: encrypted,
-          trust_strategy: trust_strategy(trusted_certificates)
+          trust_strategy: trust_strategy(trusted_certificates),
+          notification_config: {
+            minimum_severity: notifications_min_severity, disabled_categories: notifications_disabled_categories }
         }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         if domain_name_resolver_registered

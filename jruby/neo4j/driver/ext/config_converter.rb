@@ -45,6 +45,8 @@ module Neo4j
                      else
                        "with_#{value}_revocation_checks"
                      end
+          when 'notification_config'
+            value = notification_config(**value)
           else
             value = to_neo(value, skip_unknown: true)
           end
@@ -62,6 +64,18 @@ module Neo4j
               Config::TrustStrategy.send(strategy)
             end
           apply_to(trust_strategy, **config)
+        end
+
+        def notification_config(minimum_severity: nil, disabled_categories: nil)
+          org.neo4j.driver.internal.InternalNotificationConfig.new(
+            value_of(org.neo4j.driver.internal.InternalNotificationSeverity, minimum_severity),
+            disabled_categories
+              &.map { |value| value_of(org.neo4j.driver.internal.InternalNotificationCategory, value) }
+              &.then(&java.util.HashSet.method(:new)))
+        end
+
+        def value_of(klass, value)
+          klass.value_of(value&.to_s&.upcase).or_else(nil)
         end
       end
     end
