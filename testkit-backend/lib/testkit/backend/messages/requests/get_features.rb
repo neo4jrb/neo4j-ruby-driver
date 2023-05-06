@@ -30,7 +30,7 @@ module Testkit::Backend::Messages
           'Feature:Auth:Custom' => 'jar',
           'Feature:Auth:Kerberos' => 'jar',
           'Feature:Auth:Managed' => 'a',
-          'Feature:Bolt:3.0' => 'jar',
+          'Feature:Bolt:3.0' => 'r',
           'Feature:Bolt:4.1' => 'jar',
           'Feature:Bolt:4.2' => 'jar',
           'Feature:Bolt:4.3' => 'jar',
