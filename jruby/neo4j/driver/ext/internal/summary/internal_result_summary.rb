@@ -9,7 +9,9 @@ module Neo4j
             java_import org.neo4j.driver.summary.QueryType
 
             %i[result_available_after result_consumed_after].each do |method|
-              define_method(method) { super(Java::JavaUtilConcurrent::TimeUnit::MILLISECONDS) }
+              define_method(method) do
+                super(Java::JavaUtilConcurrent::TimeUnit::MILLISECONDS).then { |val| val unless val == -1 }
+              end
             end
 
             def query_type

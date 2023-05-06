@@ -11,8 +11,8 @@ module Testkit::Backend::Messages
                        query: { text: summary.query.text, parameters: summary.query.parameters.transform_values(&method(:to_testkit)) },
                        database: summary.database.name,
                        queryType: summary.query_type,
-                       notifications: summary.notifications.then { |ns| ns.present? ? notifications(ns) : nil },
-                       plan: summary.has_plan? ? summary.plan.then { |p| { operator_type: p.operator_type } } : nil,
+                       notifications: summary.notifications&.then(&method(:notifications)),
+                       plan: (plan_to_h(summary.plan) if summary.has_plan?),
                        profile: summary.has_profile? ? summary.profile.then { |p| { db_hits: p.db_hits } } : nil,
                      }.merge!(to_map(summary, *%w[result_available_after result_consumed_after])))
       end
@@ -41,6 +41,10 @@ module Testkit::Backend::Messages
             .merge(to_map(n, *%w[category severity_level]) { |o| o&.type || 'UNKNOWN' })
             .merge(map_entry(n, :position, :column, :line, :offset))
         end
+      end
+
+      def plan_to_h(plan)
+        plan.to_h.transform_keys(&method(:key)).tap {|hash| hash[:children]&.map!(&method(:plan_to_h))}
       end
     end
   end
