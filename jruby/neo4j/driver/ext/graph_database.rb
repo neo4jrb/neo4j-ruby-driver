@@ -8,7 +8,7 @@ module Neo4j
         include ConfigConverter
         include ExceptionCheckable
 
-        auto_closable :driver, :routing_driver
+        auto_closable :driver
 
         def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, **config)
           check do
@@ -17,10 +17,14 @@ module Neo4j
           end
         end
 
-        def routing_driver(routing_uris, auth_token, **config)
+        def internal_driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, **config, &domain_name_resolver)
           check do
-            super(routing_uris.map { |uri| java.net.URI.create(uri.to_s) }, auth_token,
-                  to_java_config(Neo4j::Driver::Config, **config))
+            java_uri = java.net.URI.create(uri.to_s)
+            java_config = to_java_config(Neo4j::Driver::Config, **config)
+            Internal::DriverFactory
+              .new(&domain_name_resolver)
+              .new_instance(java_uri, org.neo4j.driver.internal.security.StaticAuthTokenManager.new(auth_token),
+                            java_config)
           end
         end
       end

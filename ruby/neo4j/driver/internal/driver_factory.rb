@@ -3,8 +3,8 @@ module Neo4j::Driver::Internal
     include Scheme
     NO_ROUTING_CONTEXT_ERROR_MESSAGE = "Routing parameters are not supported with scheme 'bolt'. Given URI: "
 
-    def initialize(domain_name_resolver = ->(name) { [name] })
-      @domain_name_resolver = domain_name_resolver
+    def initialize(&domain_name_resolver)
+      @domain_name_resolver = domain_name_resolver || ->(name) { [name] }
     end
 
     def new_instance(uri, auth_token, routing_settings, retry_settings, config, security_plan, event_loop_group = nil)

@@ -23,8 +23,7 @@ module Testkit::Backend::Messages
         }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         if domain_name_resolver_registered
-          Neo4j::Driver::GraphDatabase.internal_driver(
-            uri, auth_token, config, Neo4j::Driver::Internal::DriverFactory.new(method(:domain_name_resolver)))
+          Neo4j::Driver::GraphDatabase.internal_driver(uri, auth_token, **config, &method(:domain_name_resolver))
         else
           Neo4j::Driver::GraphDatabase.driver(uri, auth_token, **config)
         end
@@ -42,6 +41,7 @@ module Testkit::Backend::Messages
         @command_processor.process(blocking: true).addresses.map do |addr|
           addr.rpartition(':').then { |host, _, port| Neo4j::Driver::Net::ServerAddress.of(host, port.to_i) }
         end
+        # @command_processor.process(blocking: true).addresses.map(&org.neo4j.driver.internal.BoltServerAddress.method(:new))
       end
 
       def trust_strategy(trusted_certificates)

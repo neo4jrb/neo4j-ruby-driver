@@ -7,14 +7,14 @@ module Neo4j::Driver
       auto_closable :driver, :routing_driver
 
       def driver(uri, auth_token = nil, **config)
-        internal_driver(uri, auth_token, config, Internal::DriverFactory.new)
+        internal_driver(uri, auth_token, config)
       end
 
-      def internal_driver(uri, auth_token, config, factory)
+      def internal_driver(uri, auth_token, config, &domain_name_resolver)
         uri = URI(uri)
         config = Config.new(**config)
 
-        factory.new_instance(
+        Internal::DriverFactory.new(&domain_name_resolver).new_instance(
           uri,
           auth_token || AuthTokens.none,
           config.routing_settings,
