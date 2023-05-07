@@ -14,7 +14,7 @@ module Testkit::Backend::Messages
           'Feature:API:Driver:NotificationsConfig' => 'ja',
           'Feature:API:Driver.VerifyAuthentication' => 'ja',
           'Feature:API:Driver.VerifyConnectivity' => '',
-          'Feature:API:Driver.SupportsSessionAuth' => 'a',
+          'Feature:API:Driver.SupportsSessionAuth' => 'ja',
           'Feature:API:Liveness.Check' => 'ja',
           'Feature:API:Result.List' => 'ja',
           'Feature:API:Result.Peek' => 'ja',
