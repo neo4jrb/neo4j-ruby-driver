@@ -12,7 +12,7 @@ module Testkit::Backend::Messages
           'Feature:API:Driver:GetServerInfo' => '',
           'Feature:API:Driver.IsEncrypted' => 'jar',
           'Feature:API:Driver:NotificationsConfig' => 'ja',
-          'Feature:API:Driver.VerifyAuthentication' => 'a',
+          'Feature:API:Driver.VerifyAuthentication' => 'ja',
           'Feature:API:Driver.VerifyConnectivity' => '',
           'Feature:API:Driver.SupportsSessionAuth' => 'a',
           'Feature:API:Liveness.Check' => 'ja',

@@ -28,6 +28,10 @@ module Neo4j
         def verify_connectivity
           check { super }
         end
+
+        def verify_authentication(auth_token)
+          check { super }
+        end
       end
     end
   end
