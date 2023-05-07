@@ -41,7 +41,6 @@ module Testkit::Backend::Messages
         @command_processor.process(blocking: true).addresses.map do |addr|
           addr.rpartition(':').then { |host, _, port| Neo4j::Driver::Net::ServerAddress.of(host, port.to_i) }
         end
-        # @command_processor.process(blocking: true).addresses.map(&org.neo4j.driver.internal.BoltServerAddress.method(:new))
       end
 
       def trust_strategy(trusted_certificates)
