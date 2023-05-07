@@ -7,7 +7,7 @@ module Testkit::Backend::Messages
       FEATURES =
         {
           'Feature:API:BookmarkManager' => 'a',
-          'Feature:API:ConnectionAcquisitionTimeout' => 'a',
+          'Feature:API:ConnectionAcquisitionTimeout' => 'ja',
           'Feature:API:Driver.ExecuteQuery' => 'a',
           'Feature:API:Driver:GetServerInfo' => '',
           'Feature:API:Driver.IsEncrypted' => 'jar',
