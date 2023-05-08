@@ -32,6 +32,10 @@ module Neo4j
         def verify_authentication(auth_token)
           check { super }
         end
+
+        def supports_session_auth?
+          check { supports_session_auth }
+        end
       end
     end
   end
