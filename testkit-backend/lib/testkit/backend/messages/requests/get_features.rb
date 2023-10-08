@@ -38,7 +38,7 @@ module Testkit::Backend::Messages
           'Feature:Bolt:5.0' => 'jar',
           'Feature:Bolt:5.1' => 'jar',
           'Feature:Bolt:5.2' => 'jar',
-          'Feature:Bolt:5.3' => 'a',
+          'Feature:Bolt:5.3' => 'ja',
           'Feature:Bolt:Patch:UTC' => 'ja',
           'Feature:Impersonation' => 'ja',
           'Feature:TLS:1.1' => 'a', # TODO works for java,
