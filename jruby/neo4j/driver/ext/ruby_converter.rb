@@ -16,7 +16,7 @@ module Neo4j
             date = as_local_date
             Date.new(date.year, date.month_value, date.day_of_month)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DURATION
-            ActiveSupport::Duration.parse(as_iso_duration.to_s)
+            Driver::Internal::DurationNormalizer.create(*%i[months days seconds nanoseconds].map(&as_object.method(:send)))
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::POINT
             point = as_point
             Types::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))

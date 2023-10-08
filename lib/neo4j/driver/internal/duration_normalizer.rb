@@ -21,6 +21,11 @@ module Neo4j
             duration&.in_milliseconds&.round
           end
 
+          def create(months, days, seconds, nanoseconds)
+            { months:, days:, seconds: seconds + (nanoseconds.zero? ? 0 : nanoseconds * BigDecimal('1e-9')) }
+              .sum { |key, value| ActiveSupport::Duration.send(key, value) }
+          end
+
           private
 
           def divmod(number, factor)

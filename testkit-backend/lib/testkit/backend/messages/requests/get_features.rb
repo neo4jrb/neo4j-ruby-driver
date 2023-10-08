@@ -25,7 +25,7 @@ module Testkit::Backend::Messages
           'Feature:API:SSLConfig' => 'ja',
           'Feature:API:SSLSchemes' => 'ja',
           'Feature:API:Type.Spatial' => '',
-          'Feature:API:Type.Temporal' => 'a',
+          'Feature:API:Type.Temporal' => 'a', # Most tests pass. Implement SubTests to skip some e.g. old System timezone
           'Feature:Auth:Bearer' => 'jar',
           'Feature:Auth:Custom' => 'jar',
           'Feature:Auth:Kerberos' => 'jar',

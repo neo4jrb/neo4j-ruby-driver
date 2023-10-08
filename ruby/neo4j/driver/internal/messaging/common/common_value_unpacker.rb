@@ -214,10 +214,7 @@ module Neo4j::Driver
           end
 
           def unpack_duration
-            ActiveSupport::Duration.months(unpack) +
-              ActiveSupport::Duration.days(unpack) +
-              ActiveSupport::Duration.seconds(unpack) +
-              ActiveSupport::Duration.seconds(unpack * BigDecimal('1e-9'))
+            DurationNormalizer.create(*4.times.map { unpack })
           end
 
           def unpack_point2_d

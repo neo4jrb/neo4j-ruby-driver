@@ -18,6 +18,18 @@ module Testkit
             else
               value_entity('CypherString', object)
             end
+          when Date
+            named_entity('CypherDate', **map_of(object, :year, :month, :day))
+          when Neo4j::Driver::Types::OffsetTime
+            named_entity('CypherTime', hour: object.hour, minute: object.min, second: object.sec, nanosecond: object.nsec, 'utc_offset_s' => object.utc_offset)
+          when Neo4j::Driver::Types::LocalTime
+            named_entity('CypherTime', hour: object.hour, minute: object.min, second: object.sec, nanosecond: object.nsec)
+          when Neo4j::Driver::Types::LocalDateTime
+            named_entity('CypherDateTime',  **map_of(object, :year, :month, :day, :hour), minute: object.min, second: object.sec, nanosecond: object.nsec)
+          when Time
+            named_entity('CypherDateTime', **map_of(object, :year, :month, :day, :hour), minute: object.min, second: object.sec, nanosecond: object.nsec, 'utc_offset_s' => object.utc_offset, 'timezone_id' => object.try(:time_zone)&.name)
+          when ActiveSupport::Duration
+            named_entity('CypherDuration', **%i[months days seconds nanoseconds].zip(Neo4j::Driver::Internal::DurationNormalizer.normalize(object)).to_h)
           when Symbol
             to_testkit(object.to_s)
           when Neo4j::Driver::Types::Path
@@ -49,6 +61,12 @@ module Testkit
           else
             f
           end
+        end
+
+        private
+
+        def map_of(object, *keys)
+          keys.to_h { |key| [key, object.send(key)] }
         end
       end
     end
