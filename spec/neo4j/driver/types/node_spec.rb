@@ -35,4 +35,5 @@ RSpec.describe Neo4j::Driver::Types::Node do
   it { is_expected.to eq subject }
   it { is_expected.to eq updated }
   it { is_expected.not_to eq other }
+  its(:element_id) { is_expected.to be_a(String) }
 end
