@@ -19,7 +19,7 @@ HOE = Class.new(Hoe) do
 end.spec 'neo4j-ruby-driver' do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
 
-  dependency 'activesupport', '< 7.1'
+  dependency 'activesupport', '>= 0'
   # dependency 'async-rspec', '>= 0', :dev
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev

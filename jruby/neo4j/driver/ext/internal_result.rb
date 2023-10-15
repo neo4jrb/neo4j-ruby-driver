@@ -17,6 +17,10 @@ module Neo4j
         def each(&block)
           check { stream.for_each(&block) }
         end
+
+        def to_a
+          check { list.to_a }
+        end
       end
     end
   end
