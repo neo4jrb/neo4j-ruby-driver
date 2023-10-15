@@ -33,6 +33,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'nio4r'
   spec.add_dependency 'zeitwerk'
   spec.add_dependency 'activesupport', '< 7.1'
+  spec.add_dependency 'psych', '5.1.0' if RUBY_PLATFORM == 'java' # Temporary workaround
   spec.add_development_dependency 'rspec'
   # spec.add_development_dependency "async-rspec", "~> 1.10"
 end

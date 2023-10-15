@@ -11,7 +11,7 @@
 ######################################
 
 Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
-                                    Neo4j::Driver::AuthTokens.basic('neo4j', 'pass')) do |driver|
+                                    Neo4j::Driver::AuthTokens.basic('neo4j', 'password')) do |driver|
   driver.session do |session|
     greeting = session.write_transaction do |tx|
       result = tx.run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
@@ -47,7 +47,7 @@ end
 
 def add_person(name)
   username = 'neo4j'
-  password = 'pass'
+  password = 'password'
   create_driver('bolt+routing://x.acme.com', username, password, ServerAddress.of('a.acme.com', 7676),
                 ServerAddress.of('b.acme.com', 8787), ServerAddress.of('c.acme.com', 9898)) do |driver|
     driver.session { |session| session.run('CREATE (a:Person {name: $name})', name: name) }

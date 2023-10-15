@@ -3,7 +3,7 @@
 RSpec.describe 'AsyncSession' do
   # context 'driver' do
   #   let(:driver2) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, **config) }
-  #   let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'pass') }
+  #   let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic('neo4j', 'password') }
   #   let(:config) { {} }
   #
   #   it 'close_async' do
