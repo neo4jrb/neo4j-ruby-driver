@@ -40,7 +40,6 @@ end.spec 'neo4j-ruby-driver' do
     dependency 'concurrent-ruby-edge', '>= 0.6.0'
     dependency 'jar-dependencies', '>= 0.4.1'
     dependency 'ruby-maven', '>= 0', :dev
-    dependency 'psych', '5.1.0' # Temporary work around
 
     spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 5.13.0' }
     spec_extras[:platform] = 'java'
