@@ -25,26 +25,101 @@ jobs:
           - neo4j: 5.12.0
             java-version: 17
             options: "-t ~causal"
-            active_support: 7.1.1
-          - active_support: 7.0.0
-          - active_support: 6.1.0
-          - active_support: 6.0.0
-          - active_support: 5.2.0
-          - active_support: 5.1.0
-          - active_support: 5.0.0
-          - active_support: 4.2.0
-          - active_support: 4.1.0
-          - active_support: 4.0.0
-          - active_support: 3.2.0
-          - active_support: 3.1.0
-          - active_support: 3.0.0
-          - active_support: 2.3.0
-          - active_support: 2.2.0
-          - active_support: 2.1.0
-          - active_support: 2.0.0
-          - active_support: 1.2.0
-          - active_support: 1.1.0
-          - active_support: 1.0.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 7.0.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 6.1.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 6.0.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 5.2.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 5.1.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 5.0.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 4.2.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 4.1.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 4.0.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 3.2.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 3.1.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 3.0.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 2.3.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 2.2.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 2.1.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 2.0.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 1.2.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 1.1.0
+          - neo4j: 5.12.0
+            ruby: ruby-3.1.4
+            java-version: 17
+            options: "-t ~causal"
+            active_support: 1.0.0
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
       ACTIVE_SUPPORT_VERSION: ${{ matrix.active_support }}
