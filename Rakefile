@@ -19,7 +19,8 @@ HOE = Class.new(Hoe) do
 end.spec 'neo4j-ruby-driver' do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
 
-  dependency 'activesupport', '>= 0'
+  active_support_version = ENV['ACTIVE_SUPPORT_VERSION']
+  gem 'activesupport', active_support_version&.length&.positive? ? "~> #{active_support_version}" : '>= 0'
   # dependency 'async-rspec', '>= 0', :dev
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
