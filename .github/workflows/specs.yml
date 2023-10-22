@@ -19,6 +19,7 @@ jobs:
       matrix:
         ruby: [ jruby-9.3.11.0, jruby-9.4.4.0, ruby-3.1.4, ruby-3.2.2 ]
         neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.23, 4.4.26, 5.12.0 ]
+        active_support: [ 7.1.1 ]
         include:
           - neo4j: 3.5.35
             java-version: 8
