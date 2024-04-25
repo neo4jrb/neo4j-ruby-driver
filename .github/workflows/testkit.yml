@@ -28,8 +28,8 @@ jobs:
       matrix:
         ruby:
           - [jruby, 9.3.4.0]
-          - [jruby, 9.4.2.0]
-          - [ruby, 3.1.4]
+          - [jruby, 9.4.6.0]
+          - [ruby, 3.1.5]
         tests:
           - TESTKIT_TESTS
           - STUB_TESTS
