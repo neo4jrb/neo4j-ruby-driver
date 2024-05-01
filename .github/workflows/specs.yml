@@ -19,7 +19,7 @@ jobs:
       matrix:
         ruby: [  jruby-9.3.14.0, jruby, ruby-3.1.5, ruby ]
         neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.23, 4.4.33, 5.19.0 ]
-        active_support: [ 7.1.3.2 ]
+        active_support: [ 7.0.8.1 ]
         include:
           - neo4j: 3.5.35
             java-version: 8
@@ -41,7 +41,7 @@ jobs:
             ruby: ruby-3.1.5
             java-version: 17
             options: "-t ~causal"
-            active_support: 7.0.8.1
+            active_support:  7.1.3.2
           - neo4j: 5.7.0
             ruby: ruby-3.1.5
             java-version: 17
