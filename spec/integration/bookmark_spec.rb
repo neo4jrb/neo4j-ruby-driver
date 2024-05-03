@@ -33,8 +33,8 @@ RSpec.describe 'Bookmark' do
   end
 
   # TODO: The version restriction should not be present here!
-  it 'raises for invalid bookmark', version: '<=5.7.0' do
-    invalid_bookmark = Neo4j::Driver::Bookmark.from(Set['hi, this is an invalid bookmark'])
+  it 'raises for invalid bookmark' do
+    invalid_bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
     expect { driver.session(bookmarks: invalid_bookmark, &:begin_transaction) }
       .to raise_error Neo4j::Driver::Exceptions::ClientException
   end
