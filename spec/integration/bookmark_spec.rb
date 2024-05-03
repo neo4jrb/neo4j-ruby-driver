@@ -32,7 +32,6 @@ RSpec.describe 'Bookmark' do
     expect(values.first).to start_with(value)
   end
 
-  # TODO: The version restriction should not be present here!
   it 'raises for invalid bookmark' do
     invalid_bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
     expect { driver.session(bookmarks: invalid_bookmark, &:begin_transaction) }
