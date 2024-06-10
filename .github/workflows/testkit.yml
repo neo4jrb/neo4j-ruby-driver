@@ -27,9 +27,9 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - [jruby, 9.3.4.0]
-          - [jruby, 9.4.6.0]
-          - [ruby, 3.1.5]
+          - [jruby, 9.3.14.0]
+          - [jruby, 9.4.7.0]
+          - [ruby, 3.1.6]
         tests:
           - TESTKIT_TESTS
           - STUB_TESTS
