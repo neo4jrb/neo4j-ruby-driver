@@ -23,6 +23,13 @@ module Testkit::Backend::Messages
         /stub\.routing\.test_routing_v4x4\.RoutingV4x4\.test_should_send_system_bookmark_with_route$/ => 'random timeouts',
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_on_routing_table_with_no_reader/ => 'needs routing table API support',
         /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_successfully_get_routing_table$/ => 'needs routing table API support',
+        /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_when_writing_without_explicit_consumption_on_writer_that_returns_not_a_leader_code/ => 'needs routing table API support',
+        /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_when_writing_on_writer_that_returns_not_a_leader_code/ => 'needs routing table API support',
+        /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_when_writing_on_writer_that_returns_forbidden_on_read_only_database/ => 'needs routing table API support',
+        /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_when_writing_on_writer_that_returns_database_unavailable/ => 'needs routing table API support',
+        /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_fail_on_routing_table_with_no_reader/ => 'needs routing table API support',
+        /stub\.routing\.test_routing_v.*\.RoutingV.*\.test_should_successfully_get_routing_table/ => 'needs routing table API support',
+        /stub\.routing\.test_routing_v.*\.RoutingV.*\._should_fail_when_writing_on_unexpectedly_interrupting_writer_using_tx_run/ => 'needs routing table API support',
         /stub.versions.test_versions.TestProtocolVersions.test_should_reject_server_using_verify_connectivity_bolt_4x./ => 'Skipped because it needs investigation',
         /test_should_fail_on_routing_table_with_no_reader/ => '???',
       }
