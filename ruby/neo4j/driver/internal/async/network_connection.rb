@@ -16,7 +16,7 @@ module Neo4j::Driver
           @server_version = channel.attributes[:server_version]
           @protocol = Messaging::BoltProtocol.for_channel(channel)
           @channel_pool = channel_pool
-          @on_pool_shutdow = on_pool_shutdown
+          @on_pool_shutdown = on_pool_shutdown
           # @release_future = java.util.concurrent.CompletableFuture.new
           # @clock = clock
           # @connection_read_timeout = Connection::ChannelAttributes.connection_read_timeout(channel) || nil
@@ -104,7 +104,7 @@ module Neo4j::Driver
           terminate_and_release(e.message)
           @log.debug("Shutting down connection pool towards #{@server_address} due to error: #{e.message}")
           @channel_pool.shutdown(&:close)
-          @on_pool_shutdow.call
+          @on_pool_shutdown.call
           # should remove routing table entry as well
           raise Exceptions::SessionExpiredException, e.message
         end
