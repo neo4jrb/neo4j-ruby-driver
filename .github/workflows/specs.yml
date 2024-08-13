@@ -18,32 +18,32 @@ jobs:
       fail-fast: false
       matrix:
         ruby: [  jruby, ruby-3.1.6, ruby ]
-        neo4j: [ 3.5.35, 4.0.12, 4.1.12, 4.2.19, 4.3.23, 4.4.34, 5.20.0 ]
+        neo4j: [ 3.5.35, 4.0.12, 4.1.13, 4.2.19, 4.3.24, 4.4.36, 5.22.0 ]
         active_support: [ '' ]
         include:
           - neo4j: 3.5.35
             java-version: 8
-          - neo4j: 5.20.0
+          - neo4j: 5.22.0
             java-version: 17
             options: "-t ~causal"
 
-          - neo4j: 5.20.0
-            ruby: ruby-3.1.5
+          - neo4j: 5.22.0
+            ruby: ruby-3.1.6
             java-version: 17
             options: "-t ~causal"
             active_support:  7.0.8.4
-          - neo4j: 5.20.0
+          - neo4j: 5.22.0
             ruby: ruby-3.1.6
             java-version: 17
             options: "-t ~causal"
             active_support: 6.1.7.8
-          - neo4j: 5.20.0
+          - neo4j: 5.22.0
             ruby: ruby-3.1.6
             java-version: 17
             options: "-t ~causal"
             active_support: 6.0.6.1
-          - neo4j: 5.20.0
-            ruby: ruby-3.1.5
+          - neo4j: 5.22.0
+            ruby: ruby-3.1.6
             java-version: 17
             options: "-t ~causal"
             active_support: 5.2.8.1
