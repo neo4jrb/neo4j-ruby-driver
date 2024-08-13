@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         ruby: [ jruby, ruby ]
-        neo4j: [ 4.4.33, 5.19.0 ]
+        neo4j: [ 4.4.36, 5.22.0 ]
         include:
           - ruby: jruby
             java-version: 17
