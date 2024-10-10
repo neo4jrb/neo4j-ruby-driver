@@ -63,7 +63,7 @@ module Neo4j::Driver
           addresses_to_retain = @routing_table_registry.all_servers.map(&:unicast_stream).reduce(&:+)
 
           composition_lookup_result.resolved_initial_routers&.then do |addresses|
-            addresses_to_retain << addresses
+            addresses_to_retain.merge(addresses)
           end
 
           @connection_pool.retain_all(addresses_to_retain)
