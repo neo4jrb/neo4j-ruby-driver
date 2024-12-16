@@ -42,10 +42,11 @@ end.spec 'neo4j-ruby-driver' do
     dependency 'jar-dependencies', '= 0.4.1'
     dependency 'ruby-maven', '>= 0', :dev
 
-    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 4.4.17' }
+    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver, 4.4.19' }
     spec_extras[:platform] = 'java'
   else
     require_ruby_version '>= 3.1'
+    dependency 'async', '< 2.12'
     dependency 'async-io', '>= 0'
     dependency 'connection_pool', '>= 0'
   end
