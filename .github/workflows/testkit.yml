@@ -80,7 +80,7 @@ jobs:
 
       - name: Archive testkit artifacts
         if: failure()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: artifacts ${{ matrix.ruby[0] }}
           path: ${{ github.workspace }}/testkit/artifacts
