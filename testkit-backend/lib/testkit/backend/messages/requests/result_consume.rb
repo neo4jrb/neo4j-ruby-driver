@@ -38,7 +38,7 @@ module Testkit::Backend::Messages
       def notifications(ns)
         ns.map do |n|
           to_map(n, *%w[code title description raw_category severity raw_severity_level])
-            .merge(to_map(n, *%w[category severity_level]) { |o| o&.type || 'UNKNOWN' })
+            .merge(to_map(n, *%w[category severity_level]) { |o| o&.name || 'UNKNOWN' })
             .merge(map_entry(n, :position, :column, :line, :offset))
         end
       end

@@ -19,26 +19,9 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
     expect(count).to eq 1
   end
 
-  # DisabledOnNeo4jWith( BOLT_V4 )
-  it 'executes reads and writes when router is discovered', version: '<4' do
-    count = execute_write_and_read_through_bolt_on_first_available_address(cluster.any_read_replica, leader)
-    expect(count).to eq 1
-  end
-
   it 'executes reads and writes when driver supplied with address of follower ' do
     count = execute_write_and_read_through_bolt(cluster.any_follower)
     expect(count).to eq 1
-  end
-
-  # DisabledOnNeo4jWith( BOLT_V4 )
-  it 'session creation fails if calling discovery procedure on edge server', version: '<4' do
-    read_replica = cluster.any_read_replica
-    create_driver(read_replica.routing_uri) do |driver|
-      expect(&driver.method(:verify_connectivity))
-        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException,
-                        'Unable to connect to database management service, ensure the database is running and that ' \
-                        'there is a working network connection to it.'
-    end
   end
 
   # Ensure that Bookmarks work with single instances using a driver created using a bolt[not+routing] URI.
@@ -96,8 +79,8 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
   end
 
   # needs implementation details. Impossible as integration test
-  #it 'shouldDropBrokenOldConnections' do
-  #end
+  # it 'shouldDropBrokenOldConnections' do
+  # end
 
   it 'begin transaction raises for invalid bookmark' do
     invalid_bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
@@ -111,7 +94,7 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
   end
 
   # Started failing suddenly for neo4j 3.5. Probably due to some enviromental change in GH actions. Won't fix anymore.
-  it 'handles graceful leader switch', version: '>=4' do
+  it 'handles graceful leader switch' do
     cluster_address = Neo4j::Driver::Net::ServerAddress.of('cluster', 7687)
     cluster_uri = "neo4j://#{cluster_address.host}:#{cluster_address.port}"
     core_addresses = cluster.cores.map(&:bolt_address)
@@ -178,7 +161,7 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
 
   it 'routing tables' do
     create_driver(leader.routing_uri, routing_table_purge_delay: 3.minutes) do |driver|
-      database = version?('>=4.0') ? 'neo4j' : nil
+      database = 'neo4j'
       driver.session(database: database) do |session|
         session.read_transaction { |tx| tx.run('RETURN 1').consume }
       end

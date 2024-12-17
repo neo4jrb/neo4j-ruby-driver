@@ -18,7 +18,7 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
       it { is_expected.to eq 1 }
     end
 
-    context 'when neo4j', version: '>=4' do
+    context 'when neo4j' do
       let(:scheme) { 'neo4j' }
       it { is_expected.to eq 1 }
     end

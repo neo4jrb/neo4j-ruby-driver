@@ -461,7 +461,7 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'does not propagate failure when streaming is cancelled', version: '>=4' do
+  it 'does not propagate failure when streaming is cancelled' do
     driver.session do |session|
       session.run('UNWIND range(20000, 0, -1) AS x RETURN 10 / x')
     end
@@ -558,20 +558,6 @@ RSpec.describe 'Session' do
       session.run(query)
     end
     expect { result.to_a }.to raise_error Neo4j::Driver::Exceptions::ResultConsumedException
-  end
-
-  it 'Allow To Consume Records Slowly And Close Session', version: '<4' do
-    driver.session do |session|
-      result = session.run('UNWIND range(10000, 0, -1) AS x RETURN 10 / x')
-      10.times do
-        expect(result).to have_next
-        expect(result.next).to be_present
-        sleep(0.05)
-      end
-      expect { session.close }.to raise_error Neo4j::Driver::Exceptions::ClientException do |error|
-        expect(error.code).to match /ArithmeticError/
-      end
-    end
   end
 
   it 'Allow To Consume Records Slowly And Retrieve Summary' do

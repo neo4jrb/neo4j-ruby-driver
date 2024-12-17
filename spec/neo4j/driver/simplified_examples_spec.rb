@@ -78,7 +78,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'accepts transaction config', version: '>=3.5' do
+  it 'accepts transaction config' do
     driver.session do |session|
       session.read_transaction(timeout: 1.minute, metadata: { a: 1, b: 'string' }) do |tx|
         expect(tx.run('RETURN 1').single.first).to eq 1
@@ -86,7 +86,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'accepts run config', version: '>=3.5' do
+  it 'accepts run config' do
     driver.session do |session|
       expect(session.run('RETURN 1', {}, timeout: 1.minute, metadata: { a: 1, b: 'string' }).single.first).to eq 1
     end

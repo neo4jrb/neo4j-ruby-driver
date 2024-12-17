@@ -1,7 +1,9 @@
 #!/usr/bin/env ruby
 
 require "bundler/setup"
+require 'ostruct'
 require "testkit/backend"
+require "active_support/core_ext/object/blank"
 
 Async do
   Testkit::Backend::Runner.new(9876).run
