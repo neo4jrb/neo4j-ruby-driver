@@ -51,7 +51,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java-version }}
-          cache: 'maven'
 
       - name: Install dependencies
         run: bin/setup
