@@ -34,6 +34,7 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -41,6 +42,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java-version }}
+          cache: 'maven'
 
       - name: Install dependencies
         run: bin/setup
