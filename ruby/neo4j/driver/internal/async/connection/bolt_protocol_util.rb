@@ -9,9 +9,9 @@ module Neo4j::Driver
           DEFAULT_MAX_OUTBOUND_CHUNK_SIZE_BYTES = 2 ** 15 - 1
           HANDSHAKE = [
             BOLT_MAGIC_PREAMBLE,
+            Messaging::V5::BoltProtocolV5::VERSION.to_int,
             Messaging::V44::BoltProtocolV44::VERSION.to_int_range(Messaging::V42::BoltProtocolV42::VERSION),
             Messaging::V41::BoltProtocolV41::VERSION.to_int,
-            Messaging::V4::BoltProtocolV4::VERSION.to_int,
             Messaging::V3::BoltProtocolV3::VERSION.to_int]
           HANDSHAKE_BUF = HANDSHAKE.pack('N*').freeze
 

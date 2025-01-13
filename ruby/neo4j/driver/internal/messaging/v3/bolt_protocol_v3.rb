@@ -21,11 +21,11 @@ module Neo4j::Driver
           end
 
           def prepare_to_close_channel(channel)
-            message_dispatcher = Connection::ChannelAttributes.message_dispatcher(channel)
+            message_dispatcher = channel.message_dispatcher
 
             message = Request::GoodbyeMessage::GOODBYE
             message_dispatcher.enqueue(Handlers::NoOpResponseHandler::INSTANCE)
-            channel.write_and_flush(message, channel.void_promise)
+            channel.write_and_flush(message)
 
             message_dispatcher.prepare_to_close_channel
           end

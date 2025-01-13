@@ -4,8 +4,8 @@ module Neo4j::Driver
     class InternalNode < InternalEntity
       attr_reader :labels
 
-      def initialize(id, *labels, **properties)
-        super(id, properties)
+      def initialize(id, element_id, *labels, **properties)
+        super(id, element_id, **properties)
         @labels = labels
       end
 

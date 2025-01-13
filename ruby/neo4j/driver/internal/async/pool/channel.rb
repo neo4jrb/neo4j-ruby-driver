@@ -14,12 +14,11 @@ module Neo4j::Driver
             @stream.write(Connection::BoltProtocolUtil.handshake_buf)
             @stream.flush
             Connection::HandshakeHandler.new(logger).decode(self)
-            stream_reader = Connection::StreamReader.new(@stream)
             stream_writer = Outbound::ChunkAwareByteBufOutput.new(@stream)
             @message_dispatcher = Inbound::InboundMessageDispatcher.new(self, logger)
             @attributes[:message_dispatcher] = @message_dispatcher
             @outbound_handler = Outbound::OutboundMessageHandler.new(stream_writer, message_format, logger)
-            @common_message_reader = Messaging::Common::CommonMessageReader.new(stream_reader)
+            @common_message_reader = message_format.new_reader(@stream)
             connector.initialize_channel(self, protocol)
           end
 

@@ -3,13 +3,9 @@ module Neo4j::Driver
     module Messaging
       module V44
         # Bolt message format v4.4
-        class MessageFormatV44
+        class MessageFormatV44 < V43::MessageFormatV43
           def new_writer(output)
             MessageWriterV44.new(output)
-          end
-
-          def new_reader(input)
-            CommonMessageReader.new(input)
           end
         end
       end

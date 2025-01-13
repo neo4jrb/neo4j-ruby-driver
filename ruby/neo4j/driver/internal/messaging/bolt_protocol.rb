@@ -20,6 +20,8 @@ module Neo4j::Driver
             V43::BoltProtocolV43::INSTANCE
           when V44::BoltProtocolV44::VERSION
             V44::BoltProtocolV44::INSTANCE
+          when V5::BoltProtocolV5::VERSION
+            V5::BoltProtocolV5::INSTANCE
           else
             raise Exceptions::ClientException, "Unknown protocol version: #{version}"
           end

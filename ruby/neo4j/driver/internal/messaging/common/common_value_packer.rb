@@ -4,6 +4,7 @@ module Neo4j::Driver
       module Common
         module CommonValuePacker
           include CommonValue
+          attr_writer :date_time_utc_enabled
 
           def pack(value)
             case value
@@ -61,18 +62,20 @@ module Neo4j::Driver
           end
 
           def pack_date_time_with_zone_id(time)
-            pack_struct_header(DATE_TIME_STRUCT_SIZE, DATE_TIME_WITH_ZONE_ID)
+            pack_struct_header(DATE_TIME_STRUCT_SIZE,
+                               @date_time_utc_enabled ? DATE_TIME_WITH_ZONE_ID_UTC : DATE_TIME_WITH_ZONE_ID)
             pack_date_time(time)
             pack_string(time.time_zone.tzinfo.identifier)
           end
 
           def pack_date_time(time)
-            pack_integer(time.to_i + time.utc_offset)
+            pack_integer(time.to_i + (@date_time_utc_enabled ? 0 : time.utc_offset))
             pack_integer(time.nsec)
           end
 
           def pack_date_time_with_zone_offset(time)
-            pack_struct_header(DATE_TIME_STRUCT_SIZE, DATE_TIME_WITH_ZONE_OFFSET)
+            pack_struct_header(DATE_TIME_STRUCT_SIZE,
+                               @date_time_utc_enabled ? DATE_TIME_WITH_ZONE_OFFSET_UTC : DATE_TIME_WITH_ZONE_OFFSET)
             pack_date_time(time)
             pack_utc_offset(time)
           end

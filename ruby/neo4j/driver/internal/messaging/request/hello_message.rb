@@ -12,8 +12,7 @@ module Neo4j::Driver
           end
 
           def to_s
-            metadata_copy = metadata.merge(Security::InternalAuthToken::CREDENTIALS_KEY => '******')
-            "HELLO #{metadata_copy}"
+            "HELLO #{safe_metadata}"
           end
 
           private

@@ -9,6 +9,7 @@ module Neo4j::Driver
           UNBOUND_RELATIONSHIP = 'r'
           PATH = 'P'
           NODE_FIELDS = 3
+          RELATIONSHIP_FIELDS = 5
 
           def unpack_map(size)
             size.times.to_h { [unpack.to_sym, unpack] }
@@ -91,9 +92,15 @@ module Neo4j::Driver
             when DATE_TIME_WITH_ZONE_OFFSET
               ensure_correct_struct_size(:DATE_TIME_WITH_ZONE_OFFSET, DATE_TIME_STRUCT_SIZE, size)
               unpack_date_time_with_zone_offset
+            when DATE_TIME_WITH_ZONE_OFFSET_UTC
+              ensure_correct_struct_size(:DATE_TIME_WITH_ZONE_OFFSET_UTC, DATE_TIME_STRUCT_SIZE, size)
+              unpack_date_time_with_zone_offset(true)
             when DATE_TIME_WITH_ZONE_ID
               ensure_correct_struct_size(:DATE_TIME_WITH_ZONE_ID, DATE_TIME_STRUCT_SIZE, size)
               unpack_date_time_with_zone_id
+            when DATE_TIME_WITH_ZONE_ID_UTC
+              ensure_correct_struct_size(:DATE_TIME_WITH_ZONE_ID_UTC, DATE_TIME_STRUCT_SIZE, size)
+              unpack_date_time_with_zone_id(true)
             when DURATION
               ensure_correct_struct_size(:DURATION, DURATION_TIME_STRUCT_SIZE, size)
               unpack_duration
@@ -104,13 +111,13 @@ module Neo4j::Driver
               ensure_correct_struct_size(:POINT, POINT_3D_STRUCT_SIZE, size)
               unpack_point3_d
             when NODE
-              ensure_correct_struct_size(:NODE, NODE_FIELDS, size)
+              ensure_correct_struct_size(:NODE, node_fields, size)
               adapted = unpack_node
             when RELATIONSHIP
-              ensure_correct_struct_size(:RELATIONSHIP, 5, size)
+              ensure_correct_struct_size(:RELATIONSHIP, relationship_fields, size)
               unpack_relationship
             when UNBOUND_RELATIONSHIP
-              ensure_correct_struct_size(:RELATIONSHIP, 3, size)
+              ensure_correct_struct_size(:RELATIONSHIP, unbound_relationship_fields, size)
               unpack_unbound_relationship
             when PATH
               ensure_correct_struct_size(:PATH, 3, size)
@@ -123,15 +130,26 @@ module Neo4j::Driver
           private
 
           def unpack_relationship
-            InternalRelationship.new(*4.times.map { unpack }, **unpack)
+            id = unpack
+            start_node_id = unpack
+            end_node_id = unpack
+            type = unpack
+            properties = unpack
+            InternalRelationship.new(id, unpack_element_id, start_node_id, unpack_element_id, end_node_id, unpack_element_id, type, **properties)
           end
 
           def unpack_unbound_relationship
-            InternalRelationship.new(unpack, nil, nil, unpack, **unpack)
+            id = unpack
+            type = unpack
+            properties = unpack
+            InternalRelationship.new(id, unpack_element_id, *[nil] * 4, type, **properties)
           end
 
           def unpack_node
-            InternalNode.new(unpack, *unpack.map(&:to_sym), **unpack)
+            id = unpack
+            labels = unpack.map(&:to_sym)
+            properties = unpack
+            InternalNode.new(id, unpack_element_id, *labels, **properties)
           end
 
           def unpack_path
@@ -168,7 +186,13 @@ module Neo4j::Driver
             end
           end
 
-          private
+          def node_fields = NODE_FIELDS
+
+          def relationship_fields = RELATIONSHIP_FIELDS
+
+          def unbound_relationship_fields = 3
+
+          def unpack_element_id = nil
 
           def ensure_correct_struct_signature(struct_name, expected, actual)
             if expected != actual
@@ -198,19 +222,20 @@ module Neo4j::Driver
             Types::LocalDateTime.new(Time.at(unpack, unpack, :nsec).utc)
           end
 
-          def unpack_date_time_with_zone_offset
+          def unpack_date_time_with_zone_offset(utc = false)
             # Time.at(unpack, unpack, :nsec, in: unpack)
             sec = unpack
             nsec = unpack
             offset = unpack
             time = Time.at(sec, nsec, :nsec).utc
+            time += offset if utc
             Time.new(time.year, time.month, time.mday, time.hour, time.min, time.sec + Rational(nsec, 1_000_000_000),
                      offset)
           end
 
-          def unpack_date_time_with_zone_id
+          def unpack_date_time_with_zone_id(utc = false)
             time = Time.at(unpack, unpack, :nsec).in_time_zone(TZInfo::Timezone.get(unpack))
-            time - time.utc_offset
+            utc ? time : time - time.utc_offset
           end
 
           def unpack_duration

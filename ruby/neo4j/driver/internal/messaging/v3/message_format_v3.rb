@@ -7,9 +7,9 @@ module Neo4j::Driver
             MessageWriterV3.new(output)
           end
 
-          def new_reader(input)
-            Common::CommonMessageReader.new(input)
-          end
+          def new_reader(input) = Common::CommonMessageReader.new(new_value_unpacker(input))
+
+          def new_value_unpacker(input) = Async::Connection::StreamReader.new(input)
         end
       end
     end

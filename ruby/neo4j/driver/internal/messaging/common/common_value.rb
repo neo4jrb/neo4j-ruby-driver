@@ -13,7 +13,9 @@ module Neo4j::Driver
           LOCAL_DATE_TIME = 'd'
           LOCAL_DATE_TIME_STRUCT_SIZE = 2
           DATE_TIME_WITH_ZONE_OFFSET = 'F'
+          DATE_TIME_WITH_ZONE_OFFSET_UTC = 'I'
           DATE_TIME_WITH_ZONE_ID = 'f'
+          DATE_TIME_WITH_ZONE_ID_UTC = 'i'
           DATE_TIME_STRUCT_SIZE = 3
           DURATION = 'E'
           DURATION_TIME_STRUCT_SIZE = 4
