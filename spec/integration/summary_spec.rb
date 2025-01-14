@@ -14,6 +14,7 @@ RSpec.describe 'Summary' do
       expect(summary).not_to have_plan
       expect(summary).not_to have_profile
       expect(summary).to eq result.consume
+      expect(summary.server.address).to eq address # address frpm DriverHelper
     end
   end
 

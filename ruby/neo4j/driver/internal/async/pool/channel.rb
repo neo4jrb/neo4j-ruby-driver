@@ -10,6 +10,7 @@ module Neo4j::Driver
 
           def initialize(address, connector, logger)
             @attributes = Connection::ChannelAttributes.new
+            @attributes[:server_address] = address
             @stream = Connection::Stream.new(connect_to_io_socket(connector, address))
             @stream.write(Connection::BoltProtocolUtil.handshake_buf)
             @stream.flush

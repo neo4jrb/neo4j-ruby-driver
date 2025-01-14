@@ -20,7 +20,7 @@ module Neo4j::Driver
         end
 
         def extract_summary(query, connection, result_available_after, metadata)
-          server_info = Summary::InternalServerInfo.new(connection.server_agent, connection.server_address, connection.server_version, connection.protocol.version)
+          server_info = Summary::InternalServerInfo.new(connection.server_agent, connection.server_address.to_s, connection.server_version, connection.protocol.version)
           db_info = self.class.extract_database_info(metadata)
           Summary::InternalResultSummary.new(
             query, server_info, db_info, self.class.extract_query_type(metadata), self.class.extract_counters(metadata),
