@@ -23,6 +23,7 @@ end.spec 'neo4j-ruby-driver' do
   active_support_version = ENV['ACTIVE_SUPPORT_VERSION']
   dependency 'activesupport', active_support_version&.length&.positive? ? "~> #{active_support_version}" : '>= 5.2.0'
   # dependency 'async-rspec', '>= 0', :dev
+  dependency 'pry', '>= 0', :dev
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
   dependency 'hoe-bundler', '>= 0', :dev
