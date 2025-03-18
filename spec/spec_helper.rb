@@ -13,6 +13,7 @@ require 'ffaker'
 require 'rspec/its'
 require 'support/driver_helper'
 require 'support/neo4j_cleaner'
+require 'pry'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
