@@ -43,7 +43,8 @@ module Neo4j
               # sleep(10)
 
               @cluster.members = members
-              debug("Cluster started: #{members}.")
+              debug("Cluster started:")
+              members.each { |member| debug("  #{member.bolt_uri}") }
             end
 
             def start_member(member)
