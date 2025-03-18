@@ -1,0 +1,23 @@
+FROM ruby:3.4
+
+ARG JAVA_VERSION
+ENV JAVA_VERSION=$JAVA_VERSION
+
+# Adding Java package
+RUN apt install -y wget apt-transport-https gpg
+RUN wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null
+RUN echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+
+# Installing packages
+RUN echo "Installing Java $JAVA_VERSION"
+RUN apt-get update && apt-get upgrade -y && apt-get install -y python3-pip temurin-$JAVA_VERSION-jdk
+
+# Installing boltkit
+RUN pip3 install --user git+https://github.com/klobuczek/boltkit@1.3#egg=boltkit --break-system-packages
+RUN echo "export PATH=/root/.local/bin:$PATH" >> ~/.bashrc
+
+WORKDIR /app
+COPY . .
+RUN ./bin/setup
+
+CMD ["bundle exec rspec spec"]
