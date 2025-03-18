@@ -127,8 +127,7 @@ module Neo4j
           def core_member?(driver)
             driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ) do |session|
               %w[LEADER FOLLOWER].include?(
-                session.run("CALL dbms.cluster.role($database)", database: 'neo4j')
-                  .single.first
+                session.run("CALL dbms.cluster.role($database)", database: database).single.first
               )
             end
           end

@@ -26,6 +26,10 @@ module DriverHelper
       ENV.fetch('TEST_NEO4J_PASS', 'password')
     end
 
+    def database
+      ENV.fetch('TEST_NEO4J_DATABASE', 'neo4j')
+    end
+
     def driver
       self.single_driver ||= Neo4j::Driver::GraphDatabase.driver(
         uri, basic_auth_token,
