@@ -10,7 +10,7 @@
 # Example 4. Hello World
 ######################################
 
-Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
+Neo4j::Driver::GraphDatabase.driver("bolt://#{ENV['TEST_NEO4J_HOST']}:7687",
                                     Neo4j::Driver::AuthTokens.basic('neo4j', 'pass')) do |driver|
   driver.session do |session|
     greeting = session.write_transaction do |tx|
