@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
-require 'csv'
+if Gem::Version.new(RUBY_VERSION) <= Gem::Version.new('3.3')
+  require 'csv'
+end
+
 require 'tempfile'
 
 RSpec.describe 'LoadCsv', csv: true do
