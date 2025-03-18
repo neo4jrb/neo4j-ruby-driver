@@ -13,6 +13,7 @@ module Neo4j::Driver
             @metadata_extractor = Validator.require_non_nil!(metadata_extractor)
             @connection = Validator.require_non_nil!(connection)
             @completion_listener = Validator.require_non_nil!(completion_listener)
+            @async_notification = ::Async::Notification.new
             @state = State::READY_STATE
             @to_request = 0
           end
