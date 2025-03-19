@@ -33,9 +33,6 @@ end.spec 'neo4j-ruby-driver' do
   dependency 'rspec-mocks', '>= 0', :dev
   dependency 'zeitwerk', '>= 2.1.10'
 
-  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.3')
-    dependency "csv", "~> 3.0", :dev
-  end
 
   spec_extras[:require_paths] = ['lib', jruby? ? 'jruby' : 'ruby']
 
@@ -55,7 +52,10 @@ end.spec 'neo4j-ruby-driver' do
     dependency 'async', '>= 0'
     dependency 'async-io', '>= 0'
     dependency 'connection_pool', '>= 0'
-    dependency 'csv', '>= 0'
+
+    if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.4')
+      dependency "csv", "~> 3.0" # CSV stdlib was moved in Ruby 3.4 to separate gem
+    end
   end
 end
 

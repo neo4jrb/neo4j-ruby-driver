@@ -38,8 +38,18 @@ At this moment [The Neo4j Drivers Manual v4.4](https://neo4j.com/docs/java-manua
 This gem includes 2 different implementations: java driver wrapper and pure ruby driver
 
     $ bin/setup 
-     
-## Testing
+
+## Testing with docker
+
+The tests can be run with docker.
+
+    $ docker compose run ruby-driver bash
+    $ bundle exec rspec spec
+
+To test different versions of neo4j, set the environment variable `NEO4J_VERSION` to the version you want to test.
+Keep in mind to change JAVA_VERSION in the Dockerfile if you want to test with different java versions.
+
+## Testing natively
 
 To run the tests the following tools need to be installed:
 

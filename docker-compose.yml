@@ -1,11 +1,10 @@
 version: '3'
 services:
-  ruby:
+  ruby-driver:
     build:
       context: .
       args:
         - JAVA_VERSION=11
-
     volumes:
       - .:/app
     links:
