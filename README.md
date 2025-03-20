@@ -41,9 +41,14 @@ This gem includes 2 different implementations: java driver wrapper and pure ruby
 
 ## Testing with docker
 
-The tests can be run with docker.
+The tests can be run with docker:
 
     $ docker compose run ruby-driver bash
+    $ bundle exec rspec spec
+
+or for jruby
+
+    $ docker compose run jruby-driver bash
     $ bundle exec rspec spec
 
 To test different versions of neo4j, set the environment variable `NEO4J_VERSION` to the version you want to test.
@@ -90,4 +95,3 @@ Suggestions, improvements, bug reports and pull requests are welcome on GitHub a
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
