@@ -16,7 +16,7 @@ services:
       args: 
         JAVA_VERSION: 21
     volumes:
-      - .:/app
+      - .:/driver
     links:
       - neo4j
     environment:
@@ -28,7 +28,7 @@ services:
       args: 
         JAVA_VERSION: 21
     volumes:
-      - .:/app
+      - .:/driver
     links:
       - neo4j
     environment: 
