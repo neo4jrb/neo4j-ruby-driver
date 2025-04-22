@@ -18,10 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         ruby: [ jruby, ruby ]
-        neo4j: [ 4.4.39, 5.26.0 ]
+        neo4j: [ 4.4.42, 5.26.5, 2025.03.0 ]
         include:
           - ruby: jruby
-            java-version: 17
+            java-version: 21
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
