@@ -36,6 +36,9 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
 
+      - name: Install ruby-maven
+        run: gem install ruby-maven
+
       - name: Create .m2 directory
         run: mkdir -p $HOME/.m2
 
