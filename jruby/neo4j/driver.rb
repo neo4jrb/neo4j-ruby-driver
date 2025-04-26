@@ -15,7 +15,8 @@ module Neo4j
     Transaction = Java::OrgNeo4jDriverInternal::InternalTransaction
 
     module Internal
-      java_import org.neo4j.driver.internal.shaded.bolt.connection.DatabaseNameUtil
+      java_import org.neo4j.driver.internal.bolt.api.DatabaseNameUtil
+      # java_import org.neo4j.driver.internal.shaded.bolt.connection.DatabaseNameUtil
     end
 
     module Net
@@ -52,7 +53,8 @@ Java::OrgNeo4jDriverInternal::InternalResult.prepend Neo4j::Driver::Ext::Interna
 Java::OrgNeo4jDriverInternal::InternalSession.prepend Neo4j::Driver::Ext::InternalSession
 Java::OrgNeo4jDriverInternal::InternalTransaction.prepend Neo4j::Driver::Ext::InternalTransaction
 Java::OrgNeo4jDriverInternalAsync::InternalAsyncSession.prepend Neo4j::Driver::Ext::Internal::Async::InternalAsyncSession
-Java::OrgNeo4jDriverInternalShadedBoltConnectionRoutedImplCluster::RoutingTableRegistryImpl.include Neo4j::Driver::Ext::Internal::Cluster::RoutingTableRegistryImpl
+Java::OrgNeo4jDriverInternalBoltRoutedimplCluster::RoutingTableRegistryImpl.include Neo4j::Driver::Ext::Internal::Cluster::RoutingTableRegistryImpl
+# Java::OrgNeo4jDriverInternalShadedBoltConnectionRoutedImplCluster::RoutingTableRegistryImpl.include Neo4j::Driver::Ext::Internal::Cluster::RoutingTableRegistryImpl
 # Java::OrgNeo4jDriverInternalCursor::DisposableAsyncResultCursor.prepend Neo4j::Driver::Ext::Internal::Cursor::DisposableAsyncResultCursor
 Java::OrgNeo4jDriverInternalMetrics::InternalConnectionPoolMetrics.include Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics
 Java::OrgNeo4jDriverInternalSummary::InternalNotification.prepend Neo4j::Driver::Ext::Internal::Summary::InternalNotification
