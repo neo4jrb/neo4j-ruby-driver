@@ -21,7 +21,7 @@ jobs:
 #        neo4j: [ 4.4.39, 4.4.42 ]
         neo4j: [ 4.4.4 ]
         java-version: [ 17 ]
-        neo4j-java-driver: [ 5.8.0, 5.9.0, 5.10.0, 5.15.0, 5.20.0, 5.25.0 ]
+        neo4j-java-driver: [ '5.8.0', '5.9.0', '5.10.0', '5.15.0', '5.20.0', '5.25.0' ]
 #        include:
 #          - ruby: jruby
 #            java-version: 17
