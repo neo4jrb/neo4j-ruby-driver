@@ -21,11 +21,13 @@ jobs:
 #        neo4j: [ 4.4.39, 4.4.42 ]
         neo4j: [ 4.4.4 ]
         java-version: [ 17 ]
+        neo4j-java-driver: [ 5.8.0 5.9.0 5.10.0 5.15.0 5.20.0 5.25.0 ]
 #        include:
 #          - ruby: jruby
 #            java-version: 17
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
+      NEO4J_JAVA_DRIVER_VERSION: ${{ matrix.neo4j-java-driver }}
     steps:
       - name: Start neo4j
         run: docker run --name neo4j --env NEO4J_AUTH=neo4j/password --env NEO4J_ACCEPT_LICENSE_AGREEMENT=yes -p7687:7687 -p7474:7474 -v `pwd`/tmp:/var/lib/neo4j/import --rm neo4j:${{ matrix.neo4j }}-enterprise &
