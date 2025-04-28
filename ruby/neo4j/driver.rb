@@ -2,6 +2,7 @@
 
 require 'active_support/core_ext/array/grouping'
 require 'active_support/core_ext/hash/keys'
+require 'active_support/core_ext/object/blank'
 require 'active_support/logger'
 require 'async/io'
 require 'async/io/stream'
