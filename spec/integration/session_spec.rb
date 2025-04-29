@@ -519,6 +519,8 @@ RSpec.describe 'Session' do
       connection_acquisition_timeout: 0.seconds,
       max_transaction_retry_time: 42.days # retry for a really long time
     }
+    old_scheme = ENV['TEST_NEO4J_SCHEME']
+    ENV['TEST_NEO4J_SCHEME'] = 'bolt' # use the 'bolt' scheme to avoid routing logic triggered by 'neo4j' scheme
     Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, **config) do |driver|
       max_pool_size.times { driver.session.begin_transaction }
 
@@ -529,6 +531,8 @@ RSpec.describe 'Session' do
       # work should never be invoked
       expect(invocations.value).to be_zero
     end
+  ensure
+    ENV['TEST_NEO4J_SCHEME'] = old_scheme
   end
 
   it 'reports failure in close' do
