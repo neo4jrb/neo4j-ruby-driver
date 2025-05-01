@@ -512,22 +512,25 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'does not retry on connection acquisition timeout' do
-    max_pool_size = 3
-    config = {
-      max_connection_pool_size: max_pool_size,
-      connection_acquisition_timeout: 0.seconds,
-      max_transaction_retry_time: 42.days # retry for a really long time
-    }
-    Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, **config) do |driver|
-      max_pool_size.times { driver.session.begin_transaction }
+  context "with 'bolt' scheme" do
+    let(:scheme) { 'bolt' } # to avoid routing logic triggered by 'neo4j' scheme
+    it 'does not retry on connection acquisition timeout' do
+      max_pool_size = 3
+      config = {
+        max_connection_pool_size: max_pool_size,
+        connection_acquisition_timeout: 0.seconds,
+        max_transaction_retry_time: 42.days # retry for a really long time
+      }
+      Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, **config) do |driver|
+        max_pool_size.times { driver.session.begin_transaction }
 
-      invocations = Concurrent::AtomicFixnum.new
-      expect { driver.session.write_transaction { invocations.increment } }
-        .to raise_error Neo4j::Driver::Exceptions::ClientException,
-                        /^Unable to acquire connection from the pool within configured maximum time of 0/
-      # work should never be invoked
-      expect(invocations.value).to be_zero
+        invocations = Concurrent::AtomicFixnum.new
+        expect { driver.session.write_transaction { invocations.increment } }
+          .to raise_error Neo4j::Driver::Exceptions::ClientException,
+                          /^Unable to acquire connection from the pool within configured maximum time of 0/
+        # work should never be invoked
+        expect(invocations.value).to be_zero
+      end
     end
   end
 
