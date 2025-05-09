@@ -225,16 +225,16 @@ end
 # This relies on the person first having been created.
 def employ(tx, person, company)
   tx.run('MATCH (person:Person {name: $person_name}) ' \
-         'MATCH (company:Company {name: $company_name}) ' \
-         'CREATE (person)-[:WORKS_FOR]->(company)',
+           'MATCH (company:Company {name: $company_name}) ' \
+           'CREATE (person)-[:WORKS_FOR]->(company)',
          person_name: person, company_name: company)
 end
 
 # Create a friendship between two people.
 def make_friends(tx, person1, person2)
   tx.run('MATCH (a:Person {name: $person_1}) ' \
-         'MATCH (b:Person {name: $person_2}) ' \
-         'MERGE (a)-[:KNOWS]->(b)',
+           'MATCH (b:Person {name: $person_2}) ' \
+           'MERGE (a)-[:KNOWS]->(b)',
          person_1: person1, person_2: person2)
 end
 
@@ -389,8 +389,8 @@ def add_employees(company_name)
     persons.sum do |person|
       session.writeTransaction do |tx|
         tx.run('MATCH (emp:Person {name: $person_name}) ' \
-               'MERGE (com:Company {name: $company_name}) ' \
-               'MERGE (emp)-[:WORKS_FOR]->(com)',
+                 'MERGE (com:Company {name: $company_name}) ' \
+                 'MERGE (emp)-[:WORKS_FOR]->(com)',
                person_name: person[:name], company_name: company_name)
         1
       end
@@ -457,3 +457,20 @@ def add_person(name)
     tx&.close
   end
 end
+
+######################################
+# execute_query
+######################################
+
+Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687',
+                                    Neo4j::Driver::AuthTokens.basic('neo4j', 'password')) do |driver|
+  result = driver.execute_query("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
+                                { message: 'hello, world' },
+                                auth_token: Neo4j::Driver::AuthTokens.basic('another_user', 'password'),
+                                database: 'my_database',
+                                bookmark_manager:,
+                                timeout: 1.second,
+                                metadata: { key: 'value' })
+  result.single.first
+end # driver auto closed at the end of the block if one given
+
