@@ -29,6 +29,14 @@ RSpec.describe 'Session' do
     test_read_transaction(Neo4j::Driver::AccessMode::WRITE)
   end
 
+  it 'executes execute_read in read session' do
+    test_execute_read(Neo4j::Driver::AccessMode::READ)
+  end
+
+  it 'executes execute_read in write session' do
+    test_execute_read(Neo4j::Driver::AccessMode::WRITE)
+  end
+
   it 'executes write transaction in read session' do
     test_write_transaction(Neo4j::Driver::AccessMode::READ)
   end
@@ -37,12 +45,28 @@ RSpec.describe 'Session' do
     test_write_transaction(Neo4j::Driver::AccessMode::WRITE)
   end
 
+  it 'executes execute_write in read session' do
+    test_execute_write(Neo4j::Driver::AccessMode::READ)
+  end
+
+  it 'executes execute_write in write session' do
+    test_execute_write(Neo4j::Driver::AccessMode::WRITE)
+  end
+
   it 'rolls back write transaction in read session when function throws exception' do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ)
   end
 
   it 'rolls back write transaction in write session when function throws exception' do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE)
+  end
+
+  it 'rolls back execute write in read session when function throws exception' do
+    test_tx_rollback_when_function_throws_exception_execute_write(Neo4j::Driver::AccessMode::READ)
+  end
+
+  it 'rolls back execute write in write session when function throws exception' do
+    test_tx_rollback_when_function_throws_exception_execute_write(Neo4j::Driver::AccessMode::WRITE)
   end
 
   class RaisingWork
@@ -58,7 +82,7 @@ RSpec.describe 'Session' do
       result = tx.run(@query)
       raise Neo4j::Driver::Exceptions::ServiceUnavailableException if (@invoked += 1) <= @failures
       single = result.single
-      tx.commit
+      # tx.commit
       single
     end
 
@@ -82,10 +106,40 @@ RSpec.describe 'Session' do
     expect(work.invoked).to eq 3
   end
 
+  it 'retries execute read until success' do
+    driver.session do |session|
+      session.run("CREATE (:Person {name: 'Bruce Banner'})")
+    end
+
+    work = RaisingWork.new('MATCH (n) RETURN n.name', 2)
+
+    driver.session do |session|
+      record = session.execute_read(&work.to_proc)
+      expect(record[0]).to eq 'Bruce Banner'
+    end
+
+    expect(work.invoked).to eq 3
+  end
+
   it 'retries write transaction until success' do
     work = RaisingWork.new("CREATE (p:Person {name: 'Hulk'}) RETURN p", 2)
     driver.session do |session|
       record = session.write_transaction(&work.to_proc)
+      expect(record[0][:name]).to eq 'Hulk'
+    end
+
+    driver.session do |session|
+      record = session.run("MATCH (p: Person {name: 'Hulk'}) RETURN count(p)").single
+      expect(record[0]).to eq 1
+    end
+
+    expect(work.invoked).to eq 3
+  end
+
+  it 'retries execute write  until success' do
+    work = RaisingWork.new("CREATE (p:Person {name: 'Hulk'}) RETURN p", 2)
+    driver.session do |session|
+      record = session.execute_write(&work.to_proc)
       expect(record[0][:name]).to eq 'Hulk'
     end
 
@@ -107,10 +161,34 @@ RSpec.describe 'Session' do
     expect(work.invoked).to eq 3
   end
 
+  it 'retries execute read until failure' do
+    work = RaisingWork.new('MATCH (n) RETURN n.name', 3)
+    driver.session do |session|
+      expect { session.execute_read(&work.to_proc) }
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
+    end
+
+    expect(work.invoked).to eq 3
+  end
+
   it 'retries write transaction until failure' do
     work = RaisingWork.new("CREATE (:Person {name: 'Ronan'})", 3)
     driver.session do |session|
       expect { session.write_transaction(&work.to_proc) }
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
+    end
+
+    driver.session do |session|
+      result = session.run("MATCH (p:Person {name: 'Ronan'}) RETURN count(p)")
+      expect(result.single[0]).to eq 0
+    end
+    expect(work.invoked).to eq 3
+  end
+
+  it 'retries execute write until failure' do
+    work = RaisingWork.new("CREATE (:Person {name: 'Ronan'})", 3)
+    driver.session do |session|
+      expect { session.execute_write(&work.to_proc) }
         .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException
     end
 
@@ -140,6 +218,25 @@ RSpec.describe 'Session' do
     expect(work.invoked).to eq suppressed_errors + 1
   end
 
+  it 'collects execute write retry errors' do
+    work = RaisingWork.new("CREATE (:Person {name: 'Ronan'})", 1000)
+    suppressed_errors = nil
+    driver.session do |session|
+      expect { session.execute_write(&work.to_proc) }
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |e|
+        expect(e.suppressed).to be_present
+        suppressed_errors = e.suppressed.size
+      end
+    end
+
+    driver.session do |session|
+      result = session.run("MATCH (p:Person {name: 'Ronan'}) RETURN count(p)")
+      expect(result.single[0]).to be_zero
+    end
+
+    expect(work.invoked).to eq suppressed_errors + 1
+  end
+
   it 'collects read transaction retry errors' do
     work = RaisingWork.new('MATCH (n) RETURN n.name', 1000)
     suppressed_errors = nil
@@ -154,10 +251,33 @@ RSpec.describe 'Session' do
     expect(work.invoked).to eq suppressed_errors + 1
   end
 
+  it 'collects execute read retry errors' do
+    work = RaisingWork.new('MATCH (n) RETURN n.name', 1000)
+    suppressed_errors = nil
+    driver.session do |session|
+      expect { session.execute_read(&work.to_proc) }
+        .to raise_error Neo4j::Driver::Exceptions::ServiceUnavailableException do |e|
+        expect(e.suppressed).to be_present
+        suppressed_errors = e.suppressed.size
+      end
+    end
+
+    expect(work.invoked).to eq suppressed_errors + 1
+  end
+
   it 'commits read transaction without success' do
     session = driver.session
     expectEmptyBookmark(session.last_bookmark)
     answer = session.read_transaction { |tx| tx.run('RETURN 42').single[0] }
+    session.close
+    expect(answer).to eq(42)
+    expect(session.last_bookmark).not_to be nil
+  end
+
+  it 'commits execute read without success' do
+    session = driver.session
+    expectEmptyBookmark(session.last_bookmark)
+    answer = session.execute_read { |tx| tx.run('RETURN 42').single[0] }
     session.close
     expect(answer).to eq(42)
     expect(session.last_bookmark).not_to be nil
@@ -178,6 +298,17 @@ RSpec.describe 'Session' do
   it 'commits write transaction without success' do
     driver.session do |session|
       answer = session.write_transaction { |tx| tx.run("CREATE (:Person {name: 'Thor Odinson'}) RETURN 42").single[0] }
+      expect(answer).to eq(42)
+    end
+    val = driver.session do |session|
+      session.run("MATCH (p:Person {name: 'Thor Odinson'}) RETURN count(p)").single[0]
+    end
+    expect(val).to eq(1)
+  end
+
+  it 'commits execute write without success' do
+    driver.session do |session|
+      answer = session.execute_write { |tx| tx.run("CREATE (:Person {name: 'Thor Odinson'}) RETURN 42").single[0] }
       expect(answer).to eq(42)
     end
     val = driver.session do |session|
@@ -229,11 +360,41 @@ RSpec.describe 'Session' do
     end
   end
 
+  it 'rolls back execute read when exception is thrown' do
+    driver.session do |session|
+      expectEmptyBookmark(session.last_bookmark)
+      expect do
+        session.execute_read do |tx|
+          val = tx.run('RETURN 42').single[0]
+          raise Neo4j::Driver::Exceptions::IllegalStateException if val == 42
+          1
+        end
+      end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
+      expectEmptyBookmark(session.last_bookmark)
+    end
+  end
+
   it 'rolls back write transaction when exception is thrown' do
     driver.session do |session|
       expectEmptyBookmark(session.last_bookmark)
       expect do
         session.write_transaction do |tx|
+          tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
+          raise Neo4j::Driver::Exceptions::IllegalStateException
+        end
+      end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
+    end
+    val = driver.session do |session|
+      session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)").single[0]
+    end
+    expect(val).to eq(0)
+  end
+
+   it 'rolls back execute write when exception is thrown' do
+    driver.session do |session|
+      expectEmptyBookmark(session.last_bookmark)
+      expect do
+        session.execute_write do |tx|
           tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
           raise Neo4j::Driver::Exceptions::IllegalStateException
         end
@@ -440,12 +601,106 @@ RSpec.describe 'Session' do
     expect(count_nodes_with_id(node_id3)).to eq 1
   end
 
+  # fails for execute_write
+  it 'execute write function retries deadlocks', concurrency: true do
+    node_id1 = 42
+    node_id2 = 4242
+    node_id3 = 424242
+    new_node_id1 = 1
+    new_node_id2 = 2
+
+    create_node_with_id(node_id1)
+    create_node_with_id(node_id2)
+
+    latch1 = Concurrent::CountDownLatch.new(1)
+    latch2 = Concurrent::CountDownLatch.new(1)
+
+    result1 = Concurrent::Promises.future do
+      driver.session do |session|
+        tx = session.begin_transaction
+
+        # lock first node
+        update_node_id(tx, node_id1, new_node_id1).consume
+
+        latch1.wait
+        latch2.count_down
+
+        # lock second node
+        update_node_id(tx, node_id2, new_node_id1).consume
+
+        tx.commit
+      end
+      nil
+    end
+
+    result2 = Concurrent::Promises.future do
+      driver.session do |session|
+        session.execute_write do |tx|
+          # lock second node
+          update_node_id(tx, node_id2, new_node_id2).consume
+
+          latch1.count_down
+          latch2.wait
+
+          # lock first node
+          update_node_id(tx, node_id1, new_node_id2).consume
+
+          create_node_with_id(node_id3)
+
+          nil
+        end
+      end
+      nil
+    end
+
+    first_result_failed = false
+    begin
+      # first future may:
+      # 1) succeed, when it's tx was able to grab both locks and tx in other future was
+      #    terminated because of a deadlock
+      # 2) fail, when it's tx was terminated because of a deadlock
+      expect(result1.value!(20)).to be_nil
+    rescue Neo4j::Driver::Exceptions::TransientException
+      first_result_failed = true
+    end
+
+    # second future can't fail because deadlocks are retried
+    expect(result2.value!(20)).to be_nil
+
+    if first_result_failed
+      # tx with retries was successful and updated ids
+      expect(count_nodes_with_id(new_node_id1)).to be_zero
+      expect(count_nodes_with_id(new_node_id2)).to eq 2
+    else
+      # tx without retries was successful and updated ids
+      # tx with retries did not manage to find nodes because their ids were updated
+      expect(count_nodes_with_id(new_node_id1)).to eq 2
+      expect(count_nodes_with_id(new_node_id2)).to be_zero
+    end
+    # tx with retries was successful and created an additional node
+    expect(count_nodes_with_id(node_id3)).to eq 1
+  end
+
   it 'executes transaction work in caller thread' do
     max_failures = 3
     caller_thread = Thread.current
     failures = 0
     result = driver.session do |session|
       session.read_transaction do
+        expect(Thread.current).to eq caller_thread
+        raise Neo4j::Driver::Exceptions::ServiceUnavailableException, 'Oh no' if (failures += 1) < max_failures
+        'Hello'
+      end
+    end
+    expect(result).to eq 'Hello'
+  end
+
+  it 'executes execute_read work in caller thread' do
+    max_failures = 3
+    caller_thread = Thread.current
+    failures = 0
+    result = driver.session do |session|
+      session.execute_read do
         expect(Thread.current).to eq caller_thread
         raise Neo4j::Driver::Exceptions::ServiceUnavailableException, 'Oh no' if (failures += 1) < max_failures
         'Hello'
@@ -526,6 +781,25 @@ RSpec.describe 'Session' do
 
         invocations = Concurrent::AtomicFixnum.new
         expect { driver.session.write_transaction { invocations.increment } }
+          .to raise_error Neo4j::Driver::Exceptions::ClientException,
+                          /^Unable to acquire connection from the pool within configured maximum time of 0/
+        # work should never be invoked
+        expect(invocations.value).to be_zero
+      end
+    end
+
+    it 'execute write does not retry on connection acquisition timeout' do
+      max_pool_size = 3
+      config = {
+        max_connection_pool_size: max_pool_size,
+        connection_acquisition_timeout: 0.seconds,
+        max_transaction_retry_time: 42.days # retry for a really long time
+      }
+      Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, **config) do |driver|
+        max_pool_size.times { driver.session.begin_transaction }
+
+        invocations = Concurrent::AtomicFixnum.new
+        expect { driver.session.execute_write { invocations.increment } }
           .to raise_error Neo4j::Driver::Exceptions::ClientException,
                           /^Unable to acquire connection from the pool within configured maximum time of 0/
         # work should never be invoked
@@ -643,6 +917,13 @@ RSpec.describe 'Session' do
     driver.session do |session|
       expect(session.write_transaction { nil }).to be_nil
       expect(session.read_transaction { nil }).to be_nil
+    end
+  end
+
+  it 'Allow Returning Null From execute_write/read Function' do
+    driver.session do |session|
+      expect(session.execute_write { nil }).to be_nil
+      expect(session.execute_read { nil }).to be_nil
     end
   end
 
@@ -768,9 +1049,38 @@ RSpec.describe 'Session' do
     end
   end
 
+  # TODO: Maybe use define method for read_transaction/execute_read
+  def test_execute_read(mode)
+    driver.session do |session|
+      session.run("CREATE (:Person {name: 'Tony Stark'})").consume
+      session.run("CREATE (:Person {name: 'Steve Rogers'})").consume
+    end
+    driver.session(default_access_mode: mode) do |session|
+      names = session.execute_read do |tx|
+        tx.run('MATCH (p:Person) RETURN p.name AS name').collect do |result|
+          result[:name]
+        end
+      end
+      expect(names).to contain_exactly('Tony Stark', 'Steve Rogers')
+    end
+  end
+
   def test_write_transaction(mode)
     driver.session(default_access_mode: mode) do |session|
       session.write_transaction do |tx|
+        node = tx.run("CREATE (s:Shield {material: 'Vibranium'}) RETURN s").next['s']
+        expect(node.properties[:material]).to eq('Vibranium')
+      end
+    end
+    driver.session do |session|
+      result = session.run('MATCH (s:Shield) RETURN s.material').next
+      expect(result['s.material']).to eq('Vibranium')
+    end
+  end
+
+  def test_execute_write(mode)
+    driver.session(default_access_mode: mode) do |session|
+      session.execute_write do |tx|
         node = tx.run("CREATE (s:Shield {material: 'Vibranium'}) RETURN s").next['s']
         expect(node.properties[:material]).to eq('Vibranium')
       end
@@ -788,6 +1098,24 @@ RSpec.describe 'Session' do
           tx.run("CREATE (:Person {name: 'Thanos'})")
           tx.run('UNWIND range(0, 1) AS i RETURN 10/i')
           tx.commit
+        end
+      end.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
+    end
+
+    driver.session do |session|
+      result = session.run("MATCH (p:Person {name: 'Thanos'}) RETURN count(p)").next
+      expect(result['count(p)']).to be_zero
+    end
+  end
+
+  # use metaprog for refactoring to remove method dublication
+  def test_tx_rollback_when_function_throws_exception_execute_write(mode)
+    driver.session(default_access_mode: mode) do |session|
+      expect do
+        session.execute_write do |tx|
+          tx.run("CREATE (:Person {name: 'Thanos'})")
+          tx.run('UNWIND range(0, 1) AS i RETURN 10/i')
+          # tx.commit
         end
       end.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
     end
