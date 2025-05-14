@@ -22,51 +22,51 @@ RSpec.describe 'Session' do
   end
 
   it 'executes read transaction in read session' do
-    test_read_transaction(Neo4j::Driver::AccessMode::READ)
+    test_read_methods(Neo4j::Driver::AccessMode::READ, :read_transaction)
   end
 
   it 'executes read transaction in write session' do
-    test_read_transaction(Neo4j::Driver::AccessMode::WRITE)
+    test_read_methods(Neo4j::Driver::AccessMode::WRITE, :read_transaction)
   end
 
   it 'executes execute_read in read session' do
-    test_execute_read(Neo4j::Driver::AccessMode::READ)
+    test_read_methods(Neo4j::Driver::AccessMode::READ, :execute_read)
   end
 
   it 'executes execute_read in write session' do
-    test_execute_read(Neo4j::Driver::AccessMode::WRITE)
+    test_read_methods(Neo4j::Driver::AccessMode::WRITE, :execute_read)
   end
 
   it 'executes write transaction in read session' do
-    test_write_transaction(Neo4j::Driver::AccessMode::READ)
+    test_write_methods(Neo4j::Driver::AccessMode::READ, :write_transaction)
   end
 
   it 'executes write transaction in write session' do
-    test_write_transaction(Neo4j::Driver::AccessMode::WRITE)
+    test_write_methods(Neo4j::Driver::AccessMode::WRITE, :write_transaction)
   end
 
   it 'executes execute_write in read session' do
-    test_execute_write(Neo4j::Driver::AccessMode::READ)
+    test_write_methods(Neo4j::Driver::AccessMode::READ, :execute_write)
   end
 
   it 'executes execute_write in write session' do
-    test_execute_write(Neo4j::Driver::AccessMode::WRITE)
+    test_write_methods(Neo4j::Driver::AccessMode::WRITE, :execute_write)
   end
 
   it 'rolls back write transaction in read session when function throws exception' do
-    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ)
+    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ, :write_transaction)
   end
 
   it 'rolls back write transaction in write session when function throws exception' do
-    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE)
+    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE, :write_transaction)
   end
 
   it 'rolls back execute write in read session when function throws exception' do
-    test_tx_rollback_when_function_throws_exception_execute_write(Neo4j::Driver::AccessMode::READ)
+    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ, :execute_write)
   end
 
   it 'rolls back execute write in write session when function throws exception' do
-    test_tx_rollback_when_function_throws_exception_execute_write(Neo4j::Driver::AccessMode::WRITE)
+    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE, :execute_write)
   end
 
   class RaisingWork
@@ -1034,40 +1034,25 @@ RSpec.describe 'Session' do
     end
   end
 
-  def test_read_transaction(mode)
+  def test_read_methods(mode, method_name)
     driver.session do |session|
       session.run("CREATE (:Person {name: 'Tony Stark'})").consume
       session.run("CREATE (:Person {name: 'Steve Rogers'})").consume
     end
     driver.session(default_access_mode: mode) do |session|
-      names = session.read_transaction do |tx|
+      names = session.send(method_name) do |tx|
         tx.run('MATCH (p:Person) RETURN p.name AS name').collect do |result|
           result[:name]
         end
       end
+
       expect(names).to contain_exactly('Tony Stark', 'Steve Rogers')
     end
   end
 
-  # TODO: Maybe use define method for read_transaction/execute_read
-  def test_execute_read(mode)
-    driver.session do |session|
-      session.run("CREATE (:Person {name: 'Tony Stark'})").consume
-      session.run("CREATE (:Person {name: 'Steve Rogers'})").consume
-    end
+  def test_write_methods(mode, method_name)
     driver.session(default_access_mode: mode) do |session|
-      names = session.execute_read do |tx|
-        tx.run('MATCH (p:Person) RETURN p.name AS name').collect do |result|
-          result[:name]
-        end
-      end
-      expect(names).to contain_exactly('Tony Stark', 'Steve Rogers')
-    end
-  end
-
-  def test_write_transaction(mode)
-    driver.session(default_access_mode: mode) do |session|
-      session.write_transaction do |tx|
+      session.send(method_name) do |tx|
         node = tx.run("CREATE (s:Shield {material: 'Vibranium'}) RETURN s").next['s']
         expect(node.properties[:material]).to eq('Vibranium')
       end
@@ -1078,41 +1063,10 @@ RSpec.describe 'Session' do
     end
   end
 
-  def test_execute_write(mode)
-    driver.session(default_access_mode: mode) do |session|
-      session.execute_write do |tx|
-        node = tx.run("CREATE (s:Shield {material: 'Vibranium'}) RETURN s").next['s']
-        expect(node.properties[:material]).to eq('Vibranium')
-      end
-    end
-    driver.session do |session|
-      result = session.run('MATCH (s:Shield) RETURN s.material').next
-      expect(result['s.material']).to eq('Vibranium')
-    end
-  end
-
-  def test_tx_rollback_when_function_throws_exception(mode)
+  def test_tx_rollback_when_function_throws_exception(mode, method_name)
     driver.session(default_access_mode: mode) do |session|
       expect do
-        session.write_transaction do |tx|
-          tx.run("CREATE (:Person {name: 'Thanos'})")
-          tx.run('UNWIND range(0, 1) AS i RETURN 10/i')
-          tx.commit
-        end
-      end.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
-    end
-
-    driver.session do |session|
-      result = session.run("MATCH (p:Person {name: 'Thanos'}) RETURN count(p)").next
-      expect(result['count(p)']).to be_zero
-    end
-  end
-
-  # use metaprog for refactoring to remove method dublication
-  def test_tx_rollback_when_function_throws_exception_execute_write(mode)
-    driver.session(default_access_mode: mode) do |session|
-      expect do
-        session.execute_write do |tx|
+        session.send(method_name) do |tx|
           tx.run("CREATE (:Person {name: 'Thanos'})")
           tx.run('UNWIND range(0, 1) AS i RETURN 10/i')
           # tx.commit
