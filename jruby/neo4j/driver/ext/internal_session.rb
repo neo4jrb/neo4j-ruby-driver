@@ -5,6 +5,7 @@ module Neo4j
     module Ext
       module InternalSession
         extend AutoClosable
+        extend Gem::Deprecate
         include ConfigConverter
         include ExceptionCheckable
         include RunOverride
@@ -20,13 +21,17 @@ module Neo4j
             define_method(method_name) do |**config, &block|
               check do
                 super(
-                  ->(tx) { binding.pry; Struct::Wrapper.new(reverse_check { block.call(tx) }) },
+                  ->(tx) { Struct::Wrapper.new(reverse_check { block.call(tx) }) },
                   to_java_config(Neo4j::Driver::TransactionConfig, **config)
                 ).object
               end
             end
           end
         end
+
+        # TODO: Specify the date when the method will be removed
+        deprecate :read_transaction, "InternalSession#execute_read", 2026, 01
+        deprecate :write_transaction, "InternalSession#execute_write", 2026, 01
 
         # end work around
 
