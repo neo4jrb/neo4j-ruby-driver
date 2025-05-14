@@ -272,7 +272,7 @@ def add_employ_and_make_friends
   driver.session(Neo4j::Driver::AccessMode::WRITE, *saved_bookmarks) do |session3|
     session3.execute_write { |tx| make_friends(tx, 'Alice', 'Bob') }
 
-    session3.read_transaction(&method(:print_friends))
+    session3.execute_read(&method(:print_friends))
   end
 end
 
@@ -283,7 +283,7 @@ end
 def add_person(name)
   driver.session do |session|
     session.execute_write { |tx| create_person_node(tx, name) }
-    session.read_transaction { |tx| match_person_node(tx, name) }
+    session.execute_read { |tx| match_person_node(tx, name) }
   end
 end
 
@@ -369,7 +369,7 @@ end
 
 def people
   driver.session do |session|
-    session.read_transaction(&method(:match_person_nodes))
+    session.execute_read(&method(:match_person_nodes))
   end
 end
 
@@ -384,7 +384,7 @@ end
 
 def add_employees(company_name)
   driver.session do |session|
-    persons = session.read_transaction(&method(:match_person_nodes))
+    persons = session.execute_read(&method(:match_person_nodes))
 
     persons.sum do |person|
       session.writeTransaction do |tx|

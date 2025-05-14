@@ -108,7 +108,7 @@ RSpec.describe Neo4j::Driver do
   context '3. Sessions and transactions' do
     subject(:name) do
       driver.session(default_access_mode: Neo4j::Driver::AccessMode::READ) do |session|
-        session.read_transaction { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
+        session.execute_read { |tx| tx.run('MATCH (a:Person) RETURN a.name').single.first }
       end
     end
 
@@ -224,7 +224,7 @@ RSpec.describe Neo4j::Driver do
       driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: saved_bookmarks) do |session3|
         session3.execute_write { |tx| make_friends(tx, 'Alice', 'Bob') }
 
-        session3.read_transaction(&method(:print_friends))
+        session3.execute_read(&method(:print_friends))
       end
     end
 
@@ -235,7 +235,7 @@ RSpec.describe Neo4j::Driver do
     def add_person(name)
       driver.session do |session|
         session.execute_write { |tx| create_person_node(tx, name) }
-        session.read_transaction { |tx| match_person_node(tx, name) }
+        session.execute_read { |tx| match_person_node(tx, name) }
       end
     end
 
@@ -259,7 +259,7 @@ RSpec.describe Neo4j::Driver do
 
     it 'Example 4.2. Consuming the stream' do
       def people
-        driver.session { |session| session.read_transaction(&method(:match_person_nodes)) }
+        driver.session { |session| session.execute_read(&method(:match_person_nodes)) }
       end
 
       def match_person_nodes(tx)
@@ -272,7 +272,7 @@ RSpec.describe Neo4j::Driver do
     it 'Example 4.3. Retain results for further processing' do
       def add_employees(company_name)
         driver.session do |session|
-          persons = session.read_transaction(&method(:match_person_nodes))
+          persons = session.execute_read(&method(:match_person_nodes))
 
           persons.sum do |person|
             session.execute_write do |tx|
