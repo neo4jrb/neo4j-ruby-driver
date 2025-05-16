@@ -18,7 +18,9 @@ module Neo4j
         %i[read write].each do |mode|
           ["#{mode}_transaction", "execute_#{mode}"].each do |method_name|
             define_method(method_name) do |**config, &block|
-              log_deprecation_warning(method_name, mode) if method_name.include? 'transaction'
+              if method_name.include? 'transaction'
+                Neo4j::Driver::Internal::Deprecator.log_warning(method_name, "execute_#{mode}".to_sym, '6.0')
+              end
 
               check do
                 super(
@@ -41,13 +43,6 @@ module Neo4j
 
         def begin_transaction(**config)
           check { super(to_java_config(Neo4j::Driver::TransactionConfig, **config)) }
-        end
-
-        private
-
-        def log_deprecation_warning(method_name, mode)
-          @deprecator ||= ActiveSupport::Deprecation.new('6.0', 'neo4j-ruby-driver')
-          @deprecator.deprecation_warning(method_name, "execute_#{mode}".to_sym)
         end
       end
     end
