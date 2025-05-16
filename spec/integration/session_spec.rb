@@ -695,7 +695,7 @@ RSpec.describe 'Session' do
     expect(work.invoked).to eq 3
   end
 
-  def test_read_retries_failure(method_name)
+  def test_read_retries_until_failure(method_name)
     work = RaisingWork.new('MATCH (n) RETURN n.name', 3)
     driver.session do |session|
       expect { session.send(method_name, &work.to_proc) }
@@ -705,7 +705,7 @@ RSpec.describe 'Session' do
     expect(work.invoked).to eq 3
   end
 
-  def test_write_retries_failure(method_name)
+  def test_write_retries_until_failure(method_name)
     work = RaisingWork.new("CREATE (:Person {name: 'Ronan'})", 3)
     driver.session do |session|
       expect { session.send(method_name, &work.to_proc) }

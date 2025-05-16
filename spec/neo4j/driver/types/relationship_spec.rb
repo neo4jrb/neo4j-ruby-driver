@@ -3,7 +3,7 @@
 RSpec.describe Neo4j::Driver::Types::Relationship do
   subject do
     session = driver.session
-    session.write_transaction { |tx| tx.run('CREATE ()-[f:friend_of{strength: 1}]->() RETURN f').single.first }
+    session.execute_write { |tx| tx.run('CREATE ()-[f:friend_of{strength: 1}]->() RETURN f').single.first }
   ensure
     session&.close
   end

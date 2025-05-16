@@ -163,7 +163,7 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
     create_driver(leader.routing_uri, routing_table_purge_delay: 3.minutes) do |driver|
       database = 'neo4j'
       driver.session(database: database) do |session|
-        session.read_transaction { |tx| tx.run('RETURN 1').consume }
+        session.execute_read { |tx| tx.run('RETURN 1').consume }
       end
       expect(driver.session_factory.connection_provider.routing_table_registry
                    .routing_table_handler(database).routing_table.routers.to_a.size).to eq 3
@@ -181,7 +181,7 @@ RSpec.describe 'CausalClusteringSpec', causal: true do
         leader.bolt_address,
       ] }) do |driver|
       driver.session do |session|
-        expect(session.read_transaction { |tx| tx.run('RETURN 1').single.first }).to eq 1
+        expect(session.execute_read { |tx| tx.run('RETURN 1').single.first }).to eq 1
       end
     end
   end

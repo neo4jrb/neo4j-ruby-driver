@@ -44,10 +44,10 @@ RSpec.describe Neo4j::Driver do
     expect(result.first).to eq 'John'
   end
 
-  it 'raises type mismatch error read_transaction' do
+  it 'raises type mismatch error execute_read' do
     driver.session do |session|
       expect do
-        session.read_transaction do |tx|
+        session.execute_read do |tx|
           tx.run('MATCH (r) MATCH ()-[r]-() RETURN r')
         end
       end.to raise_error(Neo4j::Driver::Exceptions::ClientException, /Type mismatch:/)
@@ -66,11 +66,11 @@ RSpec.describe Neo4j::Driver do
 
   it 'raise exception on delete without detach' do
     driver.session do |session|
-      session.write_transaction do |tx|
+      session.execute_write do |tx|
         tx.run('CREATE (:Label)-[:REL]->()')
       end
       expect do
-        session.write_transaction do |tx|
+        session.execute_write do |tx|
           tx.run('MATCH (l:Label) DELETE l')
         end
       end.to raise_error(Neo4j::Driver::Exceptions::ClientException, /Cannot delete/)
@@ -80,7 +80,7 @@ RSpec.describe Neo4j::Driver do
 
   it 'accepts transaction config' do
     driver.session do |session|
-      session.read_transaction(timeout: 1.minute, metadata: { a: 1, b: 'string' }) do |tx|
+      session.execute_read(timeout: 1.minute, metadata: { a: 1, b: 'string' }) do |tx|
         expect(tx.run('RETURN 1').single.first).to eq 1
       end
     end
@@ -140,7 +140,7 @@ RSpec.describe Neo4j::Driver do
 
   it 'handles multiple queries in a transaction' do
     driver.session do |session|
-      session.read_transaction do |tx|
+      session.execute_read do |tx|
         tx.run('RETURN 1')
         expect(tx.run('RETURN 2').next.first).to eq 2
       end

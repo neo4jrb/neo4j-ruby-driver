@@ -3,7 +3,7 @@
 RSpec.describe Neo4j::Driver::GraphDatabase do
   def simple_query(driver)
     driver.session do |session|
-      session.read_transaction { |tx| tx.run('RETURN 1').single.first }
+      session.execute_read { |tx| tx.run('RETURN 1').single.first }
     end
   end
 

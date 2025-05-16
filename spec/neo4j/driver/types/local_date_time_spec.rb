@@ -22,7 +22,7 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
   describe 'cypher functions' do
     subject do
       driver.session do |session|
-        session.read_transaction { |tx| tx.run("RETURN #{function}").single.first }
+        session.execute_read { |tx| tx.run("RETURN #{function}").single.first }
       end
     end
 
@@ -39,7 +39,7 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
   describe 'localdatetime roundtrip ruby check' do
     subject do
       driver.session do |session|
-        session.read_transaction do |tx|
+        session.execute_read do |tx|
           dt = tx.run('RETURN localdatetime($param)', param: param).single.first
           dt == tx.run('RETURN $param', param: dt).single.first
         end
@@ -56,7 +56,7 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
   describe 'localdatetime roundtrip neo4j check' do
     subject do
       driver.session do |session|
-        session.read_transaction do |tx|
+        session.execute_read do |tx|
           dt = tx.run('RETURN localdatetime($param)', param: param).single.first
           tx.run('RETURN localdatetime($param) = $dt', param: param, dt: dt).single.first
         end
