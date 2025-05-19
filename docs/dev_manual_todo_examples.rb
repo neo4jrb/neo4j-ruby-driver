@@ -42,7 +42,7 @@ puts "Created #{summary.counters.nodes_created} records in #{summary.result_avai
 # Retrieve all Person nodes who know other Persons
 result = driver.execute_query(
   'MATCH (p:Person)-[:KNOWS]->(:Person)
-   RETURN p.name AS name',
+   RETURN p.name AS name'
 )
 
 records = result.records
@@ -123,7 +123,7 @@ driver.execute_query(
 # Retrieve the execution summary
 result = driver.execute_query(
   "UNWIND ['Alice', 'Bob'] AS name
-   MERGE (p:Person {name: name})",
+   MERGE (p:Person {name: name})"
 )
 
 puts result.summary
