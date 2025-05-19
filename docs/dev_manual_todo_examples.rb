@@ -61,8 +61,6 @@ puts "The query #{summary.query} returned #{records.size} records in #{summary.r
 result = driver.execute_query(
   'MATCH (p:Person {name: $name})
    SET p.age = $age',
-  nil,
-  { database: 'neo4j' },
   name: 'Alice',
   age: 42
 )
@@ -76,8 +74,6 @@ result = driver.execute_query(
   'MATCH (alice:Person {name: $name})
    MATCH (bob:Person {name: $friend})
    CREATE (alice)-[:KNOWS]->(bob)',
-  nil,
-  { database: 'neo4j' },
   name: 'Alice',
   friend: 'Bob'
 )
