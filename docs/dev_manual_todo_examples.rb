@@ -4,8 +4,8 @@
 
 result = driver.execute_query(
   'MATCH (p:Person {age: $age}) RETURN p.name AS name',
-  nil, # auth_token not specified
-  { database: 'neo4j' }, # config
+  nil, # auth_token not specified - nil may be omitted
+  { database: 'neo4j' }, # default value may be omitted
   age: 42
 )
 
@@ -28,8 +28,6 @@ result = driver.execute_query(
   'CREATE (a:Person {name: $name})
    CREATE (b:Person {friend: $name})
    CREATE (a)-[:KNOWS]->(b)',
-  nil,
-  { database: 'neo4j' },
   name: 'Alice',
   friend: 'David'
 )
@@ -45,8 +43,6 @@ puts "Created #{summary.counters.nodes_created} records in #{summary.result_avai
 result = driver.execute_query(
   'MATCH (p:Person)-[:KNOWS]->(:Person)
    RETURN p.name AS name',
-  nil,
-  { database: 'neo4j' }
 )
 
 records = result.records
@@ -98,14 +94,31 @@ puts summary.counters.contains_updates?
 result = driver.execute_query(
   'MATCH (p:Person {name: $name})
    DETACH DELETE p',
-  nil,
-  { database: 'neo4j' },
   name: 'Alice'
 )
 
 summary = result.summary
 puts "Query updated the database?"
 puts summary.counters.contains_updates?
+
+######################################
+# Query configuration
+######################################
+
+# Database selection
+driver.execute_query(
+  'MATCH (p:Person) RETURN p.name',
+  { database: 'neo4j' },
+  age: 42
+)
+
+# Run queries as a different user
+auth_token = Neo4j::Driver::AuthTokens.basic('another_user', 'password')
+driver.execute_query(
+  'MATCH (p:Person) RETURN p.name',
+  auth_token,
+  age: 42
+)
 
 ######################################
 # Summary
@@ -115,8 +128,6 @@ puts summary.counters.contains_updates?
 result = driver.execute_query(
   "UNWIND ['Alice', 'Bob'] AS name
    MERGE (p:Person {name: name})",
-  nil,
-  { database: 'neo4j' }
 )
 
 puts result.summary
@@ -125,8 +136,6 @@ puts result.summary
 result = driver.execute_query(
   "MERGE (p:Person {name: $name})
    MERGE (p)-[:KNOWS]->(:Person {name: $friend})",
-  nil,
-  { database: 'neo4j' },
   name: 'Mark',
   friend: 'Bob'
 )
@@ -136,8 +145,6 @@ puts query_counters
 # Query execution plan
 result = driver.execute_query(
   'EXPLAIN MATCH (p {name: $name}) RETURN p',
-  nil,
-  { database: 'neo4j' },
   name: 'Alice'
 )
 query_plan = result.summary.plan.arguments['string-representation']
@@ -147,8 +154,6 @@ puts query_plan
 result = driver.execute_query(
   "MATCH p=shortestPath((:Person {name: $start})-[*]->(:Person {name: $end}))
    RETURN p",
-  nil,
-  { database: 'neo4j' },
   start: 'Alice',
   end: 'Bob'
 )
@@ -159,8 +164,6 @@ puts notifications
 result = execute_query(
   "MATCH p=shortestPath((:Person {name: $start})-[*]->(:Person {name: $end}))
    RETURN p",
-  nil,
-  { database: 'neo4j' },
   start: 'Alice',
   end: 'Bob'
 )
