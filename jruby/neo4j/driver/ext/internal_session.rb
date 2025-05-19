@@ -16,19 +16,13 @@ module Neo4j
 
         # implementation of read_transaction, write_transaction, execute_read, execute_write
         %i[read write].each do |mode|
-          ["#{mode}_transaction", "execute_#{mode}"].each do |method_name|
-            define_method(method_name) do |**config, &block|
-              if method_name.include? 'transaction'
-                Neo4j::Driver::Internal::Deprecator.log_warning(method_name, "execute_#{mode}".to_sym, '6.0')
-              end
+          define_method("execute_#{mode}") do |**config, &block|
+            execute_transaction(__method__, **config, &block)
+          end
 
-              check do
-                super(
-                  ->(tx) { Struct::Wrapper.new(reverse_check { block.call(tx) }) },
-                  to_java_config(Neo4j::Driver::TransactionConfig, **config)
-                ).object
-              end
-            end
+          define_method("#{mode}_transaction") do |**config, &block|
+            Neo4j::Driver::Internal::Deprecator.log_warning("#{mode}_transaction", "execute_#{mode}".to_sym, '6.0')
+            execute_transaction(__method__, **config, &block)
           end
         end
 
@@ -43,6 +37,17 @@ module Neo4j
 
         def begin_transaction(**config)
           check { super(to_java_config(Neo4j::Driver::TransactionConfig, **config)) }
+        end
+
+        private
+
+        def execute_transaction(method, **config, &block)
+          check do
+            method(method)
+              .super_method
+              .call( ->(tx) { Struct::Wrapper.new(reverse_check { block.call(tx) }) }, to_java_config(Neo4j::Driver::TransactionConfig, **config))
+              .object
+          end
         end
       end
     end
