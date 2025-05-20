@@ -13,12 +13,13 @@ end
 
 HOE = Class.new(Hoe) do
   def read_manifest
-    Dir[*%w[README.md LICENSE.txt lib/neo4j-ruby-driver.rb lib/neo4j_ruby_driver.rb lib/neo4j-ruby-driver_loader.rb]] +
+    Dir[*%w[LICENSE.txt lib/neo4j-ruby-driver.rb lib/neo4j_ruby_driver.rb lib/neo4j-ruby-driver_loader.rb]] +
       Dir['lib/neo4j/**/*.rb'] +
       Dir["#{jruby? ? 'jruby' : 'ruby'}/**/*.rb"]
   end
 end.spec 'neo4j-ruby-driver' do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
+  self.urls = { home: 'https://github.com/neo4jrb/neo4j-ruby-driver' }
 
   active_support_version = ENV['ACTIVE_SUPPORT_VERSION']
   dependency 'activesupport', active_support_version&.length&.positive? ? "~> #{active_support_version}" : '>= 7.1'
