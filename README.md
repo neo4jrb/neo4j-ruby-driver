@@ -1,5 +1,7 @@
 # Neo4j Ruby Driver
 
+home :: https://github.com/neo4jrb/neo4j-ruby-driver
+
 This repository contains 2 implementation of a Neo4j driver for Ruby:
 
 - based on official Java implementation. It provides a thin wrapper over the Java driver (only on jruby).
