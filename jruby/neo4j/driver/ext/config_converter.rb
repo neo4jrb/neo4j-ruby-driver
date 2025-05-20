@@ -70,7 +70,7 @@ module Neo4j
           org.neo4j.driver.internal.InternalNotificationConfig.new(
             value_of(org.neo4j.driver.internal.InternalNotificationSeverity, minimum_severity),
             disabled_categories
-              &.map { |value| value_of(org.neo4j.driver.internal.InternalNotificationCategory, value) }
+              &.map { |value| org.neo4j.driver.NotificationCategory.const_get(value.to_s.upcase) }
               &.then(&java.util.HashSet.method(:new)))
         end
 

@@ -87,9 +87,15 @@ RSpec.describe Neo4j::Driver do
 
       it { is_expected.to be true }
     end
+
+    context 'Example 2.12. Notification config' do
+      let(:config) { { notification_config: { minimum_severity: :warning, disabled_categories: [:hint, :generic] } } }
+
+      it { is_expected.to be true }
+    end
   end
 
-  context 'Example 2.12. Service unavailable' do
+  context 'Example 2.13. Service unavailable' do
     def add_item(driver)
       session = driver.session
       session.write_transaction { |tx| tx.run('CREATE (a:Item)') }
@@ -291,6 +297,29 @@ RSpec.describe Neo4j::Driver do
       end
 
       expect(add_employees('abc')).to eq(2)
+    end
+  end
+
+  context '5. Notification config' do
+    subject do
+      driver.session do |session|
+        result = session.run(
+          'MATCH p=shortestPath((:Person {name: $start})-[*]->(:Person {name: $end})) RETURN p',
+          start: 'Alice',
+          end: 'Bob'
+        )
+        result.consume.notifications.first&.code
+      end
+    end
+
+    context 'Example 5.1. Default severity and categories' do
+      it { is_expected.to eq('Neo.ClientNotification.Statement.UnboundedVariableLengthPattern') }
+    end
+
+    context 'Example 5.2. Custom severity and categories' do
+      let(:config) { { notification_config: { minimum_severity: :warning, disabled_categories: [:hint, :generic] } } }
+
+      it { is_expected.not_to be nil }
     end
   end
 end
