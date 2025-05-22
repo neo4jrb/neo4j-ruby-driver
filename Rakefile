@@ -19,6 +19,7 @@ HOE = Class.new(Hoe) do
   end
 end.spec 'neo4j-ruby-driver' do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
+  self.urls = { 'home' => 'https://github.com/neo4jrb/neo4j-ruby-driver' }
 
   active_support_version = ENV['ACTIVE_SUPPORT_VERSION']
   dependency 'activesupport', active_support_version&.length&.positive? ? "~> #{active_support_version}" : '>= 7.1'
