@@ -4,7 +4,7 @@ RSpec.describe Neo4j::Driver::Types::Path do
   shared_examples 'path' do
     subject do
       driver.session do |session|
-        session.write_transaction do |tx|
+        session.execute_write do |tx|
           tx.run("CREATE p=#{path_fragment} RETURN p").single.first
         end
       end

@@ -2,7 +2,7 @@
 
 RSpec.describe 'Bookmark' do
   def create_node_in_tx(session)
-    session.write_transaction { |tx| tx.run('CREATE (a:Person)') }
+    session.execute_write { |tx| tx.run('CREATE (a:Person)') }
   end
 
   def preamble(session)
@@ -93,7 +93,7 @@ RSpec.describe 'Bookmark' do
   it 'fails on invalid bookmark using tx func' do
     bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
     driver.session(bookmarks: bookmark) do |session|
-      expect { session.read_transaction { |tx| tx.run('RETURN 1').single } }
+      expect { session.execute_read { |tx| tx.run('RETURN 1').single } }
         .to raise_error Neo4j::Driver::Exceptions::ClientException do |e|
         expect(e.code).to eq 'Neo.ClientError.Transaction.InvalidBookmark'
       end
