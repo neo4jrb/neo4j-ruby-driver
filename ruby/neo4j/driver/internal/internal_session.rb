@@ -48,11 +48,11 @@ module Neo4j::Driver
       end
 
       def execute_read(**config, &block)
-        transaction(AccessMode::READ, **config, &(->(tx) { block.call(DelegatingTransaction.new(tx)) }))
+        transaction(AccessMode::READ, **config) { |tx| block.call(DelegatingTransaction.new(tx)) }
       end
 
       def execute_write(**config, &block)
-        transaction(AccessMode::WRITE, **config, &(->(tx) { block.call(DelegatingTransaction.new(tx)) }))
+        transaction(AccessMode::WRITE, **config) { |tx| block.call(DelegatingTransaction.new(tx)) }
       end
 
       private

@@ -3,12 +3,10 @@
 module Neo4j::Driver
   module Internal
     class DelegatingTransaction
+      delegate :run, to: :@tx
+
       def initialize(tx)
         @tx = tx
-      end
-
-      def run(query, **parameters)
-        @tx.run(query, **parameters)
       end
     end
   end
