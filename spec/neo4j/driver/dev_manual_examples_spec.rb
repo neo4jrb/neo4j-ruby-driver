@@ -300,7 +300,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '5. Notification config' do
+  context '5. Notification config', concurrency: true do
     subject do
       driver.session do |session|
         result = session.run(
@@ -308,18 +308,26 @@ RSpec.describe Neo4j::Driver do
           start: 'Alice',
           end: 'Bob'
         )
-        result.consume.notifications.first&.code
+        result.consume.notifications.map(&:code)
       end
     end
 
+    let(:host) { 'localhost' } # work around for https://github.com/neo4j/neo4j-java-driver/issues/1652
+    let(:neo4j_user) { ENV.fetch('TEST_NEO4J_USER', 'neo4j') }
+    let(:neo4j_password) { ENV.fetch('TEST_NEO4J_PASS', 'password') }
+    let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password) }
+    let(:driver) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, **config) }
+
     context 'Example 5.1. Default severity and categories' do
-      it { is_expected.to eq('Neo.ClientNotification.Statement.UnboundedVariableLengthPattern') }
+      let(:config) { {} }
+
+      it { is_expected.to include('Neo.ClientNotification.Statement.UnboundedVariableLengthPattern') }
     end
 
     context 'Example 5.2. Custom severity and categories' do
       let(:config) { { notification_config: { minimum_severity: :warning, disabled_categories: [:hint, :generic] } } }
 
-      it { is_expected.not_to be nil }
+      it { is_expected.to be_empty }
     end
   end
 end
