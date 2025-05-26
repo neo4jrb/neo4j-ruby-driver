@@ -3,7 +3,7 @@
 RSpec.describe Neo4j::Driver do
   subject do
     driver.session do |session|
-      session.write_transaction { |tx| tx.run('RETURN $param', param: param).single.first }
+      session.execute_write { |tx| tx.run('RETURN $param', param: param).single.first }
     end
   end
 
