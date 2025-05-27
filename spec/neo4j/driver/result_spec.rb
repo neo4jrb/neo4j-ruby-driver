@@ -35,7 +35,7 @@ RSpec.describe 'Result' do
     driver.session do |session|
       session.run('UNWIND range(1, 100) AS x CREATE (:Property {id: x})').consume
       query = 'MATCH (p:Property) RETURN p'
-      session.read_transaction do |tx|
+      session.execute_read do |tx|
         expect(100.times.map { tx.run(query) }.map(&:to_a).flatten.map { |record| record[:p][:id] }.count).to eq 10_000
       end
     end

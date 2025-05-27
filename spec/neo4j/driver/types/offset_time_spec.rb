@@ -23,7 +23,7 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
   describe 'cypher functions' do
     subject do
       driver.session do |session|
-        session.write_transaction { |tx| tx.run("RETURN #{function}").single.first }
+        session.execute_write { |tx| tx.run("RETURN #{function}").single.first }
       end
     end
 
@@ -47,7 +47,7 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
   describe 'offset_time roundtrip ruby check' do
     subject do
       driver.session do |session|
-        session.write_transaction do |tx|
+        session.execute_write do |tx|
           dt = tx.run('RETURN time($param)', param: param).single.first
           dt == tx.run('RETURN $param', param: dt).single.first
         end
@@ -64,7 +64,7 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
   describe 'offset_time roundtrip neo4j check' do
     subject do
       driver.session do |session|
-        session.write_transaction do |tx|
+        session.execute_write do |tx|
           dt = tx.run('RETURN time($param)', param: param).single.first
           tx.run('RETURN time($param) = $dt', param: param, dt: dt).single.first
         end

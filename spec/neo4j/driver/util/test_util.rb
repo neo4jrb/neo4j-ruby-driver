@@ -13,7 +13,7 @@ module Neo4j
 
         def count_nodes(driver, bookmark)
           driver.session(bookmarks: bookmark) do |session|
-            session.read_transaction { |tx| tx.run('MATCH (n) RETURN count(n)').single.first }
+            session.execute_read { |tx| tx.run('MATCH (n) RETURN count(n)').single.first }
           end
         end
 
@@ -24,7 +24,7 @@ module Neo4j
         end
 
         def delete_batch_of_nodes(session)
-          session.write_transaction do |tx|
+          session.execute_write do |tx|
             tx.run('MATCH (n) WITH n LIMIT 10000 DETACH DELETE n RETURN count(n)').single.first
           end
         end
