@@ -11,6 +11,19 @@ module Neo4j
 
         auto_closable :session
 
+        def execute_query(query, auth_token = nil, config = {}, **parameters)
+          java_method(:executableQuery, [java.lang.String])
+            .call(query)
+            .java_method(:withParameters, [java.util.Map])
+            .call(parameters)
+            .java_method(:withAuthToken, [org.neo4j.driver.AuthToken])
+            .call(auth_token)
+            .java_method(:withConfig, [org.neo4j.driver.QueryConfig])
+            .call(to_java_config(Neo4j::Driver::QueryConfig, **config))
+            .java_method(:execute, [])
+            .call
+        end
+
         def session(**session_config)
           java_method(:session, [org.neo4j.driver.SessionConfig])
             .call(to_java_config(Neo4j::Driver::SessionConfig, **session_config))
