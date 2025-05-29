@@ -67,22 +67,15 @@ module Neo4j
         end
 
         def notification_config(minimum_severity: nil, disabled_categories: nil)
-          config = org.neo4j.driver.NotificationConfig.defaultConfig
+          org.neo4j.driver.internal.InternalNotificationConfig.new(
+            value_of(org.neo4j.driver.internal.InternalNotificationSeverity, minimum_severity).or_else(nil),
+            disabled_categories
+              &.map { |value| value_of(org.neo4j.driver.NotificationClassification, value) }
+              &.then(&java.util.HashSet.method(:new)))
+        end
 
-          if minimum_severity
-            config = config.enableMinimumSeverity(
-              org.neo4j.driver.NotificationSeverity.java_class.field(minimum_severity.upcase).value(nil)
-            )
-          end
-
-          if disabled_categories&.any?
-            config = config.disableCategories(
-              disabled_categories
-                .map { |value| org.neo4j.driver.NotificationClassification.value_of(value.upcase) }
-                .then(&java.util.HashSet.method(:new)))
-          end
-
-          config
+        def value_of(klass, value)
+          klass.value_of(value&.to_s&.upcase)
         end
       end
     end
