@@ -26,7 +26,7 @@ puts "The query #{summary.query.text} returned #{records.size} records in #{summ
 # Create two nodes and a relationship
 result = driver.execute_query(
   'CREATE (a:Person {name: $name})
-   CREATE (b:Person {friend: $name})
+   CREATE (b:Person {name: $friend})
    CREATE (a)-[:KNOWS]->(b)',
   name: 'Alice',
   friend: 'David'
@@ -104,6 +104,7 @@ puts summary.counters.contains_updates?
 # Database selection
 driver.execute_query(
   'MATCH (p:Person) RETURN p.name',
+  nil,
   { database: 'neo4j' },
   age: 42
 )
@@ -157,7 +158,7 @@ notifications = result.summary.notifications
 puts notifications
 
 # Notifications with GQL status codes
-result = execute_query(
+result = driver.execute_query(
   "MATCH p=shortestPath((:Person {name: $start})-[*]->(:Person {name: $end}))
    RETURN p",
   start: 'Alice',
