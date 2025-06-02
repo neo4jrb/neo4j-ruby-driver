@@ -15,7 +15,7 @@ module Neo4j
           java_method(:executableQuery, [java.lang.String])
             .call(query)
             .java_method(:withParameters, [java.util.Map])
-            .call(parameters)
+            .call(parameters.transform_keys(&:to_s))
             .java_method(:withAuthToken, [org.neo4j.driver.AuthToken])
             .call(auth_token)
             .java_method(:withConfig, [org.neo4j.driver.QueryConfig])
