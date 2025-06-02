@@ -74,13 +74,9 @@ The command below runs the latest Neo4j version in Docker, setting the admin use
 
 ```bash
 docker run \
-        # forward port 7474 (HTTP)
         -p7474:7474 \
-        # forward port 7687 (Bolt)
         -p7687:7687 \
-        # run in background
         -d \
-        # set login credentials
         -e NEO4J_AUTH=neo4j/password \
         neo4j:latest
 ```
