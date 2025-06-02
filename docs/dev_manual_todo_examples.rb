@@ -4,8 +4,8 @@
 
 result = driver.execute_query(
   'MATCH (p:Person {age: $age}) RETURN p.name AS name',
-  nil, # auth_token not specified - nil may be omitted
-  { database: 'neo4j' }, # default value may be omitted
+  nil, # auth_token - positional argument can't be omitted when config is provided
+  { database: 'neo4j' }, # config - default value may be omitted
   age: 42
 )
 
