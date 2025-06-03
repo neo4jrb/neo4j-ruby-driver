@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver do
+RSpec.describe Neo4j::Driver, concurrency: true do
 
   describe '#execute_query' do
     context 'when querying the database' do
