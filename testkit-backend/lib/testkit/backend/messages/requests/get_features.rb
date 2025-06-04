@@ -19,7 +19,7 @@ module Testkit::Backend::Messages
           'Feature:API:Result.List' => 'ja',
           'Feature:API:Result.Peek' => 'ja',
           'Feature:API:Result.Single' => 'ja',
-          'Feature:API:Result.SingleOptional' => '',
+          'Feature:API:Result.SingleOptional' => 'jar',
           'Feature:API:RetryableExceptions' => '',
           'Feature:API:Session:AuthConfig' => 'a',
           'Feature:API:Session:NotificationsConfig' => 'a',
