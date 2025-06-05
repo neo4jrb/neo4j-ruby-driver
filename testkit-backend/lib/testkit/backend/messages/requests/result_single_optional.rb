@@ -2,12 +2,8 @@ module Testkit::Backend::Messages
   module Requests
     class ResultSingleOptional < Request
       def process
-        result = fetch(result_id)
-        record = begin
-          { values: result.single.values.map(&method(:to_testkit)) }
-        rescue Neo4j::Driver::Exceptions::NoSuchRecordException
-          nil
-        end
+        record = fetch(result_id).first
+        record = { values: record.values.map(&method(:to_testkit)) } if record
         named_entity('RecordOptional', record:, warnings: [])
       end
     end
