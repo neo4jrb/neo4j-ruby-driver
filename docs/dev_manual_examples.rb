@@ -13,7 +13,7 @@
 Neo4j::Driver::GraphDatabase.driver("bolt://#{ENV['TEST_NEO4J_HOST']}:7687",
                                     Neo4j::Driver::AuthTokens.basic('neo4j', 'pass')) do |driver|
   driver.session do |session|
-    greeting = session.write_transaction do |tx|
+    greeting = session.execute_write do |tx|
       result = tx.run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
                       message: 'hello, world')
       result.single.first
@@ -252,27 +252,27 @@ def add_employ_and_make_friends
 
   # Create the first person and employment relationship.
   driver.session(Neo4j::Driver::AccessMode::WRITE) do |session1|
-    session1.write_transaction { |tx| add_company(tx, 'Wayne Enterprises') }
-    session1.write_transaction { |tx| add_person(tx, 'Alice') }
-    session1.write_transaction { |tx| employ(tx, 'Alice', 'Wayne Enterprises') }
+    session1.execute_write { |tx| add_company(tx, 'Wayne Enterprises') }
+    session1.execute_write { |tx| add_person(tx, 'Alice') }
+    session1.execute_write { |tx| employ(tx, 'Alice', 'Wayne Enterprises') }
 
     saved_bookmarks << session1.last_bookmark
   end
 
   # Create the second person and employment relationship.
   driver.session(Neo4j::Driver::AccessMode::WRITE) do |session2|
-    session2.write_transaction { |tx| add_company(tx, 'LexCorp') }
-    session2.write_transaction { |tx| add_person(tx, 'Bob') }
-    session2.write_transaction { |tx| employ(tx, 'Bob', 'LexCorp') }
+    session2.execute_write { |tx| add_company(tx, 'LexCorp') }
+    session2.execute_write { |tx| add_person(tx, 'Bob') }
+    session2.execute_write { |tx| employ(tx, 'Bob', 'LexCorp') }
 
     saved_bookmarks << session2.last_bookmark
   end
 
   # Create a friendship between the two people created above.
   driver.session(Neo4j::Driver::AccessMode::WRITE, *saved_bookmarks) do |session3|
-    session3.write_transaction { |tx| make_friends(tx, 'Alice', 'Bob') }
+    session3.execute_write { |tx| make_friends(tx, 'Alice', 'Bob') }
 
-    session3.read_transaction(&method(:print_friends))
+    session3.execute_read(&method(:print_friends))
   end
 end
 
@@ -282,8 +282,8 @@ end
 
 def add_person(name)
   driver.session do |session|
-    session.write_transaction { |tx| create_person_node(tx, name) }
-    session.read_transaction { |tx| match_person_node(tx, name) }
+    session.execute_write { |tx| create_person_node(tx, name) }
+    session.execute_read { |tx| match_person_node(tx, name) }
   end
 end
 
@@ -343,7 +343,7 @@ end
 
 def add_person(name)
   driver.session do |session|
-    session.write_transaction { |tx| create_person_node(tx, name) }
+    session.execute_write { |tx| create_person_node(tx, name) }
   end
 end
 
@@ -369,7 +369,7 @@ end
 
 def people
   driver.session do |session|
-    session.read_transaction(&method(:match_person_nodes))
+    session.execute_read(&method(:match_person_nodes))
   end
 end
 
@@ -384,7 +384,7 @@ end
 
 def add_employees(company_name)
   driver.session do |session|
-    persons = session.read_transaction(&method(:match_person_nodes))
+    persons = session.execute_read(&method(:match_person_nodes))
 
     persons.sum do |person|
       session.writeTransaction do |tx|
@@ -409,7 +409,7 @@ end
 
 def add_person(name)
   driver.session do |session|
-    session.write_transaction(max_transaction_retry_time: 5.seconds) { |tx| create_person_node(tx, name) }
+    session.execute_write(max_transaction_retry_time: 5.seconds) { |tx| create_person_node(tx, name) }
   end
 end
 
@@ -423,7 +423,7 @@ end
 
 def add_item
   driver.session do |session|
-    session.write_transaction do |tx|
+    session.execute_write do |tx|
       tx.run('CREATE (a:Item)')
       true
     end
@@ -438,7 +438,7 @@ end
 
 def add_person(name)
   driver.session do |session|
-    session.write_transaction do |tx|
+    session.execute_write do |tx|
       tx.run('CREATE (a:Person {name: $name})', name: name)
     end
   end

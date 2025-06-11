@@ -19,6 +19,7 @@ HOE = Class.new(Hoe) do
   end
 end.spec 'neo4j-ruby-driver' do
   developer 'Heinrich Klobuczek', 'heinrich@mail.com'
+  self.urls = { 'home' => 'https://github.com/neo4jrb/neo4j-ruby-driver' }
 
   active_support_version = ENV['ACTIVE_SUPPORT_VERSION']
   dependency 'activesupport', active_support_version&.length&.positive? ? "~> #{active_support_version}" : '>= 7.1'
@@ -43,10 +44,10 @@ end.spec 'neo4j-ruby-driver' do
   if jruby?
     dependency 'async', '< 2', :dev
     dependency 'concurrent-ruby-edge', '>= 0.6.0'
-    dependency 'jar-dependencies', '0.4.1'
+    dependency 'jar-dependencies', '>= 0.5.5'
     dependency 'ruby-maven', '>= 0', :dev
 
-    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 5.27.0' }
+    spec_extras[:requirements] = ->(requirements) { requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 5.28.4' }
     spec_extras[:platform] = 'java'
   else
     dependency 'async', '>= 2.13'

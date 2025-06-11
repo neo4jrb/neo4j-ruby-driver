@@ -38,14 +38,28 @@ module Neo4j::Driver
       end
 
       def read_transaction(**config, &block)
+        Deprecator.log_warning(:read_transaction, :execute_read, '6.0')
         transaction(AccessMode::READ, **config, &block)
       end
 
       def write_transaction(**config, &block)
+        Deprecator.log_warning(:write_transaction, :execute_write, '6.0')
         transaction(AccessMode::WRITE, **config, &block)
       end
 
+      def execute_read(**config, &block)
+        delegating_transaction(AccessMode::READ, **config, &block)
+      end
+
+      def execute_write(**config, &block)
+        delegating_transaction(AccessMode::WRITE, **config, &block)
+      end
+
       private
+
+      def delegating_transaction(mode, **config, &block)
+        transaction(mode, **config) { |tx| block.call(DelegatingTransaction.new(tx)) }
+      end
 
       def transaction(mode, **config)
         # use different code path compared to async so that work is executed in the caller thread

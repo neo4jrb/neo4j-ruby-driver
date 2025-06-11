@@ -41,4 +41,5 @@ RSpec.configure do |config|
   config.filter_run_excluding version: method(:not_version?)
   config.filter_run_excluding concurrency: true unless RUBY_PLATFORM == 'java'
   config.exclude_pattern = 'spec/ruby/**/*_spec.rb' if RUBY_PLATFORM == 'java'
+  Neo4j::Driver::Internal::Deprecator.deprecator.behavior = :silence
 end

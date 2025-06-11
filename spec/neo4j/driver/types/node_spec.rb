@@ -3,7 +3,7 @@
 RSpec.describe Neo4j::Driver::Types::Node do
   subject do
     driver.session do |session|
-      session.write_transaction do |tx|
+      session.execute_write do |tx|
         tx.run('CREATE (p:Person{created: $date}) RETURN p', date: date).single.first
       end
     end
@@ -11,7 +11,7 @@ RSpec.describe Neo4j::Driver::Types::Node do
 
   let(:updated) do
     driver.session do |session|
-      session.write_transaction do |tx|
+      session.execute_write do |tx|
         tx.run('MATCH (p:Person) SET p.updated = $date RETURN p', date: date + 2.days).single.first
       end
     end
@@ -19,7 +19,7 @@ RSpec.describe Neo4j::Driver::Types::Node do
 
   let(:other) do
     driver.session do |session|
-      session.write_transaction do |tx|
+      session.execute_write do |tx|
         tx.run('CREATE (p:Person{created: $date}) RETURN p', date: date).single.first
       end
     end

@@ -4,7 +4,7 @@ RSpec.describe ActiveSupport::Duration do
   describe 'param' do
     subject(:result) do
       driver.session do |session|
-        session.read_transaction { |tx| tx.run('RETURN $param', param: param).single.first }
+        session.execute_read { |tx| tx.run('RETURN $param', param: param).single.first }
       end
     end
 
@@ -74,7 +74,7 @@ RSpec.describe ActiveSupport::Duration do
   describe 'cypher functions' do
     subject(:result) do
       driver.session do |session|
-        session.read_transaction { |tx| tx.run("RETURN duration('#{duration}')").single.first }
+        session.execute_read { |tx| tx.run("RETURN duration('#{duration}')").single.first }
       end
     end
 
@@ -146,7 +146,7 @@ RSpec.describe ActiveSupport::Duration do
   describe 'roundtrip ruby check' do
     subject do
       driver.session do |session|
-        session.read_transaction do |tx|
+        session.execute_read do |tx|
           dt = tx.run('RETURN duration($param)', param: param).single.first
           dt == tx.run('RETURN $param', param: dt).single.first
         end
@@ -159,7 +159,7 @@ RSpec.describe ActiveSupport::Duration do
   describe 'roundtrip neo4j check' do
     subject do
       driver.session do |session|
-        session.read_transaction do |tx|
+        session.execute_read do |tx|
           dt = tx.run('RETURN duration($param)', param: param).single.first
           tx.run('RETURN duration($param) = $dt', param: param, dt: dt).single.first
         end

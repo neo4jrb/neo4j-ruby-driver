@@ -17,11 +17,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: [ jruby, ruby ]
-        neo4j: [ 4.4.39, 5.26.0 ]
+        ruby: [ jruby-9.4.12.0, jruby, ruby ]
+        neo4j: [ 4.4.42, 5.26.5, 2025.03.0 ]
         include:
           - ruby: jruby
-            java-version: 17
+            java-version: 21
     env:
       NEO4J_VERSION: ${{ matrix.neo4j }}
     steps:
@@ -35,6 +35,9 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+
+      - name: Install ruby-maven
+        run: gem install ruby-maven
 
       - name: Create .m2 directory
         run: mkdir -p $HOME/.m2
