@@ -4,12 +4,12 @@ module Neo4j
   module Driver
     module Ext
       module InternalSession
-        extend AutoClosable
+        extend AutoCloseable
         include ConfigConverter
         include ExceptionCheckable
         include RunOverride
 
-        auto_closable :begin_transaction
+        auto_closeable :begin_transaction
 
         # work around jruby issue https://github.com/jruby/jruby/issues/5603
         Struct.new('Wrapper', :object)
