@@ -3,8 +3,8 @@
 module Neo4j::Driver
   class GraphDatabase
     class << self
-      extend AutoClosable
-      auto_closable :driver, :routing_driver
+      extend AutoCloseable
+      auto_closeable :driver, :routing_driver
 
       def driver(uri, auth_token = nil, **config)
         internal_driver(uri, auth_token, config)

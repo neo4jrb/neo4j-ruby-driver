@@ -2,8 +2,8 @@
 
 module Neo4j
   module Driver
-    module AutoClosable
-      def auto_closable(*methods)
+    module AutoCloseable
+      def auto_closeable(*methods)
         prepend with_block_definer(methods)
       end
 
@@ -13,15 +13,15 @@ module Neo4j
         Module.new do
           methods.each do |method|
             define_method(method) do |*args, **kwargs, &block|
-              closable = super(*args, **kwargs)
+              closeable = super(*args, **kwargs)
               if block
                 begin
-                  block.arity.zero? ? closable.instance_eval(&block) : block.call(closable)
+                  block.arity.zero? ? closeable.instance_eval(&block) : block.call(closeable)
                 ensure
-                  closable&.close
+                  closeable&.close
                 end
               else
-                closable
+                closeable
               end
             end
           end
