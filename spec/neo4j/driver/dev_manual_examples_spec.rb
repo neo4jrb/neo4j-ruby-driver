@@ -300,7 +300,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '5. Notification config', version: '>=5', concurrency: true do
+  context '5. Notification config', version: '>=5' do
     subject do
       driver.session do |session|
         result = session.run(
@@ -313,10 +313,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     let(:host) { 'localhost' } # work around for https://github.com/neo4j/neo4j-java-driver/issues/1652
-    let(:neo4j_user) { ENV.fetch('TEST_NEO4J_USER', 'neo4j') }
-    let(:neo4j_password) { ENV.fetch('TEST_NEO4J_PASS', 'password') }
-    let(:auth_tokens) { Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password) }
-    let(:driver) { Neo4j::Driver::GraphDatabase.driver(uri, auth_tokens, **config) }
+    let(:driver) { Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, **config) }
 
     context 'Example 5.1. Default severity and categories' do
       let(:config) { {} }
