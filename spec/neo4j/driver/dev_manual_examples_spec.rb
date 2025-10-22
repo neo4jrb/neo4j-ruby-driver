@@ -300,7 +300,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '5. Notification config', version: '>=5' do
+  context '5. Notification config', version: '>=5', jruby: true do
     subject do
       driver.session do |session|
         result = session.run(
