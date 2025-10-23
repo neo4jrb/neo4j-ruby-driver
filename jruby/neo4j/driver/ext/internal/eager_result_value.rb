@@ -3,10 +3,13 @@
 module Neo4j
   module Driver
     module Ext
-      module EagerResultValue
-        include InternalKeys
-        def records
-          super.to_a
+      module Internal
+        module EagerResultValue
+          include InternalKeys
+
+          def records
+            super.to_a
+          end
         end
       end
     end
