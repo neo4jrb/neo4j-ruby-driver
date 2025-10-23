@@ -15,6 +15,7 @@ module Neo4j
   module Driver
     Loader.load
 
+    EagerResult = Neo4j::Driver::Internal::EagerResultValue
     Record = Neo4j::Driver::Internal::InternalRecord
     Result = Neo4j::Driver::Internal::InternalResult
     Transaction = Neo4j::Driver::Internal::InternalTransaction

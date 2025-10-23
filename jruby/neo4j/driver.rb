@@ -10,6 +10,7 @@ module Neo4j
 
     include_package 'org.neo4j.driver'
 
+    EagerResult = Neo4j::Driver::Internal::EagerResultValue
     Record = Java::OrgNeo4jDriverInternal::InternalRecord
     Result = Java::OrgNeo4jDriverInternal::InternalResult
     Transaction = Java::OrgNeo4jDriverInternal::InternalTransaction
@@ -39,6 +40,7 @@ Java::OrgNeo4jDriver::AuthTokens.singleton_class.prepend Neo4j::Driver::Ext::Aut
 Java::OrgNeo4jDriver::Bookmark.singleton_class.prepend Neo4j::Driver::Ext::Bookmark::ClassMethods
 Java::OrgNeo4jDriver::GraphDatabase.singleton_class.prepend Neo4j::Driver::Ext::GraphDatabase
 Java::OrgNeo4jDriver::Query.prepend Neo4j::Driver::Ext::Query
+Java::OrgNeo4jDriverInternal::EagerResultValue.prepend Neo4j::Driver::Ext::Internal::EagerResultValue
 Java::OrgNeo4jDriverInternal::InternalBookmark.prepend Neo4j::Driver::Ext::Internal::InternalBookmark
 Java::OrgNeo4jDriverInternal::InternalDriver.prepend Neo4j::Driver::Ext::InternalDriver
 Java::OrgNeo4jDriverInternal::InternalEntity.include Neo4j::Driver::Ext::InternalEntity
