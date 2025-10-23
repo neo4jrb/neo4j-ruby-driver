@@ -2,7 +2,7 @@
 
 RSpec.describe Neo4j::Driver do
 
-  describe '#execute_query' do
+  describe '#execute_query', version: '>=5' do
     context 'when querying the database' do
       it 'accepts query with default auth_token, config hash and parameters' do
         expect {
