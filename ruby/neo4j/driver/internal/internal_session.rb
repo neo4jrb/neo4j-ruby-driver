@@ -1,11 +1,11 @@
 module Neo4j::Driver
   module Internal
     class InternalSession
-      extend AutoClosable
+      extend AutoCloseable
       extend Synchronizable
       # include Ext::RunOverride
       delegate :open?, :last_bookmark, to: :@session
-      auto_closable :begin_transaction
+      auto_closeable :begin_transaction
       sync :close, :begin_transaction, :run, :transaction
 
       def initialize(session)

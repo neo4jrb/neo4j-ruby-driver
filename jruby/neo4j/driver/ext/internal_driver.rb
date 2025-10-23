@@ -4,12 +4,12 @@ module Neo4j
   module Driver
     module Ext
       module InternalDriver
-        extend AutoClosable
+        extend AutoCloseable
         include ConfigConverter
         include ExceptionCheckable
         include AsyncConverter
 
-        auto_closable :session
+        auto_closeable :session
 
         def execute_query(query, auth_token = nil, config = {}, **parameters)
           check do

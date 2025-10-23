@@ -68,14 +68,14 @@ module Neo4j
 
         def notification_config(minimum_severity: nil, disabled_categories: nil)
           org.neo4j.driver.internal.InternalNotificationConfig.new(
-            value_of(org.neo4j.driver.internal.InternalNotificationSeverity, minimum_severity),
+            value_of(org.neo4j.driver.internal.InternalNotificationSeverity, minimum_severity).or_else(nil),
             disabled_categories
-              &.map { |value| value_of(org.neo4j.driver.internal.InternalNotificationCategory, value) }
+              &.map { |value| value_of(org.neo4j.driver.NotificationClassification, value) }
               &.then(&java.util.HashSet.method(:new)))
         end
 
         def value_of(klass, value)
-          klass.value_of(value&.to_s&.upcase).or_else(nil)
+          klass.value_of(value&.to_s&.upcase)
         end
       end
     end
