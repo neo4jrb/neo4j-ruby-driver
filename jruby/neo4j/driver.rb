@@ -10,7 +10,7 @@ module Neo4j
 
     include_package 'org.neo4j.driver'
 
-    EagerResult = Neo4j::Driver::Internal::EagerResultValue
+    EagerResult = Java::OrgNeo4jDriverInternal::EagerResultValue
     Record = Java::OrgNeo4jDriverInternal::InternalRecord
     Result = Java::OrgNeo4jDriverInternal::InternalResult
     Transaction = Java::OrgNeo4jDriverInternal::InternalTransaction
