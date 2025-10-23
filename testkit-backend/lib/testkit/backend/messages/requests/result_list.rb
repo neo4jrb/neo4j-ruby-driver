@@ -1,15 +1,7 @@
 module Testkit::Backend::Messages
   module Requests
     class ResultList < Request
-      def process
-        result = fetch(result_id)
-        named_entity('RecordList', records: result.to_a.map do |record|
-          { values: record.values.map do |value|
-            to_testkit(value)
-          end }
-        end
-        )
-      end
+      def process = named_entity('RecordList', records: fetch(result_id).to_a.map { Responses::Record.new(it).data })
     end
   end
 end

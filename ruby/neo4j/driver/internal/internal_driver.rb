@@ -25,6 +25,15 @@ module Neo4j::Driver
         InternalAsyncSession.new(new_session(**session_config))
       end
 
+      def execute_query(query, auth_token = nil, config = {}, **parameters)
+        # TODO: auth_token not implemented yet
+        session(**config.slice(:bookmarks, :database, :impersonated_user, :default_access_mode, :fetch_size)) do |session|
+          session.run(query, parameters, config.slice(:timeout, :metadata)).then do
+            EagerResultValue.new(it.keys, it.to_a, it.consume)
+          end
+        end
+      end
+
       def encrypted?
         assert_open!
         @security_plan.requires_encryption?
