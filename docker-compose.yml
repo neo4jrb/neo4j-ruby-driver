@@ -1,0 +1,43 @@
+version: '3'
+x-environment: &environment
+  TEST_NEO4J_HOST: neo4j
+  TEST_NEO4J_PORT: 7687
+  TEST_NEO4J_USER: neo4j
+  TEST_NEO4J_PASS: pass
+  TEST_NEO4J_SCHEME: bolt
+  TEST_NEO4J_DATABASE: neo4j
+  NEO4J_VERSION: 5.26.0
+
+services:
+  ruby-driver:
+    build:
+      context: .
+      dockerfile: Dockerfile-ruby
+      args: 
+        JAVA_VERSION: 21
+    volumes:
+      - .:/driver
+    links:
+      - neo4j
+    environment:
+      <<: *environment
+  jruby-driver:
+    build:
+      context: .
+      dockerfile: Dockerfile-jruby
+      args: 
+        JAVA_VERSION: 21
+    volumes:
+      - .:/driver
+    links:
+      - neo4j
+    environment: 
+      <<: *environment
+  neo4j:
+    image: neo4j:4.4.5-enterprise
+    ports:
+      - 7474:7474
+      - 7687:7687
+    environment:
+      - NEO4J_AUTH=neo4j/pass
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes

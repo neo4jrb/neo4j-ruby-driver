@@ -18,13 +18,11 @@ module DriverHelper
       Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password)
     end
 
-    def neo4j_user
-      ENV.fetch('TEST_NEO4J_USER', 'neo4j')
-    end
+    def neo4j_user = ENV.fetch('TEST_NEO4J_USER', 'neo4j')
 
-    def neo4j_password
-      ENV.fetch('TEST_NEO4J_PASS', 'password')
-    end
+    def neo4j_password = ENV.fetch('TEST_NEO4J_PASS', 'password')
+
+    def database = ENV.fetch('TEST_NEO4J_DATABASE', 'neo4j')
 
     def driver
       self.single_driver ||= Neo4j::Driver::GraphDatabase.driver(

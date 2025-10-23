@@ -3,7 +3,7 @@ module Neo4j::Driver
     module Handlers
       module Pulln
         class AutoPullResponseHandler < BasicPullResponseHandler
-          delegate :signal, to: :@records
+          delegate :signal, to: :@queue_notification
           LONG_MAX_VALUE = 2 ** 63 - 1
 
           def initialize(query, run_response_handler, connection, metadata_extractor, completion_listener, fetch_size)
@@ -19,7 +19,8 @@ module Neo4j::Driver
               @low_record_watermark = fetch_size * 0.3
             end
 
-            @records = ::Async::Queue.new
+            @queue_notification = ::Async::Notification.new
+            @records = ::Async::Queue.new(available: @queue_notification)
             @auto_pull_enabled = true
 
             install_record_and_summary_consumers
