@@ -4,11 +4,11 @@ module Neo4j
   module Driver
     module Ext
       module GraphDatabase
-        extend AutoClosable
+        extend AutoCloseable
         include ConfigConverter
         include ExceptionCheckable
 
-        auto_closable :driver
+        auto_closeable :driver
 
         def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, **config)
           check do
