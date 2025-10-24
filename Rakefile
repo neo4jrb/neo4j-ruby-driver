@@ -24,6 +24,7 @@ end.spec 'neo4j-ruby-driver' do
   active_support_version = ENV['ACTIVE_SUPPORT_VERSION']
   dependency 'activesupport', active_support_version&.length&.positive? ? "~> #{active_support_version}" : '>= 7.1'
   # dependency 'async-rspec', '>= 0', :dev
+  dependency 'csv', '>= 3.0'
   dependency 'ffaker', '>= 0', :dev
   dependency 'hoe', '>= 0', :dev
   dependency 'hoe-bundler', '>= 0', :dev
@@ -32,7 +33,6 @@ end.spec 'neo4j-ruby-driver' do
   dependency 'rspec-its', '>= 0', :dev
   dependency 'rspec-mocks', '>= 0', :dev
   dependency 'zeitwerk', '>= 2.1.10'
-  dependency 'csv', '>= 3.0'
 
   spec_extras[:require_paths] = ['lib', jruby? ? 'jruby' : 'ruby']
 
