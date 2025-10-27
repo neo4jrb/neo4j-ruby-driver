@@ -25,7 +25,7 @@ module Testkit::Backend::Messages
       end
     end
 
-    def value_entity(name, object)
+    def self.value_entity(name, object)
       named_entity(name, value: object)
     end
   end
