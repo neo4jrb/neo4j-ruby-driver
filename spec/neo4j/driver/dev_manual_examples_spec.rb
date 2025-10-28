@@ -88,7 +88,7 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'Example 2.12. Notification config' do
+    context 'Example 2.12. Notification config', version: '>=5' do
       let(:config) { { notification_config: { minimum_severity: :warning, disabled_categories: [:hint, :generic] } } }
 
       it { is_expected.to be true }
