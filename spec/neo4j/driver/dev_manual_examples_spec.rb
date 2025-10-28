@@ -206,7 +206,7 @@ RSpec.describe Neo4j::Driver do
 
     def add_employ_and_make_friends
       # To collect the session bookmarks
-      saved_bookmarks = []
+      saved_bookmarks = Set[]
 
       # Create the first person and employment relationship.
       driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE) do |session1|
@@ -214,7 +214,7 @@ RSpec.describe Neo4j::Driver do
         session1.execute_write { |tx| add_person(tx, 'Alice') }
         session1.execute_write { |tx| employ(tx, 'Alice', 'Wayne Enterprises') }
 
-        saved_bookmarks << session1.last_bookmark
+        saved_bookmarks += session1.last_bookmarks
       end
 
       # Create the second person and employment relationship.
@@ -223,7 +223,7 @@ RSpec.describe Neo4j::Driver do
         session2.execute_write { |tx| add_person(tx, 'Bob') }
         session2.execute_write { |tx| employ(tx, 'Bob', 'LexCorp') }
 
-        saved_bookmarks << session2.last_bookmark
+        saved_bookmarks += session2.last_bookmarks
       end
 
       # Create a friendship between the two people created above.

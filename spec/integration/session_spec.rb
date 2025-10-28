@@ -22,11 +22,11 @@ RSpec.describe 'Session' do
   end
 
   it 'executes read transaction in read session' do
-    test_read_methods(Neo4j::Driver::AccessMode::READ, :read_transaction)
+    test_read_methods(Neo4j::Driver::AccessMode::READ, :execute_read)
   end
 
   it 'executes read transaction in write session' do
-    test_read_methods(Neo4j::Driver::AccessMode::WRITE, :read_transaction)
+    test_read_methods(Neo4j::Driver::AccessMode::WRITE, :execute_read)
   end
 
   it 'executes execute_read in read session' do
@@ -38,11 +38,11 @@ RSpec.describe 'Session' do
   end
 
   it 'executes write transaction in read session' do
-    test_write_methods(Neo4j::Driver::AccessMode::READ, :write_transaction)
+    test_write_methods(Neo4j::Driver::AccessMode::READ, :execute_write)
   end
 
   it 'executes write transaction in write session' do
-    test_write_methods(Neo4j::Driver::AccessMode::WRITE, :write_transaction)
+    test_write_methods(Neo4j::Driver::AccessMode::WRITE, :execute_write)
   end
 
   it 'executes execute_write in read session' do
@@ -54,11 +54,11 @@ RSpec.describe 'Session' do
   end
 
   it 'rolls back write transaction in read session when function throws exception' do
-    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ, :write_transaction)
+    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ, :execute_write)
   end
 
   it 'rolls back write transaction in write session when function throws exception' do
-    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE, :write_transaction)
+    test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE, :execute_write)
   end
 
   it 'rolls back execute write in read session when function throws exception' do
@@ -91,56 +91,28 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'retries read transaction until success' do
-    test_read_retries_until_success(:read_transaction)
-  end
-
   it 'retries execute read until success' do
     test_read_retries_until_success(:execute_read)
-  end
-
-  it 'retries write transaction until success' do
-    test_write_retries_until_success(:write_transaction)
   end
 
   it 'retries execute write until success' do
     test_write_retries_until_success(:execute_write)
   end
 
-  it 'retries read transaction until failure' do
-    test_read_retries_until_failure(:read_transaction)
-  end
-
   it 'retries execute read until failure' do
     test_read_retries_until_failure(:execute_read)
-  end
-
-  it 'retries write transaction until failure' do
-    test_write_retries_until_failure(:write_transaction)
   end
 
   it 'retries execute write until failure' do
     test_write_retries_until_failure(:execute_write)
   end
 
-  it 'collects write transaction retry errors' do
-    test_write_errors_collect(:write_transaction)
-  end
-
   it 'collects execute write retry errors' do
     test_write_errors_collect(:execute_write)
   end
 
-  it 'collects read transaction retry errors' do
-    test_read_errors_collect(:read_transaction)
-  end
-
   it 'collects execute read retry errors' do
     test_read_errors_collect(:execute_read)
-  end
-
-  it 'commits read transaction without success' do
-    test_commit_read_without_success(:read_transaction)
   end
 
   it 'commits execute read without success' do
@@ -149,18 +121,18 @@ RSpec.describe 'Session' do
 
   def expectEmptyBookmark(bookmark)
     expect(bookmark).not_to be_nil
-    expect(bookmark).to be_a Neo4j::Driver::Bookmark
+    expect(bookmark).to be_a Set
     expect(bookmark).to be_empty
   end
 
   def expectNotEmptyBookmark(bookmark)
-    expect(bookmark).not_to be_nil
-    expect(bookmark).to be_a Neo4j::Driver::Bookmark
-    expect(bookmark).not_to be_empty
+    expect(bookmark).to be_present
+    expect(bookmark).to be_a Set
+    expect(bookmark.first).to be_a Neo4j::Driver::Bookmark
   end
 
   it 'commits write transaction without success' do
-    test_commit_write_without_success(:write_transaction)
+    test_commit_write_without_success(:execute_write)
   end
 
   it 'commits execute write without success' do
@@ -169,26 +141,26 @@ RSpec.describe 'Session' do
 
   it 'rolls back read transaction with failure' do
     session = driver.session
-    expectEmptyBookmark(session.last_bookmark)
-    answer = session.read_transaction do |tx|
-      val = tx.run('RETURN 42').single[0]
-      tx.rollback
-      val
-    end
+    expectEmptyBookmark(session.last_bookmarks)
+    expect do
+      session.execute_read do |tx|
+        tx.run('RETURN 42').single[0]
+        raise Neo4j::Driver::Exceptions::IllegalStateException
+      end
+    end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
     session.close
-    expect(answer).to eq(42)
-    expectEmptyBookmark(session.last_bookmark)
+    expectEmptyBookmark(session.last_bookmarks)
   end
 
   it 'rolls back write transaction with failure' do
     driver.session do |session|
-      expectEmptyBookmark(session.last_bookmark)
-      answer = session.write_transaction do |tx|
-        tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
-        tx.rollback
-        42
+      expectEmptyBookmark(session.last_bookmarks)
+      expect do
+        session.execute_write do |tx|
+          tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
+          raise Neo4j::Driver::Exceptions::IllegalStateException
+        end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
       end
-      expect(answer).to eq(42)
     end
     val = driver.session do |session|
       session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)").single[0]
@@ -197,7 +169,7 @@ RSpec.describe 'Session' do
   end
 
   it 'rolls back read transaction when exception is thrown' do
-    test_read_rollback_on_exception(:read_transaction)
+    test_read_rollback_on_exception(:execute_read)
   end
 
   it 'rolls back execute read when exception is thrown' do
@@ -205,66 +177,54 @@ RSpec.describe 'Session' do
   end
 
   it 'rolls back write transaction when exception is thrown' do
-    test_write_rollback_on_exception(:write_transaction)
-  end
-
-   it 'rolls back execute write when exception is thrown' do
     test_write_rollback_on_exception(:execute_write)
   end
 
-  it 'read tx rolled back when marked both success and failure' do
+  it 'rolls back execute write when exception is thrown' do
+    test_write_rollback_on_exception(:execute_write)
+  end
+
+  it 'read tx committed without tx success' do
     driver.session do |session|
-      expect do
-        session.read_transaction do |tx|
-          result = tx.run('RETURN 42')
-          tx.commit
-          tx.rollback
-          result.single[0]
-        end
-      end.to raise_error Neo4j::Driver::Exceptions::ClientException, /^Can't rollback, transaction has been committed/
+      expect(session.execute_read { |tx| tx.run('RETURN 42').single[0] }).to eq(42)
+      expect(session.last_bookmarks.size).to eq 1
     end
   end
 
-  it 'write tx fail when both commit and rollback' do
+  it 'write tx committed without tx success' do
     driver.session do |session|
-      expect do
-        session.write_transaction do |tx|
-          tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
-          tx.commit
-          tx.rollback
-          42
-        end
-      end.to raise_error Neo4j::Driver::Exceptions::ClientException, /^Can't rollback, transaction has been committed/
+      expect(session.execute_write do |tx|
+        tx.run("CREATE (:Person {name: 'Thor Odinson'}) RETURN 42").single[0]
+      end).to eq 42
+      expect(session.run("MATCH (p:Person {name: 'Thor Odinson'}) RETURN count(p)").single[0]).to eq 1
     end
   end
 
-  it 'read tx committed when marked success and throws exception' do
+  it 'read tx rolled back with tx failure' do
     driver.session do |session|
-      expectEmptyBookmark(session.last_bookmark)
+      expectEmptyBookmark(session.last_bookmarks)
       expect do
-        session.read_transaction do |tx|
+        session.execute_read do |tx|
           tx.run('RETURN 42').single[0]
-          tx.commit
           raise Neo4j::Driver::Exceptions::IllegalStateException
         end
       end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
-      expectNotEmptyBookmark(session.last_bookmark)
+      expectEmptyBookmark(session.last_bookmarks)
     end
   end
 
-  it 'write tx committed whem commit and throws exception' do
+  it 'write tx rolled back with tx failure' do
     driver.session do |session|
       expect do
-        session.write_transaction do |tx|
+        session.execute_write do |tx|
           tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
-          tx.commit
           raise Neo4j::Driver::Exceptions::IllegalStateException
         end
       end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
     end
     driver.session do |session|
       result = session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)")
-      expect(result.single[0]).to eq(1)
+      expect(result.single[0]).to eq(0)
     end
   end
 
@@ -361,7 +321,7 @@ RSpec.describe 'Session' do
 
     result2 = Concurrent::Promises.future do
       driver.session do |session|
-        session.write_transaction do |tx|
+        session.execute_write do |tx|
           # lock second node
           update_node_id(tx, node_id2, new_node_id2).consume
 
@@ -408,7 +368,7 @@ RSpec.describe 'Session' do
   end
 
   it 'executes transaction work in caller thread' do
-    test_read_work_in_caller_thread(:read_transaction)
+    test_read_work_in_caller_thread(:execute_read)
   end
 
   it 'executes execute_read work in caller thread' do
@@ -476,11 +436,23 @@ RSpec.describe 'Session' do
   context "with 'bolt' scheme" do
     let(:scheme) { 'bolt' } # to avoid routing logic triggered by 'neo4j' scheme
     it 'does not retry on connection acquisition timeout' do
-      test_retry_on_connection_acquisition_timeout(:write_transaction)
-    end
+      max_pool_size = 3
+      config = {
+        max_connection_pool_size: max_pool_size,
+        connection_acquisition_timeout: 0.1.seconds,
+        max_transaction_retry_time: 42.days # retry for a really long time
+      }
+      Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, **config) do |driver|
+        max_pool_size.times { driver.session.begin_transaction }
 
-    it 'execute write does not retry on connection acquisition timeout' do
-      test_retry_on_connection_acquisition_timeout(:execute_write)
+        invocations = Concurrent::AtomicFixnum.new
+        puts "actual work"
+        expect { driver.session.execute_write { invocations.increment } }
+          .to raise_error Neo4j::Driver::Exceptions::ClientException,
+                          /^Unable to acquire connection from the pool within configured maximum time of 100ms/
+        # work should never be invoked
+        expect(invocations.value).to be_zero
+      end
     end
   end
 
@@ -525,7 +497,7 @@ RSpec.describe 'Session' do
     end
   end
 
-  #it 'is responsive to thread interrupt when waiting for result' do
+  # it 'is responsive to thread interrupt when waiting for result' do
   #  driver.session do |session1|
   #    session2 = driver.session
   #
@@ -554,7 +526,7 @@ RSpec.describe 'Session' do
   #  ensure
   #    session2&.close
   #  end
-  #end
+  # end
 
   it 'allows long running query with connect timeout', concurrency: true do
     session1 = driver.session
@@ -590,8 +562,8 @@ RSpec.describe 'Session' do
   end
 
   it 'Allow Returning Null From Transaction Function' do
-    test_write_read_allow_return_null(:write_transaction)
-    test_write_read_allow_return_null(:read_transaction)
+    test_write_read_allow_return_null(:execute_write)
+    test_write_read_allow_return_null(:execute_read)
   end
 
   it 'Allow Returning Null From execute_write/read Function' do
@@ -646,8 +618,8 @@ RSpec.describe 'Session' do
     driver.session do |session|
       tx = session.begin_transaction
       expect(tx).to be_truthy
-      error_message = 'You cannot begin a transaction on a session with an open transaction; either run'\
-                      ' from within the transaction or use a different session.'
+      error_message = 'You cannot begin a transaction on a session with an open transaction; either run' \
+        ' from within the transaction or use a different session.'
       3.times do
         expect { session.begin_transaction }.to raise_error Neo4j::Driver::Exceptions::ClientException, error_message
       end
@@ -658,7 +630,7 @@ RSpec.describe 'Session' do
 
   it 'Close Open Transaction When Closed' do
     driver.session do |session|
-      session.write_transaction do |tx|
+      session.begin_transaction do |tx|
         tx.run('CREATE (:Node {id: 123})')
         tx.run('CREATE (:Node {id: 456})')
         tx.commit
@@ -824,11 +796,11 @@ RSpec.describe 'Session' do
 
   def test_commit_read_without_success(method_name)
     session = driver.session
-    expectEmptyBookmark(session.last_bookmark)
+    expectEmptyBookmark(session.last_bookmarks)
     answer = session.send(method_name) { |tx| tx.run('RETURN 42').single[0] }
     session.close
     expect(answer).to eq(42)
-    expect(session.last_bookmark).not_to be nil
+    expect(session.last_bookmarks).not_to be nil
   end
 
   def test_commit_write_without_success(method_name)
@@ -844,7 +816,7 @@ RSpec.describe 'Session' do
 
   def test_read_rollback_on_exception(method_name)
     driver.session do |session|
-      expectEmptyBookmark(session.last_bookmark)
+      expectEmptyBookmark(session.last_bookmarks)
       expect do
         session.send(method_name) do |tx|
           val = tx.run('RETURN 42').single[0]
@@ -852,13 +824,13 @@ RSpec.describe 'Session' do
           1
         end
       end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
-      expectEmptyBookmark(session.last_bookmark)
+      expectEmptyBookmark(session.last_bookmarks)
     end
   end
 
   def test_write_rollback_on_exception(method_name)
     driver.session do |session|
-      expectEmptyBookmark(session.last_bookmark)
+      expectEmptyBookmark(session.last_bookmarks)
       expect do
         session.send(method_name) do |tx|
           tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
@@ -884,25 +856,6 @@ RSpec.describe 'Session' do
       end
     end
     expect(result).to eq 'Hello'
-  end
-
-  def test_retry_on_connection_acquisition_timeout(method_name)
-    max_pool_size = 3
-    config = {
-      max_connection_pool_size: max_pool_size,
-      connection_acquisition_timeout: 0.seconds,
-      max_transaction_retry_time: 42.days # retry for a really long time
-    }
-    Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token, **config) do |driver|
-      max_pool_size.times { driver.session.begin_transaction }
-
-      invocations = Concurrent::AtomicFixnum.new
-      expect { driver.session.send(method_name) { invocations.increment } }
-        .to raise_error Neo4j::Driver::Exceptions::ClientException,
-                        /^Unable to acquire connection from the pool within configured maximum time of 0/
-      # work should never be invoked
-      expect(invocations.value).to be_zero
-    end
   end
 
   def test_write_read_allow_return_null(method_name)

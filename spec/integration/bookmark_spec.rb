@@ -6,15 +6,15 @@ RSpec.describe 'Bookmark' do
   end
 
   def preamble(session)
-    expect(session.last_bookmark).not_to be_present
+    expect(session.last_bookmarks).not_to be_present
     create_and_expect(session)
   end
 
   def create_and_expect(session)
     create_node_in_tx(session)
-    bookmark = session.last_bookmark
-    expect(bookmark).to be_present
-    bookmark
+    session.last_bookmarks.tap do |bookmarks|
+    expect(bookmarks).to be_present
+    end
   end
 
   def expect_single_value(bookmark, value)
@@ -27,49 +27,49 @@ RSpec.describe 'Bookmark' do
 
   it 'raises for invalid bookmark' do
     invalid_bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
-    expect { driver.session(bookmarks: invalid_bookmark, &:begin_transaction) }
+    expect { driver.session(bookmarks: Set[invalid_bookmark], &:begin_transaction) }
       .to raise_error Neo4j::Driver::Exceptions::ClientException
   end
 
   it 'remain after rollback tx' do
     driver.session do |session|
-      bookmark = preamble(session)
+      bookmarks = preamble(session)
       session.begin_transaction do |tx|
         tx.run('CREATE (a:Person)')
         tx.rollback
       end
-      expect(session.last_bookmark).to eq bookmark
+      expect(session.last_bookmarks).to eq bookmarks
     end
   end
 
   it 'remains after tx failure' do
     driver.session do |session|
-      bookmark = preamble(session)
+      bookmarks = preamble(session)
       tx = session.begin_transaction
       expect { tx.run('RETURN') }.to raise_error Neo4j::Driver::Exceptions::ClientException
-      expect(session.last_bookmark).to eq bookmark
+      expect(session.last_bookmarks).to eq bookmarks
     end
   end
 
   it 'remains after succesful session run' do
     driver.session do |session|
-      bookmark = preamble(session)
+      bookmarks= preamble(session)
       session.run('RETURN 1').consume
-      expect(session.last_bookmark).to eq bookmark
+      expect(session.last_bookmarks).to eq bookmarks
     end
   end
 
   it 'remains after failed session run' do
     driver.session do |session|
-      bookmark = preamble(session)
+      bookmarks = preamble(session)
       expect { session.run('RETURN').consume }.to raise_error Neo4j::Driver::Exceptions::ClientException
-      expect(session.last_bookmark).to eq bookmark
+      expect(session.last_bookmarks).to eq bookmarks
     end
   end
 
   it 'is updated every committed tx' do
     driver.session do |session|
-      expect(session.last_bookmark).not_to be_present
+      expect(session.last_bookmarks).not_to be_present
       expect(Array.new(3) { create_and_expect(session) }.to_set.size).to eq 3
     end
   end
@@ -87,7 +87,7 @@ RSpec.describe 'Bookmark' do
 
   it 'creates session with initial bookmark' do
     bookmark = Neo4j::Driver::Bookmark.from('TheBookmark')
-    expect(driver.session(bookmarks: bookmark, &:last_bookmark)).to eq bookmark
+    expect(driver.session(bookmarks: bookmark, &:last_bookmarks)).to contain_exactly bookmark
   end
 
   it 'fails on invalid bookmark using tx func' do
@@ -102,7 +102,7 @@ RSpec.describe 'Bookmark' do
 
   it 'creates session with AccessMode and initial bookmark' do
     bookmark = Neo4j::Driver::Bookmark.from('TheBookmark')
-    expect(driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: bookmark, &:last_bookmark))
-      .to eq bookmark
+    expect(driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: bookmark, &:last_bookmarks))
+      .to contain_exactly bookmark
   end
 end

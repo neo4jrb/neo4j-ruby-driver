@@ -108,7 +108,7 @@ RSpec.describe 'Summary' do
       expect(notification.code).to be_present
       expect(notification.title).to be_present
       expect(notification.description).to be_present
-      expect(notification.severity).to be_present
+      expect(notification.severity_level).to be_present
       expect(notification.position).to be_present
     end
   end

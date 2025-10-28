@@ -5,7 +5,7 @@ module Neo4j::Driver::Ext
     module Cluster
       module RoutingTableRegistryImpl
         def routing_table_handler(database)
-          get_routing_table_handler(org.neo4j.driver.internal.bolt.api.DatabaseNameUtil.database(database)).then do |it|
+          get_routing_table_handler(org.neo4j.driver.internal.bolt.api.DatabaseName.database(database)).then do |it|
             it.get if it.present?
           end
         end
