@@ -51,7 +51,7 @@ RSpec.describe 'Bookmark' do
     end
   end
 
-  it 'remains after succesful session run' do
+  it 'remains after successful session run' do
     driver.session do |session|
       bookmarks = preamble(session)
       session.run('RETURN 1').consume
