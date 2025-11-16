@@ -6,7 +6,7 @@ module Neo4j::Driver
           @session = session
         end
 
-        delegate :last_bookmark, :close_async, to: :@session
+        delegate :last_bookmarks, :close_async, to: :@session
 
         def run_async(query, parameters = {}, config = {})
           @session.run_async(org.neo4j.driver.Query.new(query, **parameters), **config)

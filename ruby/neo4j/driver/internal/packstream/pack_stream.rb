@@ -114,8 +114,6 @@ module Neo4j::Driver
               value = value.to_a
               pack_list_header(value.size)
               value.each(&method(:pack))
-            when Bookmark
-              pack(value.values)
             else
               unpackable(value)
             end

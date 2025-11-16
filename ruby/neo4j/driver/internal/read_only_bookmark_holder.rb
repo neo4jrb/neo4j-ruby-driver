@@ -1,13 +1,13 @@
 module Neo4j::Driver
   module Internal
     class ReadOnlyBookmarkHolder
-      attr_reader :bookmark
+      attr_reader :bookmarks
 
-      def initialize(bookmark = InternalBookmark.empty)
-        @bookmark = bookmark
+      def initialize(bookmarks = Set[])
+        @bookmarks = bookmarks
       end
 
-      def bookmark=(_value) end
+      def bookmarks=(_value) end
     end
   end
 end

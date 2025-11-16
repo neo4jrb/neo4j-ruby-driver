@@ -35,8 +35,8 @@ module Neo4j::Driver
           @state = State::ACTIVE
         end
 
-        def begin_async(initial_bookmark, config)
-          @protocol.begin_transaction(@connection, initial_bookmark, config)
+        def begin_async(initial_bookmarks, config)
+          @protocol.begin_transaction(@connection, initial_bookmarks, config)
           self
         rescue Neo4j::Driver::Exceptions::AuthorizationExpiredException
           @connection.terminate_and_release(Neo4j::Driver::Exceptions::AuthorizationExpiredException::DESCRIPTION)
@@ -175,7 +175,7 @@ module Neo4j::Driver
           if exception
             Util::ResultHolder.failed(exception)
           else
-            @protocol.commit_transaction(@connection).then(&@bookmark_holder.method(:bookmark=))
+            @protocol.commit_transaction(@connection).then { @bookmark_holder.bookmarks = Set[it] }
           end
         end
 

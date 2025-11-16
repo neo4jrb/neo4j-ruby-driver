@@ -13,8 +13,8 @@ module Neo4j
       # Reconstruct bookmark from \bookmarks string values.
       # @param values values obtained from a previous bookmark.
       # @return A bookmark.
-      def self.from(*values)
-        Internal::InternalBookmark.parse(*values)
+      def self.from(value)
+        Internal::InternalBookmark.new(value)
       end
     end
   end

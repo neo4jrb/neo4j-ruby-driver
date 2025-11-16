@@ -11,7 +11,7 @@ module Neo4j::Driver
           @log = Logging::PrefixedLogger.new("[#{hash}]", logger)
           @bookmark_holder = bookmark_holder
           # @database_name = database_name.database_name
-          @connection_context = NetworkSessionConnectionContext.new(database_name, @bookmark_holder.bookmark, impersonated_user)
+          @connection_context = NetworkSessionConnectionContext.new(database_name, @bookmark_holder.bookmarks, impersonated_user)
           @fetch_size = fetch_size
           @open = Concurrent::AtomicBoolean.new(true)
         end
@@ -28,7 +28,7 @@ module Neo4j::Driver
           acquire_connection(mode).then do |connection|
             ImpersonationUtil.ensure_impersonation_support(connection, connection.impersonated_user)
             tx = UnmanagedTransaction.new(connection, @bookmark_holder, @fetch_size)
-            tx.begin_async(@bookmark_holder.bookmark, config)
+            tx.begin_async(@bookmark_holder.bookmarks, config)
           end&.tap { |new_transaction| @transaction = new_transaction }
         end
 
@@ -42,8 +42,8 @@ module Neo4j::Driver
           end
         end
 
-        def last_bookmark
-          @bookmark_holder.bookmark
+        def last_bookmarks
+          @bookmark_holder.bookmarks
         end
 
         def release_connection_async
@@ -131,11 +131,11 @@ module Neo4j::Driver
           # It has to be the initial bookmark given at the creation of the session.
           # As only that bookmark could carry extra system bookmarks
           attr_accessor :database_name
-          attr :mode, :rediscovery_bookmark, :impersonated_user
+          attr :mode, :rediscovery_bookmarks, :impersonated_user
 
-          def initialize(database_name, bookmark, impersonated_user)
+          def initialize(database_name, bookmarks, impersonated_user)
             @database_name = database_name
-            @rediscovery_bookmark = bookmark
+            @rediscovery_bookmark = bookmarks
             @impersonated_user = impersonated_user
           end
 

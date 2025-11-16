@@ -13,7 +13,7 @@ module Neo4j::Driver
       end
 
       def new_instance(fetch_size: @default_fetch_size, default_access_mode: AccessMode::WRITE, **config)
-        bookmark_holder = DefaultBookmarkHolder.new(InternalBookmark.from(*config[:bookmarks]))
+        bookmark_holder = DefaultBookmarkHolder.new(Array(config[:bookmarks]).to_set)
         create_session(parse_database_name(config), default_access_mode, bookmark_holder, fetch_size, config[:impersonated_user])
       end
 

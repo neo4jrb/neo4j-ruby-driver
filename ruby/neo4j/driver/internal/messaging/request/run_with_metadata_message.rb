@@ -7,10 +7,10 @@ module Neo4j::Driver
           attr_reader :query, :parameters
 
           class << self
-            def auto_commit_tx_run_message(query, config, database_name, mode, bookmark, impersonated_user)
+            def auto_commit_tx_run_message(query, config, database_name, mode, bookmarks, impersonated_user)
               metadata = Request::TransactionMetadataBuilder.build_metadata(
                 timeout: config[:timeout], tx_metadata: config[:metadata], database_name: database_name, mode: mode,
-                bookmark: bookmark, impersonated_user: impersonated_user)
+                bookmarks: bookmarks, impersonated_user: impersonated_user)
               new(query.text, query.parameters, metadata)
             end
 

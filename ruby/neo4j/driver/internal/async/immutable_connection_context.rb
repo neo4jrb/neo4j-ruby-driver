@@ -2,16 +2,16 @@ module Neo4j::Driver
   module Internal
     module Async
       class ImmutableConnectionContext
-        attr :database_name, :mode, :rediscovery_bookmark, :impersonated_user
+        attr :database_name, :mode, :rediscovery_bookmarks, :impersonated_user
 
-        def initialize(database_name, bookmark, mode)
+        def initialize(database_name, bookmarks, mode)
           @database_name = database_name
-          @rediscovery_bookmark = bookmark
+          @rediscovery_bookmarks = bookmarks
           @mode = mode
         end
 
-        SINGLE_DB_CONTEXT = new(DatabaseNameUtil::DEFAULT_DATABASE, InternalBookmark::EMPTY, AccessMode::READ)
-        MULTI_DB_CONTEXT = new(DatabaseNameUtil::SYSTEM_DATABASE, InternalBookmark::EMPTY, AccessMode::READ)
+        SINGLE_DB_CONTEXT = new(DatabaseNameUtil::DEFAULT_DATABASE, [], AccessMode::READ)
+        MULTI_DB_CONTEXT = new(DatabaseNameUtil::SYSTEM_DATABASE, [], AccessMode::READ)
 
         # A simple context is used to test connectivity with a remote server/cluster. As long as there is a read only service, the connection shall be established
         # successfully. Depending on whether multidb is supported or not, this method returns different context for routing table discovery.

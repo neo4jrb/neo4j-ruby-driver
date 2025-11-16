@@ -9,7 +9,7 @@ module Neo4j::Driver
 
         def after_success(metadata)
           release_connection
-          @bookmark_holder.bookmark = Util::MetadataExtractor.extract_bookmarks(metadata)
+          @bookmark_holder.bookmarks = Array(Util::MetadataExtractor.extract_bookmark(metadata)).to_set
         end
 
         def after_failure(error)

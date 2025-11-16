@@ -13,7 +13,7 @@ RSpec.describe 'Bookmark' do
   def create_and_expect(session)
     create_node_in_tx(session)
     session.last_bookmarks.tap do |bookmarks|
-    expect(bookmarks).to be_present
+      expect(bookmarks).to be_present
     end
   end
 
@@ -53,7 +53,7 @@ RSpec.describe 'Bookmark' do
 
   it 'remains after succesful session run' do
     driver.session do |session|
-      bookmarks= preamble(session)
+      bookmarks = preamble(session)
       session.run('RETURN 1').consume
       expect(session.last_bookmarks).to eq bookmarks
     end
@@ -87,12 +87,12 @@ RSpec.describe 'Bookmark' do
 
   it 'creates session with initial bookmark' do
     bookmark = Neo4j::Driver::Bookmark.from('TheBookmark')
-    expect(driver.session(bookmarks: bookmark, &:last_bookmarks)).to contain_exactly bookmark
+    expect(driver.session(bookmarks: [bookmark], &:last_bookmarks)).to contain_exactly bookmark
   end
 
   it 'fails on invalid bookmark using tx func' do
     bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
-    driver.session(bookmarks: bookmark) do |session|
+    driver.session(bookmarks: [bookmark]) do |session|
       expect { session.execute_read { |tx| tx.run('RETURN 1').single } }
         .to raise_error Neo4j::Driver::Exceptions::ClientException do |e|
         expect(e.code).to eq 'Neo.ClientError.Transaction.InvalidBookmark'
@@ -102,7 +102,7 @@ RSpec.describe 'Bookmark' do
 
   it 'creates session with AccessMode and initial bookmark' do
     bookmark = Neo4j::Driver::Bookmark.from('TheBookmark')
-    expect(driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: bookmark, &:last_bookmarks))
+    expect(driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: Set[bookmark], &:last_bookmarks))
       .to contain_exactly bookmark
   end
 end

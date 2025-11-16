@@ -35,13 +35,7 @@ module Neo4j::Driver
               Summary::InternalDatabaseInfo::DEFAULT_DATABASE_INFO
           end
 
-          def extract_bookmarks(metadata)
-            bookmark_value = metadata[:bookmark]
-
-            return InternalBookmark.parse(bookmark_value) if bookmark_value&.is_a? String
-
-            InternalBookmark.empty
-          end
+          def extract_bookmark(metadata) = metadata[:bookmark]&.then(&InternalBookmark.method(:new))
 
           def extract_neo4j_server_version(metadata)
             server_value = extract_server(metadata)

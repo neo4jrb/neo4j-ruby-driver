@@ -30,9 +30,9 @@ module Neo4j::Driver
             message_dispatcher.prepare_to_close_channel
           end
 
-          def begin_transaction(connection, bookmark, config)
+          def begin_transaction(connection, bookmarks, config)
             verify_database_name_before_transaction(connection.database_name)
-            begin_message = Request::BeginMessage.new(bookmark, config, connection.database_name, connection.mode, connection.impersonated_user)
+            begin_message = Request::BeginMessage.new(bookmarks, config, connection.database_name, connection.mode, connection.impersonated_user)
             connection.write_and_flush(begin_message, Handlers::BeginTxResponseHandler.new)
           end
 
@@ -51,7 +51,7 @@ module Neo4j::Driver
           def run_in_auto_commit_transaction(connection, query, bookmark_holder, config, fetch_size)
             verify_database_name_before_transaction(connection.database_name)
 
-            run_message = Request::RunWithMetadataMessage.auto_commit_tx_run_message(query, config, connection.database_name, connection.mode, bookmark_holder.bookmark, connection.impersonated_user)
+            run_message = Request::RunWithMetadataMessage.auto_commit_tx_run_message(query, config, connection.database_name, connection.mode, bookmark_holder.bookmarks, connection.impersonated_user)
 
             build_result_cursor_factory(connection, query, bookmark_holder, nil, run_message, fetch_size)
           end

@@ -8,9 +8,7 @@ module Neo4j::Driver
           @result_holder = result_holder
         end
 
-        def on_success(metadata)
-          @result_holder.succeed(metadata[:bookmark]&.then(&InternalBookmark.method(:parse)))
-        end
+        def on_success(metadata) = @result_holder.succeed(Util::MetadataExtractor.extract_bookmark(metadata))
 
         def on_failure(error)
           @result_holder.fail(error)

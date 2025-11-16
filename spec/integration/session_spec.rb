@@ -446,10 +446,9 @@ RSpec.describe 'Session' do
         max_pool_size.times { driver.session.begin_transaction }
 
         invocations = Concurrent::AtomicFixnum.new
-        puts "actual work"
         expect { driver.session.execute_write { invocations.increment } }
           .to raise_error Neo4j::Driver::Exceptions::ClientException,
-                          /^Unable to acquire connection from the pool within configured maximum time of 100ms/
+                          /^Unable to acquire connection from the pool within configured maximum time of (100ms|0\.1 seconds)$/
         # work should never be invoked
         expect(invocations.value).to be_zero
       end

@@ -5,10 +5,10 @@ module Neo4j::Driver
         class BeginMessage < MessageWithMetadata
           SIGNATURE = 0x11
 
-          def initialize(bookmark, config, database_name, mode, impersonated_user)
+          def initialize(bookmarks, config, database_name, mode, impersonated_user)
             super(Request::TransactionMetadataBuilder.build_metadata(
               timeout: config[:timeout], tx_metadata: config[:metadata], database_name: database_name, mode: mode,
-              bookmark: bookmark, impersonated_user: impersonated_user))
+              bookmarks: bookmarks, impersonated_user: impersonated_user))
           end
 
           def signature

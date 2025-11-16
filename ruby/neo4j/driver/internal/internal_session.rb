@@ -4,7 +4,7 @@ module Neo4j::Driver
       extend AutoCloseable
       extend Synchronizable
       # include Ext::RunOverride
-      delegate :open?, :last_bookmark, to: :@session
+      delegate :open?, :last_bookmarks, to: :@session
       auto_closeable :begin_transaction
       sync :close, :begin_transaction, :run, :transaction
 
