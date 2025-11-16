@@ -159,8 +159,8 @@ RSpec.describe 'Session' do
         session.execute_write do |tx|
           tx.run("CREATE (:Person {name: 'Natasha Romanoff'})")
           raise Neo4j::Driver::Exceptions::IllegalStateException
-        end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
-      end
+        end
+      end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
     end
     val = driver.session do |session|
       session.run("MATCH (p:Person {name: 'Natasha Romanoff'}) RETURN count(p)").single[0]
