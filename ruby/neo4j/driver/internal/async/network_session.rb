@@ -135,7 +135,7 @@ module Neo4j::Driver
 
           def initialize(database_name, bookmarks, impersonated_user)
             @database_name = database_name
-            @rediscovery_bookmark = bookmarks
+            @rediscovery_bookmarks = bookmarks
             @impersonated_user = impersonated_user
           end
 
