@@ -9,7 +9,7 @@ module Neo4j::Driver
           end
 
           def acquire(options = {})
-            @available.pop(options[:timeout] || @timeout)
+            @available.pop(options: options[:timeout] || @timeout)
           end
 
           def release(resource)
