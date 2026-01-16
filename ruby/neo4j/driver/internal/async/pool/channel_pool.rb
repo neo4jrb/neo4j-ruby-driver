@@ -5,7 +5,7 @@ module Neo4j::Driver
         class ChannelPool < ConnectionPool
           def initialize(limit: nil, acquisition_timeout: nil, &block)
             super(size: limit, timeout: acquisition_timeout, &block)
-            @available = TimedStack.new(@size, &block)
+            @available = TimedStack.new(size: @size, &block)
           end
 
           def acquire(options = {})
