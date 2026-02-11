@@ -36,6 +36,11 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
 
+      # Needed until runner permissions issue is resolved:
+      # https://github.com/actions/runner-images/issues/13647
+      - name: Fix gem directory permissions
+        run: sudo chmod +t $(ruby -e 'puts Gem.default_dir')/gems
+
       - name: Install ruby-maven
         run: gem install ruby-maven
 
