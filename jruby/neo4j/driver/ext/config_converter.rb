@@ -20,7 +20,7 @@ module Neo4j
           method = :"with_#{key}"
           unit = nil
           case key.to_s
-          when 'encryption', 'driver_metrics', 'hostname_verification'
+          when 'encryption', 'hostname_verification'
             method = :"without_#{key}" unless value
             value = nil
           when 'timeout'

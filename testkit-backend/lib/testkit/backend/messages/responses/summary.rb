@@ -7,7 +7,7 @@ module Testkit::Backend::Messages
           counters: to_map(@object.counters, *%w[constraints_added constraints_removed contains_system_updates? contains_updates? indexes_added
           indexes_removed labels_added labels_removed nodes_created nodes_deleted properties_set relationships_created
           relationships_deleted system_updates]),
-          query: { text: @object.query.text, parameters: @object.query.parameters.transform_values(&method(:to_testkit)) },
+          query: { text: @object.query.text, parameters: @object.query.parameters.transform_values(&self.class.method(:to_testkit)) },
           database: @object.database.name,
           queryType: @object.query_type,
           notifications: @object.notifications&.then(&method(:notifications)),
@@ -32,8 +32,10 @@ module Testkit::Backend::Messages
 
       def notifications(ns)
         ns.map do |n|
-          to_map(n, *%w[code title description raw_category severity raw_severity_level])
-            .merge(to_map(n, *%w[category severity_level]) { |o| o&.name || 'UNKNOWN' })
+          # to_map(n, *%w[code title description raw_category raw_severity_level])
+          to_map(n, *%w[code title description])
+            # .merge(to_map(n, *%w[category severity_level]) { |o| o&.name || 'UNKNOWN' })
+            .merge(to_map(n, *%w[]) { |o| o&.name || 'UNKNOWN' })
             .merge(map_entry(n, :position, :column, :line, :offset))
         end
       end

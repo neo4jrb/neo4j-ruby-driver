@@ -2,11 +2,11 @@ module Testkit::Backend::Messages
   module Requests
     class SessionLastBookmarks < Request
       def process
-        named_entity('Bookmarks', bookmarks: to_object.values.to_a)
+        named_entity('Bookmarks', bookmarks: to_object.map(&:value))
       end
 
       def to_object
-        fetch(session_id).last_bookmark
+        fetch(session_id).last_bookmarks
       end
     end
   end
