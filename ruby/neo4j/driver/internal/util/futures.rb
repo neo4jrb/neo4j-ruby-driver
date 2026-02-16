@@ -13,6 +13,9 @@ module Neo4j::Driver
         public
 
         class << self
+          # in concurrent-ruby exceptions are not wrapped like in java
+          def completion_exception_cause(error) = error
+
           def completed_with_null
             COMPLETED_WITH_NULL
           end

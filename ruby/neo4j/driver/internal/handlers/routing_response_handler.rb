@@ -19,10 +19,7 @@ module Neo4j::Driver
 
         private
 
-        def handled_error(received_error)
-          # TODO: probably not necessary with concurrent-ruby as it might not wrap exceptions like java
-          error = Futures.completion_exception_cause(received_error)
-
+        def handled_error(error)
           case error
           when Exceptions::ServiceUnavailableException
             handled_service_unavailable_exception(error)
@@ -37,9 +34,11 @@ module Neo4j::Driver
           end
         end
 
-        def handled_service_unavailable_exception(e)
+        def handled_service_unavailable_exception(error)
           @error_handler.on_connection_failure(@address)
-          Exceptions::SessionExpiredException.new("Server at #{@address} is no longer available")
+          new_error = Exceptions::SessionExpiredException.new("Server at #{@address} is no longer available")
+          new_error.add_suppressed(error)
+          new_error
         end
 
         def handled_transient_exception(e)

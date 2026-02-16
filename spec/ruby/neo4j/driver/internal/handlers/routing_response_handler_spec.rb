@@ -10,15 +10,6 @@ RSpec.describe Neo4j::Driver::Internal::Handlers::RoutingResponseHandler do
     described_class.new(delegate, address, access_mode, error_handler)
   end
 
-  before do
-    # Mock Futures.completion_exception_cause to just return the error as-is
-    stub_const("#{described_class}::Futures", Class.new do
-      def self.completion_exception_cause(error)
-        error
-      end
-    end)
-  end
-
   describe 'error handling' do
     before do
       allow(delegate).to receive(:on_failure)
@@ -33,13 +24,14 @@ RSpec.describe Neo4j::Driver::Internal::Handlers::RoutingResponseHandler do
         subject.on_failure(error)
       end
 
-      it 'transforms to SessionExpiredException' do
+      it 'transforms to SessionExpiredException and preserves original as suppressed' do
         error = Neo4j::Driver::Exceptions::ServiceUnavailableException.new("Server unavailable")
         allow(error_handler).to receive(:on_connection_failure)
         
         expect(delegate).to receive(:on_failure) do |new_error|
           expect(new_error).to be_a(Neo4j::Driver::Exceptions::SessionExpiredException)
           expect(new_error.message).to include("no longer available")
+          expect(new_error.suppressed).to include(error)
         end
         
         subject.on_failure(error)
