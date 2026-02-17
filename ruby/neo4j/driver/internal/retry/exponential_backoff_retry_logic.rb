@@ -92,10 +92,9 @@ module Neo4j::Driver
           end
 
           work_stage.on_resolution do |fulfilled, result, completion_error|
-            error = Futures.completion_exception_cause(completion_error)
-            if error
+            if completion_error
               # work failed in async way, attempt to schedule a retry
-              retry_on_error(result_future, work, start_time, retry_delay, error, errors)
+              retry_on_error(result_future, work, start_time, retry_delay, completion_error, errors)
             else
               result_future.fulfill(result)
             end
