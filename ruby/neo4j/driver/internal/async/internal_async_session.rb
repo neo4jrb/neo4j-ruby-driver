@@ -32,10 +32,8 @@ module Neo4j::Driver
             tx_future = @session.begin_transaction_async(mode, ** config)
 
             tx_future.when_complete do |tx, completion_error|
-              error = Util::Futures.completion_exception_cause(completion_error)
-
-              if !error.nil?
-                result_future.complete_exceptionally(error)
+              if completion_error
+                result_future.complete_exceptionally(completion_error)
               else
                 execute_work(result_future, tx, &work)
               end
@@ -48,10 +46,8 @@ module Neo4j::Driver
           work_future = safe_execute_work(tx, &work)
 
           work_future.when_complete do |result, completion_error|
-            error = Util::Futures.completion_exception_cause(completion_error)
-
-            if !error.nil?
-              close_tx_after_failed_transaction_work(tx, result_future, error)
+            if completion_error
+              close_tx_after_failed_transaction_work(tx, result_future, completion_error)
             else
               close_tx_after_succeeded_transaction_work(tx, result_future, result)
             end
@@ -83,10 +79,8 @@ module Neo4j::Driver
 
         def close_tx_after_succeeded_transaction_work(tx, result_future, result)
           tx.close_async(true).when_complete do |_ignored, completion_error|
-            commit_error = Util::Futures.completion_exception_cause(completion_error)
-
-            if !commit_error.nil?
-              result_future.complete_exceptionally(commit_error)
+            if completion_error
+              result_future.complete_exceptionally(completion_error)
             else
               result_future.complete(result)
             end
