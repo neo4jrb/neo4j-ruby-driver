@@ -1,5 +1,3 @@
-require 'neo4j/driver'
-
 RSpec.describe Neo4j::Driver::Internal::Handlers::RoutingResponseHandler do
   let(:delegate) { double('delegate') }
   let(:address) { instance_double(Neo4j::Driver::Internal::BoltServerAddress, to_s: "localhost:7687") }

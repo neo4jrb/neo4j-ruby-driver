@@ -1,5 +1,3 @@
-require 'neo4j/driver'
-
 RSpec.describe Neo4j::Driver::Internal::Cluster::RoutingTableHandlerImpl do
   let(:routing_table) { instance_double(Neo4j::Driver::Internal::Cluster::ClusterRoutingTable) }
   let(:rediscovery) { instance_double(Neo4j::Driver::Internal::Cluster::RediscoveryImpl) }
