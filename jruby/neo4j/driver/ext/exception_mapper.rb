@@ -28,7 +28,7 @@ module Neo4j
         end
 
         def arguments(e)
-          [e.code, e.message, e.suppressed.map(&method(:mapped_exception))]
+          [e.code, e.message, *e.suppressed.map(&method(:mapped_exception))]
         end
 
         private

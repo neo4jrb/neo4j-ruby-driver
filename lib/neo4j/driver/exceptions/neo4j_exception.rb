@@ -7,13 +7,14 @@ module Neo4j
         attr_reader :code, :suppressed
 
         def initialize(*args)
-          add_suppressed(args.pop) if args.last.is_a?(Exception)
+          args, exceptions = args.partition { |arg| arg.is_a?(String) }
           super(args.pop)
           @code = args.pop
+          add_suppressed(*exceptions)
         end
 
-        def add_suppressed(exception)
-          (@suppressed ||= []) << exception
+        def add_suppressed(*exceptions)
+          (@suppressed ||= []).concat(exceptions) if exceptions.any?
         end
       end
     end
