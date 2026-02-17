@@ -34,23 +34,23 @@ module Neo4j::Driver
           end
         end
 
-        def handled_service_unavailable_exception(error)
-          @error_handler.on_connection_failure(@address)
-          new_error = Exceptions::SessionExpiredException.new("Server at #{@address} is no longer available")
-          new_error.add_suppressed(error)
-          new_error
+        def handled_service_unavailable_exception(e)
+          record_connection_failure
+          Exceptions::SessionExpiredException.new("Server at #{@address} is no longer available", e)
         end
 
         def handled_transient_exception(e)
-          if e.code == "Neo.TransientError.General.DatabaseUnavailable"
-            @error_handler.on_connection_failure(@address)
-          end
+          record_connection_failure if e.code == "Neo.TransientError.General.DatabaseUnavailable"
           e
         end
 
         def handled_protocol_exception(e)
-          @error_handler.on_connection_failure(@address)
+          record_connection_failure
           e
+        end
+
+        def record_connection_failure
+          @error_handler.on_connection_failure(@address)
         end
 
         def handled_client_exception(e)
