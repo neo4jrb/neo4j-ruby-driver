@@ -31,8 +31,8 @@ jobs:
           - [ruby, latest]
         tests:
           - TESTKIT_TESTS
-          - STUB_TESTS
-          - TLS_TESTS
+#          - STUB_TESTS
+#          - TLS_TESTS
     steps:
       - uses: actions/checkout@v3
         with:
@@ -75,8 +75,7 @@ jobs:
           cd testkit
           # everything from --run-only-selected is to reduce the number of tests run in this
           # demonstation setup. In a real setup, you most likely don't want this.
-          python3 main.py  --tests TESTKIT_TESTS --configs 5.26-enterprise
-          # python3 main.py --tests ${{ matrix.tests }} --configs 5.26-enterprise
+          python3 main.py --tests ${{ matrix.tests }} --configs 5.26-enterprise
           # --configs 4.3-enterprise --run-only-selected tests.neo4j.datatypes.TestDataTypes.test_should_echo_back
 
       - name: Archive testkit artifacts
