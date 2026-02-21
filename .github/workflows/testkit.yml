@@ -31,7 +31,7 @@ jobs:
           - [ruby, latest]
         tests:
           - TESTKIT_TESTS
-#          - STUB_TESTS
+          - STUB_TESTS
 #          - TLS_TESTS
     steps:
       - uses: actions/checkout@v3
