@@ -3,7 +3,7 @@
 module Neo4j::Driver
   module Internal
     class DelegatingTransaction
-      delegate :run, to: :@tx
+      delegate :run, :open?, to: :@tx
 
       def initialize(tx)
         @tx = tx
