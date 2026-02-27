@@ -38,7 +38,7 @@ end.spec 'neo4j-ruby-driver' do
 
   self.clean_globs += %w[Gemfile Gemfile.lock *.gemspec lib/org lib/*_jars.rb]
 
-  require_ruby_version '>= 3.1'
+  require_ruby_version '>= 3.4'
 
   if jruby?
     dependency 'async', '< 2', :dev
