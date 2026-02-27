@@ -48,18 +48,14 @@ module Neo4j::Driver
       end
 
       def execute_read(**config, &block)
-        delegating_transaction(AccessMode::READ, **config, &block)
+        transaction(AccessMode::READ, **config, &block)
       end
 
       def execute_write(**config, &block)
-        delegating_transaction(AccessMode::WRITE, **config, &block)
+        transaction(AccessMode::WRITE, **config, &block)
       end
 
       private
-
-      def delegating_transaction(mode, **config, &block)
-        transaction(mode, **config) { |tx| block.call(DelegatingTransaction.new(tx)) }
-      end
 
       def transaction(mode, **config)
         # use different code path compared to async so that work is executed in the caller thread

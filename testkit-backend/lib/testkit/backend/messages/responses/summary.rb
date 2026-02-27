@@ -35,7 +35,6 @@ module Testkit::Backend::Messages
           # to_map(n, *%w[code title description raw_category raw_severity_level])
           to_map(n, *%w[code title description])
             # .merge(to_map(n, *%w[category severity_level]) { |o| o&.name || 'UNKNOWN' })
-            .merge(to_map(n, *%w[]) { |o| o&.name || 'UNKNOWN' })
             .merge(map_entry(n, :position, :column, :line, :offset))
         end
       end

@@ -38,9 +38,9 @@ end.spec 'neo4j-ruby-driver' do
 
   self.clean_globs += %w[Gemfile Gemfile.lock *.gemspec lib/org lib/*_jars.rb]
 
-  if jruby?
-    require_ruby_version '>= 3.1'
+  require_ruby_version '>= 3.4'
 
+  if jruby?
     dependency 'async', '< 2', :dev
     dependency 'concurrent-ruby-edge', '>= 0.6.0'
     dependency 'jar-dependencies', '>= 0.5.5'
@@ -53,8 +53,6 @@ end.spec 'neo4j-ruby-driver' do
     }
     spec_extras[:platform] = 'java'
   else
-    require_ruby_version '>= 3.4'
-
     dependency 'async', ['>= 2.13', '< 2.24']
     dependency 'async-io', '>= 0'
     dependency 'connection_pool', '>= 3.0.0'
