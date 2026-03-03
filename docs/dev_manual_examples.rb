@@ -256,7 +256,7 @@ def add_employ_and_make_friends
     session1.execute_write { |tx| add_person(tx, 'Alice') }
     session1.execute_write { |tx| employ(tx, 'Alice', 'Wayne Enterprises') }
 
-    saved_bookmarks << session1.last_bookmark
+    saved_bookmarks << session1.last_bookmarks
   end
 
   # Create the second person and employment relationship.
@@ -265,7 +265,7 @@ def add_employ_and_make_friends
     session2.execute_write { |tx| add_person(tx, 'Bob') }
     session2.execute_write { |tx| employ(tx, 'Bob', 'LexCorp') }
 
-    saved_bookmarks << session2.last_bookmark
+    saved_bookmarks << session2.last_bookmarks
   end
 
   # Create a friendship between the two people created above.

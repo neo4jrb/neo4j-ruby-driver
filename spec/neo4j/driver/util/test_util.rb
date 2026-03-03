@@ -7,7 +7,7 @@ module Neo4j
         def clean_db(driver)
           driver.session do |session|
             clean_db_in_session(session)
-            session.last_bookmark
+            session.last_bookmarks
           end
         end
 
