@@ -47,8 +47,8 @@ end.spec 'neo4j-ruby-driver' do
     dependency 'ruby-maven', '>= 0', :dev
 
     spec_extras[:requirements] = ->(requirements) {
-      requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 6.0.2'
-      requirements << 'jar org.neo4j.driver, neo4j-java-driver-observation-metrics, 6.0.2'
+      requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 6.0.3'
+      requirements << 'jar org.neo4j.driver, neo4j-java-driver-observation-metrics, 6.0.3'
       # requirements << 'jar org.neo4j.bolt, neo4j-bolt-connection-pooled, 10.1.0'
     }
     spec_extras[:platform] = 'java'
