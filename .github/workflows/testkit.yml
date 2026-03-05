@@ -43,7 +43,7 @@ jobs:
         with:
           repository: neo4j-drivers/testkit
           path: testkit
-          ref: '6.x'
+          ref: '5.0'
 
       - name: Install dependencies
         run: |
