@@ -4,12 +4,7 @@ module Neo4j
   module Driver
     module Ext
       module InternalTransaction
-        include ExceptionCheckable
-        include RunOverride
-
-        def run(statement, **parameters)
-          check { super(to_statement(statement, parameters)) }
-        end
+        include Internal::AbstractQueryRunner
 
         def commit
           check { super }
