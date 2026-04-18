@@ -49,7 +49,7 @@ module Neo4j
         keys = run_response.metadata[:fields] || run_response.metadata['fields'] || []
 
         # Return result that will fetch RECORD responses and final summary
-        @current_result = Result.new(@connection, keys)
+        @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters, run_metadata: run_response.metadata)
       end
 
       def commit

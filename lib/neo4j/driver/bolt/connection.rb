@@ -42,6 +42,8 @@ module Neo4j
 
         def connect
           host = @uri.host
+          # Strip brackets from IPv6 addresses (URI returns [::1], but TCPSocket expects ::1)
+          host = host[1..-2] if host&.start_with?('[') && host.end_with?(']')
           port = @uri.port || DEFAULT_PORT
 
           @socket = TCPSocket.new(host, port)

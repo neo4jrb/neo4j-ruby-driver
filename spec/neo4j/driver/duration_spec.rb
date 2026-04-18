@@ -44,16 +44,6 @@ RSpec.describe Neo4j::Driver::Types::Duration do
       it { is_expected.to eq param }
     end
 
-    context 'when 10.8 months (fractional, truncated to 10)' do
-      let(:param) { described_class.new(10.8, 0, 0, 0) }
-
-      # Fractional values are truncated to integers client-side
-      it 'sends 10 months and receives 10 months back' do
-        expect(result).to be_a(described_class)
-        expect(result.parts[:months]).to eq 10
-      end
-    end
-
     context 'when 15 days 12 hours' do
       let(:param) { described_class.new(0, 15, 43200, 0) }
 

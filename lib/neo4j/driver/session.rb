@@ -52,7 +52,7 @@ module Neo4j
         end
 
         keys = run_response.metadata[:fields] || run_response.metadata['fields'] || []
-        @current_result = Result.new(@connection, keys)
+        @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters, run_metadata: run_response.metadata)
       end
 
       def begin_transaction(&block)
