@@ -233,12 +233,13 @@ module Neo4j
         def pack_datetime(value)
           # DateTime structure: signature 0x46, 3 fields (seconds, nanos, tz_offset)
           epoch_seconds = value.to_i
-          nanoseconds = (value.to_f - epoch_seconds) * 1_000_000_000
+          # Use nsec for Time or calculate from subsec for DateTime to preserve precision
+          nanoseconds = value.respond_to?(:nsec) ? value.nsec : (value.subsec * 1_000_000_000).round
           tz_offset = value.utc_offset
 
           @buffer << [TINY_STRUCT | 3, 0x46].pack('CC')
           pack_integer(epoch_seconds)
-          pack_integer(nanoseconds.to_i)
+          pack_integer(nanoseconds)
           pack_integer(tz_offset)
         end
 

@@ -309,6 +309,31 @@ module Neo4j
             Types::LocalDateTime.from_epoch(fields[0], fields[1])
           end
 
+          # DateTimeZoneId - signature 0x66 (with timezone name) → Ruby Time
+          unpacker.register_hydration_handler(0x66) do |fields|
+            # fields: [epoch_seconds, nanoseconds, timezone_name]
+            # Neo4j sends epoch seconds for the LOCAL time value, need to adjust to get UTC
+            begin
+              if defined?(ActiveSupport::TimeZone)
+                # Use ActiveSupport::TimeZone which handles timezone conversion
+                tz = ActiveSupport::TimeZone[fields[2]]
+                # Subtract the timezone offset to get the correct UTC time
+                time_with_nanos = fields[0] + fields[1] / 1_000_000_000.0
+                tz.at(time_with_nanos - 2 * tz.utc_offset)
+              else
+                # Fall back to creating UTC time and converting
+                utc_time = ::Time.at(fields[0], fields[1], :nanosecond, in: "UTC")
+                require 'tzinfo' unless defined?(TZInfo)
+                tz = TZInfo::Timezone.get(fields[2])
+                period = tz.period_for_utc(utc_time)
+                utc_time.getlocal(period.offset.utc_total_offset)
+              end
+            rescue StandardError => e
+              # If timezone conversion fails, return UTC time
+              ::Time.at(fields[0], fields[1], :nanosecond, in: "UTC")
+            end
+          end
+
           # Duration - signature 0x45
           unpacker.register_hydration_handler(0x45) do |fields|
             Types::Duration.new(fields[0], fields[1], fields[2], fields[3])
