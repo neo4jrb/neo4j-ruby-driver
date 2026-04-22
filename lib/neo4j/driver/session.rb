@@ -26,7 +26,9 @@ module Neo4j
         end
       end
 
-      def run(query, parameters = {}, **options)
+      def run(query, parameters = {}, config = {})
+        parameters ||= {}
+
         raise Exceptions::ClientException, 'Session is closed' unless @open
         raise Exceptions::ClientException, 'You cannot run a query directly on a session while a transaction is open' if @transaction&.open?
 
@@ -36,11 +38,8 @@ module Neo4j
         @current_result&.consume rescue nil
 
         # Extract config options from **options
-        timeout = options.delete(:timeout)
-        tx_metadata = options.delete(:metadata)
-
-        # Merge remaining options into parameters (supports keyword syntax for parameters)
-        parameters = (parameters || {}).merge(options)
+        timeout = config.delete(:timeout)
+        tx_metadata = config.delete(:metadata)
 
         # For auto-commit transactions, use RUN + PULL
         run_extra = {}
