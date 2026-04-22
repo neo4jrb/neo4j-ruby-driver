@@ -1,6 +1,8 @@
 # Neo4j Ruby Driver - Project Context
 
-> **See also**: `DEVELOPMENT.md` for day-to-day development tasks, testing, and reference links
+> **See also**:
+> - `DEVELOPMENT.md` - Day-to-day development tasks, testing, and reference links
+> - `DECISIONS.md` - Chronological log of important architectural and design decisions
 
 ## Essential References
 
@@ -25,10 +27,12 @@ This is a pure Ruby implementation of the Neo4j Bolt protocol driver (no JRuby/J
 
 - **`lib/neo4j/driver/bolt/`** - Bolt protocol implementation (connection, messages)
 - **`lib/neo4j/driver/packstream/`** - PackStream binary serialization (packer/unpacker)
-- **`lib/neo4j/driver/types.rb`** - Neo4j type system (Node, Relationship, Path, temporal types, Point, Duration)
+- **`lib/neo4j/driver/types/`** - Neo4j type system (Node, Relationship, Path, temporal types, Point, Duration)
 - **`lib/neo4j/driver/session.rb`** - Session management and auto-commit transactions
 - **`lib/neo4j/driver/transaction.rb`** - Explicit transaction handling
-- **`lib/neo4j/driver/result.rb`** - Lazy result streaming with Record and Summary
+- **`lib/neo4j/driver/result.rb`** - Result class (lazy streaming)
+- **`lib/neo4j/driver/record.rb`** - Record class (single result row)
+- **`lib/neo4j/driver/summary.rb`** - Summary class (execution metadata)
 
 ## Key Design Decisions
 
@@ -188,6 +192,73 @@ TEST_NEO4J_PASS=password
 - No ActiveSupport::Duration dependency (use plain integers for seconds/milliseconds)
 - No JRuby/Java driver wrapping (pure Ruby implementation)
 
+## Coding Style & Preferences
+
+### Ruby Idioms
+- **Prefer idiomatic Ruby** over defensive programming
+- **Trust callers** - Don't add unnecessary `.dup`, `.freeze`, or guards
+- **Use Ruby 3.1+ features**:
+  - Hash value omission: `metadata:` instead of `metadata: metadata`
+  - Method references: `&Bookmark.method(:new)` instead of `{ |b| Bookmark.new(b) }`
+  - `Array()` conversion instead of `[x] unless x.is_a?(Array)`
+- **Explicit over clever** - Clear, straightforward code over "smart" solutions
+  - Example: Separate `parameters` and `config` params instead of merging/extracting
+
+### Design Principles
+- **Keep it simple** - Don't over-engineer or add features not requested
+- **DRY but not prematurely** - Extract duplication when it appears 3+ times
+- **Tell, don't ask** - Prefer polymorphism over type checking (`is_a?`, `case/when` on type)
+- **One class per file** - Follow Zeitwerk conventions strictly (see below)
+
+### When to Use What
+- **Use specialized tools** over bash commands:
+  - `Read` tool for reading files (not `cat`)
+  - `Edit` tool for editing (not `sed`)
+  - `Grep` tool for searching (not `grep` command)
+  - Reserve `Bash` for git, npm, bundler, and actual terminal operations
+- **Use `compact` to remove nils** instead of conditionals:
+  ```ruby
+  # Good
+  { timeout: timeout_to_milliseconds(timeout), metadata: }.compact
+
+  # Bad
+  hash = {}
+  hash[:timeout] = timeout_to_milliseconds(timeout) if timeout
+  hash[:metadata] = metadata if metadata
+  ```
+
+### Code Organization (Zeitwerk)
+All files **must** follow Zeitwerk's one-class-per-file convention:
+
+```
+lib/neo4j/driver/
+  types.rb                    # Module only
+  types/
+    node.rb                   # Types::Node
+    relationship.rb           # Types::Relationship
+    time.rb                   # Types::Time
+  bolt/
+    message.rb                # Module + constants + helpers
+    message/
+      success.rb              # Message::Success
+      failure.rb              # Message::Failure
+```
+
+**Nested classes are allowed** when they're implementation details:
+- `Summary::Query`, `Summary::ServerInfo` → OK in summary.rb
+- `Path::Segment` → OK in path.rb
+- But `Result`, `Record`, `Summary` → Must be separate files
+
+### Error Messages
+- **Be helpful**: `"Cannot pack value of type #{value.class}"` not `"Invalid value"`
+- **Include context**: `"Transaction is already closed"` not `"Invalid state"`
+- **Match Neo4j error codes** when mapping exceptions
+
+### Git Workflow
+- **Commits**: Always ask before committing unless explicitly told to proceed
+- **Commit messages**: Use structured format with bullet points explaining changes
+- **Include co-author**: Always add `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`
+
 ## Anti-Patterns to Avoid
 
 ❌ Don't mutate `last_bookmarks` directly (it's frozen)
@@ -196,3 +267,6 @@ TEST_NEO4J_PASS=password
 ❌ Don't forget to convert labels/types/keys to symbols
 ❌ Don't use `echo` or bash for user communication (use text output)
 ❌ Don't add emojis unless explicitly requested
+❌ Don't add defensive programming (`.dup.freeze`) without explicit requirement
+❌ Don't over-engineer - solve the current problem, not hypothetical future ones
+❌ Don't use type checking (`is_a?`, `case/when` on type) - use polymorphism instead

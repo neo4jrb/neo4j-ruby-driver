@@ -31,7 +31,7 @@ export TEST_NEO4J_PASS=password
 
 ## Test Status
 
-**Current Status** (as of 2026-04-21):
+**Current Status** (as of 2026-04-22):
 - **388 examples total**
 - **348 passing** ✅
 - **40 failures** ❌
@@ -246,6 +246,27 @@ bundle exec rspec
 # Check for debugging artifacts
 git diff | grep -i "puts\|binding.pry\|debugger"
 ```
+
+## Maintainer Preferences & Workflow
+
+### Working with Heinrich
+- **Always ask before committing** unless explicitly told to proceed
+- **Heinrich may fix code directly** - He'll notify when to continue
+- **Question unnecessary complexity** - He values pushback on over-engineering
+- **Be explicit** - Clear, simple solutions over clever tricks
+
+### Code Review Expectations
+- **Idiomatic Ruby** - Use modern Ruby features (3.1+)
+- **Trust callers** - No defensive `.dup`, `.freeze` without reason
+- **One class per file** - Strict Zeitwerk conventions
+- **Polymorphism over type checking** - Avoid `is_a?` and type-based `case/when`
+- **Simple over clever** - Solve the current problem, not hypothetical futures
+
+### When Heinrich Says...
+- **"Do we still need it?"** → Question if code adds real value
+- **"This could be claimed about any object"** → Don't special-case without justification
+- **"Let me fix this myself"** → Wait for notification before continuing
+- **"Why didn't you..."** → Explains missing context or expectations
 
 ## Troubleshooting
 
