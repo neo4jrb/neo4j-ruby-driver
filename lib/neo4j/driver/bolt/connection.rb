@@ -232,7 +232,7 @@ module Neo4j
           # Register handlers for Neo4j types (Node, Relationship, etc.)
           # Signature 0x4E - Node
           unpacker.register_hydration_handler(0x4E) do |fields|
-            Types::Node.new(fields[0], fields[1], fields[2], fields[3])
+            Types::Node.new(fields[0], fields[1].map(&:to_sym), fields[2], fields[3])
           end
 
           # Signature 0x52 - Relationship (bound)

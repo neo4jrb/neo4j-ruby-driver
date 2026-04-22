@@ -6,7 +6,6 @@ module Neo4j
   module Driver
     # Represents a session for executing queries
     class Session
-      attr_reader :last_bookmarks
 
       def initialize(driver, options = {})
         @driver = driver
@@ -41,7 +40,7 @@ module Neo4j
         tx_metadata = options.delete(:metadata)
 
         # Merge remaining options into parameters (supports keyword syntax for parameters)
-        parameters = parameters.merge(options) if options.any?
+        parameters = (parameters || {}).merge(options)
 
         # For auto-commit transactions, use RUN + PULL
         run_extra = {}
@@ -116,6 +115,10 @@ module Neo4j
 
       def open?
         @open
+      end
+
+      def last_bookmarks
+        @last_bookmarks.dup.freeze
       end
 
       def update_bookmarks(bookmarks)
