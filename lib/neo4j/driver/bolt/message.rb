@@ -72,45 +72,6 @@ module Neo4j
             PackStream::Structure.new(GOODBYE, [])
           end
         end
-
-        # Response message wrappers
-        class Success
-          attr_reader :metadata
-
-          def initialize(metadata = {})
-            @metadata = metadata
-          end
-        end
-
-        class Record
-          attr_reader :fields
-
-          def initialize(fields)
-            @fields = fields
-          end
-        end
-
-        class Failure
-          attr_reader :metadata
-
-          def initialize(metadata)
-            @metadata = metadata
-          end
-
-          def code
-            @metadata[:code]
-          end
-
-          def message
-            @metadata[:message]
-          end
-        end
-
-        class Ignored
-          def initialize(metadata = {})
-            @metadata = metadata
-          end
-        end
       end
     end
   end

@@ -227,12 +227,5 @@ module Neo4j
         end
       end
     end
-
-    # Access mode for transactions
-    module AccessMode
-      READ = :read
-      WRITE = :write
-    end
-
   end
 end
