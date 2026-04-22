@@ -1,5 +1,22 @@
 # Neo4j Ruby Driver - Project Context
 
+> **See also**: `DEVELOPMENT.md` for day-to-day development tasks, testing, and reference links
+
+## Essential References
+
+### Specifications
+- **Bolt Protocol**: https://neo4j.com/docs/bolt/current/
+- **PackStream**: https://neo4j.com/docs/bolt/current/packstream/
+- **Bolt 4.x Messages**: https://7687.org/bolt/bolt-protocol-message-specification-4.html
+
+### Official Drivers (for comparison)
+- **Java** (reference impl): https://github.com/neo4j/neo4j-java-driver
+- **Python**: https://github.com/neo4j/neo4j-python-driver
+- **JavaScript**: https://github.com/neo4j/neo4j-javascript-driver
+- **Go**: https://github.com/neo4j/neo4j-go-driver
+
+When in doubt, check the Java driver - it's the most comprehensive reference implementation.
+
 ## Architecture Overview
 
 This is a pure Ruby implementation of the Neo4j Bolt protocol driver (no JRuby/Java dependencies).
