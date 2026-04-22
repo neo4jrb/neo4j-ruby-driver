@@ -27,7 +27,7 @@ module Neo4j
         end
       end
 
-      def run(query, parameters = {})
+      def run(query, parameters = {}, **options)
         raise Exceptions::ClientException, 'Session is closed' unless @open
         raise Exceptions::ClientException, 'You cannot run a query directly on a session while a transaction is open' if @transaction&.open?
 
@@ -36,9 +36,21 @@ module Neo4j
         # Auto-consume any previous unconsumed result
         @current_result&.consume rescue nil
 
+        # Extract config options from **options
+        timeout = options.delete(:timeout)
+        tx_metadata = options.delete(:metadata)
+
+        # Merge remaining options into parameters (supports keyword syntax for parameters)
+        parameters = parameters.merge(options) if options.any?
+
         # For auto-commit transactions, use RUN + PULL
         run_extra = {}
         run_extra[:db] = @options[:database] if @options[:database]
+
+        # Add config options in Bolt protocol format
+        # timeout should be in milliseconds
+        run_extra[:tx_timeout] = timeout.to_i if timeout
+        run_extra[:tx_metadata] = tx_metadata if tx_metadata
 
         @connection.send_message(Bolt::Message.run(query, parameters, run_extra))
         @connection.send_message(Bolt::Message.pull)
@@ -82,12 +94,12 @@ module Neo4j
         end
       end
 
-      def execute_read(&block)
-        execute_transaction(AccessMode::READ, &block)
+      def execute_read(timeout: nil, metadata: nil, &block)
+        execute_transaction(AccessMode::READ, timeout: timeout, metadata: metadata, &block)
       end
 
-      def execute_write(&block)
-        execute_transaction(AccessMode::WRITE, &block)
+      def execute_write(timeout: nil, metadata: nil, &block)
+        execute_transaction(AccessMode::WRITE, timeout: timeout, metadata: metadata, &block)
       end
 
       def close
@@ -119,7 +131,7 @@ module Neo4j
         @connection ||= @driver.acquire_connection
       end
 
-      def execute_transaction(access_mode, &block)
+      def execute_transaction(access_mode, timeout: nil, metadata: nil, &block)
         raise Exceptions::ClientException, 'Session is closed' unless @open
 
         max_retry_time = @options[:max_transaction_retry_time] || 2
@@ -129,6 +141,9 @@ module Neo4j
         loop do
           begin
             tx_options = @options.merge(access_mode: access_mode == AccessMode::READ ? 'r' : 'w')
+            # timeout should be in milliseconds
+            tx_options[:timeout] = timeout.to_i if timeout
+            tx_options[:metadata] = metadata if metadata
             return begin_transaction_internal(tx_options, &block)
           rescue Exceptions::ServiceUnavailableException, Exceptions::TransientException => e
             errors << e
