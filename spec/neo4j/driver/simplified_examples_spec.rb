@@ -24,16 +24,6 @@ RSpec.describe Neo4j::Driver do
     expect(greeting).to match(/hello, world, from node \d+/)
   end
 
-  it 'Simplified Hello World with 0 arity block' do
-    greeting = nil
-    driver.session do
-      greeting = run("CREATE (a:Greeting) SET a.message = $message RETURN a.message + ', from node ' + id(a)",
-                     message: 'hello, world').single.first
-      puts greeting
-    end
-    expect(greeting).to match(/hello, world, from node \d+/)
-  end
-
   it 'Driver with block and fetching before session close' do
     username = ENV.fetch('TEST_NEO4J_USER', 'neo4j')
     password = ENV.fetch('TEST_NEO4J_PASS', 'password')

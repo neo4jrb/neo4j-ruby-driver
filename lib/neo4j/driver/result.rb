@@ -41,6 +41,10 @@ module Neo4j
             @consumed = true
             false
           when Bolt::Message::Failure
+            # Create summary from failure metadata before raising exception
+            # This allows summary to be accessed even after the failure
+            merged_metadata = @run_metadata.merge(response.metadata)
+            @summary = Summary.new(merged_metadata, @query_text, @parameters, @connection)
             @consumed = true
             handle_failure(response)
           else
