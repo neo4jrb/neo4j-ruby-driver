@@ -89,8 +89,6 @@ module Neo4j
         while has_next?
           block.call(self.next)
         end
-
-        @records.each(&block) if @records.any?
       end
 
       def to_a
