@@ -39,19 +39,18 @@ This is a pure Ruby implementation of the Neo4j Bolt protocol driver (no JRuby/J
 - **Record keys** → stored as strings internally, accessible via string or symbol
 
 ### Parameters vs Config Separation
-Session#run and transaction methods use `**options` pattern:
+Session#run uses explicit separation of parameters and config:
 ```ruby
-def run(query, parameters = {}, **options)
-  timeout = options.delete(:timeout)        # Extract config
-  metadata = options.delete(:metadata)      # Extract config
-  parameters = (parameters || {}).merge(options)  # Merge rest into parameters
+def run(query, parameters = {}, config = {})
+  # parameters - query parameters ($param references)
+  # config - execution options (timeout, metadata)
 ```
 
-This allows:
-- `session.run('RETURN $x', x: 1)` - keywords as parameters
-- `session.run('RETURN $x', {x: 1})` - hash as parameters
-- `session.run('RETURN $x', {x: 1}, timeout: 60000)` - hash + config
-- `session.run('RETURN $x', {metadata: 'param'}, metadata: {config: true})` - same key in both!
+Usage:
+- `session.run('RETURN $x', { x: 1 })` - parameters only
+- `session.run('RETURN $x', { x: 1 }, { timeout: 60000 })` - parameters + config
+- `session.run('RETURN $x', {}, { timeout: 60000 })` - config only
+- Same key can appear in both: `session.run('query', { metadata: 'param' }, { metadata: {config: true} })`
 
 ### Transaction Types
 1. **Auto-commit** (`session.run`) - Single RUN + PULL, no BEGIN/COMMIT
