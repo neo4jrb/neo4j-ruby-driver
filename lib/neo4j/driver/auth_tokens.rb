@@ -5,6 +5,9 @@ module Neo4j
     module AuthTokens
       class << self
         def basic(username, password, realm: nil)
+          raise ArgumentError, "Username can't be nil" if username.nil?
+          raise ArgumentError, "Password can't be nil" if password.nil?
+
           token = {
             scheme: 'basic',
             principal: username,

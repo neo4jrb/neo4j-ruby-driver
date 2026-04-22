@@ -62,7 +62,7 @@ module Neo4j
           handle_response_error(run_response)
         end
 
-        keys = run_response.metadata[:fields] || run_response.metadata['fields'] || []
+        keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
         @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters, run_metadata: run_response.metadata)
       end
 
