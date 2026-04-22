@@ -13,7 +13,7 @@ RSpec.describe 'Bookmark' do
   def create_and_expect(session)
     create_node_in_tx(session)
     session.last_bookmarks.tap do |bookmarks|
-      expect(bookmarks).to be_present
+      expect(bookmarks.size).to eq 1
     end
   end
 
@@ -69,8 +69,8 @@ RSpec.describe 'Bookmark' do
 
   it 'is updated every committed tx' do
     driver.session do |session|
-      expect(session.last_bookmarks).not_to be_present
-      expect(Array.new(3) { create_and_expect(session) }.to_set.size).to eq 3
+      expect(session.last_bookmarks).to be_empty
+      expect(3.times.sum(Set.new) { create_and_expect(session) }.size).to eq 3
     end
   end
 

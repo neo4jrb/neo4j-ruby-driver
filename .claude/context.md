@@ -47,10 +47,12 @@ def run(query, parameters = {}, config = {})
 ```
 
 Usage:
-- `session.run('RETURN $x', { x: 1 })` - parameters only
-- `session.run('RETURN $x', { x: 1 }, { timeout: 60000 })` - parameters + config
-- `session.run('RETURN $x', {}, { timeout: 60000 })` - config only
-- Same key can appear in both: `session.run('query', { metadata: 'param' }, { metadata: {config: true} })`
+- `session.run('RETURN $x', x: 1 )` - parameters only
+- `session.run('RETURN $x', { x: 1 }, timeout: 60)` - parameters + config (timeout in seconds)
+- `session.run('RETURN $x', {}, timeout: 60})` - config only
+- Same key can appear in both: `session.run('query', { metadata: 'param' }, metadata: {config: true})`
+
+**Note**: Timeouts are specified in seconds (or `ActiveSupport::Duration` if available) and converted internally to milliseconds for the Bolt protocol.
 
 ### Transaction Types
 1. **Auto-commit** (`session.run`) - Single RUN + PULL, no BEGIN/COMMIT
@@ -58,12 +60,11 @@ Usage:
 3. **Explicit** (`session.begin_transaction`) - Manual control, user calls commit/rollback
 
 ### Bookmarks
-`session.last_bookmarks` returns a **frozen duplicate** of the internal Set to prevent:
-```ruby
-# Without .dup.freeze, this would fail:
-bookmarks = Array.new(3) { create_tx; session.last_bookmarks }
-bookmarks.to_set.size # Would be 1 (same object reference 3 times!)
-```
+Bookmarks are **replaced** after each committed transaction (not accumulated):
+- `session.last_bookmarks` returns a Set with **0 or 1 bookmark**
+- Each committed transaction generates a **new, unique bookmark** that replaces the previous one
+- Bookmarks only update on **successful transaction commits** (not on rollback, failure, or auto-commit queries)
+- Bookmarks represent the **latest point** in the transaction log (matches Java driver behavior)
 
 ## Bolt Protocol Quirks
 

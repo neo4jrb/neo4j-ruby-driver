@@ -42,13 +42,11 @@ module Neo4j
         tx_metadata = config.delete(:metadata)
 
         # For auto-commit transactions, use RUN + PULL
-        run_extra = {}
-        run_extra[:db] = @options[:database] if @options[:database]
-
-        # Add config options in Bolt protocol format
-        # timeout should be in milliseconds
-        run_extra[:tx_timeout] = timeout.to_i if timeout
-        run_extra[:tx_metadata] = tx_metadata if tx_metadata
+        run_extra = {
+          db: @options[:database],
+          tx_timeout: timeout_to_milliseconds(timeout),
+          tx_metadata:
+        }.compact
 
         @connection.send_message(Bolt::Message.run(query, parameters, run_extra))
         @connection.send_message(Bolt::Message.pull)
@@ -117,20 +115,26 @@ module Neo4j
       end
 
       def last_bookmarks
-        @last_bookmarks.dup.freeze
+        @last_bookmarks
       end
 
       def update_bookmarks(bookmarks)
-        bookmarks = [bookmarks] unless bookmarks.is_a?(Array)
-        bookmarks.each do |bookmark|
-          @last_bookmarks << Bookmark.new(bookmark)
-        end
+        # Replace bookmarks (don't accumulate) - matches Java driver behavior
+        # Each committed transaction generates a new bookmark that replaces the previous one
+        @last_bookmarks = Set.new(Array(bookmarks).map(&Bookmark.method(:new)))
       end
 
       private
 
       def ensure_connection
         @connection ||= @driver.acquire_connection
+      end
+
+      # Convert timeout from seconds (or ActiveSupport::Duration) to milliseconds for Bolt protocol
+      def timeout_to_milliseconds(timeout)
+        return nil unless timeout
+        timeout_seconds = timeout.respond_to?(:to_i) ? timeout.to_i : timeout
+        (timeout_seconds * 1000).to_i
       end
 
       def execute_transaction(access_mode, timeout: nil, metadata: nil, &block)
@@ -142,10 +146,11 @@ module Neo4j
 
         loop do
           begin
-            tx_options = @options.merge(access_mode: access_mode == AccessMode::READ ? 'r' : 'w')
-            # timeout should be in milliseconds
-            tx_options[:timeout] = timeout.to_i if timeout
-            tx_options[:metadata] = metadata if metadata
+            tx_options = @options.merge(
+              access_mode: access_mode == AccessMode::READ ? 'r' : 'w',
+              timeout: timeout_to_milliseconds(timeout),
+              metadata:
+            ).compact
             return begin_transaction_internal(tx_options, &block)
           rescue Exceptions::ServiceUnavailableException, Exceptions::TransientException => e
             errors << e
