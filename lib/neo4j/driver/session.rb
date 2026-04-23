@@ -34,8 +34,13 @@ module Neo4j
 
         ensure_connection
 
-        # Auto-consume any previous unconsumed result
-        @current_result&.consume rescue nil
+        # Buffer any previous unconsumed result so its records stay
+        # accessible while we reuse the connection for this new query.
+        begin
+          @current_result&.buffer
+        rescue Exceptions::Neo4jException
+          @connection.reset!
+        end
 
         # Extract config options from **options
         timeout = config.delete(:timeout)
@@ -72,9 +77,14 @@ module Neo4j
 
         ensure_connection
 
-        # Drain any pending auto-commit result so its PULL response doesn't
-        # get interleaved with the BEGIN response stream.
-        @current_result&.consume rescue nil
+        # Buffer any pending auto-commit result so its PULL response doesn't
+        # get interleaved with the BEGIN stream, while keeping records
+        # accessible through the user's existing reference.
+        begin
+          @current_result&.buffer
+        rescue Exceptions::Neo4jException
+          @connection.reset!
+        end
         @current_result = nil
 
         @transaction = Transaction.new(@connection, self, @last_bookmarks.to_a, @options)
@@ -110,6 +120,7 @@ module Neo4j
 
         begin
           @transaction&.close
+          @current_result&.discard!
         ensure
           @connection&.close
           @connection = nil
@@ -222,12 +233,13 @@ module Neo4j
                               Exceptions::DatabaseException
                             end
 
+          # Server is in FAILED state and any queued messages (e.g. the PULL
+          # that followed our RUN) will be IGNORED. Drain them and RESET so
+          # the session is immediately usable for the next query.
+          @connection.reset!
           raise exception_class.new(message, code: code)
         elsif response.is_a?(Bolt::Message::Ignored)
-          # IGNORED means previous request failed, we need to send RESET
-          @connection.send_message(Bolt::Message.reset)
-          @connection.flush
-          @connection.fetch_response # Get RESET response
+          @connection.reset!
           raise Exceptions::ClientException, "Request was ignored by server (likely due to previous error)"
         else
           raise Exceptions::ClientException, "Unexpected response: #{response.class}"

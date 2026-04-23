@@ -11,10 +11,11 @@ module Neo4j
         @keys = keys
         @query_text = query_text
         @parameters = parameters
-        @run_metadata = run_metadata  # Metadata from RUN SUCCESS (contains t_first)
-        @records = []
+        @run_metadata = run_metadata
+        @records = []       # records pulled into memory by #buffer (not by iteration)
         @summary = nil
-        @consumed = false
+        @consumed = false   # stream has been fully drained from the wire
+        @discarded = false  # records were explicitly released; further access raises
         @peeked_record = nil
       end
 
@@ -23,96 +24,153 @@ module Neo4j
       end
 
       def has_next?
+        return true if @records.any?
         return false if @consumed
-
         return true if @peeked_record
 
-        # Try to fetch next record
-        begin
-          response = @connection.fetch_response
-          case response
-          when Bolt::Message::Record
-            @peeked_record = Record.new(@keys, response.fields)
-            true
-          when Bolt::Message::Success
-            # Merge RUN metadata (with t_first) and PULL metadata (with t_last, stats, etc.)
-            merged_metadata = @run_metadata.merge(response.metadata)
-            @summary = Summary.new(merged_metadata, @query_text, @parameters, @connection)
-            @consumed = true
-            false
-          when Bolt::Message::Failure
-            # Create summary from failure metadata before raising exception
-            # This allows summary to be accessed even after the failure
-            merged_metadata = @run_metadata.merge(response.metadata)
-            @summary = Summary.new(merged_metadata, @query_text, @parameters, @connection)
-            @consumed = true
-            handle_failure(response)
-          else
-            false
-          end
-        rescue => e
+        response = @connection.fetch_response
+
+        case response
+        when Bolt::Message::Record
+          @peeked_record = Record.new(@keys, response.fields)
+          true
+        when Bolt::Message::Success
+          @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
           @consumed = true
-          raise e
+          false
+        when Bolt::Message::Failure
+          @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
+          @consumed = true
+          handle_failure(response)
+        else
+          false
         end
+      rescue StandardError
+        @consumed = true
+        raise
       end
 
       def next
-        raise Exceptions::ResultConsumedException if @consumed
+        raise Exceptions::ResultConsumedException if @discarded
+        return @records.shift if @records.any?
         raise Exceptions::NoSuchRecordException, 'No more records' unless has_next?
 
         record = @peeked_record
         @peeked_record = nil
-        @records << record
         record
       end
 
       def peek
-        raise Exceptions::ResultConsumedException if @consumed
+        raise Exceptions::ResultConsumedException if @discarded
+        return @records.first if @records.any?
         raise Exceptions::NoSuchRecordException, 'No more records' unless has_next?
 
         @peeked_record
       end
 
       def single
-        record = self.next
-        if has_next?
-          raise Exceptions::ClientException, 'Expected single record, but found more'
+        raise Exceptions::ResultConsumedException if @discarded
+
+        unless has_next?
+          raise Exceptions::NoSuchRecordException,
+                'Cannot retrieve a single record, because this result is empty.'
         end
+
+        record = self.next
+
+        if has_next?
+          raise Exceptions::NoSuchRecordException,
+                'Expected a result with a single record, but this result contains at least one more. ' \
+                'Ensure your query returns only one record.'
+        end
+
         record
       end
 
       def each(&block)
-        raise Exceptions::ResultConsumedException if @consumed && @records.empty?
+        raise Exceptions::ResultConsumedException if @discarded
+        return to_enum(:each) unless block_given?
 
-        return @records.each(&block) if @consumed
-
-        while has_next?
-          block.call(self.next)
-        end
+        block.call(self.next) while has_next?
       end
 
       def to_a
-        raise Exceptions::ResultConsumedException if @consumed && @records.empty?
-        return @records.dup if @consumed
+        raise Exceptions::ResultConsumedException if @discarded
 
-        while has_next?
-          self.next
-        end
-        @records.dup
+        records = []
+        records << self.next while has_next?
+        records
       end
 
       def consume
-        return @summary if @consumed
+        return @summary if @discarded
 
-        while has_next?
-          self.next
+        @peeked_record = nil
+
+        begin
+          until @consumed
+            response = @connection.fetch_response
+            case response
+            when Bolt::Message::Record
+              # discard silently
+            when Bolt::Message::Success
+              @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
+              @consumed = true
+            when Bolt::Message::Failure
+              @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
+              @consumed = true
+              handle_failure(response)
+            else
+              break
+            end
+          end
+        ensure
+          @records.clear
+          @discarded = true
         end
 
         @summary
       end
 
+      # Pull all remaining records into memory so the underlying connection
+      # can be reused for another query. Unlike #consume, records stay
+      # accessible via #each/#to_a/etc.
+      def buffer
+        return if @consumed
+
+        if @peeked_record
+          @records << @peeked_record
+          @peeked_record = nil
+        end
+
+        until @consumed
+          response = @connection.fetch_response
+          case response
+          when Bolt::Message::Record
+            @records << Record.new(@keys, response.fields)
+          when Bolt::Message::Success
+            @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
+            @consumed = true
+          when Bolt::Message::Failure
+            @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
+            @consumed = true
+            handle_failure(response)
+          else
+            break
+          end
+        end
+      end
+
       def none?
         !has_next?
+      end
+
+      # Mark this result as released without touching the wire. Used by the
+      # session when closing — the underlying connection is gone, so further
+      # record access is impossible and must raise ResultConsumedException.
+      def discard!
+        @peeked_record = nil
+        @discarded = true
       end
 
       private

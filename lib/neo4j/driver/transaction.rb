@@ -120,7 +120,7 @@ module Neo4j
         return unless @current_result
 
         begin
-          @current_result.consume
+          @current_result.buffer
         rescue Exceptions::Neo4jException
           @failed = true
         end
