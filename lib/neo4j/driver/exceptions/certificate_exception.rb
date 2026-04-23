@@ -3,7 +3,7 @@
 module Neo4j
   module Driver
     module Exceptions
-      class IllegalStateException < RuntimeError
+      class CertificateException
       end
     end
   end
