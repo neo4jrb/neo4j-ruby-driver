@@ -54,7 +54,6 @@ end.spec 'neo4j-ruby-driver' do
     spec_extras[:platform] = 'java'
   else
     dependency 'async', ['>= 2.13', '< 2.40']
-    dependency 'async-io', '>= 0'
     dependency 'connection_pool', '>= 3.0.0'
   end
 end

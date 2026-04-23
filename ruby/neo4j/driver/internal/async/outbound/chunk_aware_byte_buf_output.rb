@@ -6,7 +6,7 @@ module Neo4j::Driver
           include Packstream::PackStream::Packer
           include Messaging::Common::CommonValuePacker
 
-          class ChunkBuffer < ::Async::IO::Buffer
+          class ChunkBuffer < String
             include Packstream::PackOutput
             alias write <<
           end
@@ -14,7 +14,7 @@ module Neo4j::Driver
           def initialize(output, max_chunk_size: Connection::BoltProtocolUtil::DEFAULT_MAX_OUTBOUND_CHUNK_SIZE_BYTES)
             @output = output
             @max_chunk_size = verify_max_chunk_size(max_chunk_size)
-            @chunk = ChunkBuffer.new
+            @chunk = ChunkBuffer.new.force_encoding(Encoding::BINARY)
           end
 
           def start

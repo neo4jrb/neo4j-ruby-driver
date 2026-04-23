@@ -19,17 +19,26 @@ module Neo4j::Driver
             socket_host = (@domain_name_resolver.call(address.connection_host).first.ip_address rescue nil) ||
               bracketless(address.connection_host)
 
-            endpoint = ::Async::IO::Endpoint.tcp(socket_host, address.port)
+            connect_timeout = @connect_timeout_millis ? @connect_timeout_millis / 1000.0 : nil
+            tcp_socket = ::Socket.tcp(socket_host, address.port, connect_timeout: connect_timeout)
+
             if @security_plan.requires_encryption?
-              endpoint = ::Async::IO::SSLEndpoint.new(endpoint, ssl_context: @security_plan.ssl_context,
-                                                    hostname: address.host)
+              ssl_context = @security_plan.ssl_context
+              ssl_socket = ::OpenSSL::SSL::SSLSocket.new(tcp_socket, ssl_context)
+              ssl_socket.hostname = address.host
+              ssl_socket.sync_close = true
+              ssl_socket.connect
+              if ssl_context.verify_mode && ssl_context.verify_mode != ::OpenSSL::SSL::VERIFY_NONE
+                ssl_socket.post_connection_check(address.host)
+              end
+              # install_channel_connected_listeners(address, ssl_socket, handshake_completed)
+              # install_handshake_completed_listeners(handshake_completed, connection_initialized)
+              ssl_socket
+            else
+              # install_channel_connected_listeners(address, tcp_socket, handshake_completed)
+              # install_handshake_completed_listeners(handshake_completed, connection_initialized)
+              tcp_socket
             end
-            channel_connected = endpoint.connect
-
-            # install_channel_connected_listeners(address, channel_connected, handshake_completed)
-            # install_handshake_completed_listeners(handshake_completed, connection_initialized)
-
-            channel_connected
           rescue Errno::ECONNREFUSED => e
             raise Exceptions::ServiceUnavailableException, e.message
           end
