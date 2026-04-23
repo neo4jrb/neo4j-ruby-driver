@@ -13,7 +13,7 @@ module Neo4j::Driver
         V3_4_0 = new(NEO4J_PRODUCT, 3, 4, 0)
         V_IN_DEV = new(NEO4J_PRODUCT)
         NEO4J_IN_DEV_VERSION_STRING = "#{NEO4J_PRODUCT}/dev"
-        PATTERN = Regexp.new '([^/]+)/(\\d+)\\.(\\d+)(?:\\.)?(\\d*)(\\.|-|\\+)?([0-9A-Za-z\-.]*)?'
+        PATTERN = Regexp.new '([^/]+)/(\\d+)\\.(\\d+|x)(?:\\.(\\d+|x))?(\\.|-|\\+)?([0-9A-Za-z\-.]*)?(?:\\s+\\(.+\\))?'
 
         def <=>(other)
           unless product == other.product
@@ -30,8 +30,8 @@ module Neo4j::Driver
           PATTERN.match(server) do |matchdata|
             product = matchdata[1]
             major = matchdata[2].to_i
-            minor = matchdata[3].to_i
-            patch = matchdata[4].to_i
+            minor = matchdata[3] == 'x' ? 0 : matchdata[3].to_i
+            patch = matchdata[4].nil? || matchdata[4] == 'x' ? 0 : matchdata[4].to_i
             return new(product, major, minor, patch)
           end
           return V_IN_DEV if server.casecmp?(NEO4J_IN_DEV_VERSION_STRING)
