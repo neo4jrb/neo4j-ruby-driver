@@ -119,10 +119,14 @@ module Neo4j
             rescue Exceptions::Neo4jException => e
               pending_error = e
             end
+            # Any failure during the last result leaves the connection in
+            # the server's FAILED state; RESET so the next borrower starts
+            # from a clean READY state.
+            @connection.reset! if @connection && @current_result.failed?
             @current_result.discard!
           end
         ensure
-          @connection&.close
+          @driver.release_connection(@connection) if @connection
           @connection = nil
           @open = false
         end
@@ -206,8 +210,8 @@ module Neo4j
             # Exponential backoff: 1s, 2s, 4s, ... matching Java driver defaults
             sleep(2 ** (errors.size - 1))
 
-            # Reset connection for retry
-            @connection&.close
+            # Release connection so the retry acquires a fresh one
+            @driver.release_connection(@connection) if @connection
             @connection = nil
           end
         end

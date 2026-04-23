@@ -218,9 +218,15 @@ module Neo4j
           if response.is_a?(Message::Success)
             @server_agent = response.metadata[:server]
           elsif response.is_a?(Message::Failure)
-            raise "Authentication failed: #{response.message}"
+            code = response.code
+            if code.to_s.match?(/^Neo\.ClientError\.Security/)
+              raise Exceptions::AuthenticationException.new(response.message, code: code)
+            end
+            raise Exceptions::ServiceUnavailableException,
+                  "Failed HELLO (#{code}): #{response.message}"
           else
-            raise "Unexpected response to HELLO: #{response.class}"
+            raise Exceptions::ServiceUnavailableException,
+                  "Unexpected response to HELLO: #{response.class}"
           end
         end
 

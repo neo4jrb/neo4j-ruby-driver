@@ -26,6 +26,11 @@ module Neo4j
 
         response = @connection.fetch_response
         unless response.is_a?(Bolt::Message::Success)
+          # BEGIN failed — server is now in FAILED state. Clear it before
+          # propagating so the connection is reusable by whoever is managing
+          # this session's pool checkout.
+          @connection.reset!
+          @open = false
           handle_response_error(response)
         end
       end
