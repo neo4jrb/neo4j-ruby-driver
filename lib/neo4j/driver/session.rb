@@ -29,6 +29,11 @@ module Neo4j
       def run(query, parameters = {}, config = {})
         parameters ||= {}
 
+        unless parameters.is_a?(Hash)
+          raise ArgumentError,
+                "The parameters should be provided as Map type. Unsupported parameters type: #{parameters.class}"
+        end
+
         raise Exceptions::ClientException, 'Session is closed' unless @open
         raise Exceptions::ClientException, 'You cannot run a query directly on a session while a transaction is open' if @transaction&.open?
 

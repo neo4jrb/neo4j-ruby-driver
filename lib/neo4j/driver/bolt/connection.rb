@@ -46,7 +46,12 @@ module Neo4j
           host = host[1..-2] if host&.start_with?('[') && host.end_with?(']')
           port = @uri.port || DEFAULT_PORT
 
-          @socket = TCPSocket.new(host, port)
+          begin
+            @socket = TCPSocket.new(host, port)
+          rescue SystemCallError, SocketError => e
+            raise Exceptions::ServiceUnavailableException,
+                  "Unable to connect to #{host}:#{port}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
+          end
           @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
 
           # Set socket timeout if specified

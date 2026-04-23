@@ -62,6 +62,10 @@ module Neo4j
           when Hash
             # Check Hash before Enumerable since Hash is also Enumerable
             pack_map(value)
+          when Types::Node, Types::Relationship, Types::Path
+            # Graph types are not valid query parameters. Reject before the
+            # Enumerable branch since Path includes Enumerable.
+            raise Exceptions::ClientException, "Unable to convert #{value.class} to Neo4j Value."
           when Enumerable
             # Handle all Enumerable types (Array, Set, Range, etc.)
             # Array#to_a returns self, so no performance penalty
@@ -86,7 +90,7 @@ module Neo4j
           when defined?(Types::Duration) && Types::Duration
             pack_duration(value)
           else
-            raise ArgumentError, "Cannot pack value of type #{value.class}"
+            raise Exceptions::ClientException, "Unable to convert #{value.class} to Neo4j Value."
           end
           self
         end
