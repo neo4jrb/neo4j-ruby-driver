@@ -20,7 +20,7 @@ module Neo4j::Driver
             end
 
             @queue_notification = ::Async::Notification.new
-            @records = ::Async::Queue.new(available: @queue_notification)
+            @records = []
             @auto_pull_enabled = true
 
             install_record_and_summary_consumers
@@ -63,9 +63,9 @@ module Neo4j::Driver
 
           def peek_async
             while @records.empty? && !done?
-              @records.wait
+              @queue_notification.wait
             end
-            @records.items.first&.then(&Util::ResultHolder.method(:successful)) or
+            @records.first&.then(&Util::ResultHolder.method(:successful)) or
               completed_with_value_if_no_failure(nil)
           end
 
@@ -74,7 +74,7 @@ module Neo4j::Driver
           end
 
           def consume_async
-            @records.items.clear
+            @records.clear
             cancel unless done?
             completed_with_value_if_no_failure(@summary)
           end
@@ -84,9 +84,9 @@ module Neo4j::Driver
               unless done?
                 raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
               end
-              @records.items.map(&block)
+              @records.map(&block)
             ensure
-              @records.items.clear
+              @records.clear
             end
           end
 
@@ -109,13 +109,14 @@ module Neo4j::Driver
 
           def enqueue_record(record)
             @records << record
+            @queue_notification.signal
 
             # too many records in the queue, pause auto request gathering
             @auto_pull_enabled = false if @records.size > @high_record_watermark
           end
 
           def dequeue_record
-            record = @records.dequeue
+            record = @records.shift
 
             if @records.size <= @low_record_watermark
               # if not in streaming state we need to restart streaming

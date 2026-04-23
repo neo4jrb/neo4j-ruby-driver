@@ -13,7 +13,8 @@ module Neo4j::Driver
           @metadata_extractor = Internal::Validator.require_non_nil!(metadata_extractor)
           @connection = Internal::Validator.require_non_nil!(connection)
           @completion_listener = Internal::Validator.require_non_nil!(completion_listener)
-          @records = ::Async::Queue.new
+          @records = []
+          @records_available = ::Async::Notification.new
         end
 
         def can_manage_auto_read?
@@ -65,9 +66,9 @@ module Neo4j::Driver
 
         def peek_async
           while @records.empty? && !(@ignore_records || @finished)
-            @records.wait
+            @records_available.wait
           end
-          @records.items.first&.then(&Util::ResultHolder.method(:successful)) or
+          @records.first&.then(&Util::ResultHolder.method(:successful)) or
             @failure ? Util::ResultHolder.failed(extract_failure) : Util::ResultHolder.successful(nil)
         end
 
@@ -77,7 +78,7 @@ module Neo4j::Driver
 
         def consume_async
           @ignore_records = true
-          @records.items.clear
+          @records.clear
           pull_all_failure_async.result!&.then(&Util::ResultHolder.method(:failed)) or
             Util::ResultHolder.successful(@summary)
         end
@@ -88,9 +89,9 @@ module Neo4j::Driver
             unless @finished
               raise Exceptions::IllegalStateException, "Can't get records as list because SUCCESS or FAILURE did not arrive"
             end
-            @records.items.map(&block)
+            @records.map(&block)
           ensure
-            @records.items.clear
+            @records.clear
           end
         end
 
@@ -117,6 +118,7 @@ module Neo4j::Driver
 
         def enqueue_record(record)
           @records << record
+          @records_available.signal
 
           should_buffer_all_records = !@failure_future.nil?
 
@@ -132,7 +134,7 @@ module Neo4j::Driver
         end
 
         def dequeue_record
-          record = @records.dequeue
+          record = @records.shift
 
           if @records.size < RECORD_BUFFER_LOW_WATERMARK
             # less than low watermark records are now available in the buffer, tell connection to pre-fetch more
@@ -154,7 +156,7 @@ module Neo4j::Driver
             result << map_function.apply(record)
           end
 
-          @records.items.clear
+          @records.clear
           result
         end
 
