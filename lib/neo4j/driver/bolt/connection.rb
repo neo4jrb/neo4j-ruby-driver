@@ -322,9 +322,12 @@ module Neo4j
             Types::LocalTime.from_nanos(fields[0])
           end
 
-          # DateTime - signature 0x46 (with timezone) → Ruby Time
+          # DateTime with offset - signature 0x46 → Ruby Time
+          # Server encodes LOCAL seconds (wall-clock time treated as UTC);
+          # subtract the offset to recover the true UTC instant before
+          # displaying in the given offset.
           unpacker.register_hydration_handler(0x46) do |fields|
-            ::Time.at(fields[0], fields[1], :nanosecond).getlocal(fields[2])
+            ::Time.at(fields[0] - fields[2], fields[1], :nanosecond).getlocal(fields[2])
           end
 
           # LocalDateTime - signature 0x64 → Types::LocalDateTime (preserve type for roundtrip)
@@ -333,27 +336,26 @@ module Neo4j
           end
 
           # DateTimeZoneId - signature 0x66 (with timezone name) → Ruby Time
+          # fields: [local_epoch_seconds, nanoseconds, timezone_name]
+          # Server encodes LOCAL seconds (wall-clock time treated as UTC), so
+          # we treat those seconds as a wall-clock in the target zone and
+          # convert to the actual UTC instant — using the zone's offset at
+          # that instant so DST is handled correctly in both summer and winter.
           unpacker.register_hydration_handler(0x66) do |fields|
-            # fields: [epoch_seconds, nanoseconds, timezone_name]
-            # Neo4j sends epoch seconds for the LOCAL time value, need to adjust to get UTC
+            wall_clock = ::Time.at(fields[0], fields[1], :nanosecond).utc
             begin
               if defined?(ActiveSupport::TimeZone)
-                # Use ActiveSupport::TimeZone which handles timezone conversion
                 tz = ActiveSupport::TimeZone[fields[2]]
-                # Subtract the timezone offset to get the correct UTC time
-                time_with_nanos = fields[0] + fields[1] / 1_000_000_000.0
-                tz.at(time_with_nanos - 2 * tz.utc_offset)
+                utc_instant = tz.tzinfo.local_to_utc(wall_clock)
+                tz.at(utc_instant)
               else
-                # Fall back to creating UTC time and converting
-                utc_time = ::Time.at(fields[0], fields[1], :nanosecond, in: "UTC")
                 require 'tzinfo' unless defined?(TZInfo)
                 tz = TZInfo::Timezone.get(fields[2])
-                period = tz.period_for_utc(utc_time)
-                utc_time.getlocal(period.offset.utc_total_offset)
+                utc_instant = tz.local_to_utc(wall_clock)
+                utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
               end
-            rescue StandardError => e
-              # If timezone conversion fails, return UTC time
-              ::Time.at(fields[0], fields[1], :nanosecond, in: "UTC")
+            rescue StandardError
+              wall_clock
             end
           end
 

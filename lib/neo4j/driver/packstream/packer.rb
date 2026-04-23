@@ -72,12 +72,13 @@ module Neo4j
             pack_list(value.to_a)
           when Structure
             pack_structure(value)
+          when ::DateTime, ::Time
+            # Check DateTime before Date — DateTime < Date in Ruby, so the
+            # Date branch would match first and pack away the time component.
+            pack_datetime(value)
           when ::Date
             # Pack Ruby Date as Neo4j Date structure
             pack_date(value)
-          when ::Time, ::DateTime
-            # Pack Ruby Time/DateTime as Neo4j DateTime structure (with timezone)
-            pack_datetime(value)
           when defined?(Types::LocalDateTime) && Types::LocalDateTime
             # Pack Types::LocalDateTime as Neo4j LocalDateTime (without timezone)
             pack_local_datetime(value)
@@ -235,16 +236,44 @@ module Neo4j
         end
 
         def pack_datetime(value)
-          # DateTime structure: signature 0x46, 3 fields (seconds, nanos, tz_offset)
-          epoch_seconds = value.to_i
-          # Use nsec for Time or calculate from subsec for DateTime to preserve precision
-          nanoseconds = value.respond_to?(:nsec) ? value.nsec : (value.subsec * 1_000_000_000).round
-          tz_offset = value.utc_offset
+          # Normalise DateTime to Time so we can rely on Time's API (nsec,
+          # utc_offset, to_i) uniformly.
+          value = value.to_time if value.is_a?(::DateTime)
 
-          @buffer << [TINY_STRUCT | 3, 0x46].pack('CC')
-          pack_integer(epoch_seconds)
-          pack_integer(nanoseconds)
-          pack_integer(tz_offset)
+          tz_offset = value.utc_offset
+          nanoseconds = value.nsec
+          # Both 0x46 and 0x66 use LOCAL seconds encoding (wall-clock time
+          # treated as if it were UTC); see the matching hydration handlers.
+          epoch_seconds = value.to_i + tz_offset
+          zone_name = named_zone_for(value)
+
+          if zone_name
+            # ZonedDateTime: signature 0x66, fields [seconds, nanos, tz_name]
+            @buffer << [TINY_STRUCT | 3, 0x66].pack('CC')
+            pack_integer(epoch_seconds)
+            pack_integer(nanoseconds)
+            pack_string(zone_name)
+          else
+            # DateTime with offset: signature 0x46, fields [seconds, nanos, tz_offset]
+            @buffer << [TINY_STRUCT | 3, 0x46].pack('CC')
+            pack_integer(epoch_seconds)
+            pack_integer(nanoseconds)
+            pack_integer(tz_offset)
+          end
+        end
+
+        # Return the IANA zone name for a TimeWithZone-like value when it has
+        # one, otherwise nil (so the caller falls back to offset-only 0x46).
+        # Offset-shaped names like "+07:00" or "-05:00" don't round-trip
+        # through Neo4j's zoned DateTime and are treated as nil.
+        def named_zone_for(value)
+          return nil unless value.respond_to?(:time_zone)
+
+          tz = value.time_zone
+          name = tz.respond_to?(:name) ? tz.name : nil
+          return nil if name.nil? || name.empty? || name.match?(/\A[+-]?\d/)
+
+          name
         end
 
         def pack_local_datetime(value)
