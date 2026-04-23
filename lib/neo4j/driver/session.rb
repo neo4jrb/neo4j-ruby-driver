@@ -72,12 +72,19 @@ module Neo4j
 
         ensure_connection
 
+        # Drain any pending auto-commit result so its PULL response doesn't
+        # get interleaved with the BEGIN response stream.
+        @current_result&.consume rescue nil
+        @current_result = nil
+
         @transaction = Transaction.new(@connection, self, @last_bookmarks.to_a, @options)
 
         if block_given?
           begin
             result = yield @transaction
-            @transaction.commit unless @transaction.instance_variable_get(:@committed) || !@transaction.open?
+            # Explicit-block transactions default to rollback; user must call
+            # tx.commit to persist changes (matches Java driver semantics).
+            @transaction.rollback if @transaction.open?
             result
           rescue => e
             @transaction.rollback if @transaction.open?

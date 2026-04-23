@@ -10,6 +10,7 @@ module Neo4j
         @open = true
         @committed = false
         @rolled_back = false
+        @failed = false
         @current_result = nil
 
         # Begin the transaction
@@ -30,25 +31,24 @@ module Neo4j
       end
 
       def run(query, parameters = {})
+        raise Exceptions::ClientException, 'Cannot run more queries in this transaction, it has been rolled back' if @failed
         raise Exceptions::ClientException, 'Transaction is closed' unless @open
 
-        # Auto-consume any previous unconsumed result
-        @current_result&.consume rescue nil
+        consume_current_result
 
         @connection.send_message(Bolt::Message.run(query, parameters))
         @connection.send_message(Bolt::Message.pull)
         @connection.flush
 
-        # Get RUN response (should be SUCCESS with keys)
         run_response = @connection.fetch_response
 
         unless run_response.is_a?(Bolt::Message::Success)
+          @failed = true
           handle_response_error(run_response)
         end
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
 
-        # Return result that will fetch RECORD responses and final summary
         @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters, run_metadata: run_response.metadata)
       end
 
@@ -56,8 +56,12 @@ module Neo4j
         raise Exceptions::ClientException, 'Transaction is already closed' unless @open
         raise Exceptions::ClientException, 'Transaction is already committed' if @committed
 
-        # Consume any unconsumed results before committing
-        @current_result&.consume rescue nil
+        if @failed
+          rollback_via_reset
+          raise Exceptions::ClientException, "Transaction can't be committed. It has been rolled back"
+        end
+
+        consume_current_result
 
         @connection.send_message(Bolt::Message.commit)
         @connection.flush
@@ -65,13 +69,14 @@ module Neo4j
         response = @connection.fetch_response
 
         unless response.is_a?(Bolt::Message::Success)
+          @failed = true
+          rollback_via_reset
           handle_response_error(response)
         end
 
         @committed = true
         @open = false
 
-        # Extract bookmark if present
         bookmarks = response.metadata[:bookmark]
         @session.update_bookmarks(bookmarks) if bookmarks
       end
@@ -79,6 +84,13 @@ module Neo4j
       def rollback
         return unless @open
         raise Exceptions::ClientException, 'Transaction is already committed' if @committed
+
+        consume_current_result
+
+        if @failed
+          rollback_via_reset
+          return
+        end
 
         begin
           @connection.send_message(Bolt::Message.rollback)
@@ -98,7 +110,30 @@ module Neo4j
         @open
       end
 
+      def failed?
+        @failed
+      end
+
       private
+
+      def consume_current_result
+        return unless @current_result
+
+        begin
+          @current_result.consume
+        rescue Exceptions::Neo4jException
+          @failed = true
+        end
+      end
+
+      # Recover a failed transaction by asking the server to RESET the
+      # connection. RESET transitions the server from FAILED back to READY
+      # and implicitly rolls back the open transaction.
+      def rollback_via_reset
+        @connection.reset!
+        @rolled_back = true
+        @open = false
+      end
 
       def handle_response_error(response)
         if response.is_a?(Bolt::Message::Failure)

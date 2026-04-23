@@ -136,6 +136,24 @@ module Neo4j
           results
         end
 
+        # Recover from a FAILED server state. Sends RESET and drains all
+        # pending responses (including any IGNOREDs from messages that were
+        # queued before the failure). Returns when the server has acknowledged
+        # the RESET with SUCCESS and the response queue is empty.
+        def reset!
+          send_message(Message.reset)
+          flush
+          fetch_response while !@response_queue.empty?
+        rescue StandardError
+          # If RESET itself fails the connection is likely dead; caller will
+          # discover this on next use. Swallow so recovery paths don't mask
+          # the original error.
+        end
+
+        def pending_responses?
+          !@response_queue.empty?
+        end
+
         private
 
         def perform_handshake
