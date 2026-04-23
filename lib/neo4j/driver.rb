@@ -1,5 +1,12 @@
 # frozen_string_literal: true
 
+require 'connection_pool'
+require 'set'
+require 'socket'
+require 'stringio'
+require 'time'
+require 'tzinfo'
+require 'uri'
 require 'zeitwerk'
 
 module Neo4j

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'uri'
-
 module Neo4j
   module Driver
     # Main entry point for creating Neo4j drivers

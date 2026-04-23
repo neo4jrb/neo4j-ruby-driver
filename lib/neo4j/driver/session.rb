@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'set'
-
 module Neo4j
   module Driver
     # Represents a session for executing queries

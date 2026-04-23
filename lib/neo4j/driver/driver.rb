@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require 'connection_pool'
-require 'uri'
-
 module Neo4j
   module Driver
     # Driver for connecting to Neo4j

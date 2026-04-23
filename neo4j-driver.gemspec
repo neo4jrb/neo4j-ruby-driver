@@ -18,6 +18,7 @@ Gem::Specification.new do |spec|
 
   # Runtime dependencies
   spec.add_dependency 'connection_pool', '~> 3.0'
+  spec.add_dependency 'tzinfo', '~> 2.0'
   spec.add_dependency 'zeitwerk', '~> 2.6'
 
   # Development dependencies

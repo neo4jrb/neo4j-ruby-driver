@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require 'socket'
-require 'uri'
-require 'stringio'
-
 module Neo4j
   module Driver
     module Bolt
@@ -355,7 +351,6 @@ module Neo4j
                 utc_instant = tz.tzinfo.local_to_utc(wall_clock)
                 tz.at(utc_instant)
               else
-                require 'tzinfo' unless defined?(TZInfo)
                 tz = TZInfo::Timezone.get(fields[2])
                 utc_instant = tz.local_to_utc(wall_clock)
                 utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
