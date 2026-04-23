@@ -61,7 +61,12 @@ module Neo4j
           raise Exceptions::ClientException, "Transaction can't be committed. It has been rolled back"
         end
 
-        consume_current_result
+        begin
+          consume_current_result
+        rescue Exceptions::Neo4jException
+          rollback_via_reset
+          raise
+        end
 
         @connection.send_message(Bolt::Message.commit)
         @connection.flush
@@ -85,7 +90,13 @@ module Neo4j
         return unless @open
         raise Exceptions::ClientException, 'Transaction is already committed' if @committed
 
-        consume_current_result
+        begin
+          consume_current_result
+        rescue Exceptions::Neo4jException
+          # Failures surfaced while draining a pending result are expected
+          # during rollback — the tx is being discarded anyway. @failed is
+          # set; RESET path below will clean up the connection.
+        end
 
         if @failed
           rollback_via_reset
@@ -123,7 +134,12 @@ module Neo4j
           @current_result.buffer
         rescue Exceptions::Neo4jException
           @failed = true
+          raise
         end
+
+        # buffer is a no-op when the result was already consumed by the
+        # user; surface any stored failure so callers can react.
+        @failed = true if @current_result.failed?
       end
 
       # Recover a failed transaction by asking the server to RESET the

@@ -34,13 +34,7 @@ module Neo4j
 
         ensure_connection
 
-        # Buffer any previous unconsumed result so its records stay
-        # accessible while we reuse the connection for this new query.
-        begin
-          @current_result&.buffer
-        rescue Exceptions::Neo4jException
-          @connection.reset!
-        end
+        drain_current_result
 
         # Extract config options from **options
         timeout = config.delete(:timeout)
@@ -77,14 +71,7 @@ module Neo4j
 
         ensure_connection
 
-        # Buffer any pending auto-commit result so its PULL response doesn't
-        # get interleaved with the BEGIN stream, while keeping records
-        # accessible through the user's existing reference.
-        begin
-          @current_result&.buffer
-        rescue Exceptions::Neo4jException
-          @connection.reset!
-        end
+        drain_current_result
         @current_result = nil
 
         @transaction = Transaction.new(@connection, self, @last_bookmarks.to_a, @options)
@@ -118,14 +105,24 @@ module Neo4j
       def close
         return unless @open
 
+        pending_error = nil
         begin
           @transaction&.close
-          @current_result&.discard!
+          if @current_result
+            begin
+              @current_result.buffer
+            rescue Exceptions::Neo4jException => e
+              pending_error = e
+            end
+            @current_result.discard!
+          end
         ensure
           @connection&.close
           @connection = nil
           @open = false
         end
+
+        raise pending_error if pending_error
       end
 
       def open?
@@ -146,6 +143,25 @@ module Neo4j
 
       def ensure_connection
         @connection ||= @driver.acquire_connection
+      end
+
+      # Pull any pending auto-commit result's records into memory so records
+      # remain accessible from the user's reference after the connection is
+      # reused for a new RUN or BEGIN. If draining surfaces a failure — either
+      # directly from #buffer or from a prior #consume the user caught — RESET
+      # the server so the next query lands cleanly, and re-raise direct
+      # failures so callers see the real cause.
+      def drain_current_result
+        return unless @current_result
+
+        begin
+          @current_result.buffer
+        rescue Exceptions::Neo4jException
+          @connection.reset!
+          raise
+        end
+
+        @connection.reset! if @current_result.failed?
       end
 
       # Convert timeout from seconds (or ActiveSupport::Duration) to milliseconds for Bolt protocol
@@ -182,8 +198,8 @@ module Neo4j
               )
             end
 
-            # Backoff before retry
-            sleep(0.1 * [errors.size, 10].min)
+            # Exponential backoff: 1s, 2s, 4s, ... matching Java driver defaults
+            sleep(2 ** (errors.size - 1))
 
             # Reset connection for retry
             @connection&.close

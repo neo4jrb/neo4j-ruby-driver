@@ -24,7 +24,15 @@ module Neo4j
           begin
             yield session
           ensure
-            session.close
+            # Block form hands lifecycle to the driver, so close-time
+            # failures from abandoned results (e.g. pending PULL that
+            # would have errored) are treated as cancellations. Callers
+            # who want to observe such errors should manage the session
+            # explicitly and call #close themselves.
+            begin
+              session.close
+            rescue Exceptions::Neo4jException
+            end
           end
         else
           session

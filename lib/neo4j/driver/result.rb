@@ -16,6 +16,7 @@ module Neo4j
         @summary = nil
         @consumed = false   # stream has been fully drained from the wire
         @discarded = false  # records were explicitly released; further access raises
+        @failed = false     # stream ended with a server FAILURE; connection needs RESET
         @peeked_record = nil
       end
 
@@ -41,6 +42,7 @@ module Neo4j
         when Bolt::Message::Failure
           @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
           @consumed = true
+          @failed = true
           handle_failure(response)
         else
           false
@@ -119,6 +121,7 @@ module Neo4j
             when Bolt::Message::Failure
               @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
               @consumed = true
+              @failed = true
               handle_failure(response)
             else
               break
@@ -154,6 +157,7 @@ module Neo4j
           when Bolt::Message::Failure
             @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
             @consumed = true
+            @failed = true
             handle_failure(response)
           else
             break
@@ -163,6 +167,10 @@ module Neo4j
 
       def none?
         !has_next?
+      end
+
+      def failed?
+        @failed
       end
 
       # Mark this result as released without touching the wire. Used by the
