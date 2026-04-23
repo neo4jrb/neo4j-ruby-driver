@@ -4,6 +4,9 @@
 > - `DEVELOPMENT.md` - Day-to-day development tasks, testing, and reference links
 > - `DECISIONS.md` - Chronological log of important architectural and design decisions
 
+@DEVELOPMENT.md
+@DECISIONS.md
+
 ## Essential References
 
 ### Specifications
