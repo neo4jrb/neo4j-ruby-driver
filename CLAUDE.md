@@ -1,275 +1,69 @@
-# Neo4j Ruby Driver - Project Context
+# Neo4j Ruby Driver
 
-> **See also**:
-> - `DEVELOPMENT.md` - Day-to-day development tasks, testing, and reference links
-> - `DECISIONS.md` - Chronological log of important architectural and design decisions
+Pure Ruby implementation of the Neo4j Bolt protocol (no JRuby dependency).
+When in doubt about driver semantics, the Java driver is the reference:
+https://github.com/neo4j/neo4j-java-driver
 
-@DEVELOPMENT.md
-@DECISIONS.md
+See `DEVELOPMENT.md` for dev-loop commands and `DECISIONS.md` for the
+dated log of architectural choices.
 
-## Essential References
+## Layout
 
-### Specifications
-- **Bolt Protocol**: https://neo4j.com/docs/bolt/current/
-- **PackStream**: https://neo4j.com/docs/bolt/current/packstream/
-- **Bolt 4.x Messages**: https://7687.org/bolt/bolt-protocol-message-specification-4.html
-
-### Official Drivers (for comparison)
-- **Java** (reference impl): https://github.com/neo4j/neo4j-java-driver
-- **Python**: https://github.com/neo4j/neo4j-python-driver
-- **JavaScript**: https://github.com/neo4j/neo4j-javascript-driver
-- **Go**: https://github.com/neo4j/neo4j-go-driver
-
-When in doubt, check the Java driver - it's the most comprehensive reference implementation.
-
-## Architecture Overview
-
-This is a pure Ruby implementation of the Neo4j Bolt protocol driver (no JRuby/Java dependencies).
-
-### Core Components
-
-- **`lib/neo4j/driver/bolt/`** - Bolt protocol implementation (connection, messages)
-- **`lib/neo4j/driver/packstream/`** - PackStream binary serialization (packer/unpacker)
-- **`lib/neo4j/driver/types/`** - Neo4j type system (Node, Relationship, Path, temporal types, Point, Duration)
-- **`lib/neo4j/driver/session.rb`** - Session management and auto-commit transactions
-- **`lib/neo4j/driver/transaction.rb`** - Explicit transaction handling
-- **`lib/neo4j/driver/result.rb`** - Result class (lazy streaming)
-- **`lib/neo4j/driver/record.rb`** - Record class (single result row)
-- **`lib/neo4j/driver/summary.rb`** - Summary class (execution metadata)
-
-## Key Design Decisions
-
-### Type Conventions
-- **Node labels** → symbols (converted at hydration time in bolt/connection.rb)
-- **Relationship types** → symbols (converted at hydration time)
-- **Result field keys** → symbols (converted when creating Result)
-- **Record keys** → stored as strings internally, accessible via string or symbol
-
-### Parameters vs Config Separation
-Session#run uses explicit separation of parameters and config:
-```ruby
-def run(query, parameters = {}, config = {})
-  # parameters - query parameters ($param references)
-  # config - execution options (timeout, metadata)
+```
+lib/neo4j/driver.rb       Gem entry (Zeitwerk setup + every stdlib/gem require)
+lib/neo4j/driver/
+  bolt/                   Bolt protocol: connection, messages
+  packstream/             Binary serialization: packer/unpacker
+  types/                  Neo4j types (Node, Relationship, Path, temporal, Point, Duration)
+  exceptions/             Exception hierarchy, one class per file
+  session.rb              Session + auto-commit
+  transaction.rb          Explicit transactions
+  result.rb               Streaming result
+  record.rb / summary.rb
 ```
 
-Usage:
-- `session.run('RETURN $x', x: 1 )` - parameters only
-- `session.run('RETURN $x', { x: 1 }, timeout: 60)` - parameters + config (timeout in seconds)
-- `session.run('RETURN $x', {}, timeout: 60})` - config only
-- Same key can appear in both: `session.run('query', { metadata: 'param' }, metadata: {config: true})`
+## API conventions
 
-**Note**: Timeouts are specified in seconds (or `ActiveSupport::Duration` if available) and converted internally to milliseconds for the Bolt protocol.
+- Node labels, relationship types, and field keys → symbols (converted at hydration).
+- Record property keys stored as strings; accessible via string *or* symbol.
+- `session.run(query, parameters = {}, config = {})` — explicit split. Same key allowed in both hashes.
+- Timeouts are seconds (or `ActiveSupport::Duration`); converted to ms for the Bolt wire internally.
+- Bookmarks are **replaced** on each successful commit, not accumulated. `session.last_bookmarks` returns a Set of 0 or 1. Rollback, failure, and auto-commit queries do not update them.
 
-### Transaction Types
-1. **Auto-commit** (`session.run`) - Single RUN + PULL, no BEGIN/COMMIT
-2. **Managed** (`session.execute_read/write`) - Automatic retry logic, BEGIN + RUN + COMMIT
-3. **Explicit** (`session.begin_transaction`) - Manual control, user calls commit/rollback
+### Transaction shapes
 
-### Bookmarks
-Bookmarks are **replaced** after each committed transaction (not accumulated):
-- `session.last_bookmarks` returns a Set with **0 or 1 bookmark**
-- Each committed transaction generates a **new, unique bookmark** that replaces the previous one
-- Bookmarks only update on **successful transaction commits** (not on rollback, failure, or auto-commit queries)
-- Bookmarks represent the **latest point** in the transaction log (matches Java driver behavior)
+1. `session.run` — auto-commit, no BEGIN.
+2. `session.execute_read/write { |tx| … }` — managed. Auto-commits on clean exit; retries transient failures with exponential backoff (1s, 2s, 4s…) up to `max_transaction_retry_time`.
+3. `session.begin_transaction { |tx| … }` — explicit. **Default-rollback** on clean exit; user must call `tx.commit`.
 
-## Bolt Protocol Quirks
+## Bolt protocol: LOCAL seconds encoding
 
-### PackStream Signatures (Hydration Handlers)
+Signatures 0x46 (DateTime with offset) and 0x66 (DateTime with zone name) encode
+`epoch_seconds` as **wall-clock time treated as if it were UTC**, not the true
+UTC instant. Pack adds `utc_offset`; hydrate subtracts it. For 0x66 specifically,
+use `tz.tzinfo.local_to_utc(wall_clock)` so the zone's actual offset at that
+instant is applied — `2 * tz.utc_offset` only happens to work in summer because
+standard offset doubled equals the DST offset.
 
-| Sig  | Type | Fields | Notes |
-|------|------|--------|-------|
-| 0x4E | Node | id, labels, props, element_id | Labels → symbols |
-| 0x52 | Relationship | id, start, end, type, props, element_id | Type → symbol |
-| 0x44 | Date | days_since_epoch | → Ruby Date |
-| 0x46 | DateTime | epoch_sec, nanos, tz_offset | → Ruby Time |
-| 0x54 | Time | nanos_since_midnight, tz_offset | → Types::Time |
-| 0x64 | LocalDateTime | epoch_sec, nanos | → Types::LocalDateTime |
-| 0x66 | **ZonedDateTime** | epoch_sec, nanos, tz_name | **See below** |
-| 0x74 | LocalTime | nanos_since_midnight | → Types::LocalTime |
+## Style
 
-### ⚠️ CRITICAL: Signature 0x66 (ZonedDateTime with timezone name)
-
-**The epoch_seconds field represents LOCAL time in the given timezone, NOT UTC!**
-
-When hydrating:
-```ruby
-# Wrong: tz.at(epoch_seconds) gives wrong time (off by 2x offset)
-# Right: tz.at(epoch_seconds - 2 * tz.utc_offset)
-```
-
-Example: `datetime("2018-04-05T12:34:00[Europe/Berlin]")`
-- Neo4j sends: `epoch_seconds` for 12:34:00 (as if it were UTC)
-- But it means: 12:34:00 CEST (UTC+2) = 10:34:00 UTC
-- Must subtract: `2 * 7200 = 14400` seconds to get correct UTC time
-
-### DateTime Precision
-When packing Ruby Time/DateTime to signature 0x46:
-```ruby
-# Wrong: (value.to_f - epoch_seconds) * 1_000_000_000  # Loses precision!
-# Right: value.respond_to?(:nsec) ? value.nsec : (value.subsec * 1_000_000_000).round
-```
-
-## Result Handling
-
-### Lazy Streaming
-Results stream records on-demand:
-- `has_next?` fetches next RECORD message or SUCCESS (summary)
-- Records are cached in `@records` after being yielded
-- `consume` exhausts remaining records and returns summary
-- Summary persists even after FAILURE (cached before raising exception)
-
-### Duplicate Iteration Bug (Fixed)
-Result#each was yielding records twice:
-```ruby
-# Wrong:
-while has_next?
-  block.call(self.next)  # Yields record
-end
-@records.each(&block)   # Yields AGAIN!
-
-# Right: Only yield during fetch loop
-```
-
-## Temporal Types
-
-### Comparison & Arithmetic
-All temporal types implement `Comparable` and arithmetic:
-- `LocalTime`: compares nanoseconds, modulo 24 hours
-- `Time`: compares UTC instant (adjusts for timezone offset)
-- Addition wraps at 24 hours: `Time.parse('23:00Z') + 2.hours < Time.parse('23:00Z')`
-
-### Modulo Day Behavior
-```ruby
-LocalTime.new(86_400_000_000_000 + nanos) # Wraps to next day
-# Result: @nanoseconds = nanos (not 86400... + nanos)
-```
+- Trust callers. No defensive `.dup`, `.freeze`, or type guards unless the task requires it.
+- Ruby 3.2+ idioms: hash value omission (`metadata:`), method references (`&Bookmark.method(:new)`), `Array()`, `.compact` over nil-skipping conditionals.
+- Polymorphism over `is_a?` / `case/when` on type. Tell, don't ask.
+- Explicit over clever. Separate parameters from config rather than extracting from merged kwargs.
+- Extract duplication at the third occurrence, not the second.
+- Zeitwerk one-class-per-file. Namespace modules are autovivified from directory names — do **not** create `<namespace>.rb` stubs that just declare `module Foo; end`.
+- All stdlib/gem `require`s live in `lib/neo4j/driver.rb`. Never scatter them in internal files.
+- Error messages: helpful and contextual (`"Transaction is already closed"`, not `"Invalid state"`). Map to Neo4j error codes where applicable.
 
 ## Testing
 
-### Test Organization
-- `spec/integration/` - Full driver integration tests
-- `spec/neo4j/driver/` - Unit tests for specific classes
-- `spec/neo4j/driver/types/` - Tests for type system
-
-### Environment Variables
 ```bash
 TEST_NEO4J_URL=bolt://localhost:7687
 TEST_NEO4J_USER=neo4j
 TEST_NEO4J_PASS=password
+bundle exec rspec
 ```
 
-### Current Status (2026-04-21)
-- **388 examples total**
-- **40 failures remaining** (down from 59)
-- Main failing areas:
-  - Session/transaction error handling edge cases
-  - Parameter validation for invalid types (Node, Relationship, Path as params)
-  - Some temporal type roundtrip scenarios (DateTime with zone)
-  - ResultStream tests
-  - Transaction rollback scenarios
-
-## Common Patterns
-
-### Adding New Bolt Message Type
-1. Add signature constant in `bolt/message.rb`
-2. Add packer logic in `packstream/packer.rb` for encoding
-3. Add hydration handler in `bolt/connection.rb#register_hydration_handlers` for decoding
-
-### Adding New Temporal Type
-1. Add class to `types.rb` with `Comparable` module
-2. Implement: `<=>`, `==`, `eql?`, `hash`, `+` (for arithmetic)
-3. Add packing logic in `packstream/packer.rb`
-4. Add hydration handler in `bolt/connection.rb#register_temporal_handlers`
-
-## Dependencies
-
-### Required
-- Ruby standard library (Time, Date, Set)
-
-### Optional (detected at runtime)
-- **ActiveSupport** - Better timezone handling for ZonedDateTime
-- **TZInfo** - Fallback for timezone handling if ActiveSupport unavailable
-
-### Avoided
-- No ActiveSupport::Duration dependency (use plain integers for seconds/milliseconds)
-- No JRuby/Java driver wrapping (pure Ruby implementation)
-
-## Coding Style & Preferences
-
-### Ruby Idioms
-- **Prefer idiomatic Ruby** over defensive programming
-- **Trust callers** - Don't add unnecessary `.dup`, `.freeze`, or guards
-- **Use Ruby 3.1+ features**:
-  - Hash value omission: `metadata:` instead of `metadata: metadata`
-  - Method references: `&Bookmark.method(:new)` instead of `{ |b| Bookmark.new(b) }`
-  - `Array()` conversion instead of `[x] unless x.is_a?(Array)`
-- **Explicit over clever** - Clear, straightforward code over "smart" solutions
-  - Example: Separate `parameters` and `config` params instead of merging/extracting
-
-### Design Principles
-- **Keep it simple** - Don't over-engineer or add features not requested
-- **DRY but not prematurely** - Extract duplication when it appears 3+ times
-- **Tell, don't ask** - Prefer polymorphism over type checking (`is_a?`, `case/when` on type)
-- **One class per file** - Follow Zeitwerk conventions strictly (see below)
-
-### When to Use What
-- **Use specialized tools** over bash commands:
-  - `Read` tool for reading files (not `cat`)
-  - `Edit` tool for editing (not `sed`)
-  - `Grep` tool for searching (not `grep` command)
-  - Reserve `Bash` for git, npm, bundler, and actual terminal operations
-- **Use `compact` to remove nils** instead of conditionals:
-  ```ruby
-  # Good
-  { timeout: timeout_to_milliseconds(timeout), metadata: }.compact
-
-  # Bad
-  hash = {}
-  hash[:timeout] = timeout_to_milliseconds(timeout) if timeout
-  hash[:metadata] = metadata if metadata
-  ```
-
-### Code Organization (Zeitwerk)
-All files **must** follow Zeitwerk's one-class-per-file convention:
-
-```
-lib/neo4j/driver/
-  types.rb                    # Module only
-  types/
-    node.rb                   # Types::Node
-    relationship.rb           # Types::Relationship
-    time.rb                   # Types::Time
-  bolt/
-    message.rb                # Module + constants + helpers
-    message/
-      success.rb              # Message::Success
-      failure.rb              # Message::Failure
-```
-
-**Nested classes are allowed** when they're implementation details:
-- `Summary::Query`, `Summary::ServerInfo` → OK in summary.rb
-- `Path::Segment` → OK in path.rb
-- But `Result`, `Record`, `Summary` → Must be separate files
-
-### Error Messages
-- **Be helpful**: `"Cannot pack value of type #{value.class}"` not `"Invalid value"`
-- **Include context**: `"Transaction is already closed"` not `"Invalid state"`
-- **Match Neo4j error codes** when mapping exceptions
-
-### Git Workflow
-- **Commits**: Always ask before committing unless explicitly told to proceed
-- **Commit messages**: Use structured format with bullet points explaining changes
-- **Include co-author**: Always add `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`
-
-## Anti-Patterns to Avoid
-
-❌ Don't mutate `last_bookmarks` directly (it's frozen)
-❌ Don't use `.to_f` arithmetic for nanosecond precision
-❌ Don't assume signature 0x66 epoch_seconds is UTC
-❌ Don't forget to convert labels/types/keys to symbols
-❌ Don't use `echo` or bash for user communication (use text output)
-❌ Don't add emojis unless explicitly requested
-❌ Don't add defensive programming (`.dup.freeze`) without explicit requirement
-❌ Don't over-engineer - solve the current problem, not hypothetical future ones
-❌ Don't use type checking (`is_a?`, `case/when` on type) - use polymorphism instead
+- `spec/integration/` — end-to-end against a running Neo4j instance.
+- `spec/neo4j/driver/` — unit tests.

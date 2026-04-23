@@ -1,135 +1,93 @@
 # Decision Log
 
-This file records important architectural and design decisions made during development.
+Chronological record of architectural choices. Newest entries at the
+bottom. Keep entries short — the source is the source of truth for
+code; this log captures the *why*.
 
-> **Note**: This is a living document. Append new decisions chronologically with date and context.
+## 2026-04-22 — `Session#run` parameters/config split
 
-## 2026-04-22: Session#run Signature - Separate Parameters and Config
+`def run(query, parameters = {}, config = {})` — explicit split rather than
+merged kwargs. Lets the same key appear in both (e.g.
+`session.run(q, { metadata: 'param' }, metadata: { config: true })`).
+Mirrors `execute_read/write`, which take `timeout` and `metadata` explicitly.
 
-**Decision**: Use explicit `def run(query, parameters = {}, config = {})` signature instead of merging parameters and config with keyword argument extraction.
+## 2026-04-22 — Timeout units: seconds in API, milliseconds on the wire
 
-**Rationale**:
-- Supports same key in both parameters and config: `session.run(query, { metadata: 'param' }, metadata: { config: true })`
-- Explicit separation is clearer than implicit extraction
-- Matches pattern used in other methods (execute_read/write accept timeout and metadata explicitly)
+User-facing API accepts seconds (or `ActiveSupport::Duration`). Conversion to
+ms happens in `timeout_to_milliseconds` before sending over Bolt. Matches
+Ruby's `sleep(60)` convention.
 
-**Example**:
-```ruby
-session.run('RETURN $x', x: 1)                    # parameters only
-session.run('RETURN $x', { x: 1 }, timeout: 60)   # parameters + config
-session.run('RETURN $x', {}, timeout: 60)         # config only
-```
+## 2026-04-22 — Bookmarks replaced, not accumulated
 
-## 2026-04-22: Timeout Units - Seconds in API, Milliseconds in Protocol
+`session.last_bookmarks` returns a `Set` of 0 or 1. Each committed transaction
+generates one bookmark that replaces the previous. Unsuccessful ops (rollback,
+failure, auto-commit) don't update it. Matches Java driver.
 
-**Decision**: All timeout parameters in Ruby API accept seconds (or ActiveSupport::Duration), converted internally to milliseconds for Bolt protocol.
+## 2026-04-22 — `last_bookmarks` returns unfrozen Set
 
-**Rationale**:
-- Ruby convention: `sleep(60)` means 60 seconds
-- User-facing API should be idiomatic Ruby
-- Bolt protocol requires milliseconds - this is an implementation detail
-- Added `timeout_to_milliseconds` helper for conversion
+Dropped `.dup.freeze` from the accessor. No reason to special-case bookmarks
+when no other returned object is protected this way. Trust the caller.
 
-**Implementation**:
-```ruby
-def timeout_to_milliseconds(timeout)
-  return nil unless timeout
-  timeout_seconds = timeout.respond_to?(:to_i) ? timeout.to_i : timeout
-  (timeout_seconds * 1000).to_i
-end
+## 2026-04-22 — Zeitwerk one-class-per-file
 
-run_extra = {
-  db: @options[:database],
-  tx_timeout: timeout_to_milliseconds(timeout),
-  tx_metadata:
-}.compact  # Remove nil values
-```
+Refactor to strict Zeitwerk conventions. Nested classes are allowed when
+they're genuine implementation details (`Path::Segment`, `Summary::Query`).
+Namespace modules are autovivified from directory names — no
+`<namespace>.rb` stubs that just declare `module Foo; end`.
 
-## 2026-04-22: Bookmark Behavior - Replace, Not Accumulate
+## 2026-04-23 — Default-rollback for explicit block `begin_transaction`
 
-**Decision**: Bookmarks are **replaced** after each committed transaction, not accumulated.
+`session.begin_transaction { |tx| ... }` rolls back on clean block exit
+unless the user calls `tx.commit`. Managed transactions
+(`execute_read/write`) still auto-commit on success. Matches the Java
+driver's try-with-resources semantics.
 
-**Rationale**:
-- Matches Java driver behavior (the reference implementation)
-- Each bookmark represents the **latest** point in transaction log
-- `session.last_bookmarks` returns a Set with **0 or 1 bookmark**
-- Multiple accumulated bookmarks would be semantically incorrect
+## 2026-04-23 — `Result` state: `@consumed` vs `@discarded`
 
-**Java driver reference**: `BookmarkManagerTest.java` line 72-84 verifies unique bookmarks across transactions
+Two distinct flags:
 
-**Implementation**:
-```ruby
-def update_bookmarks(bookmarks)
-  # Replace bookmarks (don't accumulate)
-  @last_bookmarks = Set.new(Array(bookmarks).map(&Bookmark.method(:new)))
-end
-```
+- `@consumed` — stream drained from the wire (natural end, success or failure).
+- `@discarded` — records explicitly released (user called `.consume`, or the
+  owning session was closed); subsequent access raises `ResultConsumedException`.
 
-## 2026-04-22: Remove Defensive `.dup.freeze` from `last_bookmarks`
+After iteration via each/map/to_a: `@consumed=true`, `@discarded=false` —
+subsequent `to_a` returns empty, not raise. After explicit `.consume` or
+session close: `@discarded=true` — access raises.
 
-**Decision**: Return `@last_bookmarks` directly without `.dup.freeze`.
+Separately added `Result#buffer` (not user-facing): the driver calls it
+internally when reusing a connection for a new query, so the prior
+result's records are pulled into memory and remain accessible through the
+user's existing reference.
 
-**Rationale**:
-- **Trust the caller** - If they want to mutate returned Set, that's their choice
-- No special vulnerability in modifying bookmarks
-- "This could be claimed about any returned object" - no reason to special-case bookmarks
-- Consistent with Ruby philosophy: don't prevent users from doing what they want
+## 2026-04-23 — Connection pooling via `connection_pool` gem
 
-**Before**:
-```ruby
-def last_bookmarks
-  @last_bookmarks.dup.freeze
-end
-```
+Use `ConnectionPool::TimedStack` — the gem's lower-level primitive —
+not the top-level `ConnectionPool#checkout`, which caches per-thread and
+would let multiple Sessions in the same thread share a connection and
+step on each other's server-side transaction state.
 
-**After**:
-```ruby
-def last_bookmarks
-  @last_bookmarks
-end
-```
+Requires Ruby ≥ 3.2 (the 3.0 release of `connection_pool` dropped earlier
+Rubies), so `required_ruby_version` is bumped to `>= 3.2.0`.
 
-## 2026-04-22: Zeitwerk File Organization - One Class Per File
+## 2026-04-23 — DateTime LOCAL encoding for signatures 0x46 / 0x66
 
-**Decision**: Refactor entire codebase to follow strict Zeitwerk convention of one class/module per file.
+Neo4j encodes `epoch_seconds` as wall-clock time treated as if it were
+UTC (not the true UTC instant). The driver applies the conversion at the
+boundary:
 
-**Rationale**:
-- **Idiomatic Ruby** - Standard file organization pattern
-- **Proper autoloading** - Zeitwerk expects file path to match constant path
-- **Better discoverability** - Easy to find where classes are defined
-- **Easier navigation** - IDE/editor tools work better with one class per file
+- Pack: `epoch_seconds = value.to_i + value.utc_offset`.
+- Hydrate 0x46: `Time.at(seconds - offset).getlocal(offset)`.
+- Hydrate 0x66: `tz.tzinfo.local_to_utc(wall_clock)` so the zone's *actual*
+  offset at that instant is applied. A fixed `2 * tz.utc_offset` formula
+  only happens to work in summer.
 
-**Changes**:
-- Split `bolt/message.rb` → `bolt/message/*.rb` (Success, Failure, Record, Ignored)
-- Split `session.rb` → Extract `access_mode.rb`
-- Split `result.rb` → `result.rb`, `record.rb`, `summary.rb`
-- Split `types.rb` → `types/*.rb` (Node, Relationship, Path, Time, LocalTime, LocalDateTime, Duration, Point, UnboundRelationship)
+TimeWithZone values with a non-offset-shaped zone name are packed as 0x66
+(preserves zone through Cypher equality); everything else as 0x46.
 
-**Nested classes allowed**: Implementation details like `Summary::Query`, `Path::Segment` can stay nested.
+## 2026-04-23 — All requires in the gem entry
 
-## 2026-04-22: Polymorphism Refactoring (Planned, Postponed)
-
-**Decision**: Refactor Bolt message handling from type checking (`is_a?`, `case/when`) to polymorphic dispatch using Command Pattern.
-
-**Status**: Plan created, implementation postponed for later
-
-**Problem**:
-- Type checking scattered across Session, Transaction, Result, Connection
-- Duplicated error mapping logic in 3 locations
-- Violates "Tell, Don't Ask" principle
-
-**Proposed Solution**:
-- Create `Response` base class with polymorphic interface
-- Each message implements `handle_in_session`, `handle_in_transaction`, `handle_in_result`
-- Extract exception mapping to `ExceptionMapper` class
-
-**Plan location**: `/Users/heinrich/.claude/plans/sparkling-swinging-glacier.md`
-
-## Future Decisions
-
-Add new decisions here with:
-- **Date**: When decision was made
-- **Decision**: What was decided
-- **Rationale**: Why this approach
-- **Context**: Related issues, discussions, or code examples
-- **Status**: If applicable (e.g., "implemented", "planned", "reconsidered")
+Stdlib and gem `require`s all live in `lib/neo4j/driver.rb`. Scattered
+requires make load order depend on which internal file Zeitwerk touches
+first, and turn touching an internal class into an implicit load-time
+side effect. `require` is already idempotent, so `unless defined?(X)`
+guards are pointless.
