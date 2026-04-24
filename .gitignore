@@ -15,6 +15,7 @@
 *.jar
 *.gem
 *.gemspec
+!/neo4j-ruby-driver.gemspec
 *.crt
 .env
 .idea/
