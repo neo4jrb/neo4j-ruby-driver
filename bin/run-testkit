@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+#
+# Run testkit against the local Ruby backend and summarise results.
+#
+# Usage: bin/run-testkit [TEST_TARGET]
+#
+# TEST_TARGET defaults to "tests.neo4j" (the full integration suite).
+# Pass a narrower target (e.g. "tests.neo4j.test_session_run") to iterate
+# quickly on one area.
+#
+# Requires TESTKIT_PATH to point at a local clone of
+# https://github.com/neo4j-drivers/testkit (defaults to ~/projects/testkit).
+# A running Neo4j is required at TEST_NEO4J_HOST:TEST_NEO4J_PORT (defaults
+# localhost:7687, user neo4j / pass password).
+
+set -euo pipefail
+
+TESTKIT_PATH="${TESTKIT_PATH:-$HOME/projects/testkit}"
+# Simple target: "neo4j", "stub", "tls" → discover tests/<target>/
+# Dotted target: tests.neo4j.test_session_run[.TestCase[.test_method]] → specific
+TEST_TARGET="${1:-neo4j}"
+BACKEND_PORT="${TEST_BACKEND_PORT:-9876}"
+TEST_NEO4J_HOST="${TEST_NEO4J_HOST:-localhost}"
+TEST_NEO4J_USER="${TEST_NEO4J_USER:-neo4j}"
+TEST_NEO4J_PASS="${TEST_NEO4J_PASS:-password}"
+
+if [ ! -d "$TESTKIT_PATH" ]; then
+  echo "testkit not found at $TESTKIT_PATH" >&2
+  echo "Set TESTKIT_PATH or clone https://github.com/neo4j-drivers/testkit.git into $TESTKIT_PATH" >&2
+  exit 2
+fi
+
+ARTIFACTS="$(mktemp -d -t testkit-run-XXXXXX)"
+BACKEND_LOG="$ARTIFACTS/backend.log"
+RUN_LOG="$ARTIFACTS/run.log"
+
+cleanup() {
+  if [ -n "${BACKEND_PID:-}" ] && kill -0 "$BACKEND_PID" 2>/dev/null; then
+    kill "$BACKEND_PID" 2>/dev/null || true
+    wait "$BACKEND_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
+
+echo "-> Starting backend on port $BACKEND_PORT (log: $BACKEND_LOG)"
+TEST_BACKEND_PORT="$BACKEND_PORT" \
+  bundle exec ruby testkit-backend/backend.rb > "$BACKEND_LOG" 2>&1 &
+BACKEND_PID=$!
+
+# Wait up to 5s for the port to come up
+for _ in $(seq 1 50); do
+  if nc -z 127.0.0.1 "$BACKEND_PORT" 2>/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+
+if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+  echo "Backend failed to start" >&2
+  cat "$BACKEND_LOG" >&2
+  exit 3
+fi
+
+if [[ "$TEST_TARGET" == *.* ]]; then
+  UNITTEST_ARGS=(-v "$TEST_TARGET")
+  DESCRIPTION="$TEST_TARGET"
+else
+  UNITTEST_ARGS=(discover -v -s "tests/$TEST_TARGET" -t .)
+  DESCRIPTION="tests/$TEST_TARGET (discover)"
+fi
+
+echo "-> Running $DESCRIPTION from $TESTKIT_PATH"
+set +e
+(
+  cd "$TESTKIT_PATH" && \
+  TEST_DRIVER_NAME=ruby \
+  TEST_NEO4J_HOST="$TEST_NEO4J_HOST" \
+  TEST_NEO4J_USER="$TEST_NEO4J_USER" \
+  TEST_NEO4J_PASS="$TEST_NEO4J_PASS" \
+  TEST_BACKEND_PORT="$BACKEND_PORT" \
+    python3 -m unittest "${UNITTEST_ARGS[@]}" 2>&1
+) | tee "$RUN_LOG"
+RC=${PIPESTATUS[0]}
+set -e
+
+PASS=$(grep -cE " \.\.\. ok$" "$RUN_LOG" || true)
+FAIL=$(grep -cE " \.\.\. FAIL$" "$RUN_LOG" || true)
+ERR=$(grep -cE " \.\.\. ERROR$" "$RUN_LOG" || true)
+SKIP=$(grep -cE "skipped" "$RUN_LOG" || true)
+
+echo
+echo "================ Summary ================"
+grep -E "^Ran [0-9]+ tests|^OK|^FAILED" "$RUN_LOG" | tail -n 3 || true
+echo "Pass: $PASS  Fail: $FAIL  Error: $ERR  Skip: $SKIP"
+echo
+echo "Artifacts: $ARTIFACTS"
+echo "  backend log: $BACKEND_LOG"
+echo "  test log:    $RUN_LOG"
+
+exit $RC
