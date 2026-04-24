@@ -47,8 +47,19 @@ module TestkitBackend
       response('RunTest')
     end
 
+    # Features the driver actually supports today. Grow this list as we
+    # implement more; do NOT advertise something we can't honour — testkit
+    # will run the tests expecting it to pass instead of skipping.
+    FEATURES = [
+      'Feature:API:ConnectionAcquisitionTimeout',
+      'Feature:API:Driver.VerifyConnectivity',
+      'Feature:API:Result.List',
+      'Feature:API:Result.Peek',
+      'Feature:API:Result.Single'
+    ].freeze
+
     def handle_GetFeatures(_data)
-      response('FeatureList', features: [])
+      response('FeatureList', features: FEATURES)
     end
 
     # -- Driver ---------------------------------------------------------
@@ -213,32 +224,52 @@ module TestkitBackend
     end
 
     def summary_payload(summary)
+      database_name = summary.respond_to?(:database) ? safe_call { summary.database&.name } : nil
+      server = summary.respond_to?(:server) ? safe_call { summary.server } : nil
+
       {
-        # Minimal — fill out as tests demand more fields.
-        database: summary.respond_to?(:database) ? summary.database : nil,
+        database: database_name,
         query: {
           text: summary.respond_to?(:query) && summary.query.respond_to?(:text) ? summary.query.text : nil,
           parameters: {}
         },
-        queryType: nil,
+        queryType: summary.respond_to?(:query_type) ? safe_call { summary.query_type } : nil,
         counters: counters_payload(summary),
+        notifications: nil,
+        plan: nil,
+        profile: nil,
+        resultAvailableAfter: summary.respond_to?(:result_available_after) ? summary.result_available_after : nil,
+        resultConsumedAfter: summary.respond_to?(:result_consumed_after) ? summary.result_consumed_after : nil,
         serverInfo: {
-          address: nil,
-          agent: nil,
-          protocolVersion: nil
+          address: server.respond_to?(:address) ? server.address : nil,
+          agent: server.respond_to?(:agent) ? server.agent : nil,
+          protocolVersion: server.respond_to?(:protocol_version) ? server.protocol_version : nil
         }
       }
+    end
+
+    # Driver getters can raise on edge cases (missing metadata, partial
+    # summaries from failure paths). Fall back to nil rather than letting a
+    # NoMethodError propagate as a backend crash.
+    def safe_call
+      yield
+    rescue StandardError
+      nil
     end
 
     def counters_payload(summary)
       return {} unless summary.respond_to?(:counters) && summary.counters
 
       c = summary.counters
-      %i[nodes_created nodes_deleted relationships_created relationships_deleted
-         properties_set labels_added labels_removed indexes_added indexes_removed
-         constraints_added constraints_removed].each_with_object({}) do |key, acc|
+      integer_fields = %i[nodes_created nodes_deleted relationships_created relationships_deleted
+                          properties_set labels_added labels_removed indexes_added indexes_removed
+                          constraints_added constraints_removed system_updates]
+      payload = integer_fields.each_with_object({}) do |key, acc|
         acc[camelize(key)] = c.respond_to?(key) ? c.public_send(key) : 0
       end
+      payload['containsUpdates']       = c.respond_to?(:contains_updates?) ? c.contains_updates? : false
+      payload['containsSystemUpdates'] = c.respond_to?(:contains_system_updates?) ? c.contains_system_updates? : false
+      payload
     end
 
     def camelize(symbol)

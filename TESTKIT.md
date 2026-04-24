@@ -11,25 +11,28 @@ prerequisites).
 | Date       | Target | Tests | Pass | Fail | Error | Skip | Notes |
 | ---------- | ------ | ----: | ---: | ---: | ----: | ---: | ----- |
 | 2026-04-23 | tests/neo4j | 121 | 33 | 5 | 80 | 33 | Initial measurement. |
+| 2026-04-23 | tests/neo4j | 121 | **42** | 8 | **69** | 32 | +9 pass / -11 errors. Fixed Summary payload (added missing `notifications`, `plan`, `profile`, `resultAvailableAfter`, `resultConsumedAfter`, populated `serverInfo` from real metadata, fixed `counters` shape). Honest `GetFeatures` advertises 5 features we genuinely have. Newly-running tests revealed the next layer of failures (graph types, tx config). |
 
-## Error clusters (80)
+## Error clusters (69, was 80)
 
 | Count | Root cause | Fix shape |
 | ----: | ---------- | --------- |
 | 63 | Missing handlers `SessionReadTransaction` / `SessionWriteTransaction`. | Implement managed-tx callback protocol: the backend emits `RetryableTry{sessionId, txId}`; testkit then sends `Transaction*` requests against the emitted `txId`; on finish, testkit sends `RetryablePositive{sessionId}` (→ commit) or `RetryableNegative{sessionId, errorId}` (→ propagate retryable). |
-| 11 | `SummaryCounters.__init__()` missing `containsSystemUpdates` / `containsUpdates` / `systemUpdates`. | Extend `counters_payload` in `dispatcher.rb`. Two are boolean roll-ups, one is an integer counter. |
+| 4 | `TimeoutError` / `OSError: cannot read from timed out object`. | Tests now reach the retry path and exhaust the budget. Symptom of the missing managed-tx work above; should resolve with it. |
 | 1 | Invalid-URL test expects a specific `DriverError` shape (we raise `ServiceUnavailableException` without a `code`). | Map `Errno::*` / DNS failures to a standardised error code, or adjust the expected feature gate. |
 | 1 | `DROP DATABASE … WAIT` — community edition rejects it (`Neo.ClientError.Statement.UnsupportedAdministrationCommand`). | Resolve when we advertise enterprise-only features properly, or run against enterprise. |
 
-## Failures (5)
+## Failures (8, was 5)
 
 | Test | Root cause |
 | ---- | ---------- |
-| `test_session_run.test_can_return_node` | Record conversion doesn't emit `CypherNode`. |
-| `test_session_run.test_can_return_relationship` | Record conversion doesn't emit `CypherRelationship`. |
-| `test_session_run.test_can_return_path` | Record conversion doesn't emit `CypherPath`. |
+| `test_session_run.test_can_return_node` | Record conversion doesn't emit `CypherNode` — Node is stringified via `to_s` fallback. |
+| `test_session_run.test_can_return_relationship` | Same for `Relationship`. |
+| `test_session_run.test_can_return_path` | Same for `Path`. |
+| `test_session_run.test_can_return_node_in_managed_*` (×2) | Same as above; surface via execute_read once managed tx works. |
 | `test_bookmarks.test_can_pass_bookmark_into_next_session` | Bookmark wiring — initial-bookmarks config and/or round-trip. |
-| `test_tx_run.test_tx_configuration` | Tx metadata / timeout handling in managed path. |
+| `test_tx_run.test_tx_configuration` | `SessionBeginTransaction` ignores `txMeta`/`timeout` — driver's `Session#begin_transaction` doesn't accept config. |
+| `test_*` "DriverError not raised" (×2) | Tests expect a specific error class on bad input that we currently allow through. |
 
 ## Skips (33)
 
