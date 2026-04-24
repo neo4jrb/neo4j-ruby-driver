@@ -1,5 +1,19 @@
 # Neo4j Ruby Driver
 
+## Essential References
+
+### Specifications
+- **Bolt Protocol**: https://neo4j.com/docs/bolt/current/
+- **PackStream**: https://neo4j.com/docs/bolt/current/packstream/
+
+### Official Drivers (for comparison)
+- **Java** (reference impl): https://github.com/neo4j/neo4j-java-driver and https://github.com/neo4j/bolt-connection-java
+- **Python**: https://github.com/neo4j/neo4j-python-driver
+- **JavaScript**: https://github.com/neo4j/neo4j-javascript-driver
+- **Go**: https://github.com/neo4j/neo4j-go-driver
+
+When in doubt, check the Java driver - it's the most comprehensive reference implementation.
+
 Pure Ruby implementation of the Neo4j Bolt protocol (no JRuby dependency).
 When in doubt about driver semantics, the Java driver is the reference:
 https://github.com/neo4j/neo4j-java-driver
@@ -67,3 +81,6 @@ bundle exec rspec
 
 - `spec/integration/` — end-to-end against a running Neo4j instance.
 - `spec/neo4j/driver/` — unit tests.
+
+## Testkit 
+https://github.com/neo4j-drivers/testkit is the shared integration/conformance test suite for Neo4j drivers. The `testkit-backend/` directory contains the Ruby backend that testkit's Python test runner talks to over a TCP socket using a line-delimited JSON protocol. The `testkit/` directory one level up holds the Python orchestration scripts that testkit's Docker runner calls.

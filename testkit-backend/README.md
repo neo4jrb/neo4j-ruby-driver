@@ -41,11 +41,17 @@ Docker runner calls.
 
    ```bash
    cd ~/projects/testkit
+   export TEST_DRIVER_NAME=ruby      # keys testkit's skip lists / expectations
    export TEST_NEO4J_HOST=localhost
    export TEST_NEO4J_USER=neo4j
    export TEST_NEO4J_PASS=pass
    python3 -m unittest tests.neo4j.test_session_run.TestSessionRun.test_iteration_smaller_than_fetch_size
    ```
+
+   If the Python frontend complains about `ifaddr`, `boltkit`, or
+   similar, install testkit's own Python deps with
+   `python3 -m pip install -Ur requirements.txt` (from testkit's repo
+   root). A venv is recommended on macOS to avoid PEP 668 issues.
 
 Set `TEST_DEBUG_REQRES=1` on testkit's side to log the JSON going back
 and forth — handy when adding new handler support.
