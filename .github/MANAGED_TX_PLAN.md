@@ -92,9 +92,12 @@ out as something testkit recognises.
 - `Registry` may need a way to remove the tx after the block returns
   (driver already commits/closes it; backend's bookkeeping just needs
   to drop the handle).
-- A small driver-side hook so we can raise a typed exception from
-  inside the block that `execute_transaction` treats as
-  retryable / non-retryable based on what testkit sent.
+- Stash the original exception when we mint a `DriverError`'s id
+  (in `Registry`, keyed by error id) so `RetryableNegative` can
+  re-raise it inside the managed-tx block. The driver's existing
+  retry logic does the rest — no driver-side changes needed:
+  block-raises → rollback + (retry if exception is retryable),
+  block-returns → commit.
 
 ## What probably *doesn't* change
 
