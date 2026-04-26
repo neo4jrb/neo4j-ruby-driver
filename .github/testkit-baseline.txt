@@ -2,8 +2,15 @@
 # CI fails if any of these stops passing (regression).
 # Add lines as we fix more; remove with reason in commit msg.
 # Sorted alphabetically. Refresh with bin/refresh-testkit-baseline.
+#
+# Known excluded:
+#   test_address (tests.neo4j.test_summary.TestSummary.test_address)
+#     Errors in testkit's own dns_resolve_single helper because GitHub
+#     Actions resolves "localhost" to both 127.0.0.1 and ::1; the helper
+#     requires single-IP. Test errors during setUp; our backend is never
+#     exercised. Re-add once CI is single-stack or the helper tolerates
+#     dual.
 
-test_address (tests.neo4j.test_summary.TestSummary.test_address)
 test_autocommit_transactions_should_support_metadata (tests.neo4j.test_session_run.TestSessionRun.test_autocommit_transactions_should_support_metadata)
 test_broken_transaction_should_not_break_session (tests.neo4j.test_tx_run.TestTxRun.test_broken_transaction_should_not_break_session)
 test_can_commit_transaction (tests.neo4j.test_tx_run.TestTxRun.test_can_commit_transaction)

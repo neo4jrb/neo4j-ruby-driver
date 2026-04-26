@@ -17,13 +17,29 @@ LOG=$(grep -oE '/tmp/testkit-run-[^ ]+|/var/folders/[^ ]*testkit-run-[^ ]+' "$OU
 test -f "$LOG" || { echo "no run.log produced; full output below:" >&2; cat "$OUTPUT_TMP" >&2; exit 1; }
 
 OUT=.github/testkit-baseline.txt
+EXCLUDE=.github/testkit-baseline-exclude.txt
+
+# Build the cleaned exclusion list (one test id per line, no comments).
+EXCLUDE_TMP=$(mktemp)
+trap 'rm -f "$OUTPUT_TMP" "$EXCLUDE_TMP"' EXIT
+if [ -f "$EXCLUDE" ]; then
+  grep -vE '^(#|$)' "$EXCLUDE" | sort -u > "$EXCLUDE_TMP"
+else
+  : > "$EXCLUDE_TMP"
+fi
+
 {
   echo "# Tests currently expected to pass under tests/neo4j."
   echo "# CI fails if any of these stops passing (regression)."
   echo "# Add lines as we fix more; remove with reason in commit msg."
   echo "# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline."
+  echo "# Tests known to fail in CI for env reasons live in"
+  echo "# .github/testkit-baseline-exclude.txt and are skipped here."
   echo ""
-  grep -E ' \.\.\. ok$' "$LOG" | sed -E 's/ \.\.\. ok$//' | sort
+  grep -E ' \.\.\. ok$' "$LOG" \
+    | sed -E 's/ \.\.\. ok$//' \
+    | sort -u \
+    | comm -23 - "$EXCLUDE_TMP"
 } > "$OUT"
 
 echo
