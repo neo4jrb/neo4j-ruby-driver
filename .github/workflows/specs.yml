@@ -1,0 +1,51 @@
+name: Driver specs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rspec:
+    name: rspec (neo4j ${{ matrix.neo4j }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        neo4j:
+          - "4.4.48-enterprise"
+          - "5.26.21-enterprise"
+          - "2026.01.4-enterprise"
+
+    services:
+      neo4j:
+        image: neo4j:${{ matrix.neo4j }}
+        env:
+          NEO4J_AUTH: neo4j/password
+          NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+        ports:
+          - 7687:7687
+          - 7474:7474
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p password 'RETURN 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
+
+    env:
+      TEST_NEO4J_URL: bolt://localhost:7687
+      TEST_NEO4J_USER: neo4j
+      TEST_NEO4J_PASS: password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Run RSpec
+        run: bundle exec rspec --format progress

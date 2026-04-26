@@ -6,6 +6,11 @@ suite. Update after each meaningful change.
 Run: `./bin/run-testkit neo4j` (see `testkit-backend/README.md` for env
 prerequisites).
 
+CI gates on `.github/testkit-baseline.txt` — a sorted list of tests that
+must keep passing. After moving the numbers, **also update the baseline
+file** (add lines for new passers; remove with reason in the commit
+message if a test legitimately stops being expected to pass).
+
 ## Current baseline
 
 | Date       | Target | Tests | Pass | Fail | Error | Skip | Notes |
