@@ -45,7 +45,7 @@ module TestkitBackend
     def safely_execute
       execute
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
-      Response::DriverError.from(e)
+      Response::DriverError.from(e, registry: registry)
     rescue Registry::UnknownHandle, ArgumentError => e
       Response::FrontendError.new(msg: "#{e.class}: #{e.message}")
     rescue StandardError => e

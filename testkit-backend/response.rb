@@ -64,6 +64,20 @@ module TestkitBackend
       include Mixin
     end
 
+    # Sent during a SessionReadTransaction / SessionWriteTransaction's
+    # nested loop, to tell testkit "I've started a tx, here's its id".
+    # `id` is the transaction id testkit will operate against until it
+    # sends RetryablePositive / RetryableNegative.
+    class RetryableTry < Data.define(:id)
+      include Mixin
+    end
+
+    # Closes out a successful managed-transaction handler after the
+    # driver commits. Carries no payload.
+    class RetryableDone < Data.define
+      include Mixin
+    end
+
     class RecordList < Data.define(:records)
       include Mixin
     end
@@ -83,9 +97,12 @@ module TestkitBackend
     class DriverError < Data.define(:id, :error_type, :code, :msg, :retryable)
       include Mixin
 
-      def self.from(exception)
+      # Stash the exception in the registry under the same id we hand
+      # to testkit — RetryableNegative will look it up and re-raise.
+      def self.from(exception, registry:)
+        id = registry.store(exception, prefix: 'error')
         new(
-          id: SecureRandom.hex(8),
+          id: id,
           error_type: exception.class.name,
           code: exception.respond_to?(:code) ? exception.code : nil,
           msg: exception.message,

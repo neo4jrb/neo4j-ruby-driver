@@ -16,28 +16,30 @@ message if a test legitimately stops being expected to pass).
 | Date       | Target | Tests | Pass | Fail | Error | Skip | Notes |
 | ---------- | ------ | ----: | ---: | ---: | ----: | ---: | ----- |
 | 2026-04-23 | tests/neo4j | 121 | 33 | 5 | 80 | 33 | Initial measurement. |
-| 2026-04-23 | tests/neo4j | 121 | **42** | 8 | **69** | 32 | +9 pass / -11 errors. Fixed Summary payload (added missing `notifications`, `plan`, `profile`, `resultAvailableAfter`, `resultConsumedAfter`, populated `serverInfo` from real metadata, fixed `counters` shape). Honest `GetFeatures` advertises 5 features we genuinely have. Newly-running tests revealed the next layer of failures (graph types, tx config). |
+| 2026-04-23 | tests/neo4j | 121 | 42 | 8 | 69 | 32 | +9 pass / -11 errors. Fixed Summary payload (added missing `notifications`, `plan`, `profile`, `resultAvailableAfter`, `resultConsumedAfter`, populated `serverInfo` from real metadata, fixed `counters` shape). Honest `GetFeatures` advertises 5 features we genuinely have. Newly-running tests revealed the next layer of failures (graph types, tx config). |
+| 2026-04-26 | tests/neo4j | 121 | **61** | 17 | **13** | 33 | +19 pass / −56 errors. Implemented managed transactions (SessionReadTransaction / SessionWriteTransaction) with the RetryableTry / RetryablePositive / RetryableNegative callback dance via a nested dispatch loop inside the request handler. Tests previously stuck behind the missing handler now run; many pass, the rest hit the next layer of unimplemented behaviour. |
 
-## Error clusters (69, was 80)
+## Error clusters (13, was 69)
 
 | Count | Root cause | Fix shape |
 | ----: | ---------- | --------- |
-| 63 | Missing handlers `SessionReadTransaction` / `SessionWriteTransaction`. | Implement managed-tx callback protocol: the backend emits `RetryableTry{sessionId, txId}`; testkit then sends `Transaction*` requests against the emitted `txId`; on finish, testkit sends `RetryablePositive{sessionId}` (→ commit) or `RetryableNegative{sessionId, errorId}` (→ propagate retryable). |
-| 4 | `TimeoutError` / `OSError: cannot read from timed out object`. | Tests now reach the retry path and exhaust the budget. Symptom of the missing managed-tx work above; should resolve with it. |
+| 5 | `OSError: cannot read from timed out object` / `TimeoutError`. | Some retry-budget tests are slow; possibly real driver behaviour, possibly testkit's frontend timeout. Investigate per-test. |
+| 4 | `Client-generated error from testkit` (DriverError surfacing the message we raise on `RetryableNegative` with empty `errorId`). | Tests deliberately call `RetryableNegative` to test client-error propagation; our generic `ClientException` may not match what testkit asserts on. Refine the synthetic error shape. |
+| 1 | `Should be MultiDBSupport but was UnknownTypeError: ChangeDatabase`. | Multi-database test path needs `Feature:API:Driver.ExecuteQuery` or similar advertisement + handler. |
+| 1 | `BackendError: IOError: Unexpected end of stream`. | Connection bookkeeping issue in some path; needs targeted reproduction. |
 | 1 | Invalid-URL test expects a specific `DriverError` shape (we raise `ServiceUnavailableException` without a `code`). | Map `Errno::*` / DNS failures to a standardised error code, or adjust the expected feature gate. |
-| 1 | `DROP DATABASE … WAIT` — community edition rejects it (`Neo.ClientError.Statement.UnsupportedAdministrationCommand`). | Resolve when we advertise enterprise-only features properly, or run against enterprise. |
+| 1 | `DROP DATABASE … WAIT` — needs enterprise + the `WAIT` clause support. | CI now uses enterprise so the underlying support is there; check whether our query parameter handling supports it. |
 
-## Failures (8, was 5)
+## Failures (17, was 8)
 
-| Test | Root cause |
-| ---- | ---------- |
-| `test_session_run.test_can_return_node` | Record conversion doesn't emit `CypherNode` — Node is stringified via `to_s` fallback. |
-| `test_session_run.test_can_return_relationship` | Same for `Relationship`. |
-| `test_session_run.test_can_return_path` | Same for `Path`. |
-| `test_session_run.test_can_return_node_in_managed_*` (×2) | Same as above; surface via execute_read once managed tx works. |
-| `test_bookmarks.test_can_pass_bookmark_into_next_session` | Bookmark wiring — initial-bookmarks config and/or round-trip. |
-| `test_tx_run.test_tx_configuration` | `SessionBeginTransaction` ignores `txMeta`/`timeout` — driver's `Session#begin_transaction` doesn't accept config. |
-| `test_*` "DriverError not raised" (×2) | Tests expect a specific error class on bad input that we currently allow through. |
+Dominated by graph value types, surfaced via the now-running managed-tx
+tests. Most failures cluster:
+
+- **Graph types in record values** (~10 tests): `CypherNode` / `CypherRelationship` / `CypherPath` not emitted — they fall through to the `to_s` `CypherString` fallback in `Cypher.from_ruby`. Implement proper `from_ruby` paths for the graph types.
+- **Tx configuration** (~2): `SessionBeginTransaction` ignores `txMeta` / `timeout`. Driver's `Session#begin_transaction` doesn't accept config.
+- **Specific error class assertions** (~2): tests assert a particular `DriverError` shape we don't produce (e.g. invalid bookmark message, parameter validation messages).
+- **Bookmark round-trip** (~1): `test_can_pass_bookmark_into_next_session`.
+- **Other** (~2): `assertIsInstance(None, dict)` style — Summary fields we return as `nil` when testkit expects a (possibly empty) dict.
 
 ## Skips (33)
 
@@ -52,14 +54,16 @@ Driven entirely by our empty `GetFeatures` response. Unique skip reasons:
 
 Roughly decreasing return-per-effort:
 
-1. **Counters payload fix + honest `GetFeatures`.** ~14 errors/skips move to pass; ~30 min.
-2. **Managed transactions (the retry-callback dance).** 63 errors reclassify; many pass, rest cluster into smaller real categories. ~2–3 hours.
-3. **Graph value types (`CypherNode` / `CypherRelationship` / `CypherPath`)** in record conversion. Clears the 3 record-related failures and unlocks more in `tests/neo4j/datatypes`.
-4. **Richer `Summary`** (query text, query type, server info, notifications). Needed by `test_summary` tests.
-5. **Bookmark round-trip polish.**
-6. **Temporal type advertisement + gaps** once we flip `API_TYPE_TEMPORAL` on.
-7. **Driver-level features** — routing (`neo4j://`), async PULL / fetch size, TLS, notifications, auth token manager, impersonation. Each a session or more.
-8. **`tests/stub`** (protocol-version stub-server tests) — aligns with the v3–v58 protocol-range goal.
+1. ~~Counters payload fix + honest `GetFeatures`.~~ Done.
+2. ~~Managed transactions (the retry-callback dance).~~ Done.
+3. **Graph value types (`CypherNode` / `CypherRelationship` / `CypherPath`)** in record conversion. Clears ~10 of the current failures. Touches `Cypher.from_ruby` only.
+4. **Tx configuration**: teach `Session#begin_transaction` (driver-side) to accept `metadata` and `timeout`. ~2 failures, plus opens the door to advertising `Feature:API:Driver.SupportsSessionAuth`-style features.
+5. **Richer `Summary`** (query text, query type, server info, notifications).
+6. **Refine `RetryableNegative` synthetic error** so client-generated test errors round-trip cleanly. ~4 errors.
+7. **Bookmark round-trip polish.** ~1 failure.
+8. **Temporal type advertisement + gaps** once we flip `API_TYPE_TEMPORAL` on.
+9. **Driver-level features** — routing (`neo4j://`), async PULL / fetch size, TLS, notifications, auth token manager, impersonation. Each a session or more.
+10. **`tests/stub`** (protocol-version stub-server tests) — aligns with the v3–v58 protocol-range goal.
 
 ## Update protocol
 
