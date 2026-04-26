@@ -1,0 +1,70 @@
+# frozen_string_literal: true
+
+module TestkitBackend
+  # Mixin for testkit request types.
+  #
+  # A concrete request is a `Data.define(...)` subclass listing only the
+  # data fields it consumes — the registry is threaded through transparently
+  # so it never appears in the field declaration:
+  #
+  #   class TransactionCommit < Data.define(:tx_id)
+  #     include Request
+  #
+  #     def execute
+  #       registry.take(tx_id).commit
+  #       Response::Transaction.new(id: tx_id)
+  #     end
+  #   end
+  #
+  # Field names are snake_case in Ruby; `from_json` maps them to
+  # camelCase JSON keys automatically.
+  module Request
+    def self.included(base)
+      base.extend(ClassMethods)
+    end
+
+    module ClassMethods
+      def from_json(data, registry)
+        kwargs = members.each_with_object(registry: registry) do |name, acc|
+          acc[name] = data[Casing.camel(name)]
+        end
+        new(**kwargs)
+      end
+    end
+
+    attr_reader :registry
+
+    def initialize(registry:, **fields)
+      @registry = registry
+      super(**fields)
+    end
+
+    # Run the request and translate exceptions into the appropriate
+    # error response. Concrete subclasses implement `#execute`.
+    def safely_execute
+      execute
+    rescue Neo4j::Driver::Exceptions::Neo4jException => e
+      Response::DriverError.from(e)
+    rescue Registry::UnknownHandle, ArgumentError => e
+      Response::FrontendError.new(msg: "#{e.class}: #{e.message}")
+    rescue StandardError => e
+      warn "[backend] #{e.class}: #{e.message}\n  #{e.backtrace.first(5).join("\n  ")}"
+      Response::BackendError.new(msg: "#{e.class}: #{e.message}")
+    end
+
+    def self.dispatch(request_json, registry)
+      name = request_json['name'].to_s
+      klass = lookup(name)
+      return Response::UnknownType.new(message: "No handler for request #{name}") unless klass
+
+      klass.from_json(request_json['data'] || {}, registry).safely_execute
+    end
+
+    def self.lookup(name)
+      klass = Requests.const_get(name, false)
+      klass if klass.is_a?(Class) && klass.include?(Request)
+    rescue NameError
+      nil
+    end
+  end
+end

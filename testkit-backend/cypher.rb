@@ -5,9 +5,19 @@ module TestkitBackend
   # ({"name": "CypherInt", "data": {"value": ...}}) and native Ruby values.
   #
   # Incoming: Cypher.to_ruby(tagged_json_hash) -> Ruby value
+  #           Cypher.decode_value_map(hash) -> hash with symbol keys + decoded values
   # Outgoing: Cypher.from_ruby(ruby_value) -> tagged JSON hash
   module Cypher
     module_function
+
+    # Decode a {"key" => tagged_value, ...} JSON map into a {key: ruby_value, ...}
+    # Ruby hash. Used for query parameters and tx_metadata where each value is
+    # itself a tagged Cypher value but the outer keys are plain JSON strings.
+    def decode_value_map(value)
+      return {} unless value.is_a?(Hash)
+
+      value.transform_keys(&:to_sym).transform_values(&method(:to_ruby))
+    end
 
     def to_ruby(value)
       return value unless value.is_a?(Hash) && value.key?('name')

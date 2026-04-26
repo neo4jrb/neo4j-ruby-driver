@@ -5,13 +5,14 @@
 # Testkit (https://github.com/neo4j-drivers/testkit) is the shared
 # integration/conformance test suite for Neo4j drivers. Its Python test
 # runner talks to a language-specific "backend" process over a TCP
-# socket using a simple framed JSON protocol. This file implements that
-# backend for the Ruby driver.
+# socket using a simple framed JSON protocol. This file is the entry
+# point for the Ruby backend.
 #
 # Run it standalone for local development:
 #   bundle exec ruby testkit-backend/backend.rb
 #
 # Then from a testkit clone:
+#   export TEST_DRIVER_NAME=ruby
 #   export TEST_NEO4J_HOST=localhost
 #   python3 -m unittest tests.neo4j.test_session_run
 
@@ -21,9 +22,13 @@ require 'neo4j/driver'
 require 'json'
 require 'securerandom'
 require 'socket'
+require 'zeitwerk'
 
-require_relative 'cypher'
-require_relative 'dispatcher'
+module TestkitBackend; end
+
+loader = Zeitwerk::Loader.new
+loader.push_dir(__dir__, namespace: TestkitBackend)
+loader.setup
 
 module TestkitBackend
   class Server
@@ -49,7 +54,7 @@ module TestkitBackend
 
     def handle(socket)
       Connection.new(socket).run
-    rescue => e
+    rescue StandardError => e
       warn "Unhandled backend error: #{e.class}: #{e.message}"
       warn e.backtrace.first(10).join("\n")
     ensure
@@ -65,33 +70,25 @@ module TestkitBackend
 
     def initialize(socket)
       @socket = socket
-      @dispatcher = Dispatcher.new(self)
+      @registry = Registry.new
     end
 
     def run
       while (request = read_request)
-        response = @dispatcher.dispatch(request)
-        write_response(response) if response
+        write_response(Request.dispatch(request, @registry))
       end
-    end
-
-    def write_response(response)
-      payload = JSON.generate(response)
-      @socket.write("#{RESPONSE_BEGIN}\n")
-      @socket.write("#{payload}\n")
-      @socket.write("#{RESPONSE_END}\n")
-      @socket.flush
     end
 
     private
 
+    def write_response(response)
+      @socket.write("#{RESPONSE_BEGIN}\n#{JSON.generate(response.to_payload)}\n#{RESPONSE_END}\n")
+      @socket.flush
+    end
+
     def read_request
-      # Skip until we see the opening sentinel (blank lines allowed between messages).
       line = read_line
-      while line && line != REQUEST_BEGIN
-        return nil if line.nil?
-        line = read_line
-      end
+      line = read_line while line && line != REQUEST_BEGIN
       return nil unless line
 
       body = +''
@@ -107,12 +104,9 @@ module TestkitBackend
     end
 
     def read_line
-      raw = @socket.gets
-      raw&.chomp
+      @socket.gets&.chomp
     end
   end
 end
 
-if $PROGRAM_NAME == __FILE__
-  TestkitBackend::Server.new.run
-end
+TestkitBackend::Server.new.run if $PROGRAM_NAME == __FILE__
