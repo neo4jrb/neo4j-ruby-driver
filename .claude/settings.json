@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bundle exec rspec)",
+      "Bash(bundle exec rspec *)",
+      "Bash(./bin/run-testkit)",
+      "Bash(./bin/run-testkit *)",
+      "Bash(curl https://raw.githubusercontent.com/*)",
+      "Bash(curl https://api.github.com/*)"
+    ]
+  }
+}
