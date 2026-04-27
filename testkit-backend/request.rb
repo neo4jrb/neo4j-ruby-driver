@@ -46,7 +46,7 @@ module TestkitBackend
       execute
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
       Response::DriverError.from(e, registry: registry)
-    rescue Registry::UnknownHandle, ArgumentError => e
+    rescue ClientGeneratedError, Registry::UnknownHandle, ArgumentError => e
       Response::FrontendError.new(msg: "#{e.class}: #{e.message}")
     rescue StandardError => e
       warn "[backend] #{e.class}: #{e.message}\n  #{e.backtrace.first(5).join("\n  ")}"

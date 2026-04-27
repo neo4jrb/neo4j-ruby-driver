@@ -21,13 +21,20 @@ module TestkitBackend
     end
 
     def execute
-      registry.fetch(session_id).public_send(driver_method) do |tx|
+      registry.fetch(session_id).public_send(driver_method, **tx_options) do |tx|
         run_inner_loop(tx)
       end
       Response::RetryableDone.new
     end
 
     private
+
+    def tx_options
+      {
+        metadata: Cypher.decode_value_map(tx_meta),
+        timeout: timeout && timeout / 1000.0
+      }.compact
+    end
 
     def run_inner_loop(tx)
       tx_id = registry.store(tx)
@@ -55,7 +62,10 @@ module TestkitBackend
       error_id = data['errorId']
       return registry.fetch(error_id) if error_id.is_a?(String) && !error_id.empty?
 
-      Neo4j::Driver::Exceptions::ClientException.new('Client-generated error from testkit')
+      # Empty errorId = "test code itself raised; surface as a
+      # FrontendError, not a DriverError." safely_execute maps the
+      # ClientGeneratedError class to Response::FrontendError.
+      ClientGeneratedError.new('Client-generated error from testkit')
     end
   end
 end
