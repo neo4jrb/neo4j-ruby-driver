@@ -6,6 +6,7 @@
 # .github/testkit-baseline-exclude.txt and are skipped here.
 
 test_autocommit_transactions_should_support_metadata (tests.neo4j.test_session_run.TestSessionRun.test_autocommit_transactions_should_support_metadata)
+test_autocommit_transactions_should_support_timeout (tests.neo4j.test_session_run.TestSessionRun.test_autocommit_transactions_should_support_timeout)
 test_broken_transaction_should_not_break_session (tests.neo4j.test_tx_run.TestTxRun.test_broken_transaction_should_not_break_session)
 test_can_commit_transaction (tests.neo4j.test_tx_run.TestTxRun.test_can_commit_transaction)
 test_can_obtain_bookmark_after_commit (tests.neo4j.test_bookmarks.TestBookmarks.test_can_obtain_bookmark_after_commit)
@@ -74,6 +75,8 @@ test_success_on_basic_token (tests.neo4j.test_authentication.TestAuthenticationB
 test_success_on_provide_realm_with_basic_token (tests.neo4j.test_authentication.TestAuthenticationBasic.test_success_on_provide_realm_with_basic_token)
 test_tx_configuration (tests.neo4j.test_tx_run.TestTxRun.test_tx_configuration)
 test_tx_func_configuration (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_tx_func_configuration)
+test_tx_timeout (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_tx_timeout)
+test_tx_timeout (tests.neo4j.test_tx_run.TestTxRun.test_tx_timeout)
 test_unconsumed_result (tests.neo4j.test_tx_run.TestTxRun.test_unconsumed_result)
 test_updates_last_bookmark_on_commit (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_updates_last_bookmark_on_commit)
 test_updates_last_bookmark_on_commit (tests.neo4j.test_tx_run.TestTxRun.test_updates_last_bookmark_on_commit)

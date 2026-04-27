@@ -6,18 +6,8 @@ module TestkitBackend
       include Request
 
       def execute
-        tx = registry.fetch(session_id).begin_transaction(**tx_options)
+        tx = registry.fetch(session_id).begin_transaction(**tx_options(tx_meta, timeout))
         Response::Transaction.new(id: registry.store(tx))
-      end
-
-      private
-
-      # testkit sends timeout in milliseconds; the driver expects seconds.
-      def tx_options
-        {
-          metadata: Cypher.decode_value_map(tx_meta),
-          timeout: timeout && timeout / 1000.0
-        }.compact
       end
     end
   end

@@ -21,20 +21,13 @@ module TestkitBackend
     end
 
     def execute
-      registry.fetch(session_id).public_send(driver_method, **tx_options) do |tx|
+      registry.fetch(session_id).public_send(driver_method, **tx_options(tx_meta, timeout)) do |tx|
         run_inner_loop(tx)
       end
       Response::RetryableDone.new
     end
 
     private
-
-    def tx_options
-      {
-        metadata: Cypher.decode_value_map(tx_meta),
-        timeout: timeout && timeout / 1000.0
-      }.compact
-    end
 
     def run_inner_loop(tx)
       tx_id = registry.store(tx)

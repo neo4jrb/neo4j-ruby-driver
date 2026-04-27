@@ -53,6 +53,17 @@ module TestkitBackend
       Response::BackendError.new(msg: "#{e.class}: #{e.message}")
     end
 
+    # Translate testkit's tx_meta dict + millisecond timeout into the
+    # {metadata:, timeout:} kwargs accepted by the driver's
+    # begin_transaction / execute_read / execute_write. Used by both
+    # the explicit and managed transaction handlers.
+    def tx_options(tx_meta, timeout_ms)
+      {
+        metadata: Cypher.decode_value_map(tx_meta),
+        timeout: timeout_ms && timeout_ms / 1000.0
+      }.compact
+    end
+
     def self.dispatch(request_json, registry, connection)
       name = request_json['name'].to_s
       klass = lookup(name)

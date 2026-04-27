@@ -179,7 +179,10 @@ module Neo4j
       # Convert timeout from seconds (or ActiveSupport::Duration) to milliseconds for Bolt protocol
       def timeout_to_milliseconds(timeout)
         return nil unless timeout
-        timeout_seconds = timeout.respond_to?(:to_i) ? timeout.to_i : timeout
+        # Use to_f (not to_i) so fractional seconds survive — e.g. a
+        # 1.5s timeout used to round down to 1000ms via .to_i. Works
+        # for plain Numeric and ActiveSupport::Duration alike.
+        timeout_seconds = timeout.respond_to?(:to_f) ? timeout.to_f : timeout
         (timeout_seconds * 1000).to_i
       end
 

@@ -5,8 +5,41 @@
       "Bash(bundle exec rspec *)",
       "Bash(./bin/run-testkit)",
       "Bash(./bin/run-testkit *)",
+      "Bash(./bin/refresh-testkit-baseline)",
       "Bash(curl https://raw.githubusercontent.com/*)",
-      "Bash(curl https://api.github.com/*)"
+      "Bash(curl https://api.github.com/*)",
+
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr edit *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh run watch *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh auth status)",
+
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git restore *)",
+      "Bash(git rm *)",
+      "Bash(git mv *)",
+      "Bash(git stash *)",
+
+      "Bash(git push)",
+      "Bash(git push origin feature/*)",
+      "Bash(git push -u origin feature/*)",
+      "Bash(git push --set-upstream origin feature/*)",
+
+      "Bash(mkdir *)",
+      "Bash(chmod *)",
+      "Bash(bundle install)",
+      "Bash(bundle update *)",
+      "Bash(pkill -f testkit-backend*)"
     ]
   }
 }
