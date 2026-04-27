@@ -68,6 +68,8 @@ module TestkitBackend
     RESPONSE_BEGIN = '#response begin'
     RESPONSE_END = '#response end'
 
+    attr_reader :registry
+
     def initialize(socket)
       @socket = socket
       @registry = Registry.new
@@ -75,12 +77,13 @@ module TestkitBackend
 
     def run
       while (request = read_request)
-        write_response(Request.dispatch(request, @registry))
+        write_response(Request.dispatch(request, registry, self))
       end
     end
 
-    private
-
+    # Public so request handlers can drive nested loops — managed
+    # transactions need to write a RetryableTry response and then
+    # consume more requests inside their own execute method.
     def write_response(response)
       @socket.write("#{RESPONSE_BEGIN}\n#{JSON.generate(response.to_payload)}\n#{RESPONSE_END}\n")
       @socket.flush
@@ -102,6 +105,8 @@ module TestkitBackend
 
       JSON.parse(body)
     end
+
+    private
 
     def read_line
       @socket.gets&.chomp

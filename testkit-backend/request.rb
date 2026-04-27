@@ -24,18 +24,19 @@ module TestkitBackend
     end
 
     module ClassMethods
-      def from_json(data, registry)
-        kwargs = members.each_with_object(registry: registry) do |name, acc|
+      def from_json(data, registry, connection)
+        kwargs = members.each_with_object(registry: registry, connection: connection) do |name, acc|
           acc[name] = data[Casing.camel(name)]
         end
         new(**kwargs)
       end
     end
 
-    attr_reader :registry
+    attr_reader :registry, :connection
 
-    def initialize(registry:, **fields)
+    def initialize(registry:, connection:, **fields)
       @registry = registry
+      @connection = connection
       super(**fields)
     end
 
@@ -44,7 +45,7 @@ module TestkitBackend
     def safely_execute
       execute
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
-      Response::DriverError.from(e)
+      Response::DriverError.from(e, registry: registry)
     rescue Registry::UnknownHandle, ArgumentError => e
       Response::FrontendError.new(msg: "#{e.class}: #{e.message}")
     rescue StandardError => e
@@ -52,12 +53,12 @@ module TestkitBackend
       Response::BackendError.new(msg: "#{e.class}: #{e.message}")
     end
 
-    def self.dispatch(request_json, registry)
+    def self.dispatch(request_json, registry, connection)
       name = request_json['name'].to_s
       klass = lookup(name)
       return Response::UnknownType.new(message: "No handler for request #{name}") unless klass
 
-      klass.from_json(request_json['data'] || {}, registry).safely_execute
+      klass.from_json(request_json['data'] || {}, registry, connection).safely_execute
     end
 
     def self.lookup(name)
