@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.homepage      = 'https://github.com/neo4j/neo4j-ruby-driver2'
   spec.license       = 'Apache-2.0'
 
-  spec.required_ruby_version = '>= 3.2.0'
+  spec.required_ruby_version = '>= 3.4.0'
 
   spec.files = Dir['lib/**/*', 'README.md', 'LICENSE']
   spec.require_paths = ['lib']

@@ -91,3 +91,12 @@ requires make load order depend on which internal file Zeitwerk touches
 first, and turn touching an internal class into an implicit load-time
 side effect. `require` is already idempotent, so `unless defined?(X)`
 guards are pointless.
+
+## 2026-04-27 — Ruby 3.4+ minimum
+
+Bumped `required_ruby_version` from `>= 3.2.0` to `>= 3.4.0` to use
+the `it` implicit block parameter in pipeline-style code (e.g.
+`timeout&.then { (it.to_f * 1000).round }`). CI workflows updated
+to Ruby 3.4 in lockstep. Two version bumps in three days is fine
+while we're pre-1.0; once the API stabilises we'll be more
+conservative about minimum-Ruby moves.
