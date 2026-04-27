@@ -2,21 +2,19 @@
 # CI fails if any of these stops passing (regression).
 # Add lines as we fix more; remove with reason in commit msg.
 # Sorted alphabetically. Refresh with bin/refresh-testkit-baseline.
-#
-# Known excluded:
-#   test_address (tests.neo4j.test_summary.TestSummary.test_address)
-#     Errors in testkit's own dns_resolve_single helper because GitHub
-#     Actions resolves "localhost" to both 127.0.0.1 and ::1; the helper
-#     requires single-IP. Test errors during setUp; our backend is never
-#     exercised. Re-add once CI is single-stack or the helper tolerates
-#     dual.
+# Tests known to fail in CI for env reasons live in
+# .github/testkit-baseline-exclude.txt and are skipped here.
 
 test_autocommit_transactions_should_support_metadata (tests.neo4j.test_session_run.TestSessionRun.test_autocommit_transactions_should_support_metadata)
 test_broken_transaction_should_not_break_session (tests.neo4j.test_tx_run.TestTxRun.test_broken_transaction_should_not_break_session)
 test_can_commit_transaction (tests.neo4j.test_tx_run.TestTxRun.test_can_commit_transaction)
 test_can_obtain_bookmark_after_commit (tests.neo4j.test_bookmarks.TestBookmarks.test_can_obtain_bookmark_after_commit)
+test_can_pass_bookmark_into_next_session (tests.neo4j.test_bookmarks.TestBookmarks.test_can_pass_bookmark_into_next_session)
 test_can_pass_read_bookmark_into_write_session (tests.neo4j.test_bookmarks.TestBookmarks.test_can_pass_read_bookmark_into_write_session)
 test_can_pass_write_bookmark_into_write_session (tests.neo4j.test_bookmarks.TestBookmarks.test_can_pass_write_bookmark_into_write_session)
+test_can_return_node (tests.neo4j.test_session_run.TestSessionRun.test_can_return_node)
+test_can_return_path (tests.neo4j.test_session_run.TestSessionRun.test_can_return_path)
+test_can_return_relationship (tests.neo4j.test_session_run.TestSessionRun.test_can_return_relationship)
 test_can_rollback_transaction (tests.neo4j.test_tx_run.TestTxRun.test_can_rollback_transaction)
 test_consume_after_commit (tests.neo4j.test_tx_run.TestTxRun.test_consume_after_commit)
 test_contains_time_information (tests.neo4j.test_summary.TestSummary.test_contains_time_information)
@@ -52,6 +50,9 @@ test_should_echo_list_of_maps (tests.neo4j.datatypes.test_datatypes.TestDataType
 test_should_echo_map_of_lists (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_map_of_lists)
 test_should_echo_nested_lists (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_nested_lists)
 test_should_echo_nested_map (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_nested_map)
+test_should_echo_node (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_node)
+test_should_echo_path (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_path)
+test_should_echo_relationship (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_relationship)
 test_should_echo_very_long_list (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_very_long_list)
 test_should_echo_very_long_map (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_very_long_map)
 test_should_echo_very_long_string (tests.neo4j.datatypes.test_datatypes.TestDataTypes.test_should_echo_very_long_string)

@@ -13,8 +13,13 @@ trap 'rm -f "$OUTPUT_TMP"' EXIT
 
 ./bin/run-testkit neo4j > "$OUTPUT_TMP" 2>&1 || true
 
-LOG=$(grep -oE '/tmp/testkit-run-[^ ]+|/var/folders/[^ ]*testkit-run-[^ ]+' "$OUTPUT_TMP" | tail -1)/run.log
-test -f "$LOG" || { echo "no run.log produced; full output below:" >&2; cat "$OUTPUT_TMP" >&2; exit 1; }
+# bin/run-testkit prints "  test log:    <path>/run.log"; pull that line.
+LOG=$(awk '/test log:/{print $NF}' "$OUTPUT_TMP" | tail -1)
+test -n "$LOG" && test -f "$LOG" || {
+  echo "no run.log produced (extracted path: '$LOG'); full output below:" >&2
+  cat "$OUTPUT_TMP" >&2
+  exit 1
+}
 
 OUT=.github/testkit-baseline.txt
 EXCLUDE=.github/testkit-baseline-exclude.txt
