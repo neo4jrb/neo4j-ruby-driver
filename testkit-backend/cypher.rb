@@ -53,9 +53,12 @@ module TestkitBackend
       when Hash             then tagged('CypherMap', value.transform_values { |v| from_ruby(v) })
       when ::Date           then date_to_tagged(value)
       when ::Time, ::DateTime then time_to_tagged(value)
+      when Neo4j::Driver::Types::Node         then node_to_tagged(value)
+      when Neo4j::Driver::Types::Relationship then relationship_to_tagged(value)
+      when Neo4j::Driver::Types::Path         then path_to_tagged(value)
       else
-        # Graph types / temporals we don't yet support — stringify so tests
-        # at least fail with a visible mismatch rather than a JSON error.
+        # Anything we don't yet handle — stringify so tests fail with a
+        # visible mismatch rather than a JSON error.
         tagged('CypherString', value.to_s)
       end
     end
@@ -123,6 +126,50 @@ module TestkitBackend
           'utc_offset_s' => value.utc_offset,
           'timezone_id' => value.respond_to?(:time_zone) ? value.time_zone&.name : nil
         } }
+    end
+
+    # Inner field values (labels, props, ids) are themselves tagged
+    # Cypher values — labels round-trip as CypherList<CypherString>,
+    # props as CypherMap<CypherX>, ids as CypherInt — so we feed them
+    # through from_ruby rather than building plain JSON. elementId is
+    # the only field testkit expects as a bare string.
+    def node_to_tagged(node)
+      { 'name' => 'CypherNode',
+        'data' => {
+          'id' => from_ruby(node.id),
+          'labels' => from_ruby(node.labels.map(&:to_s)),
+          'props' => from_ruby(stringify_keys(node.properties)),
+          'elementId' => node.element_id
+        } }
+    end
+
+    def relationship_to_tagged(rel)
+      { 'name' => 'CypherRelationship',
+        'data' => {
+          'id' => from_ruby(rel.id),
+          'startNodeId' => from_ruby(rel.start_node_id),
+          'endNodeId' => from_ruby(rel.end_node_id),
+          'type' => from_ruby(rel.type.to_s),
+          'props' => from_ruby(stringify_keys(rel.properties)),
+          'elementId' => rel.element_id,
+          # Driver doesn't yet model start/end element ids separately;
+          # fall back to the stringified integer ids the way our own
+          # Types::Node default does for elementId.
+          'startNodeElementId' => rel.start_node_id.to_s,
+          'endNodeElementId' => rel.end_node_id.to_s
+        } }
+    end
+
+    def path_to_tagged(path)
+      { 'name' => 'CypherPath',
+        'data' => {
+          'nodes' => from_ruby(path.nodes),
+          'relationships' => from_ruby(path.relationships)
+        } }
+    end
+
+    def stringify_keys(hash)
+      hash.each_with_object({}) { |(k, v), acc| acc[k.to_s] = v }
     end
   end
 end
