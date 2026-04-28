@@ -177,9 +177,7 @@ module Neo4j
       end
 
       # Convert timeout from seconds (or ActiveSupport::Duration) to milliseconds for Bolt protocol
-      def timeout_to_milliseconds(timeout)
-        timeout&.then { (it.to_f * 1000).round }
-      end
+      def timeout_to_milliseconds(timeout) = timeout&.then { (it.to_f * 1000).round }
 
       def execute_transaction(access_mode, timeout: nil, metadata: nil, &block)
         raise Exceptions::ClientException, 'Session is closed' unless @open
