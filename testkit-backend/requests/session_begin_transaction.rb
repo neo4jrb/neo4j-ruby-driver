@@ -6,9 +6,7 @@ module TestkitBackend
       include Request
 
       def execute
-        # NOTE: Session#begin_transaction currently ignores tx_meta/timeout —
-        # honoured here for API parity once the driver supports them.
-        tx = registry.fetch(session_id).begin_transaction
+        tx = registry.fetch(session_id).begin_transaction(**tx_options(tx_meta, timeout))
         Response::Transaction.new(id: registry.store(tx))
       end
     end

@@ -156,6 +156,25 @@ RSpec.describe 'Transaction' do
     expect(count_nodes_by_label(:Node4)).to be_zero
   end
 
+  it 'accepts metadata on begin_transaction' do
+    metadata = { foo: 'bar', baz: 1 }
+    session.begin_transaction(metadata: metadata) do |tx|
+      result = tx.run('CALL tx.getMetaData()').single.first
+      expect(result).to eq metadata
+      tx.commit
+    end
+  end
+
+  it 'accepts timeout on begin_transaction (seconds)' do
+    # Just verifies the kwarg is accepted and a normal query runs;
+    # exercising the actual server-side timeout would need a long
+    # query and be flaky.
+    session.begin_transaction(timeout: 10) do |tx|
+      expect(tx.run('RETURN 1').single.first).to eq 1
+      tx.commit
+    end
+  end
+
   def count_nodes_by_label(label)
     session.run("MATCH (n:#{label}) RETURN count(n)").single.first
   end

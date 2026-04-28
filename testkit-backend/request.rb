@@ -46,11 +46,22 @@ module TestkitBackend
       execute
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
       Response::DriverError.from(e, registry: registry)
-    rescue Registry::UnknownHandle, ArgumentError => e
+    rescue ClientGeneratedError, Registry::UnknownHandle, ArgumentError => e
       Response::FrontendError.new(msg: "#{e.class}: #{e.message}")
     rescue StandardError => e
       warn "[backend] #{e.class}: #{e.message}\n  #{e.backtrace.first(5).join("\n  ")}"
       Response::BackendError.new(msg: "#{e.class}: #{e.message}")
+    end
+
+    # Translate testkit's tx_meta dict + millisecond timeout into the
+    # {metadata:, timeout:} kwargs accepted by the driver's
+    # begin_transaction / execute_read / execute_write. Used by both
+    # the explicit and managed transaction handlers.
+    def tx_options(tx_meta, timeout_ms)
+      {
+        metadata: Cypher.decode_value_map(tx_meta),
+        timeout: timeout_ms && timeout_ms / 1000.0
+      }.compact
     end
 
     def self.dispatch(request_json, registry, connection)

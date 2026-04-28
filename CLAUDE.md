@@ -62,7 +62,7 @@ standard offset doubled equals the DST offset.
 ## Style
 
 - Trust callers. No defensive `.dup`, `.freeze`, or type guards unless the task requires it.
-- Ruby 3.2+ idioms: hash value omission (`metadata:`), method references (`&Bookmark.method(:new)`), `Array()`, `.compact` over nil-skipping conditionals.
+- Ruby 3.4+ idioms: hash value omission (`metadata:`), method references (`&Bookmark.method(:new)`), `it` block parameter (`hash.transform_values { it.foo }`), `&.then { ... }` pipelines over guard-and-statement, `Array()`, `.compact` over nil-skipping conditionals.
 - Polymorphism over `is_a?` / `case/when` on type. Tell, don't ask.
 - Explicit over clever. Separate parameters from config rather than extracting from merged kwargs.
 - Extract duplication at the third occurrence, not the second.

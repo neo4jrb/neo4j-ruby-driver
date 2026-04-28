@@ -65,7 +65,7 @@ module Neo4j
         @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters, run_metadata: run_response.metadata)
       end
 
-      def begin_transaction(&block)
+      def begin_transaction(timeout: nil, metadata: nil, &block)
         raise Exceptions::ClientException, 'Session is closed' unless @open
         if @transaction&.open?
           raise Exceptions::ClientException,
@@ -77,7 +77,12 @@ module Neo4j
         drain_current_result
         @current_result = nil
 
-        @transaction = Transaction.new(@connection, self, @last_bookmarks.to_a, @options)
+        tx_options = @options.merge(
+          timeout: timeout_to_milliseconds(timeout),
+          metadata: metadata
+        ).compact
+
+        @transaction = Transaction.new(@connection, self, @last_bookmarks.to_a, tx_options)
 
         if block_given?
           begin
@@ -172,11 +177,7 @@ module Neo4j
       end
 
       # Convert timeout from seconds (or ActiveSupport::Duration) to milliseconds for Bolt protocol
-      def timeout_to_milliseconds(timeout)
-        return nil unless timeout
-        timeout_seconds = timeout.respond_to?(:to_i) ? timeout.to_i : timeout
-        (timeout_seconds * 1000).to_i
-      end
+      def timeout_to_milliseconds(timeout) = timeout&.then { (it.to_f * 1000).round }
 
       def execute_transaction(access_mode, timeout: nil, metadata: nil, &block)
         raise Exceptions::ClientException, 'Session is closed' unless @open
