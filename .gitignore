@@ -1,2 +1,3 @@
 .rspec_status
 Gemfile.lock
+.ruby-version
