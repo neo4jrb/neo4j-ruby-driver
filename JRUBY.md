@@ -176,21 +176,30 @@ end
 
 ## Exceptions: hybrid design
 
-Java exceptions don't inherit from Ruby `Exception` /
-`StandardError`. So:
+Empirically (verified in jruby-10.0.3.0):
 
-- `rescue` (bare) → does not catch Java exceptions.
-- `rescue StandardError` → does not catch Java exceptions.
-- `rescue Exception` → does not catch Java exceptions.
+```ruby
+begin
+  raise Java::JavaLang::Exception
+rescue
+  puts '1st rescue'   # ← this fires
+rescue Java::JavaLang::Exception
+  puts '2nd rescue'
+end
+# => 1st rescue
+```
 
-A prepended Ruby module doesn't change the Ruby class hierarchy of
-the Java class — it only adds methods. So those bare rescues still
-miss.
+JRuby wires Java throwables into Ruby's rescue chain — bare
+`rescue`, `rescue StandardError`, and `rescue Exception` all
+catch Java exceptions. So the original concern that prepend
+would leave a "rescue StandardError silently misses" footgun is
+**not real**.
 
-**However**: `rescue` uses `Module#===`, which delegates to
-`is_a?`. And `is_a?` walks the *ancestors chain*, which `prepend`
-does extend. So `rescue PrependedModule` **does** catch a Java
-exception that has had `PrependedModule` prepended onto its class.
+`rescue` matches via `Module#===` → `is_a?`, which walks the
+ancestors chain. `prepend` extends that chain, so a prepended
+Ruby module is a valid catch handle. `rescue PrependedModule`
+catches a Java exception whose class has had `PrependedModule`
+prepended.
 
 This drives the exception design:
 
@@ -236,15 +245,17 @@ end
 
 - **Pro**: no exception copy/wrap layer; the original Java
   exception with its full Java stack is what bubbles up.
-- **Pro**: forces good Ruby style — catch the specific exception
-  type you mean to handle, not bare `rescue`.
-- **Con**: code that does `rescue StandardError` (or bare
-  `rescue`) hoping to catch driver errors will silently miss
-  them on JRuby. This needs to be called out clearly in the
-  README.
+- **Pro**: bare `rescue` / `rescue StandardError` still works
+  (JRuby integrates Java exceptions into the Ruby rescue chain),
+  *and* the specific module name works too — users get both
+  conveniences.
 - **Con**: pure and java diverge on whether exceptions are
   classes or modules-with-classes — the shared *catch handle* is
   the module name, but the actual `raise` sites differ.
+- **Con**: requires metaprogramming on third-party Java classes
+  (`org.neo4j.driver.exceptions.*.prepend(...)`), which is
+  unusual to read and tied to the Java driver's class names not
+  changing.
 
 ### Cause preservation
 
@@ -314,13 +325,74 @@ still reachable via `#cause` for the rare case it's needed.
 
 ### Which to pick
 
-Leaning toward **convert + cause-chain** unless allocation cost
-turns out to matter. The "rescue StandardError silently misses"
-footgun of the prepend approach is a real ergonomic cost
-(especially for users coming from the pure flavor or other Ruby
-libraries), and the boundary-wrapping discipline is a one-time
-implementation cost contained inside the driver. Decide for real
-when implementing.
+With the rescue-chain footgun debunked, the prepend approach is
+genuinely attractive: zero allocation, original Java stack
+intact, *and* normal Ruby rescue semantics work. The remaining
+costs are the metaprogramming on Java classes and a small
+divergence in `raise` sites between pure and java.
+
+Leaning toward **prepend** now. Decide for real when
+implementing — and at that point, verify the prepend-as-catch-
+handle behavior on the actual JRuby + Java-driver combination,
+not just on `Java::JavaLang::Exception`.
+
+### Reverse direction: Ruby exceptions raised inside Java callbacks
+
+The discussion above is about Java-throws → Ruby-rescues. The
+opposite direction matters too: managed transactions
+(`session.execute_read/write { |tx| ... }`) hand a Ruby block to
+the Java driver as a `TransactionCallback` (functional
+interface). The Java driver's retry logic sits *outside* the
+block — when the block raises, Java needs to classify the
+exception as transient (retry) vs non-retryable (propagate).
+
+If a Ruby exception escapes the block, JRuby wraps it as
+`org.jruby.exceptions.RaiseException` (a Java `RuntimeException`
+subclass). The Java driver doesn't recognize it as a Neo4j
+exception type, so retry won't fire even when it should.
+
+The exception that crosses the Ruby→Java boundary must be a
+**Java exception of the right Neo4j type** for the driver to
+classify it correctly.
+
+Implications by approach:
+
+- **Prepend approach**: raise actual Java exceptions from
+  inside the block — `raise org.neo4j.driver.exceptions.TransientException, "..."`
+  (or re-raise an instance the driver itself produced). The
+  prepended Ruby module is just a catch handle; it isn't
+  raisable on its own. We may want a thin Ruby helper
+  (`Neo4j::Driver.raise_transient(msg)` etc.) to keep call
+  sites tidy.
+
+- **Convert approach**: needs an inverse mapping at the
+  Ruby-block → Java boundary, mirroring `JAVA_TO_RUBY`:
+
+  ```ruby
+  RUBY_TO_JAVA = JAVA_TO_RUBY.invert.freeze
+
+  def wrap_callback
+    proc do |java_tx|
+      begin
+        yield Transaction.new(java_tx)
+      rescue Neo4j::Driver::Exceptions::Neo4jError => e
+        java_class = RUBY_TO_JAVA.fetch(e.class) { org.neo4j.driver.exceptions.ClientException }
+        raise java_class.new(e.message, e.cause)
+      end
+    end
+  end
+  ```
+
+  The wrapper sits at every Java method that takes a Ruby block
+  (`execute_read`, `execute_write`, anything async/Rx, custom
+  bookmark/auth managers).
+
+Either way: the testkit `ClientGeneratedError` flow we already
+have on the pure side needs an analog here — when test code or
+user code raises a non-driver exception inside a managed-tx
+block, the Java retry layer must see something it knows to
+*not* retry. Mapping it to a Java `ClientException` (or a
+custom non-retryable subclass) is the simplest path.
 
 ## testkit-backend
 
