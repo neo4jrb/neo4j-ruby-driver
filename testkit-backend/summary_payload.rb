@@ -15,25 +15,37 @@ module TestkitBackend
 
     def to_h
       {
-        'database' => safe { summary.database&.name },
-        'query' => { 'text' => safe { summary.query.text }, 'parameters' => {} },
-        'queryType' => safe { summary.query_type },
+        'database' => summary.database&.name,
+        'query' => query_payload,
+        'queryType' => summary.metadata[:type],
         'counters' => counters_payload,
-        'notifications' => nil,
-        'plan' => nil,
-        'profile' => nil,
-        'resultAvailableAfter' => safe { summary.result_available_after },
-        'resultConsumedAfter' => safe { summary.result_consumed_after },
+        'notifications' => stringify_keys_deep(summary.metadata[:notifications]),
+        'plan' => stringify_keys_deep(summary.metadata[:plan]),
+        'profile' => stringify_keys_deep(summary.metadata[:profile]),
+        'resultAvailableAfter' => summary.result_available_after,
+        'resultConsumedAfter' => summary.result_consumed_after,
         'serverInfo' => server_info_payload
       }
     end
 
     private
 
-    def counters_payload
-      counters = safe { summary.counters }
-      return {} unless counters
+    def query_payload
+      query = summary.query
+      {
+        'text' => query.text,
+        'parameters' => encode_parameters(query.parameters)
+      }
+    end
 
+    def encode_parameters(params)
+      return {} unless params.is_a?(Hash)
+
+      params.transform_keys(&:to_s).transform_values(&Cypher.method(:from_ruby))
+    end
+
+    def counters_payload
+      counters = summary.counters
       payload = INTEGER_COUNTERS.each_with_object({}) do |key, acc|
         acc[Casing.camel(key)] = counters.public_send(key)
       end
@@ -43,21 +55,24 @@ module TestkitBackend
     end
 
     def server_info_payload
-      server = safe { summary.server }
+      server = summary.server
       {
-        'address' => safe { server.address },
-        'agent' => safe { server.agent },
-        'protocolVersion' => safe { server.protocol_version }
+        'address' => server.address,
+        'agent' => server.agent,
+        'protocolVersion' => server.protocol_version
       }
     end
 
-    # Driver getters can raise on partial summaries (failure paths,
-    # missing metadata). Fall back to nil rather than crashing the
-    # whole response.
-    def safe
-      yield
-    rescue StandardError
-      nil
+    # Plan / profile / notifications come back from the server as nested
+    # maps with symbol keys (the unpacker symbolises). Testkit only
+    # checks they're dicts/lists; passing the raw structure with string
+    # keys is the simplest faithful representation.
+    def stringify_keys_deep(value)
+      case value
+      when Hash  then value.transform_keys(&:to_s).transform_values(&method(:stringify_keys_deep))
+      when Array then value.map(&method(:stringify_keys_deep))
+      else value
+      end
     end
   end
 end
