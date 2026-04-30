@@ -21,7 +21,8 @@ message if a test legitimately stops being expected to pass).
 | 2026-04-26 | tests/neo4j | 121 | 68 | 10 | 13 | 33 | +7 pass / −7 fail. Cypher.from_ruby now emits proper CypherNode / CypherRelationship / CypherPath instead of stringifying via to_s — labels and props are wrapped through from_ruby so they round-trip as CypherList<CypherString> and CypherMap<CypherX> as testkit expects. |
 | 2026-04-26 | tests/neo4j | 121 | 73 | 9 | 8 | 32 | +5 pass / −5 errors. (a) Session#begin_transaction now accepts `metadata:` and `timeout:` kwargs; SessionBeginTransaction and managed-tx handlers thread them through. (b) Empty `errorId` from RetryableNegative now raises ClientGeneratedError → Response::FrontendError instead of ClientException → DriverError, matching what testkit asserts on the "client code raised" path. |
 | 2026-04-27 | tests/neo4j | 121 | 76 | 9 | 5 | 31 | +3 pass / −3 errors as side benefit of fixing `Session#timeout_to_milliseconds` precision: was using `to_i` and rounding 100ms (= 0.1s) down to 0, so timeout-honouring tests waited the full retry budget and then testkit timed out the backend connection. Switched to `to_f`. Three timeout tests (`test_tx_timeout` × 2, `test_autocommit_transactions_should_support_timeout`) now pass; full testkit runtime dropped from 241s → 6s. |
-| 2026-04-28 | tests/neo4j | 121 | **82** | 3 | 3 | 33 | +6 pass. Richer `Summary` payload: pass `metadata[:type]` raw (`'rw'`) instead of mapped symbol; pass `metadata[:notifications]/[:plan]/[:profile]` through with deep-stringified keys (testkit only checks they're list/dict); encode `query.parameters` via `Cypher.from_ruby`. `test_agent_string` is environment-dependent — `bin/run-testkit` and CI now set `TEST_NEO4J_VERSION` so testkit's expected agent matches the server. |
+| 2026-04-28 | tests/neo4j | 121 | 82 | 3 | 3 | 33 | +6 pass. Richer `Summary` payload: pass `metadata[:type]` raw (`'rw'`) instead of mapped symbol; pass `metadata[:notifications]/[:plan]/[:profile]` through with deep-stringified keys (testkit only checks they're list/dict); encode `query.parameters` via `Cypher.from_ruby`. `test_agent_string` is environment-dependent — `bin/run-testkit` and CI now set `TEST_NEO4J_VERSION` so testkit's expected agent matches the server. |
+| 2026-04-30 | tests/neo4j | 121 | **84** | 1 | 3 | 33 | +2 pass. `Transaction#rollback` now raises `ClientException` when the tx is already closed (committed or rolled back) instead of silently no-op'ing. The two `test_should_not_rollback_a_*` tests now pass. `Transaction#close` is unaffected — it only calls rollback when `@open` is true, so idempotent close still works. |
 
 ## Error clusters (3, was 13)
 
@@ -29,9 +30,8 @@ message if a test legitimately stops being expected to pass).
 | ----: | ---------- | --------- |
 | 3 | `test_direct_driver`: `test_supports_multi_db`, `test_multi_db_non_existing`, `test_custom_resolver`. | Multi-database support handler (`CheckMultiDBSupport`) and resolver hook. |
 
-## Failures (3, was 9)
+## Failures (1, was 3)
 
-- **Tx-run rollback assertions (×2)**: `test_should_not_rollback_a_commited_tx`, `test_should_not_rollback_a_rollbacked_tx`. After commit/rollback, a subsequent operation on the same tx should raise; we currently no-op silently.
 - **Bookmark round-trip (×1)**: `test_updates_last_bookmark`.
 
 ## Skips (33)
@@ -52,7 +52,7 @@ Roughly decreasing return-per-effort:
 3. ~~Graph value types in record conversion.~~ Done.
 4. ~~Tx configuration (`metadata`/`timeout` on `begin_transaction`) + RetryableNegative empty-errorId → FrontendError.~~ Done.
 5. ~~Richer `Summary` (query type code, parameters, notifications, plan, profile, agent-string env).~~ Done.
-6. **Tx-run rollback assertions** — operations on a committed/rolled-back tx should raise, not silently no-op.
+6. ~~Tx-run rollback assertions — `Transaction#rollback` raises on already-closed tx.~~ Done.
 7. **Bookmark round-trip polish.** `test_updates_last_bookmark`.
 8. **MultiDB feature handler** — `CheckMultiDBSupport` / similar; advertise + implement. Three errors waiting on this.
 9. **Temporal type advertisement + gaps** once we flip `API_TYPE_TEMPORAL` on.
