@@ -30,7 +30,10 @@ jobs:
       TEST_NEO4J_HOST: localhost
       TEST_NEO4J_USER: neo4j
       TEST_NEO4J_PASS: password
-      TEST_NEO4J_VERSION: 5.26.21
+      # 2-segment form: testkit's test_agent_string compares the first
+      # two dot-segments of the server agent ("Neo4j/5.26.21" -> "Neo4j/5.26")
+      # against "Neo4j/" + this value. Patch number must be omitted.
+      TEST_NEO4J_VERSION: '5.26'
       TESTKIT_PATH: ${{ github.workspace }}/../testkit
       BASELINE: ${{ github.workspace }}/.github/testkit-baseline.txt
 

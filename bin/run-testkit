@@ -23,10 +23,11 @@ BACKEND_PORT="${TEST_BACKEND_PORT:-9876}"
 TEST_NEO4J_HOST="${TEST_NEO4J_HOST:-localhost}"
 TEST_NEO4J_USER="${TEST_NEO4J_USER:-neo4j}"
 TEST_NEO4J_PASS="${TEST_NEO4J_PASS:-password}"
-# Tests like test_agent_string compare against testkit's expected agent
-# string ("Neo4j/<TEST_NEO4J_VERSION>"). Default to the version CI uses
-# so a local run against a matching server passes.
-TEST_NEO4J_VERSION="${TEST_NEO4J_VERSION:-5.26.21}"
+# test_agent_string takes the first two dot-segments of the server agent
+# ("Neo4j/5.26.21" -> "Neo4j/5.26") and compares against
+# "Neo4j/$TEST_NEO4J_VERSION". Set this to the 2-segment major.minor of
+# whatever Neo4j you're running locally; patch number must be omitted.
+TEST_NEO4J_VERSION="${TEST_NEO4J_VERSION:-5.26}"
 
 if [ ! -d "$TESTKIT_PATH" ]; then
   echo "testkit not found at $TESTKIT_PATH" >&2
