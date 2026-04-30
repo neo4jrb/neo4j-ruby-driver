@@ -54,6 +54,20 @@ RSpec.describe 'Transaction' do
     expect(tx).to be_open
   end
 
+  it 'raises when rolling back a committed tx' do
+    tx = session.begin_transaction
+    tx.commit
+
+    expect(&tx.method(:rollback)).to raise_error Neo4j::Driver::Exceptions::ClientException
+  end
+
+  it 'raises when rolling back a rolled-back tx' do
+    tx = session.begin_transaction
+    tx.rollback
+
+    expect(&tx.method(:rollback)).to raise_error Neo4j::Driver::Exceptions::ClientException
+  end
+
   it 'handles nil parameters gracefully' do
     session.run('match (n) return count(n)', nil)
   end

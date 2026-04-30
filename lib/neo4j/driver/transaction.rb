@@ -92,8 +92,7 @@ module Neo4j
       end
 
       def rollback
-        return unless @open
-        raise Exceptions::ClientException, 'Transaction is already committed' if @committed
+        raise Exceptions::ClientException, 'Transaction is already closed' unless @open
 
         begin
           consume_current_result
