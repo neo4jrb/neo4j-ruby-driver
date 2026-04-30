@@ -41,7 +41,7 @@ module TestkitBackend
     def encode_parameters(params)
       return {} unless params.is_a?(Hash)
 
-      params.each_with_object({}) { |(k, v), acc| acc[k.to_s] = Cypher.from_ruby(v) }
+      params.transform_keys(&:to_s).transform_values(&Cypher.method(:from_ruby))
     end
 
     def counters_payload
@@ -69,8 +69,8 @@ module TestkitBackend
     # keys is the simplest faithful representation.
     def stringify_keys_deep(value)
       case value
-      when Hash  then value.each_with_object({}) { |(k, v), acc| acc[k.to_s] = stringify_keys_deep(v) }
-      when Array then value.map { stringify_keys_deep(it) }
+      when Hash  then value.transform_keys(&:to_s).transform_values(&method(:stringify_keys_deep))
+      when Array then value.map(&method(:stringify_keys_deep))
       else value
       end
     end
