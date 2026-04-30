@@ -23,6 +23,10 @@ BACKEND_PORT="${TEST_BACKEND_PORT:-9876}"
 TEST_NEO4J_HOST="${TEST_NEO4J_HOST:-localhost}"
 TEST_NEO4J_USER="${TEST_NEO4J_USER:-neo4j}"
 TEST_NEO4J_PASS="${TEST_NEO4J_PASS:-password}"
+# Tests like test_agent_string compare against testkit's expected agent
+# string ("Neo4j/<TEST_NEO4J_VERSION>"). Default to the version CI uses
+# so a local run against a matching server passes.
+TEST_NEO4J_VERSION="${TEST_NEO4J_VERSION:-5.26.21}"
 
 if [ ! -d "$TESTKIT_PATH" ]; then
   echo "testkit not found at $TESTKIT_PATH" >&2
@@ -77,6 +81,7 @@ set +e
   TEST_NEO4J_HOST="$TEST_NEO4J_HOST" \
   TEST_NEO4J_USER="$TEST_NEO4J_USER" \
   TEST_NEO4J_PASS="$TEST_NEO4J_PASS" \
+  TEST_NEO4J_VERSION="$TEST_NEO4J_VERSION" \
   TEST_BACKEND_PORT="$BACKEND_PORT" \
     python3 -m unittest "${UNITTEST_ARGS[@]}" 2>&1
 ) | tee "$RUN_LOG"

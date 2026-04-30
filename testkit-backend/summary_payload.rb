@@ -16,12 +16,12 @@ module TestkitBackend
     def to_h
       {
         'database' => safe { summary.database&.name },
-        'query' => { 'text' => safe { summary.query.text }, 'parameters' => {} },
-        'queryType' => safe { summary.query_type },
+        'query' => query_payload,
+        'queryType' => safe { summary.metadata[:type] },
         'counters' => counters_payload,
-        'notifications' => nil,
-        'plan' => nil,
-        'profile' => nil,
+        'notifications' => safe { stringify_keys_deep(summary.metadata[:notifications]) },
+        'plan' => safe { stringify_keys_deep(summary.metadata[:plan]) },
+        'profile' => safe { stringify_keys_deep(summary.metadata[:profile]) },
         'resultAvailableAfter' => safe { summary.result_available_after },
         'resultConsumedAfter' => safe { summary.result_consumed_after },
         'serverInfo' => server_info_payload
@@ -29,6 +29,20 @@ module TestkitBackend
     end
 
     private
+
+    def query_payload
+      query = safe { summary.query }
+      {
+        'text' => query&.text,
+        'parameters' => encode_parameters(query&.parameters)
+      }
+    end
+
+    def encode_parameters(params)
+      return {} unless params.is_a?(Hash)
+
+      params.each_with_object({}) { |(k, v), acc| acc[k.to_s] = Cypher.from_ruby(v) }
+    end
 
     def counters_payload
       counters = safe { summary.counters }
@@ -49,6 +63,18 @@ module TestkitBackend
         'agent' => safe { server.agent },
         'protocolVersion' => safe { server.protocol_version }
       }
+    end
+
+    # Plan / profile / notifications come back from the server as nested
+    # maps with symbol keys (the unpacker symbolises). Testkit only
+    # checks they're dicts/lists; passing the raw structure with string
+    # keys is the simplest faithful representation.
+    def stringify_keys_deep(value)
+      case value
+      when Hash  then value.each_with_object({}) { |(k, v), acc| acc[k.to_s] = stringify_keys_deep(v) }
+      when Array then value.map { stringify_keys_deep(it) }
+      else value
+      end
     end
 
     # Driver getters can raise on partial summaries (failure paths,

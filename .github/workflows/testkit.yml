@@ -30,6 +30,7 @@ jobs:
       TEST_NEO4J_HOST: localhost
       TEST_NEO4J_USER: neo4j
       TEST_NEO4J_PASS: password
+      TEST_NEO4J_VERSION: 5.26.21
       TESTKIT_PATH: ${{ github.workspace }}/../testkit
       BASELINE: ${{ github.workspace }}/.github/testkit-baseline.txt
 

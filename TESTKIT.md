@@ -20,29 +20,19 @@ message if a test legitimately stops being expected to pass).
 | 2026-04-26 | tests/neo4j | 121 | 61 | 17 | 13 | 33 | +19 pass / −56 errors. Implemented managed transactions (SessionReadTransaction / SessionWriteTransaction) with the RetryableTry / RetryablePositive / RetryableNegative callback dance via a nested dispatch loop inside the request handler. Tests previously stuck behind the missing handler now run; many pass, the rest hit the next layer of unimplemented behaviour. |
 | 2026-04-26 | tests/neo4j | 121 | 68 | 10 | 13 | 33 | +7 pass / −7 fail. Cypher.from_ruby now emits proper CypherNode / CypherRelationship / CypherPath instead of stringifying via to_s — labels and props are wrapped through from_ruby so they round-trip as CypherList<CypherString> and CypherMap<CypherX> as testkit expects. |
 | 2026-04-26 | tests/neo4j | 121 | 73 | 9 | 8 | 32 | +5 pass / −5 errors. (a) Session#begin_transaction now accepts `metadata:` and `timeout:` kwargs; SessionBeginTransaction and managed-tx handlers thread them through. (b) Empty `errorId` from RetryableNegative now raises ClientGeneratedError → Response::FrontendError instead of ClientException → DriverError, matching what testkit asserts on the "client code raised" path. |
-| 2026-04-27 | tests/neo4j | 121 | **76** | 9 | 5 | 31 | +3 pass / −3 errors as side benefit of fixing `Session#timeout_to_milliseconds` precision: was using `to_i` and rounding 100ms (= 0.1s) down to 0, so timeout-honouring tests waited the full retry budget and then testkit timed out the backend connection. Switched to `to_f`. Three timeout tests (`test_tx_timeout` × 2, `test_autocommit_transactions_should_support_timeout`) now pass; full testkit runtime dropped from 241s → 6s. |
+| 2026-04-27 | tests/neo4j | 121 | 76 | 9 | 5 | 31 | +3 pass / −3 errors as side benefit of fixing `Session#timeout_to_milliseconds` precision: was using `to_i` and rounding 100ms (= 0.1s) down to 0, so timeout-honouring tests waited the full retry budget and then testkit timed out the backend connection. Switched to `to_f`. Three timeout tests (`test_tx_timeout` × 2, `test_autocommit_transactions_should_support_timeout`) now pass; full testkit runtime dropped from 241s → 6s. |
+| 2026-04-28 | tests/neo4j | 121 | **82** | 3 | 3 | 33 | +6 pass. Richer `Summary` payload: pass `metadata[:type]` raw (`'rw'`) instead of mapped symbol; pass `metadata[:notifications]/[:plan]/[:profile]` through with deep-stringified keys (testkit only checks they're list/dict); encode `query.parameters` via `Cypher.from_ruby`. `test_agent_string` is environment-dependent — `bin/run-testkit` and CI now set `TEST_NEO4J_VERSION` so testkit's expected agent matches the server. |
 
-## Error clusters (13, was 69)
+## Error clusters (3, was 13)
 
 | Count | Root cause | Fix shape |
 | ----: | ---------- | --------- |
-| 5 | `OSError: cannot read from timed out object` / `TimeoutError`. | Some retry-budget tests are slow; possibly real driver behaviour, possibly testkit's frontend timeout. Investigate per-test. |
-| 4 | `Client-generated error from testkit` (DriverError surfacing the message we raise on `RetryableNegative` with empty `errorId`). | Tests deliberately call `RetryableNegative` to test client-error propagation; our generic `ClientException` may not match what testkit asserts on. Refine the synthetic error shape. |
-| 1 | `Should be MultiDBSupport but was UnknownTypeError: ChangeDatabase`. | Multi-database test path needs `Feature:API:Driver.ExecuteQuery` or similar advertisement + handler. |
-| 1 | `BackendError: IOError: Unexpected end of stream`. | Connection bookkeeping issue in some path; needs targeted reproduction. |
-| 1 | Invalid-URL test expects a specific `DriverError` shape (we raise `ServiceUnavailableException` without a `code`). | Map `Errno::*` / DNS failures to a standardised error code, or adjust the expected feature gate. |
-| 1 | `DROP DATABASE … WAIT` — needs enterprise + the `WAIT` clause support. | CI now uses enterprise so the underlying support is there; check whether our query parameter handling supports it. |
+| 3 | `test_direct_driver`: `test_supports_multi_db`, `test_multi_db_non_existing`, `test_custom_resolver`. | Multi-database support handler (`CheckMultiDBSupport`) and resolver hook. |
 
-## Failures (17, was 8)
+## Failures (3, was 9)
 
-Dominated by graph value types, surfaced via the now-running managed-tx
-tests. Most failures cluster:
-
-- **Graph types in record values** (~10 tests): `CypherNode` / `CypherRelationship` / `CypherPath` not emitted — they fall through to the `to_s` `CypherString` fallback in `Cypher.from_ruby`. Implement proper `from_ruby` paths for the graph types.
-- **Tx configuration** (~2): `SessionBeginTransaction` ignores `txMeta` / `timeout`. Driver's `Session#begin_transaction` doesn't accept config.
-- **Specific error class assertions** (~2): tests assert a particular `DriverError` shape we don't produce (e.g. invalid bookmark message, parameter validation messages).
-- **Bookmark round-trip** (~1): `test_can_pass_bookmark_into_next_session`.
-- **Other** (~2): `assertIsInstance(None, dict)` style — Summary fields we return as `nil` when testkit expects a (possibly empty) dict.
+- **Tx-run rollback assertions (×2)**: `test_should_not_rollback_a_commited_tx`, `test_should_not_rollback_a_rollbacked_tx`. After commit/rollback, a subsequent operation on the same tx should raise; we currently no-op silently.
+- **Bookmark round-trip (×1)**: `test_updates_last_bookmark`.
 
 ## Skips (33)
 
@@ -61,11 +51,11 @@ Roughly decreasing return-per-effort:
 2. ~~Managed transactions (the retry-callback dance).~~ Done.
 3. ~~Graph value types in record conversion.~~ Done.
 4. ~~Tx configuration (`metadata`/`timeout` on `begin_transaction`) + RetryableNegative empty-errorId → FrontendError.~~ Done.
-5. **Richer `Summary`** (query text, query type, server info, notifications). Several remaining failures look like `None is not an instance of <class 'dict'>` / `'Neo4j/2026.03' != 'Neo4j/5.0'` — Summary fields we either don't populate or populate with values testkit doesn't expect.
-6. **Bookmark round-trip polish.** Remaining "0 != 1" style failures.
-7. **Temporal type advertisement + gaps** once we flip `API_TYPE_TEMPORAL` on.
-8. **MultiDB feature handler** — `CheckMultiDBSupport` / similar; advertise + implement.
-9. **Time-budget retry tests** — 4 errors are tests deliberately exhausting `max_transaction_retry_time`; investigate whether these need a backend fix or driver-side timing.
+5. ~~Richer `Summary` (query type code, parameters, notifications, plan, profile, agent-string env).~~ Done.
+6. **Tx-run rollback assertions** — operations on a committed/rolled-back tx should raise, not silently no-op.
+7. **Bookmark round-trip polish.** `test_updates_last_bookmark`.
+8. **MultiDB feature handler** — `CheckMultiDBSupport` / similar; advertise + implement. Three errors waiting on this.
+9. **Temporal type advertisement + gaps** once we flip `API_TYPE_TEMPORAL` on.
 10. **Driver-level features** — routing (`neo4j://`), async PULL / fetch size, TLS, notifications, auth token manager, impersonation. Each a session or more.
 11. **`tests/stub`** (protocol-version stub-server tests) — aligns with the v3–v58 protocol-range goal.
 
