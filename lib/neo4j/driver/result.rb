@@ -12,7 +12,7 @@ module Neo4j
         @query_text = query_text
         @parameters = parameters
         @run_metadata = run_metadata
-        @on_summary = on_summary  # called with merged metadata when stream ends in SUCCESS
+        @on_summary = on_summary  # called with the built Summary when stream ends in SUCCESS
         @records = []       # records pulled into memory by #buffer (not by iteration)
         @summary = nil
         @consumed = false   # stream has been fully drained from the wire
@@ -173,10 +173,9 @@ module Neo4j
       private
 
       def finalize_success(metadata)
-        merged = @run_metadata.merge(metadata)
-        @summary = Summary.new(merged, @query_text, @parameters, @connection)
+        @summary = Summary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection)
         @consumed = true
-        @on_summary&.call(merged)
+        @on_summary&.call(@summary)
       end
 
       def finalize_failure(response)

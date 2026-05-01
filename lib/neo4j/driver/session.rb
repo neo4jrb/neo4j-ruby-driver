@@ -155,18 +155,18 @@ module Neo4j
         @last_bookmarks = Set.new(Array(bookmarks).map(&Bookmark.method(:new)))
       end
 
-      # Auto-commit hook called from Result when its stream ends in SUCCESS.
-      # Explicit-tx Results don't trigger this — Transaction#commit harvests
-      # the bookmark from the COMMIT response itself.
-      def harvest_auto_commit_bookmark(metadata)
-        bookmark = metadata[:bookmark]
-        update_bookmarks(bookmark) if bookmark
-      end
-
       private
 
       def ensure_connection
         @connection ||= @driver.acquire_connection
+      end
+
+      # Auto-commit hook called from Result when its stream ends in SUCCESS.
+      # Explicit-tx Results don't trigger this — Transaction#commit harvests
+      # the bookmark from the COMMIT response itself.
+      def harvest_auto_commit_bookmark(summary)
+        bookmark = summary.metadata[:bookmark]
+        update_bookmarks(bookmark) if bookmark
       end
 
       # Pull any pending auto-commit result's records into memory so records
