@@ -18,8 +18,8 @@ jobs:
           - "4.0"
         neo4j:
           - "4.4.48-enterprise"
-          - "5.26.21-enterprise"
-          - "2026.01.4-enterprise"
+          - "5.26.25-enterprise"
+          - "2026.04.0-enterprise"
 
     services:
       neo4j:
