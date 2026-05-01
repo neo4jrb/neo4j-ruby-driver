@@ -6,12 +6,13 @@ module Neo4j
     class Result
       include Enumerable
 
-      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {})
+      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {}, on_summary: nil)
         @connection = connection
         @keys = keys
         @query_text = query_text
         @parameters = parameters
         @run_metadata = run_metadata
+        @on_summary = on_summary  # called with the built Summary when stream ends in SUCCESS
         @records = []       # records pulled into memory by #buffer (not by iteration)
         @summary = nil
         @consumed = false   # stream has been fully drained from the wire
@@ -36,14 +37,10 @@ module Neo4j
           @peeked_record = Record.new(@keys, response.fields)
           true
         when Bolt::Message::Success
-          @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
-          @consumed = true
+          finalize_success(response.metadata)
           false
         when Bolt::Message::Failure
-          @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
-          @consumed = true
-          @failed = true
-          handle_failure(response)
+          finalize_failure(response)
         else
           false
         end
@@ -116,13 +113,9 @@ module Neo4j
             when Bolt::Message::Record
               # discard silently
             when Bolt::Message::Success
-              @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
-              @consumed = true
+              finalize_success(response.metadata)
             when Bolt::Message::Failure
-              @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
-              @consumed = true
-              @failed = true
-              handle_failure(response)
+              finalize_failure(response)
             else
               break
             end
@@ -152,13 +145,9 @@ module Neo4j
           when Bolt::Message::Record
             @records << Record.new(@keys, response.fields)
           when Bolt::Message::Success
-            @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
-            @consumed = true
+            finalize_success(response.metadata)
           when Bolt::Message::Failure
-            @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
-            @consumed = true
-            @failed = true
-            handle_failure(response)
+            finalize_failure(response)
           else
             break
           end
@@ -182,6 +171,19 @@ module Neo4j
       end
 
       private
+
+      def finalize_success(metadata)
+        @summary = Summary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection)
+        @consumed = true
+        @on_summary&.call(@summary)
+      end
+
+      def finalize_failure(response)
+        @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
+        @consumed = true
+        @failed = true
+        handle_failure(response)
+      end
 
       def handle_failure(failure)
         code = failure.code

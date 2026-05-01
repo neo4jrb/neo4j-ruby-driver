@@ -62,7 +62,11 @@ module Neo4j
         end
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
-        @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters, run_metadata: run_response.metadata)
+        @current_result = Result.new(
+          @connection, keys,
+          query_text: query, parameters: parameters, run_metadata: run_response.metadata,
+          on_summary: method(:harvest_auto_commit_bookmark)
+        )
       end
 
       def begin_transaction(timeout: nil, metadata: nil, &block)
@@ -155,6 +159,14 @@ module Neo4j
 
       def ensure_connection
         @connection ||= @driver.acquire_connection
+      end
+
+      # Auto-commit hook called from Result when its stream ends in SUCCESS.
+      # Explicit-tx Results don't trigger this — Transaction#commit harvests
+      # the bookmark from the COMMIT response itself.
+      def harvest_auto_commit_bookmark(summary)
+        bookmark = summary.metadata[:bookmark]
+        update_bookmarks(bookmark) if bookmark
       end
 
       # Pull any pending auto-commit result's records into memory so records
