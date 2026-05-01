@@ -19,19 +19,13 @@ module Neo4j
           end
 
           # Whether this version supports re-authentication
-          def supports_re_auth?
-            false
-          end
+          def supports_re_auth? = false
 
           # Whether this version supports multiple databases
-          def supports_multiple_databases?
-            false
-          end
+          def supports_multiple_databases? = false
 
           # Whether this version supports notification filtering
-          def supports_notification_filtering?
-            false
-          end
+          def supports_notification_filtering? = false
         end
       end
     end

@@ -7,16 +7,10 @@ module Neo4j
         # Bolt 4.x protocol handler
         class V4 < Base
           def build_hello_message(user_agent:, auth:, routing: nil)
-            extra = { user_agent: user_agent }
-            extra[:routing] = routing if routing
-            # Bolt 4.x also merges auth into extra map (1 field)
-            extra.merge!(auth) if auth
-            PackStream::Structure.new(Message::HELLO, [extra])
+            PackStream::Structure.new(Message::HELLO, [{ user_agent:, routing:, **auth }.compact])
           end
 
-          def supports_multiple_databases?
-            true
-          end
+          def supports_multiple_databases? = true
         end
       end
     end

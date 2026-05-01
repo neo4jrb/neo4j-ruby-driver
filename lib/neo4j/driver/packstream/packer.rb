@@ -68,8 +68,7 @@ module Neo4j
             raise Exceptions::ClientException, "Unable to convert #{value.class} to Neo4j Value."
           when Enumerable
             # Handle all Enumerable types (Array, Set, Range, etc.)
-            # Array#to_a returns self, so no performance penalty
-            pack_list(value.to_a)
+            pack_list(value)
           when Structure
             pack_structure(value)
           when ::DateTime, ::Time
@@ -187,7 +186,7 @@ module Neo4j
             raise ArgumentError, "List too long: #{size} items"
           end
 
-          value.each { |item| pack(item) }
+          value.each(&method(:pack))
         end
 
         def pack_map(value)

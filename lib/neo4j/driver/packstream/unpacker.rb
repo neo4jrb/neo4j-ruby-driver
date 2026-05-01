@@ -137,7 +137,7 @@ module Neo4j
               # Values from 0xF0-0xFF represent -16 to -1
               # Values from 0x00-0x7F represent 0 to 127
               if marker >= 0xF0
-                marker - 256  # Convert to negative
+                marker - 256 # Convert to negative
               else
                 marker
               end
@@ -147,20 +147,10 @@ module Neo4j
           end
         end
 
-        def unpack_list(size)
-          Array.new(size) { unpack }
-        end
+        def unpack_list(size) = Array.new(size) { unpack }
 
         def unpack_map(size)
-          hash = {}
-          size.times do
-            key = unpack
-            value = unpack
-            # Convert string keys to symbols for Ruby idioms
-            key = key.to_sym if key.is_a?(String)
-            hash[key] = value
-          end
-          hash
+          size.times.to_h { [unpack.to_sym, unpack] }
         end
 
         def unpack_structure(size)
