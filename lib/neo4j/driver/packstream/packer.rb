@@ -164,7 +164,7 @@ module Neo4j
             raise ArgumentError, "List too long: #{size} items"
           end
 
-          value.each(&method(:pack))
+          value.each { pack(it) }
         end
 
         def pack_map(value)

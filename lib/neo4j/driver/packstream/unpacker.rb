@@ -118,7 +118,7 @@ module Neo4j
         def unpack_list(size) = Array.new(size) { unpack }
 
         def unpack_map(size)
-          size.times.to_h { [unpack.to_sym, unpack] }
+          {}.tap { |map| size.times { map[unpack.to_sym] = unpack } }
         end
 
         def unpack_structure(size)
