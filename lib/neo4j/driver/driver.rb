@@ -22,16 +22,25 @@ module Neo4j
 
         if block_given?
           begin
-            yield session
-          ensure
-            # Block form hands lifecycle to the driver, so close-time
-            # failures from abandoned results are treated as cancellations.
-            # Callers who want to observe such errors should manage the
-            # session explicitly and call #close themselves.
+            result = yield session
+          rescue => block_error
+            # Block raised; preserve as primary, attach close-time failures
+            # as suppressed (Java try-with-resources semantics).
+            begin
+              session.close
+            rescue Exceptions::Neo4jException => close_error
+              block_error.add_suppressed(close_error) if block_error.respond_to?(:add_suppressed)
+            end
+            raise
+          else
+            # Block exited cleanly. Any close-time error here comes from
+            # draining a result the user never iterated — Java semantics
+            # treat that as cancellation, not a real failure.
             begin
               session.close
             rescue Exceptions::Neo4jException
             end
+            result
           end
         else
           session

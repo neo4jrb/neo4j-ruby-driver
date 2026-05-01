@@ -6,39 +6,7 @@ module Neo4j
       # PackStream Packer - serializes Ruby objects to PackStream binary format
       # Based on https://neo4j.com/docs/bolt/current/packstream/
       class Packer
-        TINY_STRING = 0x80
-        TINY_LIST = 0x90
-        TINY_MAP = 0xA0
-        TINY_STRUCT = 0xB0
-
-        NULL = 0xC0
-        FLOAT_64 = 0xC1
-        FALSE = 0xC2
-        TRUE = 0xC3
-
-        INT_8 = 0xC8
-        INT_16 = 0xC9
-        INT_32 = 0xCA
-        INT_64 = 0xCB
-
-        BYTES_8 = 0xCC
-        BYTES_16 = 0xCD
-        BYTES_32 = 0xCE
-
-        STRING_8 = 0xD0
-        STRING_16 = 0xD1
-        STRING_32 = 0xD2
-
-        LIST_8 = 0xD4
-        LIST_16 = 0xD5
-        LIST_32 = 0xD6
-
-        MAP_8 = 0xD8
-        MAP_16 = 0xD9
-        MAP_32 = 0xDA
-
-        STRUCT_8 = 0xDC
-        STRUCT_16 = 0xDD
+        include Markers
 
         def initialize
           @buffer = String.new(encoding: Encoding::BINARY)
@@ -66,12 +34,13 @@ module Neo4j
             # Graph types are not valid query parameters. Reject before the
             # Enumerable branch since Path includes Enumerable.
             raise Exceptions::ClientException, "Unable to convert #{value.class} to Neo4j Value."
+          when Array, Set, Range
+            # Known sized collections — pack_list uses #size, which is O(1) here.
+            pack_list(value)
           when Enumerable
-            # Handle all Enumerable types (Array, Set, Range, etc.)
-            # Array#to_a returns self, so no performance penalty
+            # Generic Enumerable (lazy enumerators, custom collections) — materialise
+            # so #size is well-defined.
             pack_list(value.to_a)
-          when Structure
-            pack_structure(value)
           when ::DateTime, ::Time
             # Check DateTime before Date — DateTime < Date in Ruby, so the
             # Date branch would match first and pack away the time component.
@@ -93,6 +62,14 @@ module Neo4j
           else
             raise Exceptions::ClientException, "Unable to convert #{value.class} to Neo4j Value."
           end
+          self
+        end
+
+        # Serialise a Bolt protocol message (a PackStream::Structure) onto the buffer.
+        # Distinct from #pack so the user-value path doesn't carry knowledge of
+        # the wire-level Structure type.
+        def pack_message(structure)
+          pack_structure(structure)
           self
         end
 
@@ -187,7 +164,7 @@ module Neo4j
             raise ArgumentError, "List too long: #{size} items"
           end
 
-          value.each { |item| pack(item) }
+          value.each { pack(it) }
         end
 
         def pack_map(value)
