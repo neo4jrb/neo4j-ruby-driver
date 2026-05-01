@@ -83,7 +83,7 @@ module Neo4j
           raise IOError, "Connection is closed" if closed?
 
           @packer.reset
-          @packer.pack(message)
+          @packer.pack_message(message)
           data = @packer.bytes
 
           # Write chunk header (size as 16-bit big-endian) + data
@@ -123,10 +123,10 @@ module Neo4j
           # Register hydration handlers
           register_hydration_handlers(unpacker)
 
-          structure = unpacker.unpack
+          response = unpacker.unpack
 
           @response_queue.shift unless @response_queue.empty?
-          process_response(structure)
+          response
         end
 
         def fetch_all
@@ -238,22 +238,13 @@ module Neo4j
         end
 
 
-        def process_response(structure)
-          case structure.signature
-          when Message::SUCCESS
-            Message::Success.new(structure.fields[0] || {})
-          when Message::RECORD
-            Message::Record.new(structure.fields[0] || [])
-          when Message::FAILURE
-            Message::Failure.new(structure.fields[0] || {})
-          when Message::IGNORED
-            Message::Ignored.new
-          else
-            raise "Unknown response signature: 0x#{structure.signature.to_s(16)}"
-          end
-        end
-
         def register_hydration_handlers(unpacker)
+          # Bolt response messages — top-level structures returned from the server.
+          unpacker.register_hydration_handler(Message::SUCCESS) { |fields| Message::Success.new(fields[0] || {}) }
+          unpacker.register_hydration_handler(Message::FAILURE) { |fields| Message::Failure.new(fields[0] || {}) }
+          unpacker.register_hydration_handler(Message::RECORD)  { |fields| Message::Record.new(fields[0] || []) }
+          unpacker.register_hydration_handler(Message::IGNORED) { |_| Message::Ignored.new }
+
           # Register handlers for Neo4j types (Node, Relationship, etc.)
           # Signature 0x4E - Node
           unpacker.register_hydration_handler(0x4E) do |fields|

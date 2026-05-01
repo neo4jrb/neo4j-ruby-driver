@@ -5,39 +5,7 @@ module Neo4j
     module PackStream
       # PackStream Unpacker - deserializes PackStream binary format to Ruby objects
       class Unpacker
-        TINY_STRING = 0x80
-        TINY_LIST = 0x90
-        TINY_MAP = 0xA0
-        TINY_STRUCT = 0xB0
-
-        NULL = 0xC0
-        FLOAT_64 = 0xC1
-        FALSE = 0xC2
-        TRUE = 0xC3
-
-        INT_8 = 0xC8
-        INT_16 = 0xC9
-        INT_32 = 0xCA
-        INT_64 = 0xCB
-
-        BYTES_8 = 0xCC
-        BYTES_16 = 0xCD
-        BYTES_32 = 0xCE
-
-        STRING_8 = 0xD0
-        STRING_16 = 0xD1
-        STRING_32 = 0xD2
-
-        LIST_8 = 0xD4
-        LIST_16 = 0xD5
-        LIST_32 = 0xD6
-
-        MAP_8 = 0xD8
-        MAP_16 = 0xD9
-        MAP_32 = 0xDA
-
-        STRUCT_8 = 0xDC
-        STRUCT_16 = 0xDD
+        include Markers
 
         def initialize(io)
           @io = io
@@ -156,13 +124,10 @@ module Neo4j
         def unpack_structure(size)
           signature = read_bytes(1).unpack1('C')
           fields = Array.new(size) { unpack }
+          handler = @hydration_handlers[signature] or
+            raise "No hydration handler for PackStream structure signature 0x#{signature.to_s(16)}"
 
-          # Check if we have a hydration handler for this signature
-          if (handler = @hydration_handlers[signature])
-            handler.call(fields)
-          else
-            Structure.new(signature, fields)
-          end
+          handler.call(fields)
         end
 
         def read_bytes(n)
