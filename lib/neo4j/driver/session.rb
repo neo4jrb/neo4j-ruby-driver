@@ -62,7 +62,11 @@ module Neo4j
         end
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
-        @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters, run_metadata: run_response.metadata)
+        @current_result = Result.new(
+          @connection, keys,
+          query_text: query, parameters: parameters, run_metadata: run_response.metadata,
+          on_summary: method(:harvest_auto_commit_bookmark)
+        )
       end
 
       def begin_transaction(timeout: nil, metadata: nil, &block)
@@ -149,6 +153,14 @@ module Neo4j
         # Replace bookmarks (don't accumulate) - matches Java driver behavior
         # Each committed transaction generates a new bookmark that replaces the previous one
         @last_bookmarks = Set.new(Array(bookmarks).map(&Bookmark.method(:new)))
+      end
+
+      # Auto-commit hook called from Result when its stream ends in SUCCESS.
+      # Explicit-tx Results don't trigger this — Transaction#commit harvests
+      # the bookmark from the COMMIT response itself.
+      def harvest_auto_commit_bookmark(metadata)
+        bookmark = metadata[:bookmark]
+        update_bookmarks(bookmark) if bookmark
       end
 
       private
