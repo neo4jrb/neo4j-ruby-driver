@@ -26,8 +26,17 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Pin testkit so upstream changes can't make our baseline gate
+      # fail through no fault of ours. Bump intentionally when needed.
+      # Shallow-fetch just the pinned commit (no full history needed).
       - name: Clone testkit
-        run: git clone --depth 1 https://github.com/neo4j-drivers/testkit.git "$TESTKIT_PATH"
+        env:
+          TESTKIT_REF: a233c3f32c9e7db33d856345c4c98f487d15aabb
+        run: |
+          git init "$TESTKIT_PATH"
+          git -C "$TESTKIT_PATH" remote add origin https://github.com/neo4j-drivers/testkit.git
+          git -C "$TESTKIT_PATH" fetch --depth 1 origin "$TESTKIT_REF"
+          git -C "$TESTKIT_PATH" checkout FETCH_HEAD
 
       - name: Install testkit Python deps
         run: pip install -Ur "$TESTKIT_PATH/requirements.txt"
