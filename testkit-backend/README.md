@@ -25,53 +25,46 @@ Docker runner calls.
    python3 -m pip install -Ur requirements.txt
    ```
 
-2. Start a Neo4j (Docker is easiest):
+   `./bin/run-testkit` defaults to `TESTKIT_PATH=$HOME/projects/testkit`.
+
+2. Pick a target:
+
+   - **`tests/neo4j`** (integration suite) — needs a real Neo4j running on `localhost:7687`:
+
+     ```bash
+     docker run -d --name neo4j-test -p 7687:7687 -p 7474:7474 \
+       -e NEO4J_AUTH=neo4j/password \
+       -e NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
+       neo4j:5.26.21-enterprise
+     ```
+
+     CI runs against `5.26.21-enterprise`. If you use a different Neo4j version, set `TEST_NEO4J_VERSION` to the matching `major.minor` (e.g. `2026.03`) so the agent-string assertion lines up. Multi-database tests require the enterprise edition.
+
+   - **`tests/stub`** (protocol-level suite) — uses testkit's bundled `boltstub`, no Neo4j needed.
+
+3. Run the suite via the wrapper script (starts the backend, runs the suite, summarises results):
 
    ```bash
-   docker run -p 7687:7687 -e NEO4J_AUTH=neo4j/pass --rm neo4j:5
+   ./bin/run-testkit neo4j   # integration
+   ./bin/run-testkit stub    # protocol
    ```
 
-3. Start the backend (from this repo's root):
+   Or, to iterate on a single test, hand-start the backend:
 
    ```bash
    bundle exec ruby testkit-backend/backend.rb
    ```
 
-4. Run a testkit test against it:
-
-   ```bash
-   cd ~/projects/testkit
-   export TEST_DRIVER_NAME=ruby      # keys testkit's skip lists / expectations
-   export TEST_NEO4J_HOST=localhost
-   export TEST_NEO4J_USER=neo4j
-   export TEST_NEO4J_PASS=pass
-   python3 -m unittest tests.neo4j.test_session_run.TestSessionRun.test_iteration_smaller_than_fetch_size
-   ```
+   then run any `python3 -m unittest tests.neo4j.…` or `tests.stub.…`
+   from the testkit checkout. Set `TEST_DEBUG_REQRES=1` to log the
+   JSON going back and forth — handy when adding new handler support.
 
    If the Python frontend complains about `ifaddr`, `boltkit`, or
-   similar, install testkit's own Python deps with
-   `python3 -m pip install -Ur requirements.txt` (from testkit's repo
-   root). A venv is recommended on macOS to avoid PEP 668 issues.
-
-Set `TEST_DEBUG_REQRES=1` on testkit's side to log the JSON going back
-and forth — handy when adding new handler support.
+   similar, re-run the `pip install -Ur requirements.txt` step. A
+   venv is recommended on macOS to avoid PEP 668 issues.
 
 ## Current scope
 
-MVP covers enough for the core session_run and transaction tests:
-`NewDriver`, `DriverClose`, `VerifyConnectivity`, `NewSession`,
-`SessionClose`, `SessionRun`, `ResultNext/Peek/Single/List/Consume`,
-`SessionBeginTransaction`, `TransactionRun/Commit/Rollback/Close`,
-`GetFeatures` (empty — all non-mandatory features unsupported),
-`StartTest` (run everything).
-
-Known gaps (add as tests require):
-
-- Managed transactions (`SessionExecuteRead`/`Write` with
-  `RetryableTry` / `RetryablePositive` / `RetryableNegative`) — needs
-  a reentrant callback dance with testkit.
-- Stub server tests — require advertising specific features.
-- Graph types (`CypherNode`, `CypherRelationship`, `CypherPath`) in
-  record values.
-- Detailed `Summary` fields beyond counters.
-- Bookmark manager, auth token manager, resolver hooks.
+Covers `tests/neo4j` end-to-end (88 pass, 0 fail, 0 error). The
+`tests/stub` walk-down is just starting — see the parent repo's
+`TESTKIT.md` for live status and backlog.

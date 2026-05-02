@@ -4,10 +4,10 @@ Walk-down log for passing the [testkit](https://github.com/neo4j-drivers/testkit
 suite. Update after each meaningful change.
 
 Run:
-- `./bin/run-testkit neo4j` — integration suite against a real Neo4j
-- `./bin/run-testkit stub` — protocol suite against testkit's bundled boltstub
+- `./bin/run-testkit neo4j` — integration suite, needs a Neo4j on `localhost:7687` (enterprise for multi-db tests). Set `TEST_NEO4J_VERSION` to the `major.minor` of your local server.
+- `./bin/run-testkit stub` — protocol suite, no Neo4j required (uses testkit's bundled `boltstub`).
 
-(see `testkit-backend/README.md` for env prerequisites)
+See `testkit-backend/README.md` for full setup notes.
 
 Two CI gates, one per target:
 - `.github/testkit-baseline.txt` ↔ `.github/workflows/testkit.yml`
@@ -36,15 +36,19 @@ legitimately stops being expected to pass). Refresh either with
 | 2026-05-01 | tests/neo4j | 121 | **88** | 0 | 0 | 33 | +1 pass / -1 error. Custom address resolver: `Bolt::Connection#connect` now iterates `resolved_addresses` (delegates to `@options[:resolver]` callable when set, falling back to the URI host:port). Backend's `NewDriver` accepts `resolverRegistered`, installs a Proc that round-trips through `Response::ResolverResolutionRequired` and reads back the matching `ResolverResolutionCompleted` request. Three side fixes were needed: (a) socket connect via `Socket.tcp(connect_timeout:)` so unreachable resolved addresses fail fast, (b) `Bolt::Connection` now records the actually-connected `address`, (c) `Summary#server` returns that instead of the URI's host (which is `*` when a resolver is in play). **Zero failures and zero errors in `tests/neo4j` now.** |
 | 2026-05-02 | tests/stub  | 1601 | **9** | 5 | 29 | 1578 | Initial stub baseline. Most of the 1578 skips are gated on `Feature:Bolt:X.Y` flags we don't yet advertise; 8 of the 29 errors are routing (`neo4j://` scheme not implemented); the rest of the fail/error cluster is `result_scope` / `tx_lifetime` (driver should raise on read after consume / op after tx close in a few cases we don't yet cover). Bootstrap PR establishes the gate. |
 
-## Error clusters (0, was 1)
+The cluster sections below are scoped to the most recent run of each
+target. The stub suite is much larger and walk-down is just starting;
+detailed clusters there will appear once we expand coverage.
+
+## tests/neo4j — Error clusters (0, was 1)
 
 None. 🎉
 
-## Failures (0, was 1)
+## tests/neo4j — Failures (0, was 1)
 
 None. 🎉
 
-## Skips (33)
+## tests/neo4j — Skips (33)
 
 Driven entirely by our empty `GetFeatures` response. Unique skip reasons:
 
@@ -52,6 +56,15 @@ Driven entirely by our empty `GetFeatures` response. Unique skip reasons:
 - `Feature.API_TYPE_TEMPORAL` — **mostly implemented**; advertising will flip skip → mix of pass/fail to fix.
 - `Feature.API_TYPE_SPATIAL` / `Feature.API_TYPE_VECTOR` / `Feature.API_SUMMARY_GQL_STATUS_OBJECTS` — honest skips.
 - `No common version between server and driver: (4, 0)` — not a feature gate; version negotiation detail.
+
+## tests/stub — Errors / Failures / Skips (29 / 5 / 1578)
+
+Headlines (full breakdown deferred until walk-down starts):
+
+- **~1500 skips** are gated on `Feature:Bolt:X.Y` flags we don't yet advertise.
+- **8 errors** are routing tests (`neo4j://` scheme not implemented).
+- **~17 fail/error** are `result_scope` / `tx_lifetime` corner cases (driver should raise on read after consume / op after tx close in paths we don't yet cover).
+- A handful of misc.
 
 ## Prioritised backlog
 
@@ -78,7 +91,8 @@ Roughly decreasing return-per-effort:
 
 After each change that moves numbers:
 
-1. Re-run `./bin/run-testkit neo4j`.
-2. Append a new row to **Current baseline** with the date and delta.
-3. Update the **Error clusters** / **Failures** / **Skips** sections if the shape changed, not just the counts.
-4. Mention the cluster (or size delta) in the commit message.
+1. Re-run the affected target(s): `./bin/run-testkit neo4j` and/or `./bin/run-testkit stub`.
+2. Append a new row to **Current baseline** with the date, target, and delta.
+3. Update the matching `tests/<target>` cluster section if the shape changed, not just the counts.
+4. Refresh the baseline file: `bin/refresh-testkit-baseline [neo4j|stub]`.
+5. Mention the cluster (or size delta) and the affected target in the commit message.
