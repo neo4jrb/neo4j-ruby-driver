@@ -41,14 +41,14 @@ module Neo4j
           resolved_addresses.each do |host, port|
             begin
               open_socket(host, port)
+              perform_handshake
+              perform_hello
+              return self
             rescue Exceptions::ServiceUnavailableException => e
               last_error = e
-              next
+              @socket&.close rescue nil
+              @socket = nil
             end
-
-            perform_handshake
-            perform_hello
-            return self
           end
 
           raise last_error || Exceptions::ServiceUnavailableException.new('No addresses to connect to')
@@ -149,37 +149,48 @@ module Neo4j
         private
 
         # Resolve the URI's host:port into a list of [host, port] pairs to try
-        # in order. With no resolver, that's just the URI's own address. With a
-        # custom resolver, the user's callable returns one or more "host:port"
-        # strings (matching the Java driver's ServerAddressResolver contract).
+        # in order. Hosts are kept in their native form — IPv6 stays bracketed
+        # ("[::1]") so address strings re-parse unambiguously; brackets are
+        # only stripped at the TCPSocket boundary.
+        # With a custom resolver, the user's callable receives a "host:port"
+        # string (IPv6 bracketed) and returns one or more such strings,
+        # matching the Java driver's ServerAddressResolver contract.
         def resolved_addresses
           host = @uri.host
-          # Strip brackets from IPv6 addresses (URI returns [::1], TCPSocket expects ::1).
-          host = host[1..-2] if host&.start_with?('[') && host.end_with?(']')
           port = @uri.port || DEFAULT_PORT
 
           if (resolver = @options[:resolver])
-            Array(resolver.call("#{host}:#{port}")).map { |addr| split_addr(addr, port) }
+            Array(resolver.call(format_address(host, port))).map { |addr| split_addr(addr, port) }
           else
             [[host, port]]
           end
         end
 
         def split_addr(addr, default_port)
-          # rpartition handles IPv6 too: "[::1]:7687" -> ["[::1]", ":", "7687"]
+          # rpartition handles IPv6: "[::1]:7687" -> ["[::1]", ":", "7687"]
           host, sep, port = addr.to_s.rpartition(':')
-          host = host[1..-2] if host.start_with?('[') && host.end_with?(']')
           sep.empty? ? [addr.to_s, default_port] : [host, Integer(port)]
+        end
+
+        def format_address(host, port)
+          # Wrap raw IPv6 (`::1`) in brackets so the result re-parses correctly.
+          host = "[#{host}]" if host.include?(':') && !host.start_with?('[')
+          "#{host}:#{port}"
+        end
+
+        def strip_brackets(host)
+          host&.start_with?('[') && host.end_with?(']') ? host[1..-2] : host
         end
 
         def open_socket(host, port)
           timeout = @options[:connection_timeout]
-          @socket = timeout ? Socket.tcp(host, port, connect_timeout: timeout) : TCPSocket.new(host, port)
+          bare_host = strip_brackets(host)
+          @socket = timeout ? Socket.tcp(bare_host, port, connect_timeout: timeout) : TCPSocket.new(bare_host, port)
         rescue SystemCallError, SocketError => e
           raise Exceptions::ServiceUnavailableException,
-                "Unable to connect to #{host}:#{port}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
+                "Unable to connect to #{format_address(host, port)}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
         else
-          @address = "#{host}:#{port}"
+          @address = format_address(host, port)
           @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
 
           if timeout
