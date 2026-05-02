@@ -98,6 +98,10 @@ module TestkitBackend
       include Mixin
     end
 
+    class ResolverResolutionRequired < Data.define(:id, :address)
+      include Mixin
+    end
+
     class DriverError < Data.define(:id, :error_type, :code, :msg, :retryable)
       include Mixin
 

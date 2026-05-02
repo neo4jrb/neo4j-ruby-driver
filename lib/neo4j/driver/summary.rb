@@ -40,13 +40,11 @@ module Neo4j
           if @metadata[:server]
             ServerInfo.new(@metadata[:server])
           elsif @connection
-            # Build server info from connection
-            host = @connection.instance_variable_get(:@uri).host
-            port = @connection.instance_variable_get(:@uri).port || 7687
-            address = "#{host}:#{port}"
-            agent = @connection.server_agent
-            protocol_version = @connection.protocol&.version
-            ServerInfo.new(address: address, agent: agent, protocol_version: protocol_version)
+            ServerInfo.new(
+              address: @connection.address,
+              agent: @connection.server_agent,
+              protocol_version: @connection.protocol&.version
+            )
           else
             ServerInfo.new(nil)
           end
