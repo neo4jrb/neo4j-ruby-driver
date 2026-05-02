@@ -20,7 +20,7 @@ module Neo4j
         BOLT_VERSION_5_0 = 0x00_00_05_00
         BOLT_VERSION_4_4 = 0x00_00_04_04
 
-        attr_reader :server_version, :server_agent, :protocol
+        attr_reader :server_version, :server_agent, :protocol, :address
 
         def initialize(uri, auth, options = {})
           @uri = URI(uri)
@@ -37,30 +37,21 @@ module Neo4j
         end
 
         def connect
-          host = @uri.host
-          # Strip brackets from IPv6 addresses (URI returns [::1], but TCPSocket expects ::1)
-          host = host[1..-2] if host&.start_with?('[') && host.end_with?(']')
-          port = @uri.port || DEFAULT_PORT
+          last_error = nil
+          resolved_addresses.each do |host, port|
+            begin
+              open_socket(host, port)
+            rescue Exceptions::ServiceUnavailableException => e
+              last_error = e
+              next
+            end
 
-          begin
-            @socket = TCPSocket.new(host, port)
-          rescue SystemCallError, SocketError => e
-            raise Exceptions::ServiceUnavailableException,
-                  "Unable to connect to #{host}:#{port}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
-          end
-          @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
-
-          # Set socket timeout if specified
-          if (timeout = @options[:connection_timeout])
-            timeval = [timeout, 0].pack('l_2')
-            @socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_RCVTIMEO, timeval)
-            @socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_SNDTIMEO, timeval)
+            perform_handshake
+            perform_hello
+            return self
           end
 
-          perform_handshake
-          perform_hello
-
-          self
+          raise last_error || Exceptions::ServiceUnavailableException.new('No addresses to connect to')
         end
 
         def close
@@ -156,6 +147,47 @@ module Neo4j
         end
 
         private
+
+        # Resolve the URI's host:port into a list of [host, port] pairs to try
+        # in order. With no resolver, that's just the URI's own address. With a
+        # custom resolver, the user's callable returns one or more "host:port"
+        # strings (matching the Java driver's ServerAddressResolver contract).
+        def resolved_addresses
+          host = @uri.host
+          # Strip brackets from IPv6 addresses (URI returns [::1], TCPSocket expects ::1).
+          host = host[1..-2] if host&.start_with?('[') && host.end_with?(']')
+          port = @uri.port || DEFAULT_PORT
+
+          if (resolver = @options[:resolver])
+            Array(resolver.call("#{host}:#{port}")).map { |addr| split_addr(addr, port) }
+          else
+            [[host, port]]
+          end
+        end
+
+        def split_addr(addr, default_port)
+          # rpartition handles IPv6 too: "[::1]:7687" -> ["[::1]", ":", "7687"]
+          host, sep, port = addr.to_s.rpartition(':')
+          host = host[1..-2] if host.start_with?('[') && host.end_with?(']')
+          sep.empty? ? [addr.to_s, default_port] : [host, Integer(port)]
+        end
+
+        def open_socket(host, port)
+          timeout = @options[:connection_timeout]
+          @socket = timeout ? Socket.tcp(host, port, connect_timeout: timeout) : TCPSocket.new(host, port)
+        rescue SystemCallError, SocketError => e
+          raise Exceptions::ServiceUnavailableException,
+                "Unable to connect to #{host}:#{port}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
+        else
+          @address = "#{host}:#{port}"
+          @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
+
+          if timeout
+            timeval = [timeout, 0].pack('l_2')
+            @socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_RCVTIMEO, timeval)
+            @socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_SNDTIMEO, timeval)
+          end
+        end
 
         def perform_handshake
           # Send magic preamble
