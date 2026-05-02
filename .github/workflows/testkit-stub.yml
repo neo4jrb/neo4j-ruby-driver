@@ -1,0 +1,107 @@
+name: Testkit (stub)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testkit-stub:
+    runs-on: ubuntu-latest
+
+    env:
+      TEST_DRIVER_NAME: ruby
+      TESTKIT_PATH: ${{ github.workspace }}/../testkit
+      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline.txt
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clone testkit
+        run: git clone --depth 1 https://github.com/neo4j-drivers/testkit.git "$TESTKIT_PATH"
+
+      - name: Install testkit Python deps
+        run: pip install -Ur "$TESTKIT_PATH/requirements.txt"
+
+      # tests/stub uses an internal boltstub server (testkit/boltstub),
+      # not a real Neo4j — no service container needed.
+      - name: Run testkit stub suite
+        id: testkit
+        continue-on-error: true
+        run: ./bin/run-testkit stub
+
+      - name: Locate run log
+        id: log
+        if: always()
+        run: |
+          LOG=$(ls -td /tmp/testkit-run-* 2>/dev/null | head -1)/run.log
+          test -f "$LOG" || { echo "no run.log produced"; exit 1; }
+          echo "log=$LOG" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise counts
+        if: always()
+        run: |
+          LOG="${{ steps.log.outputs.log }}"
+          PASS=$(grep -cE ' \.\.\. ok$' "$LOG" || true)
+          FAIL=$(grep -cE ' \.\.\. FAIL$' "$LOG" || true)
+          ERROR=$(grep -cE ' \.\.\. ERROR$' "$LOG" || true)
+          SKIP=$(grep -cE 'skipped' "$LOG" || true)
+          {
+            echo "## Testkit (stub) results"
+            echo ""
+            echo "| Pass | Fail | Error | Skip |"
+            echo "|-----:|-----:|------:|-----:|"
+            echo "| $PASS | $FAIL | $ERROR | $SKIP |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The real gate: every test in .github/testkit-stub-baseline.txt MUST
+      # be in the current pass set.
+      - name: Regression gate (baseline diff)
+        if: always()
+        run: |
+          LOG="${{ steps.log.outputs.log }}"
+          grep -E ' \.\.\. ok$' "$LOG" | sed -E 's/ \.\.\. ok$//' | sort > /tmp/current-pass.txt
+          grep -vE '^(#|$)' "$BASELINE" | sort > /tmp/baseline.txt
+
+          REGRESSED=$(comm -23 /tmp/baseline.txt /tmp/current-pass.txt)
+          NEW=$(comm -13 /tmp/baseline.txt /tmp/current-pass.txt)
+
+          {
+            echo ""
+            if [ -n "$NEW" ]; then
+              echo "### ✅ New passing tests (consider adding to baseline)"
+              echo '```'
+              echo "$NEW"
+              echo '```'
+            fi
+            if [ -n "$REGRESSED" ]; then
+              echo "### ❌ Regressed tests (previously in baseline, now not passing)"
+              echo '```'
+              echo "$REGRESSED"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$REGRESSED" ]; then
+            echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) no longer pass"
+            echo "$REGRESSED" | sed 's/^/::error::regressed: /'
+            exit 1
+          fi
+          echo "All baseline tests still pass."
+
+      - name: Upload run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testkit-stub-run-log
+          path: ${{ steps.log.outputs.log }}
+          if-no-files-found: ignore

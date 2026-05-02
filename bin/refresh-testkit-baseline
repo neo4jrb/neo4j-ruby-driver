@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 #
-# Run the testkit suite locally and overwrite .github/testkit-baseline.txt
+# Run a testkit suite locally and overwrite the matching baseline file
 # with the list of currently-passing tests. Review `git diff` before
 # committing.
+#
+# Usage: bin/refresh-testkit-baseline [neo4j|stub]   (defaults to neo4j)
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-OUTPUT_TMP=$(mktemp)
-trap 'rm -f "$OUTPUT_TMP"' EXIT
+TARGET="${1:-neo4j}"
+case "$TARGET" in
+  neo4j) OUT=.github/testkit-baseline.txt;      EXCLUDE=.github/testkit-baseline-exclude.txt ;;
+  stub)  OUT=.github/testkit-stub-baseline.txt; EXCLUDE=.github/testkit-stub-baseline-exclude.txt ;;
+  *) echo "Unknown target: $TARGET (expected: neo4j | stub)" >&2; exit 2 ;;
+esac
 
-./bin/run-testkit neo4j > "$OUTPUT_TMP" 2>&1 || true
+OUTPUT_TMP=$(mktemp)
+EXCLUDE_TMP=$(mktemp)
+trap 'rm -f "$OUTPUT_TMP" "$EXCLUDE_TMP"' EXIT
+
+./bin/run-testkit "$TARGET" > "$OUTPUT_TMP" 2>&1 || true
 
 # bin/run-testkit prints "  test log:    <path>/run.log"; pull that line.
 LOG=$(awk '/test log:/{print $NF}' "$OUTPUT_TMP" | tail -1)
@@ -21,25 +31,21 @@ test -n "$LOG" && test -f "$LOG" || {
   exit 1
 }
 
-OUT=.github/testkit-baseline.txt
-EXCLUDE=.github/testkit-baseline-exclude.txt
-
 # Build the cleaned exclusion list (one test id per line, no comments).
-EXCLUDE_TMP=$(mktemp)
-trap 'rm -f "$OUTPUT_TMP" "$EXCLUDE_TMP"' EXIT
+# `grep -v` exits 1 when the exclude file is all comments — tolerate that.
 if [ -f "$EXCLUDE" ]; then
-  grep -vE '^(#|$)' "$EXCLUDE" | sort -u > "$EXCLUDE_TMP"
+  { grep -vE '^(#|$)' "$EXCLUDE" || true; } | sort -u > "$EXCLUDE_TMP"
 else
   : > "$EXCLUDE_TMP"
 fi
 
 {
-  echo "# Tests currently expected to pass under tests/neo4j."
+  echo "# Tests currently expected to pass under tests/$TARGET."
   echo "# CI fails if any of these stops passing (regression)."
   echo "# Add lines as we fix more; remove with reason in commit msg."
-  echo "# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline."
+  echo "# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline $TARGET."
   echo "# Tests known to fail in CI for env reasons live in"
-  echo "# .github/testkit-baseline-exclude.txt and are skipped here."
+  echo "# $EXCLUDE and are skipped here."
   echo ""
   grep -E ' \.\.\. ok$' "$LOG" \
     | sed -E 's/ \.\.\. ok$//' \

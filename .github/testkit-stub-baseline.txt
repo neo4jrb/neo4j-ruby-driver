@@ -1,0 +1,16 @@
+# Tests currently expected to pass under tests/stub.
+# CI fails if any of these stops passing (regression).
+# Add lines as we fix more; remove with reason in commit msg.
+# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline stub.
+# Tests known to fail in CI for env reasons live in
+# .github/testkit-stub-baseline-exclude.txt and are skipped here.
+
+test_direct (tests.stub.connectivity_check.test_verify_connectivity.TestVerifyConnectivity.test_direct)
+test_direct_no_server (tests.stub.connectivity_check.test_verify_connectivity.TestVerifyConnectivity.test_direct_no_server)
+test_direct_raises_error (tests.stub.connectivity_check.test_verify_connectivity.TestVerifyConnectivity.test_direct_raises_error)
+test_discards_on_session_close (tests.stub.iteration.test_iteration_session_run.TestIterationSessionRun.test_discards_on_session_close)
+test_obtain_summary_twice (tests.stub.versions.test_versions.TestProtocolVersions.test_obtain_summary_twice)
+test_routing_no_server (tests.stub.connectivity_check.test_verify_connectivity.TestVerifyConnectivity.test_routing_no_server)
+test_server_address_in_summary (tests.stub.versions.test_versions.TestProtocolVersions.test_server_address_in_summary)
+test_server_agent (tests.stub.versions.test_versions.TestProtocolVersions.test_server_agent)
+test_server_version (tests.stub.versions.test_versions.TestProtocolVersions.test_server_version)
