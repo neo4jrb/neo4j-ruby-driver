@@ -1,0 +1,8 @@
+# Tests that pass locally but cannot be added to the baseline because of
+# environment differences in CI. The refresh-testkit-baseline script
+# subtracts these from the generated pass list.
+#
+# Format: one test id per line (matches the format in
+# testkit-stub-baseline.txt). Comments and blank lines ignored.
+
+# (none yet)

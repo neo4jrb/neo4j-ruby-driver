@@ -3,13 +3,21 @@
 Walk-down log for passing the [testkit](https://github.com/neo4j-drivers/testkit)
 suite. Update after each meaningful change.
 
-Run: `./bin/run-testkit neo4j` (see `testkit-backend/README.md` for env
-prerequisites).
+Run:
+- `./bin/run-testkit neo4j` — integration suite against a real Neo4j
+- `./bin/run-testkit stub` — protocol suite against testkit's bundled boltstub
 
-CI gates on `.github/testkit-baseline.txt` — a sorted list of tests that
-must keep passing. After moving the numbers, **also update the baseline
-file** (add lines for new passers; remove with reason in the commit
-message if a test legitimately stops being expected to pass).
+(see `testkit-backend/README.md` for env prerequisites)
+
+Two CI gates, one per target:
+- `.github/testkit-baseline.txt` ↔ `.github/workflows/testkit.yml`
+- `.github/testkit-stub-baseline.txt` ↔ `.github/workflows/testkit-stub.yml`
+
+Each is a sorted list of tests that must keep passing. After moving
+the numbers, **also update the baseline file** (add lines for new
+passers; remove with reason in the commit message if a test
+legitimately stops being expected to pass). Refresh either with
+`bin/refresh-testkit-baseline [neo4j|stub]`.
 
 ## Current baseline
 
@@ -26,6 +34,7 @@ message if a test legitimately stops being expected to pass).
 | 2026-04-30 | tests/neo4j | 121 | 85 | 0 | 3 | 33 | +1 pass / -1 fail. Auto-commit `Session#run` now harvests the bookmark from the PULL SUCCESS metadata (was only doing it on explicit-tx COMMIT). Done via a new `on_summary` callback on `Result` that the session wires to `update_bookmarks`; `Transaction`-bound results don't pass it. Side benefit: extracted `finalize_success` / `finalize_failure` helpers so the SUCCESS/FAILURE branches no longer duplicate `Summary.new` four ways. **Zero failures left** — only the 3 MultiDB errors remain. |
 | 2026-05-01 | tests/neo4j | 121 | 87 | 0 | 1 | 33 | +2 pass / -2 errors. Added `Driver#supports_multi_db?` (delegates to `connection.protocol.supports_multiple_databases?`, true for Bolt 4+) and the `CheckMultiDBSupport` request handler. Required adding a Zeitwerk inflection so `check_multi_db_support.rb` resolves to `CheckMultiDBSupport` (capital `DB`). `test_multi_db_non_existing` started passing as a side effect after switching the local Neo4j container to enterprise — testkit defaults `TEST_NEO4J_EDITION=enterprise`, so against community it ran instead of self-skipping and failed on `DROP DATABASE`. |
 | 2026-05-01 | tests/neo4j | 121 | **88** | 0 | 0 | 33 | +1 pass / -1 error. Custom address resolver: `Bolt::Connection#connect` now iterates `resolved_addresses` (delegates to `@options[:resolver]` callable when set, falling back to the URI host:port). Backend's `NewDriver` accepts `resolverRegistered`, installs a Proc that round-trips through `Response::ResolverResolutionRequired` and reads back the matching `ResolverResolutionCompleted` request. Three side fixes were needed: (a) socket connect via `Socket.tcp(connect_timeout:)` so unreachable resolved addresses fail fast, (b) `Bolt::Connection` now records the actually-connected `address`, (c) `Summary#server` returns that instead of the URI's host (which is `*` when a resolver is in play). **Zero failures and zero errors in `tests/neo4j` now.** |
+| 2026-05-02 | tests/stub  | 1601 | **9** | 5 | 29 | 1578 | Initial stub baseline. Most of the 1578 skips are gated on `Feature:Bolt:X.Y` flags we don't yet advertise; 8 of the 29 errors are routing (`neo4j://` scheme not implemented); the rest of the fail/error cluster is `result_scope` / `tx_lifetime` (driver should raise on read after consume / op after tx close in a few cases we don't yet cover). Bootstrap PR establishes the gate. |
 
 ## Error clusters (0, was 1)
 
@@ -57,10 +66,13 @@ Roughly decreasing return-per-effort:
 7. ~~Bookmark round-trip — auto-commit `Session#run` harvests bookmark from PULL SUCCESS.~~ Done.
 8. ~~`CheckMultiDBSupport` handler + `Driver#supports_multi_db?` (also unblocked `test_multi_db_non_existing` after switching local server to enterprise).~~ Done.
 9. ~~Resolver hook — `Driver.new(uri, resolver:)`. Connection iterates resolved addresses with per-attempt `connect_timeout`. Backend wires `resolverRegistered` round-trip.~~ Done.
-10. **`tests/stub`** (protocol-version stub-server tests) — aligns with the v3–v58 protocol-range goal.
+10. **`tests/stub` work** — bootstrap done (baseline + CI). Walk-down sequence:
+    1. Advertise Bolt feature flags (`Feature:Bolt:4.4`, `5.0`–`5.7`, `6.0`); ~1500 tests start running.
+    2. `tx_lifetime` / `result_scope` driver fixes — small.
+    3. **Routing (`neo4j://`)** — essential for release; bigger.
 11. **JRuby integration** — wire the JRuby implementation (mostly ready locally) into the existing test/CI matrix.
 12. **Temporal type advertisement + gaps** once we flip `API_TYPE_TEMPORAL` on.
-13. **Driver-level features** — routing (`neo4j://`), async PULL / fetch size, TLS, notifications, auth token manager, impersonation. Each a session or more.
+13. **Driver-level features** — async PULL / fetch size, TLS, notifications, auth token manager, impersonation. Each a session or more.
 
 ## Update protocol
 
