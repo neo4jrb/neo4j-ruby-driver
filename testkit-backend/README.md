@@ -38,7 +38,7 @@ Docker runner calls.
        neo4j:5.26.21-enterprise
      ```
 
-     CI runs against `5.26.21-enterprise`. If you use a different Neo4j version, set `TEST_NEO4J_VERSION` to the matching `major.minor` (e.g. `2026.03`) so the agent-string assertion lines up. Multi-database tests require the enterprise edition.
+     CI runs against `5.26.21-enterprise` and the runner sets `TEST_NEO4J_VERSION=5.26` accordingly. The variable must be the *2-segment major.minor* the testkit suite reads from the server agent string (`Neo4j/5.26.21` → `Neo4j/5.26`); patch versions don't match. If you run a different Neo4j locally, override it (e.g. `TEST_NEO4J_VERSION=2026.03 ./bin/run-testkit neo4j`). Multi-database tests require the enterprise edition.
 
    - **`tests/stub`** (protocol-level suite) — uses testkit's bundled `boltstub`, no Neo4j needed.
 
