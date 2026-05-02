@@ -77,6 +77,16 @@ module Neo4j
         raise Exceptions::ServiceUnavailableException, "Failed to verify connectivity: #{e.message}"
       end
 
+      # True iff the negotiated Bolt protocol supports multiple databases
+      # (Bolt 4.0+). Acquires a connection to ensure the handshake has
+      # happened.
+      def supports_multi_db?
+        conn = acquire_connection
+        conn.protocol.supports_multiple_databases?
+      ensure
+        release_connection(conn)
+      end
+
       def closed?
         @closed
       end

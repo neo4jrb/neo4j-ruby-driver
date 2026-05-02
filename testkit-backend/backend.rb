@@ -28,6 +28,7 @@ module TestkitBackend; end
 
 loader = Zeitwerk::Loader.new
 loader.push_dir(__dir__, namespace: TestkitBackend)
+loader.inflector.inflect('check_multi_db_support' => 'CheckMultiDBSupport')
 loader.setup
 
 module TestkitBackend

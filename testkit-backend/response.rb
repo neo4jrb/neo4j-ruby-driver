@@ -94,6 +94,10 @@ module TestkitBackend
       end
     end
 
+    class MultiDBSupport < Data.define(:id, :available)
+      include Mixin
+    end
+
     class DriverError < Data.define(:id, :error_type, :code, :msg, :retryable)
       include Mixin
 
