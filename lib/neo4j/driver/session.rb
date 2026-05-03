@@ -174,6 +174,14 @@ module Neo4j
 
       private
 
+      # TODO(routing-per-acquire-mode): @connection is memoized for the
+      # session's lifetime, so the provider sees only the first
+      # acquisition's access mode. In routing mode this pins the session
+      # to one server — a session that mixes execute_read with
+      # execute_write would still hit the original role's server. Java's
+      # convention is one mode per session, so this matches typical
+      # usage; full per-operation routing is slice 2 work and will need
+      # release-on-tx-end so each execute_read/write can reacquire.
       def ensure_connection
         @connection ||= @driver.acquire_connection(
           access_mode: session_access_mode, database: @options[:database]

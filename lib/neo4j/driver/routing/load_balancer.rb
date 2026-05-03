@@ -80,13 +80,20 @@ module Neo4j
         private
 
         def parse_routing_context(uri)
-          return {} if uri.query.nil? || uri.query.empty?
+          context = {}
+          unless uri.query.nil? || uri.query.empty?
+            URI.decode_www_form(uri.query).each do |k, v|
+              raise ArgumentError, "Routing context key '#{k}' is reserved" if ROUTING_CONTEXT_RESERVED_KEYS.include?(k)
 
-          URI.decode_www_form(uri.query).each_with_object({}) do |(k, v), acc|
-            raise ArgumentError, "Routing context key '#{k}' is reserved" if ROUTING_CONTEXT_RESERVED_KEYS.include?(k)
-
-            acc[k.to_sym] = v
-          end.tap { |ctx| ctx[:address] = "#{uri.host}:#{uri.port || ServerAddress::DEFAULT_PORT}" }
+              context[k.to_sym] = v
+            end
+          end
+          # Seed `address` is always part of the routing context, regardless
+          # of whether the URI carried query params. Otherwise the ROUTE
+          # payload silently differs between `neo4j://host` and
+          # `neo4j://host?k=v`.
+          context[:address] = "#{uri.host}:#{uri.port || ServerAddress::DEFAULT_PORT}"
+          context
         end
 
         def ensure_routing_table(database)

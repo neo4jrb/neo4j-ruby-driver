@@ -169,6 +169,10 @@ module Neo4j
         def discard_socket
           @socket&.close rescue nil
           @socket = nil
+          # If perform_hello pushed a :pending entry before the failure, the
+          # next address attempt would otherwise carry it forward and later
+          # reset!/drain loops could block waiting for a phantom response.
+          @response_queue.clear
         end
 
         # Resolve the URI's host:port into a list of [host, port] pairs to try
