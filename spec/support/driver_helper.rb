@@ -10,7 +10,10 @@ module DriverHelper
 
     def host = ENV.fetch('TEST_NEO4J_HOST', '127.0.0.1')
 
-    def scheme = ENV.fetch('TEST_NEO4J_SCHEME', 'neo4j')
+    # Direct (bolt) by default — the integration suite targets a single local
+    # Neo4j; the neo4j:// scheme would activate routing and require a cluster
+    # (or at least an advertised_address that matches host).
+    def scheme = ENV.fetch('TEST_NEO4J_SCHEME', 'bolt')
 
     def port = ENV.fetch('TEST_NEO4J_PORT', 7687)
 

@@ -9,6 +9,15 @@ module Neo4j
           def initialize(metadata = {})
             @metadata = metadata
           end
+
+          def accept(visitor)
+            visitor.on_ignored(self)
+          end
+
+          def assert_success!
+            raise Exceptions::ClientException,
+                  'Server IGNORED the request — a previous request in this batch failed'
+          end
         end
       end
     end

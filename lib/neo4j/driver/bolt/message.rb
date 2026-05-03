@@ -71,6 +71,14 @@ module Neo4j
           def goodbye
             PackStream::Structure.new(GOODBYE, [])
           end
+
+          # ROUTE (Bolt 4.3+) — fetch the cluster's routing table.
+          #   routing_context  : map (typically built from the URI query string)
+          #   bookmarks        : list of bookmarks (or nil for Bolt 4.3 compat)
+          #   extra            : {db: <database or nil>, imp_user: <or nil>}
+          def route(routing_context, bookmarks, extra)
+            PackStream::Structure.new(ROUTE, [routing_context, bookmarks, extra])
+          end
         end
       end
     end

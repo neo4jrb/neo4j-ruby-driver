@@ -43,24 +43,31 @@ module Neo4j
         timeout = config.delete(:timeout)
         tx_metadata = config.delete(:metadata)
 
-        # For auto-commit transactions, use RUN + PULL
+        # For auto-commit transactions, use RUN + PULL.
+        # `mode` is sent for read sessions (matches routing-server expectations);
+        # writers are the default and omit the field.
         run_extra = {
           db: @options[:database],
+          mode: (session_access_mode == :read ? 'r' : nil),
           tx_timeout: timeout_to_milliseconds(timeout),
           tx_metadata:
-        }.compact
+        }
+        run_extra.reject! { |_, v| v.nil? || (v.respond_to?(:empty?) && v.empty?) }
 
         @connection.send_message(Bolt::Message.run(query, parameters, run_extra))
         @connection.send_message(Bolt::Message.pull)
         @connection.flush
 
-        # Get RUN response
-        run_response = @connection.fetch_response
-
-        unless run_response.is_a?(Bolt::Message::Success)
-          handle_response_error(run_response)
-        end
-
+        run_response =
+          begin
+            @connection.fetch_response.assert_success!
+          rescue Exceptions::Neo4jException
+            # Server is in FAILED state and any queued messages (e.g. the PULL
+            # that followed our RUN) will be IGNORED. Drain them and RESET so
+            # the session is immediately usable for the next query.
+            @connection.reset!
+            raise
+          end
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
         @current_result = Result.new(
           @connection, keys,
@@ -114,6 +121,16 @@ module Neo4j
         execute_transaction(AccessMode::WRITE, timeout: timeout, metadata: metadata, &block)
       end
 
+      # TODO(close-cancel-semantics): the buffer call below pulls every
+      # remaining RECORD off the wire just to discard them client-side, and
+      # any FAILURE that the drain surfaces gets silently swallowed by
+      # Driver#session's block-form. Java-faithful behaviour is to send
+      # DISCARD/RESET, abandon the stream server-side, and propagate
+      # nothing — no swallow needed. Requires fixing Connection#reset! to
+      # drain by terminal-for-RESET (not by queue-pop count). The
+      # 'reports failure in close' integration spec encodes the current
+      # incorrect contract and would need to flip. Tracked as backlog
+      # item #12 in TESTKIT.md.
       def close
         return unless @open
 
@@ -157,8 +174,38 @@ module Neo4j
 
       private
 
+      # TODO(routing-per-operation): wrong shape for routing.
+      #
+      # Java's actual convention is per-OPERATION access mode: the session has
+      # a default mode, but each execute_read/execute_write/run overrides it
+      # for the scope of that operation, and the connection is released as
+      # soon as the operation completes (result consumed, or tx ends) — even
+      # though the session continues. So a single session can legitimately do
+      # `execute_write` followed by `execute_read` and each gets dispatched
+      # to the right role.
+      #
+      # Our current model is broken on both axes:
+      #   1. @connection is memoized for the session's lifetime → a session
+      #      that mixes modes stays pinned to the first role's server.
+      #   2. We never release until session.close → other sessions can't
+      #      reuse the underlying pool slot until then.
+      #
+      # Slice 2 work: drop the memoization. acquire_connection per operation
+      # with the operation's own access mode. Release when the result is
+      # consumed (auto-commit) or the transaction ends (explicit / managed).
       def ensure_connection
-        @connection ||= @driver.acquire_connection
+        @connection ||= @driver.acquire_connection(
+          access_mode: session_access_mode, database: @options[:database]
+        )
+      end
+
+      # Default access mode for the session — matches the URI scheme convention:
+      # routing dispatches read sessions to readers, everything else to writers.
+      def session_access_mode
+        case @options[:default_access_mode]
+        when AccessMode::READ then :read
+        else :write
+        end
       end
 
       # Auto-commit hook called from Result when its stream ends in SUCCESS.
@@ -248,37 +295,6 @@ module Neo4j
           raise e
         ensure
           @transaction = nil
-        end
-      end
-
-      def handle_response_error(response)
-        if response.is_a?(Bolt::Message::Failure)
-          code = response.code
-          message = response.message
-
-          exception_class = case code
-                            when /^Neo\.ClientError\.Security\.Unauthorized/
-                              Exceptions::AuthenticationException
-                            when /^Neo\.ClientError\.Security/
-                              Exceptions::SecurityException
-                            when /^Neo\.ClientError/
-                              Exceptions::ClientException
-                            when /^Neo\.TransientError/
-                              Exceptions::TransientException
-                            else
-                              Exceptions::DatabaseException
-                            end
-
-          # Server is in FAILED state and any queued messages (e.g. the PULL
-          # that followed our RUN) will be IGNORED. Drain them and RESET so
-          # the session is immediately usable for the next query.
-          @connection.reset!
-          raise exception_class.new(message, code: code)
-        elsif response.is_a?(Bolt::Message::Ignored)
-          @connection.reset!
-          raise Exceptions::ClientException, "Request was ignored by server (likely due to previous error)"
-        else
-          raise Exceptions::ClientException, "Unexpected response: #{response.class}"
         end
       end
     end

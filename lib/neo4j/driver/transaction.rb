@@ -24,15 +24,14 @@ module Neo4j
         @connection.send_message(Bolt::Message.begin_transaction(begin_extra))
         @connection.flush
 
-        response = @connection.fetch_response
-        unless response.is_a?(Bolt::Message::Success)
-          # BEGIN failed — server is now in FAILED state. Clear it before
-          # propagating so the connection is reusable by whoever is managing
-          # this session's pool checkout.
-          @connection.reset!
-          @open = false
-          handle_response_error(response)
-        end
+        @connection.fetch_response.assert_success!
+      rescue Exceptions::Neo4jException
+        # BEGIN failed — server is now in FAILED state. Clear it before
+        # propagating so the connection is reusable by whoever is managing
+        # this session's pool checkout.
+        @connection.reset!
+        @open = false
+        raise
       end
 
       def run(query, parameters = {})
@@ -45,12 +44,13 @@ module Neo4j
         @connection.send_message(Bolt::Message.pull)
         @connection.flush
 
-        run_response = @connection.fetch_response
-
-        unless run_response.is_a?(Bolt::Message::Success)
-          @failed = true
-          handle_response_error(run_response)
-        end
+        run_response =
+          begin
+            @connection.fetch_response.assert_success!
+          rescue Exceptions::Neo4jException
+            @failed = true
+            raise
+          end
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
 
@@ -76,13 +76,14 @@ module Neo4j
         @connection.send_message(Bolt::Message.commit)
         @connection.flush
 
-        response = @connection.fetch_response
-
-        unless response.is_a?(Bolt::Message::Success)
-          @failed = true
-          rollback_via_reset
-          handle_response_error(response)
-        end
+        response =
+          begin
+            @connection.fetch_response.assert_success!
+          rescue Exceptions::Neo4jException
+            @failed = true
+            rollback_via_reset
+            raise
+          end
 
         @committed = true
         @open = false
@@ -155,32 +156,6 @@ module Neo4j
         @open = false
       end
 
-      def handle_response_error(response)
-        if response.is_a?(Bolt::Message::Failure)
-          code = response.code
-          message = response.message
-
-          exception_class = determine_exception_class(code)
-          raise exception_class.new(message, code: code)
-        else
-          raise Exceptions::ClientException, "Unexpected response: #{response.class}"
-        end
-      end
-
-      def determine_exception_class(code)
-        case code
-        when /^Neo\.ClientError\.Security\.Unauthorized/
-          Exceptions::AuthenticationException
-        when /^Neo\.ClientError\.Security/
-          Exceptions::SecurityException
-        when /^Neo\.ClientError/
-          Exceptions::ClientException
-        when /^Neo\.TransientError/
-          Exceptions::TransientException
-        else
-          Exceptions::DatabaseException
-        end
-      end
     end
   end
 end

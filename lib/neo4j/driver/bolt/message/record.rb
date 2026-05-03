@@ -11,6 +11,14 @@ module Neo4j
           def initialize(fields)
             @fields = fields
           end
+
+          def accept(visitor)
+            visitor.on_record(self)
+          end
+
+          def assert_success!
+            raise Exceptions::ClientException, "Unexpected RECORD where SUCCESS was expected"
+          end
         end
       end
     end
