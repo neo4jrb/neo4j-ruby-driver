@@ -34,12 +34,14 @@ module Neo4j
         # `database` (nil = home db). Tries each server in role order until
         # one succeeds; raises if none do.
         def acquire(access_mode: :write, database: nil)
-          table = ensure_routing_table(database)
-          servers = table.servers_for(access_mode)
-          raise Exceptions::ServiceUnavailableException,
-                "No #{access_mode} servers available in routing table" if servers.empty?
-
-          try_servers(servers, database, access_mode)
+          acquire_with_table(database, access_mode)
+        rescue Exceptions::ServiceUnavailableException
+          # Failure-driven refresh: if every server in the role is unreachable
+          # (or the role is empty), the cached table is likely stale. Refetch
+          # and try once more — a leader change or topology shift is often
+          # invisible to us until we hit it.
+          invalidate_routing_table(database)
+          acquire_with_table(database, access_mode)
         end
 
         def release(connection)
@@ -53,7 +55,7 @@ module Neo4j
           # Force a fresh fetch — verify_connectivity is a probe, not a hit
           # against cached state. Matches the Java driver's behaviour and the
           # testkit `test_routing_fetches_home_db` expectation.
-          @mutex.synchronize { @routing_tables.delete(nil) }
+          invalidate_routing_table(nil)
           conn = acquire(access_mode: :read)
           # RESET ensures the borrowed connection is in a known-clean state
           # for the probe and matches what testkit's `test_routing_from_pool`
@@ -103,6 +105,19 @@ module Neo4j
 
             @routing_tables[database] = fetch_routing_table(database)
           end
+        end
+
+        def invalidate_routing_table(database)
+          @mutex.synchronize { @routing_tables.delete(database) }
+        end
+
+        def acquire_with_table(database, access_mode)
+          table = ensure_routing_table(database)
+          servers = table.servers_for(access_mode)
+          raise Exceptions::ServiceUnavailableException,
+                "No #{access_mode} servers available in routing table" if servers.empty?
+
+          try_servers(servers, database, access_mode)
         end
 
         def fetch_routing_table(database)

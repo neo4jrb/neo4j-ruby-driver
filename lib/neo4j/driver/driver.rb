@@ -21,7 +21,7 @@ module Neo4j
         raise Exceptions::ClientException, 'Driver is closed' if @closed
 
         merged_options = @options.merge(options)
-        session = Session.new(self, merged_options)
+        session = Session.new(@connection_provider, merged_options)
 
         return session unless block_given?
 
@@ -46,14 +46,6 @@ module Neo4j
           end
           result
         end
-      end
-
-      def acquire_connection(access_mode: :write, database: nil)
-        @connection_provider.acquire(access_mode: access_mode, database: database)
-      end
-
-      def release_connection(connection)
-        @connection_provider.release(connection) if connection
       end
 
       def close

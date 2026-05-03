@@ -4,9 +4,12 @@ module Neo4j
   module Driver
     # Represents an explicit transaction
     class Transaction
-      def initialize(connection, session, bookmarks = [], options = {})
+      attr_reader :connection
+
+      def initialize(connection, session, bookmarks = [], options = {}, on_release: nil)
         @connection = connection
         @session = session
+        @on_release = on_release  # called once when the connection is no longer needed
         @open = true
         @committed = false
         @rolled_back = false
@@ -31,6 +34,14 @@ module Neo4j
         # this session's pool checkout.
         @connection.reset!
         @open = false
+        release_connection
+        raise
+      rescue StandardError
+        # Transport-level failure (IO/socket). RESET will likely fail
+        # too on a dead connection, but release the lease so it doesn't
+        # leak; pool reuse will surface the breakage to the next caller.
+        @open = false
+        release_connection
         raise
       end
 
@@ -90,6 +101,7 @@ module Neo4j
 
         bookmarks = response.metadata[:bookmark]
         @session.update_bookmarks(bookmarks) if bookmarks
+        release_connection
       end
 
       def rollback
@@ -115,6 +127,7 @@ module Neo4j
         ensure
           @rolled_back = true
           @open = false
+          release_connection
         end
       end
 
@@ -154,8 +167,13 @@ module Neo4j
         @connection.reset!
         @rolled_back = true
         @open = false
+        release_connection
       end
 
+      def release_connection
+        @on_release&.call
+        @on_release = nil  # idempotent
+      end
     end
   end
 end
