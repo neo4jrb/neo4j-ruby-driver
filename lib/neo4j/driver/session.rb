@@ -174,14 +174,25 @@ module Neo4j
 
       private
 
-      # TODO(routing-per-acquire-mode): @connection is memoized for the
-      # session's lifetime, so the provider sees only the first
-      # acquisition's access mode. In routing mode this pins the session
-      # to one server — a session that mixes execute_read with
-      # execute_write would still hit the original role's server. Java's
-      # convention is one mode per session, so this matches typical
-      # usage; full per-operation routing is slice 2 work and will need
-      # release-on-tx-end so each execute_read/write can reacquire.
+      # TODO(routing-per-operation): wrong shape for routing.
+      #
+      # Java's actual convention is per-OPERATION access mode: the session has
+      # a default mode, but each execute_read/execute_write/run overrides it
+      # for the scope of that operation, and the connection is released as
+      # soon as the operation completes (result consumed, or tx ends) — even
+      # though the session continues. So a single session can legitimately do
+      # `execute_write` followed by `execute_read` and each gets dispatched
+      # to the right role.
+      #
+      # Our current model is broken on both axes:
+      #   1. @connection is memoized for the session's lifetime → a session
+      #      that mixes modes stays pinned to the first role's server.
+      #   2. We never release until session.close → other sessions can't
+      #      reuse the underlying pool slot until then.
+      #
+      # Slice 2 work: drop the memoization. acquire_connection per operation
+      # with the operation's own access mode. Release when the result is
+      # consumed (auto-commit) or the transaction ends (explicit / managed).
       def ensure_connection
         @connection ||= @driver.acquire_connection(
           access_mode: session_access_mode, database: @options[:database]
