@@ -2,13 +2,16 @@
 
 module Neo4j
   module Driver
-    # Represents a session for executing queries
+    # Per-operation connection acquisition: each `run` / `begin_transaction` /
+    # `execute_read` / `execute_write` acquires a fresh connection from the
+    # driver with that operation's access mode and database, and releases it
+    # back to the pool when the operation completes (Result fully consumed,
+    # or transaction committed/rolled back). The session itself does not
+    # hold a connection — only its in-flight operation does.
     class Session
-
-      def initialize(driver, options = {})
-        @driver = driver
+      def initialize(connection_provider, options = {})
+        @connection_provider = connection_provider
         @options = options
-        @connection = nil
         @transaction = nil
         @open = true
         @last_bookmarks = Set.new
@@ -35,17 +38,13 @@ module Neo4j
         raise Exceptions::ClientException, 'Session is closed' unless @open
         raise Exceptions::ClientException, 'You cannot run a query directly on a session while a transaction is open' if @transaction&.open?
 
-        ensure_connection
-
         drain_current_result
 
-        # Extract config options from **options
         timeout = config.delete(:timeout)
         tx_metadata = config.delete(:metadata)
 
-        # For auto-commit transactions, use RUN + PULL.
-        # `mode` is sent for read sessions (matches routing-server expectations);
-        # writers are the default and omit the field.
+        # `mode` is sent for read sessions (matches routing-server
+        # expectations); writers are the default and omit the field.
         run_extra = {
           db: @options[:database],
           mode: (session_access_mode == :read ? 'r' : nil),
@@ -54,25 +53,30 @@ module Neo4j
         }
         run_extra.reject! { |_, v| v.nil? || (v.respond_to?(:empty?) && v.empty?) }
 
-        @connection.send_message(Bolt::Message.run(query, parameters, run_extra))
-        @connection.send_message(Bolt::Message.pull)
-        @connection.flush
+        connection = acquire_connection(session_access_mode)
+
+        connection.send_message(Bolt::Message.run(query, parameters, run_extra))
+        connection.send_message(Bolt::Message.pull)
+        connection.flush
 
         run_response =
           begin
-            @connection.fetch_response.assert_success!
+            connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException
             # Server is in FAILED state and any queued messages (e.g. the PULL
             # that followed our RUN) will be IGNORED. Drain them and RESET so
-            # the session is immediately usable for the next query.
-            @connection.reset!
+            # the connection is immediately reusable.
+            connection.reset!
+            @connection_provider.release(connection)
             raise
           end
+
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
         @current_result = Result.new(
-          @connection, keys,
+          connection, keys,
           query_text: query, parameters: parameters, run_metadata: run_response.metadata,
-          on_summary: method(:harvest_auto_commit_bookmark)
+          on_summary: method(:harvest_auto_commit_bookmark),
+          on_release: -> { @connection_provider.release(connection) }
         )
       end
 
@@ -83,17 +87,15 @@ module Neo4j
                 "You cannot begin a transaction on a session with an open transaction; either run from within the transaction or use a different session."
         end
 
-        ensure_connection
-
         drain_current_result
         @current_result = nil
 
         tx_options = @options.merge(
           timeout: timeout_to_milliseconds(timeout),
-          metadata: metadata
+          metadata:
         ).compact
 
-        @transaction = Transaction.new(@connection, self, @last_bookmarks.to_a, tx_options)
+        @transaction = open_transaction(session_access_mode, tx_options)
 
         if block_given?
           begin
@@ -114,11 +116,11 @@ module Neo4j
       end
 
       def execute_read(timeout: nil, metadata: nil, &block)
-        execute_transaction(AccessMode::READ, timeout: timeout, metadata: metadata, &block)
+        execute_transaction(AccessMode::READ, timeout:, metadata:, &block)
       end
 
       def execute_write(timeout: nil, metadata: nil, &block)
-        execute_transaction(AccessMode::WRITE, timeout: timeout, metadata: metadata, &block)
+        execute_transaction(AccessMode::WRITE, timeout:, metadata:, &block)
       end
 
       # TODO(close-cancel-semantics): the buffer call below pulls every
@@ -136,8 +138,9 @@ module Neo4j
 
         pending_error = nil
         begin
-          @transaction&.close
+          @transaction&.close  # tx releases its own connection
           if @current_result
+            connection = @current_result.connection
             begin
               @current_result.buffer
             rescue Exceptions::Neo4jException => e
@@ -146,12 +149,10 @@ module Neo4j
             # Any failure during the last result leaves the connection in
             # the server's FAILED state; RESET so the next borrower starts
             # from a clean READY state.
-            @connection.reset! if @connection && @current_result.failed?
-            @current_result.discard!
+            connection.reset! if @current_result.failed?
+            @current_result.discard!  # also releases the connection
           end
         ensure
-          @driver.release_connection(@connection) if @connection
-          @connection = nil
           @open = false
         end
 
@@ -167,40 +168,20 @@ module Neo4j
       end
 
       def update_bookmarks(bookmarks)
-        # Replace bookmarks (don't accumulate) - matches Java driver behavior
-        # Each committed transaction generates a new bookmark that replaces the previous one
+        # Replace bookmarks (don't accumulate) — matches Java driver behavior.
+        # Each committed transaction generates a new bookmark that replaces the previous one.
         @last_bookmarks = Set.new(Array(bookmarks).map(&Bookmark.method(:new)))
       end
 
       private
 
-      # TODO(routing-per-operation): wrong shape for routing.
-      #
-      # Java's actual convention is per-OPERATION access mode: the session has
-      # a default mode, but each execute_read/execute_write/run overrides it
-      # for the scope of that operation, and the connection is released as
-      # soon as the operation completes (result consumed, or tx ends) — even
-      # though the session continues. So a single session can legitimately do
-      # `execute_write` followed by `execute_read` and each gets dispatched
-      # to the right role.
-      #
-      # Our current model is broken on both axes:
-      #   1. @connection is memoized for the session's lifetime → a session
-      #      that mixes modes stays pinned to the first role's server.
-      #   2. We never release until session.close → other sessions can't
-      #      reuse the underlying pool slot until then.
-      #
-      # Slice 2 work: drop the memoization. acquire_connection per operation
-      # with the operation's own access mode. Release when the result is
-      # consumed (auto-commit) or the transaction ends (explicit / managed).
-      def ensure_connection
-        @connection ||= @driver.acquire_connection(
-          access_mode: session_access_mode, database: @options[:database]
-        )
+      def acquire_connection(access_mode)
+        @connection_provider.acquire(access_mode: access_mode, database: @options[:database])
       end
 
-      # Default access mode for the session — matches the URI scheme convention:
-      # routing dispatches read sessions to readers, everything else to writers.
+      # Default access mode for the session — drives connection routing for
+      # auto-commit `run` calls. execute_read / execute_write override per
+      # operation when going through `execute_transaction`.
       def session_access_mode
         case @options[:default_access_mode]
         when AccessMode::READ then :read
@@ -216,23 +197,26 @@ module Neo4j
         update_bookmarks(bookmark) if bookmark
       end
 
-      # Pull any pending auto-commit result's records into memory so records
+      # Pull any pending auto-commit result's records into memory so they
       # remain accessible from the user's reference after the connection is
-      # reused for a new RUN or BEGIN. If draining surfaces a failure — either
-      # directly from #buffer or from a prior #consume the user caught — RESET
-      # the server so the next query lands cleanly, and re-raise direct
-      # failures so callers see the real cause.
+      # released. The Result self-releases its connection on the SUCCESS
+      # this drives. If draining surfaces a FAILURE we RESET the connection
+      # before releasing so it goes back to the pool clean.
       def drain_current_result
         return unless @current_result
 
+        connection = @current_result.connection
         begin
           @current_result.buffer
         rescue Exceptions::Neo4jException
-          @connection.reset!
+          connection.reset!
+          @connection_provider.release(connection)
           raise
         end
 
-        @connection.reset! if @current_result.failed?
+        connection.reset! if @current_result.failed?
+        @current_result.discard! if @current_result.failed?
+        @current_result = nil
       end
 
       # Convert timeout from seconds (or ActiveSupport::Duration) to milliseconds for Bolt protocol
@@ -245,18 +229,19 @@ module Neo4j
         start_time = Time.now
         errors = []
 
+        op_mode = (access_mode == AccessMode::READ ? :read : :write)
+        tx_options = @options.merge(
+          access_mode: access_mode == AccessMode::READ ? 'r' : 'w',
+          timeout: timeout_to_milliseconds(timeout),
+          metadata:
+        ).compact
+
         loop do
           begin
-            tx_options = @options.merge(
-              access_mode: access_mode == AccessMode::READ ? 'r' : 'w',
-              timeout: timeout_to_milliseconds(timeout),
-              metadata:
-            ).compact
-            return begin_transaction_internal(tx_options, &block)
+            return run_managed_transaction(op_mode, tx_options, &block)
           rescue Exceptions::ServiceUnavailableException, Exceptions::TransientException => e
             errors << e
 
-            # Check if we should retry
             if Time.now - start_time >= max_retry_time
               raise Exceptions::ServiceUnavailableException.new(
                 "Transaction failed after retries: #{e.message}",
@@ -267,28 +252,21 @@ module Neo4j
 
             # Exponential backoff: 1s, 2s, 4s, ... matching Java driver defaults
             sleep(2 ** (errors.size - 1))
-
-            # Release connection so the retry acquires a fresh one
-            @driver.release_connection(@connection) if @connection
-            @connection = nil
           end
         end
       end
 
-      def begin_transaction_internal(options, &block)
-        raise Exceptions::ClientException, 'Session is closed' unless @open
+      def run_managed_transaction(op_mode, tx_options, &block)
         if @transaction&.open?
           raise Exceptions::ClientException,
                 "You cannot begin a transaction on a session with an open transaction"
         end
 
-        ensure_connection
-
-        @transaction = Transaction.new(@connection, self, @last_bookmarks.to_a, options)
+        @transaction = open_transaction(op_mode, tx_options)
 
         begin
           result = yield @transaction
-          @transaction.commit unless @transaction.instance_variable_get(:@committed) || !@transaction.open?
+          @transaction.commit if @transaction.open?
           result
         rescue => e
           @transaction.rollback if @transaction.open?
@@ -296,6 +274,12 @@ module Neo4j
         ensure
           @transaction = nil
         end
+      end
+
+      def open_transaction(op_mode, tx_options)
+        connection = acquire_connection(op_mode)
+        Transaction.new(connection, self, @last_bookmarks.to_a, tx_options,
+                        on_release: -> { @connection_provider.release(connection) })
       end
     end
   end

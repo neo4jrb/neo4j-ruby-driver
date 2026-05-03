@@ -14,13 +14,14 @@ module Neo4j
     class Result
       include Enumerable
 
-      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {}, on_summary: nil)
+      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {}, on_summary: nil, on_release: nil)
         @connection = connection
         @keys = keys
         @query_text = query_text
         @parameters = parameters
         @run_metadata = run_metadata
         @on_summary = on_summary  # called with the built Summary when stream ends in SUCCESS
+        @on_release = on_release  # called once when the connection is no longer needed
         @records = []       # records pulled into memory by #buffer (not by iteration)
         @summary = nil
         @consumed = false   # stream has been fully drained from the wire
@@ -29,9 +30,7 @@ module Neo4j
         @peeked_record = nil
       end
 
-      def keys
-        @keys
-      end
+      attr_reader :connection, :keys
 
       def has_next?
         return true if @records.any?
@@ -141,6 +140,7 @@ module Neo4j
       def discard!
         @peeked_record = nil
         @discarded = true
+        release_connection
       end
 
       # --- Visitor callbacks (Bolt::Message#accept dispatches here) -------
@@ -152,17 +152,24 @@ module Neo4j
       def on_success(msg)
         finalize(msg.metadata)
         @on_summary&.call(@summary)
+        # Stream is done — auto-commit results don't need the connection
+        # past SUCCESS. Records previously buffered remain accessible.
+        release_connection
       end
 
       def on_failure(msg)
         finalize(msg.metadata)
         @failed = true
+        # Connection is in FAILED state; the caller (Session) will RESET
+        # before releasing. We just mark failed; the caller path drives
+        # the release via #discard!.
         raise msg.to_exception
       end
 
       def on_ignored(_msg)
         # Treated as terminal — the prior request in the batch already failed.
         @consumed = true
+        release_connection
       end
 
       private
@@ -188,6 +195,11 @@ module Neo4j
       def finalize(metadata)
         @summary = Summary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection)
         @consumed = true
+      end
+
+      def release_connection
+        @on_release&.call
+        @on_release = nil  # idempotent
       end
     end
   end
