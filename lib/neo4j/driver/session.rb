@@ -55,18 +55,23 @@ module Neo4j
 
         connection = acquire_connection(session_access_mode)
 
-        connection.send_message(Bolt::Message.run(query, parameters, run_extra))
-        connection.send_message(Bolt::Message.pull)
-        connection.flush
-
         run_response =
           begin
+            connection.send_message(Bolt::Message.run(query, parameters, run_extra))
+            connection.send_message(Bolt::Message.pull)
+            connection.flush
             connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException
-            # Server is in FAILED state and any queued messages (e.g. the PULL
-            # that followed our RUN) will be IGNORED. Drain them and RESET so
-            # the connection is immediately reusable.
+            # Server is in FAILED state and any queued messages (e.g. the
+            # PULL that followed our RUN) will be IGNORED. Drain them and
+            # RESET so the connection is immediately reusable.
             connection.reset!
+            @connection_provider.release(connection)
+            raise
+          rescue StandardError
+            # Transport-level failure (IO/socket) — the connection is
+            # likely dead. Return it to the pool either way so this lease
+            # doesn't leak; the next user will rediscover the breakage.
             @connection_provider.release(connection)
             raise
           end
@@ -205,18 +210,27 @@ module Neo4j
       def drain_current_result
         return unless @current_result
 
-        connection = @current_result.connection
+        # Detach first so any failure path doesn't leave @current_result
+        # pointing at a connection we've already returned to the pool —
+        # a later session.close would otherwise reset!/discard! a slot
+        # that may already belong to another session.
+        result = @current_result
+        @current_result = nil
+        connection = result.connection
+
         begin
-          @current_result.buffer
+          result.buffer
         rescue Exceptions::Neo4jException
           connection.reset!
-          @connection_provider.release(connection)
+          result.discard!  # idempotent; routes through Result#release_connection
           raise
         end
 
-        connection.reset! if @current_result.failed?
-        @current_result.discard! if @current_result.failed?
-        @current_result = nil
+        if result.failed?
+          connection.reset!
+          result.discard!
+        end
+        # Successful drain: Result already released its connection from on_success.
       end
 
       # Convert timeout from seconds (or ActiveSupport::Duration) to milliseconds for Bolt protocol
@@ -224,6 +238,11 @@ module Neo4j
 
       def execute_transaction(access_mode, timeout: nil, metadata: nil, &block)
         raise Exceptions::ClientException, 'Session is closed' unless @open
+
+        # Drain any pending auto-commit result so its connection is released
+        # and its bookmark is harvested before the managed tx acquires its
+        # own connection (likely a different server in routing mode).
+        drain_current_result
 
         max_retry_time = @options[:max_transaction_retry_time] || 2
         start_time = Time.now

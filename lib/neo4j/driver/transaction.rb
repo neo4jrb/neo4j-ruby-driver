@@ -36,6 +36,13 @@ module Neo4j
         @open = false
         release_connection
         raise
+      rescue StandardError
+        # Transport-level failure (IO/socket). RESET will likely fail
+        # too on a dead connection, but release the lease so it doesn't
+        # leak; pool reuse will surface the breakage to the next caller.
+        @open = false
+        release_connection
+        raise
       end
 
       def run(query, parameters = {})
