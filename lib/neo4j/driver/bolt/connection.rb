@@ -44,10 +44,12 @@ module Neo4j
               perform_handshake
               perform_hello
               return self
-            rescue Exceptions::ServiceUnavailableException => e
+            rescue Exceptions::AuthenticationException
+              # Auth is the same regardless of which address we hit — fail fast.
+              raise
+            rescue Exceptions::ServiceUnavailableException, IOError, SystemCallError => e
               last_error = e
-              @socket&.close rescue nil
-              @socket = nil
+              discard_socket
             end
           end
 
@@ -89,6 +91,22 @@ module Neo4j
         def send_all(*messages)
           messages.each { |msg| send_message(msg) }
           flush
+        end
+
+        # Bolt 4.3+ ROUTE call. Returns the routing-table map from the
+        # SUCCESS response (the `rt` field). Caller wraps it in
+        # Routing::RoutingTable.from_response.
+        def route(database: nil, bookmarks: [], imp_user: nil, routing_context: {})
+          extra = { db: database, imp_user: imp_user }.compact
+          send_message(Message.route(routing_context, bookmarks, extra))
+          flush
+
+          fetch_response.assert_success!.metadata[:rt]
+        rescue Exceptions::Neo4jException
+          # ROUTE failure leaves the server in FAILED state — RESET clears it
+          # so the connection can be reused.
+          reset!
+          raise
         end
 
         def flush
@@ -147,6 +165,11 @@ module Neo4j
         end
 
         private
+
+        def discard_socket
+          @socket&.close rescue nil
+          @socket = nil
+        end
 
         # Resolve the URI's host:port into a list of [host, port] pairs to try
         # in order. Hosts are kept in their native form — IPv6 stays bracketed
@@ -219,10 +242,14 @@ module Neo4j
           @socket.flush
 
           # Read agreed version
-          agreed_version = @socket.read(4).unpack1('L>')
+          version_bytes = @socket.read(4)
+          if version_bytes.nil? || version_bytes.bytesize < 4
+            raise Exceptions::ServiceUnavailableException, 'Server closed the connection during handshake'
+          end
 
+          agreed_version = version_bytes.unpack1('L>')
           if agreed_version.zero?
-            raise "Server does not support any of the proposed Bolt versions"
+            raise Exceptions::ServiceUnavailableException, 'Server does not support any of the proposed Bolt versions'
           end
 
           @server_version = agreed_version
@@ -252,21 +279,7 @@ module Neo4j
           send_message(hello_msg)
           flush
 
-          response = fetch_response
-
-          if response.is_a?(Message::Success)
-            @server_agent = response.metadata[:server]
-          elsif response.is_a?(Message::Failure)
-            code = response.code
-            if code.to_s.match?(/^Neo\.ClientError\.Security/)
-              raise Exceptions::AuthenticationException.new(response.message, code: code)
-            end
-            raise Exceptions::ServiceUnavailableException,
-                  "Failed HELLO (#{code}): #{response.message}"
-          else
-            raise Exceptions::ServiceUnavailableException,
-                  "Unexpected response to HELLO: #{response.class}"
-          end
+          @server_agent = fetch_response.assert_success!.metadata[:server]
         end
 
         def write_chunk(data)

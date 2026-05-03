@@ -2,7 +2,15 @@
 
 module Neo4j
   module Driver
-    # Represents the result of running a Cypher statement
+    # Represents the result of running a Cypher statement.
+    #
+    # Acts as a visitor for the streaming Bolt responses (Record/Success/
+    # Failure/Ignored): each fetched response calls back into one of the
+    # `on_*` methods below. The three drain modes (peek for #has_next?,
+    # discard for #consume, store for #buffer) install a per-call
+    # `@record_handler` so the polymorphic dispatch sees uniform
+    # behaviour for SUCCESS/FAILURE while record handling stays
+    # context-specific.
     class Result
       include Enumerable
 
@@ -30,20 +38,10 @@ module Neo4j
         return false if @consumed
         return true if @peeked_record
 
-        response = @connection.fetch_response
-
-        case response
-        when Bolt::Message::Record
-          @peeked_record = Record.new(@keys, response.fields)
-          true
-        when Bolt::Message::Success
-          finalize_success(response.metadata)
-          false
-        when Bolt::Message::Failure
-          finalize_failure(response)
-        else
-          false
+        with_record_handler(->(msg) { @peeked_record = build_record(msg) }) do
+          @connection.fetch_response.accept(self)
         end
+        !@peeked_record.nil?
       rescue StandardError
         @consumed = true
         raise
@@ -105,21 +103,8 @@ module Neo4j
         return @summary if @discarded
 
         @peeked_record = nil
-
         begin
-          until @consumed
-            response = @connection.fetch_response
-            case response
-            when Bolt::Message::Record
-              # discard silently
-            when Bolt::Message::Success
-              finalize_success(response.metadata)
-            when Bolt::Message::Failure
-              finalize_failure(response)
-            else
-              break
-            end
-          end
+          drain_until_consumed { |_msg| } # records are silently discarded
         ensure
           @records.clear
           @discarded = true
@@ -139,19 +124,7 @@ module Neo4j
           @peeked_record = nil
         end
 
-        until @consumed
-          response = @connection.fetch_response
-          case response
-          when Bolt::Message::Record
-            @records << Record.new(@keys, response.fields)
-          when Bolt::Message::Success
-            finalize_success(response.metadata)
-          when Bolt::Message::Failure
-            finalize_failure(response)
-          else
-            break
-          end
-        end
+        drain_until_consumed { |msg| @records << build_record(msg) }
       end
 
       def none?
@@ -170,39 +143,51 @@ module Neo4j
         @discarded = true
       end
 
-      private
+      # --- Visitor callbacks (Bolt::Message#accept dispatches here) -------
 
-      def finalize_success(metadata)
-        @summary = Summary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection)
-        @consumed = true
+      def on_record(msg)
+        @record_handler&.call(msg)
+      end
+
+      def on_success(msg)
+        finalize(msg.metadata)
         @on_summary&.call(@summary)
       end
 
-      def finalize_failure(response)
-        @summary = Summary.new(@run_metadata.merge(response.metadata), @query_text, @parameters, @connection)
-        @consumed = true
+      def on_failure(msg)
+        finalize(msg.metadata)
         @failed = true
-        handle_failure(response)
+        raise msg.to_exception
       end
 
-      def handle_failure(failure)
-        code = failure.code
-        message = failure.message
+      def on_ignored(_msg)
+        # Treated as terminal — the prior request in the batch already failed.
+        @consumed = true
+      end
 
-        exception_class = case code
-                          when /^Neo\.ClientError\.Security/
-                            Exceptions::SecurityException
-                          when /^Neo\.ClientError/
-                            Exceptions::ClientException
-                          when /^Neo\.TransientError/
-                            Exceptions::TransientException
-                          when /^Neo\.DatabaseError/
-                            Exceptions::DatabaseException
-                          else
-                            Exceptions::Neo4jException
-                          end
+      private
 
-        raise exception_class.new(message, code: code)
+      def drain_until_consumed(&record_handler)
+        with_record_handler(record_handler) do
+          @connection.fetch_response.accept(self) until @consumed
+        end
+      end
+
+      def with_record_handler(handler)
+        previous = @record_handler
+        @record_handler = handler
+        yield
+      ensure
+        @record_handler = previous
+      end
+
+      def build_record(msg)
+        Record.new(@keys, msg.fields)
+      end
+
+      def finalize(metadata)
+        @summary = Summary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection)
+        @consumed = true
       end
     end
   end
