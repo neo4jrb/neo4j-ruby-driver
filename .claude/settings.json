@@ -6,8 +6,11 @@
       "Bash(./bin/run-testkit)",
       "Bash(./bin/run-testkit *)",
       "Bash(./bin/refresh-testkit-baseline)",
+      "Bash(./bin/refresh-testkit-baseline *)",
       "Bash(curl https://raw.githubusercontent.com/*)",
       "Bash(curl https://api.github.com/*)",
+      "Bash(curl -s https://raw.githubusercontent.com/*)",
+      "Bash(curl -s https://api.github.com/*)",
 
       "Bash(gh pr view *)",
       "Bash(gh pr list *)",
@@ -21,6 +24,8 @@
       "Bash(gh issue view *)",
       "Bash(gh issue list *)",
       "Bash(gh auth status)",
+      "Bash(gh api repos/*/pulls/*/comments)",
+      "Bash(gh api repos/*/issues/*/comments)",
 
       "Bash(git add *)",
       "Bash(git commit *)",
@@ -29,6 +34,7 @@
       "Bash(git rm *)",
       "Bash(git mv *)",
       "Bash(git stash *)",
+      "Bash(git pull --ff-only)",
 
       "Bash(git push)",
       "Bash(git push origin feature/*)",
@@ -39,7 +45,8 @@
       "Bash(chmod *)",
       "Bash(bundle install)",
       "Bash(bundle update *)",
-      "Bash(pkill -f testkit-backend*)"
+      "Bash(pkill -f testkit-backend*)",
+      "Bash(rvm list)"
     ]
   }
 }
