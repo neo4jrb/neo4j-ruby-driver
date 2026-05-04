@@ -7,8 +7,12 @@ on:
 
 jobs:
   rspec:
-    name: rspec (neo4j ${{ matrix.neo4j }})
+    name: rspec (ruby ${{ matrix.ruby }} / neo4j ${{ matrix.neo4j }})
     runs-on: ubuntu-latest
+    # JRuby implementation is not yet imported (lib/jruby/ is empty);
+    # let those rows fail without blocking the matrix until the JRuby
+    # code lands.
+    continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
 
     strategy:
       fail-fast: false
@@ -16,6 +20,7 @@ jobs:
         ruby:
           - "3.4"
           - "4.0"
+          - "jruby-9.4"
         neo4j:
           - "4.4.48-enterprise"
           - "5.26.25-enterprise"
