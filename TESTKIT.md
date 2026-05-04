@@ -90,8 +90,8 @@ Roughly decreasing return-per-effort:
 11. **JRuby integration** — wire the JRuby implementation (mostly ready locally) into the existing test/CI matrix.
 12. **Session-close cancel semantics** — `Session#close` currently calls `Result#buffer`, which pulls every remaining `RECORD` off the wire just to discard them client-side. The block-form `Driver#session` then silently swallows any failure that drain surfaces. Java-faithful behaviour: send `DISCARD`/`RESET` to abandon the stream server-side; nothing surfaces; no swallow needed. Also requires fixing `Connection#reset!` to drain by terminal-for-RESET, not by queue-pop count (each in-flight `PULL` produces N records + 1 terminal). The integration spec `'reports failure in close'` encodes the wrong contract today and would need to flip. See TODO in `Session#close`. (Same root cause as the regression on `test_discards_on_session_close.v4x4` — fetch-size + DISCARD-of-remainder.)
 13. **Bolt 5.x HELLO + LOGON** — handshake is restricted to Bolt 4.4 because 5.x HELLO needs a `bolt_agent` map (driver/lang metadata) and 5.1+ moves auth out of HELLO into a separate LOGON message. V5 protocol class needs an override on `build_hello_message` plus a `build_logon_message` for 5.1+. After this lands we can advertise `Feature:Bolt:5.0` through `Feature:Bolt:5.7` and propose ranges in the handshake (Bolt 4.3+ encoding) to negotiate higher.
-13. **Temporal type advertisement + gaps** once we flip `API_TYPE_TEMPORAL` on.
-14. **Driver-level features** — async PULL / fetch size, TLS, notifications, auth token manager, impersonation. Each a session or more.
+14. **Temporal type advertisement + gaps** once we flip `API_TYPE_TEMPORAL` on.
+15. **Driver-level features** — async PULL / fetch size, TLS, notifications, auth token manager, impersonation. Each a session or more.
 
 ## Update protocol
 
