@@ -15,88 +15,174 @@ Single repo, two platform-specific gem builds. Same gem name; the
 runtime decides which to install based on `RUBY_PLATFORM`. This is
 the nokogiri pattern.
 
+### Dev tree
+
 ```
 neo4j-ruby-driver/
-├── lib/                       # truly shared code (version.rb, entry point)
-│   └── neo4j/
-│       ├── driver.rb          # entry: picks impl, sets up Zeitwerk
-│       └── driver/
-│           └── version.rb
-├── pure/                      # complete MRI source root
-│   └── neo4j/driver/
-│       ├── bolt/
-│       ├── packstream/
-│       ├── session.rb
-│       ├── transaction.rb
-│       ├── result.rb
-│       ├── types/
-│       └── exceptions/
-├── java/                      # complete JRuby source root
-│   └── neo4j/driver/
-│       ├── session.rb         # wrapper around org.neo4j.driver.Session
-│       ├── transaction.rb
-│       ├── result.rb
-│       ├── types/             # prepended modules for Java value types
-│       └── exceptions/        # modules prepended onto Java exceptions
-├── testkit-backend/           # one tree, uses public API only
+├── lib/
+│   ├── shared/
+│   │   └── neo4j/
+│   │       ├── driver.rb            # entry: picks impl, sets up Zeitwerk
+│   │       └── driver/version.rb    # truly shared (and any platform-independent constants)
+│   ├── mri/
+│   │   └── neo4j/driver/
+│   │       ├── bolt/
+│   │       ├── packstream/
+│   │       ├── session.rb
+│   │       ├── transaction.rb
+│   │       ├── result.rb
+│   │       ├── types/
+│   │       └── exceptions/
+│   └── jruby/
+│       └── neo4j/driver/
+│           ├── session.rb           # wrapper around org.neo4j.driver.Session
+│           ├── transaction.rb
+│           ├── result.rb
+│           ├── types/               # prepended modules for Java value types
+│           └── exceptions/          # modules prepended onto Java exceptions
+├── testkit-backend/                 # one tree, uses public API only
 └── spec/
-    ├── shared/                # protocol-level shared examples
-    ├── pure/                  # MRI-only specs
-    └── java/                  # JRuby-only specs
+    ├── shared/                      # protocol-level shared examples
+    ├── mri/                         # MRI-only specs
+    └── jruby/                       # JRuby-only specs
 ```
 
-### Why top-level `pure/` and `java/` (not under `lib/`)
+### Naming choice: `mri` and `jruby`
 
-Zeitwerk handles them either way (it doesn't care about `lib/` —
-only about what you `push_dir`). Top-level keeps the impl roots
-visible in `ls` and makes the gem packaging split explicit:
+`mri` and `jruby` over `pure` and `java`:
 
-```ruby
-# MRI gemspec
-spec.files         = Dir['lib/**/*'] + Dir['pure/**/*']
-spec.require_paths = %w[lib pure]
+- `lib/java/` would read as "Java source code" to anyone who hasn't internalised `spec.platform = 'java'` as JRuby's identifier. The directory contains `.rb` files.
+- `pure` doesn't pair symmetrically with `java` — they're describing different axes (language purity vs target platform).
+- `mri` and `jruby` are both runtime names. Symmetric, precise, greppable. `mri` requires knowing the term ("Matz's Ruby Interpreter") but every Ruby dev who needs to reason about the split already does.
 
-# JRuby gemspec
-spec.platform      = 'java'
-spec.files         = Dir['lib/**/*'] + Dir['java/**/*']
-spec.require_paths = %w[lib java]
-```
+### No `Mri::` / `Jruby::` namespaces
 
-### No `Pure::` / `Java::` namespaces
+Files under `lib/mri/neo4j/driver/session.rb` and
+`lib/jruby/neo4j/driver/session.rb` both define
+`Neo4j::Driver::Session`. They never load simultaneously, so
+there's no clash. The directory is just a load-path organizational
+device — not a namespace.
 
-Files under `pure/neo4j/driver/session.rb` and
-`java/neo4j/driver/session.rb` both define `Neo4j::Driver::Session`.
-They never load simultaneously, so there's no clash. The directory
-is just a load-path organizational device — not a namespace.
-
-This avoids `Neo4j::Driver::Pure::Session` everywhere and keeps the
+This avoids `Neo4j::Driver::Mri::Session` everywhere and keeps the
 public API surface identical between the two flavors.
 
 ## Loader setup
 
-`lib/neo4j/driver.rb`:
+`lib/shared/neo4j/driver.rb` — same file works in dev and in the
+installed gem; a runtime check skips the impl-root push when the
+Pattern 1 build has merged everything under `lib/`:
 
 ```ruby
 require 'zeitwerk'
 
-impl = (RUBY_PLATFORM == 'java') ? 'java' : 'pure'
+# __dir__ resolves to:
+#   dev:               lib/shared/neo4j  → shared_root = lib/shared
+#   installed gem:     lib/neo4j         → shared_root = lib
+shared_root = File.expand_path('..', __dir__)
+
+# Sibling of shared_root in dev; absent in the installed gem
+# (Pattern 1 staged-build merged its content into shared_root).
+impl_root = File.expand_path("../#{(RUBY_PLATFORM == 'java') ? 'jruby' : 'mri'}", shared_root)
 
 loader = Zeitwerk::Loader.new
-loader.push_dir(File.expand_path('../../lib', __dir__),  namespace: Neo4j)  # if needed
-loader.push_dir(File.expand_path("../../#{impl}", __dir__))
+loader.push_dir(shared_root)
+loader.push_dir(impl_root) if File.directory?(impl_root)
 loader.setup
 
 module Neo4j
   module Driver
-    def self.implementation = (RUBY_PLATFORM == 'java') ? :java : :pure
+    def self.implementation = (RUBY_PLATFORM == 'java') ? :jruby : :mri
   end
 end
 ```
 
-Both `pure/` and `java/` follow the standard Zeitwerk
-directory-as-namespace mapping rooted at the pushed dir.
+What happens in each environment:
+
+| Mode | `shared_root` | `impl_root` | Pushed |
+|---|---|---|---|
+| Dev (MRI) | `lib/shared` | `lib/mri` (exists) | both |
+| Dev (JRuby) | `lib/shared` | `lib/jruby` (exists) | both |
+| Installed gem (MRI) | `lib` | `lib/mri` (missing) | just `lib` |
+| Installed gem (JRuby) | `lib` | `lib/jruby` (missing) | just `lib` |
+
+Zeitwerk maps `<root>/neo4j/...` → `Neo4j::...` regardless of the
+root path, so in dev both `lib/shared/neo4j/...` and
+`lib/mri/neo4j/...` contribute to the same namespace; in the
+installed gem `lib/neo4j/...` is the only source. Cost of the
+runtime check: one `File.directory?` stat at boot. Negligible.
+
 `Neo4j::Driver.implementation` is a small introspection helper
 for users who want to branch on it.
+
+## Gem build (Pattern 1 — staged merge)
+
+The dev tree has `lib/{shared,mri,jruby}/`. The **published gem
+flattens to a normal `lib/`** so end users never see the platform
+split. RubyGems doesn't transparently remap paths, so we do the
+merge in a Rake task before `gem build`:
+
+```ruby
+# Rakefile (sketch)
+namespace :gem do
+  task :build, [:platform] do |_, args|
+    impl  = args[:platform] || 'mri'   # 'mri' | 'jruby'
+    stage = "pkg/stage-#{impl}"
+    rm_rf stage
+    mkdir_p "#{stage}/lib"
+    cp_r 'lib/shared/.', "#{stage}/lib/"
+    cp_r "lib/#{impl}/.", "#{stage}/lib/"
+    cp 'neo4j-driver.gemspec', stage
+    Dir.chdir(stage) { sh 'gem build neo4j-driver.gemspec' }
+  end
+end
+```
+
+The shared `neo4j-driver.gemspec` reads as a normal one-platform
+gem (`spec.files = Dir['lib/**/*']`, `spec.require_paths = %w[lib]`).
+The platform variant is set by the build invocation:
+
+```ruby
+# neo4j-driver.gemspec (excerpt)
+Gem::Specification.new do |spec|
+  spec.platform = ENV['GEM_TARGET'] == 'jruby' ? 'java' : Gem::Platform::RUBY
+  spec.files = Dir['lib/**/*']
+  spec.require_paths = ['lib']
+  ...
+end
+```
+
+The Rake task sets `GEM_TARGET=jruby` for the JRuby build.
+
+### What the user sees after install
+
+```
+gems/neo4j-driver-X.Y.Z/             # MRI install
+└── lib/
+    └── neo4j/
+        ├── driver.rb
+        └── driver/...
+
+gems/neo4j-driver-X.Y.Z-java/        # JRuby install
+└── lib/
+    └── neo4j/
+        ├── driver.rb
+        └── driver/...
+```
+
+Identical layout in both cases — `mri`, `jruby`, `shared` are dev-tree
+artefacts, never shipped. Tooling that expects a flat `lib/` (RuboCop
+defaults, IDE indexing, simplecov path matching) Just Works.
+
+### Trade-offs vs alternative layouts
+
+| | `lib/{shared,mri,jruby}` + Pattern 1 build | `lib/{shared,mri,jruby}` ship as-is | Top-level `mri/`/`jruby/` |
+|---|---|---|---|
+| Installed gem | flat `lib/`, normal-looking | `lib/shared` and `lib/<impl>` visible | top-level `mri/` or `jruby/` next to `lib/` |
+| Build complexity | ~15-line Rake task | none | none |
+| Dev `ls` | code under one `lib/` tree | same | three sibling top-level dirs |
+| Tooling defaults | work | partial | needs config |
+
+We're on the first column. Build cost is paid only at release; everything else is conventional.
 
 ## Type strategy
 
@@ -110,7 +196,7 @@ already what the Java driver returns from records — wrapping them
 would mean copying every value out of every record. Instead:
 
 ```ruby
-# java/neo4j/driver/types/node.rb
+# lib/jruby/neo4j/driver/types/node.rb
 module Neo4j::Driver::Types
   module Node
     def labels
@@ -151,7 +237,7 @@ and the ergonomic surface — we just delegate the operations to
 the held Java instance.
 
 ```ruby
-# java/neo4j/driver/session.rb
+# lib/jruby/neo4j/driver/session.rb
 module Neo4j::Driver
   class Session
     def initialize(java_session)
@@ -204,8 +290,8 @@ prepended.
 This drives the exception design:
 
 ```ruby
-# Shared definition (could live in lib/ if both flavors need it,
-# or be duplicated under pure/ and java/ — TBD)
+# Shared definition (could live in lib/shared/ if both flavors need it,
+# or be duplicated under lib/mri/ and lib/jruby/ — TBD)
 module Neo4j::Driver::Exceptions
   module Neo4jException; end
   module ClientException;    include Neo4jException; end
@@ -406,12 +492,12 @@ nothing to fork. CI runs it on both runtimes.
   contract (e.g. "any session implementation should commit
   cleanly", "any Node should expose labels as symbols"). Both
   flavors include these.
-- `spec/pure/` — MRI-only tests (PackStream/Bolt internals,
+- `spec/mri/` — MRI-only tests (PackStream/Bolt internals,
   connection pool behavior).
-- `spec/java/` — JRuby-only tests (Java driver delegation,
+- `spec/jruby/` — JRuby-only tests (Java driver delegation,
   prepended-module behavior).
 - Existing `spec/integration/` and `spec/neo4j/driver/` move
-  under `spec/pure/` (they're testing the pure impl today) and
+  under `spec/mri/` (they're testing the MRI impl today) and
   the protocol-agnostic ones get lifted into `spec/shared/`.
 
 ## CI matrix
@@ -429,8 +515,8 @@ file per runtime if coverage diverges.
 ## Open questions / deferred
 
 - Whether `Neo4j::Driver::Exceptions` module definitions live in
-  `lib/` (truly shared) or get duplicated across `pure/` and
-  `java/`. Argues for `lib/` — they're identical and
+  `lib/shared/` or get duplicated across `lib/mri/` and
+  `lib/jruby/`. Argues for `lib/shared/` — they're identical and
   runtime-independent.
 - Whether `Result` should be a wrapper or a prepended module on
   JRuby. Leaning wrapper, because it has lifecycle state we
