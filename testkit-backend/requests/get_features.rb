@@ -12,6 +12,7 @@ module TestkitBackend
         Feature:API:Result.List
         Feature:API:Result.Peek
         Feature:API:Result.Single
+        Feature:Bolt:4.4
       ].freeze
 
       def execute
