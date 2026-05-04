@@ -98,12 +98,12 @@ end
 
 What happens in each environment:
 
-| Mode | `shared_root` | `impl_root` | Pushed |
+| Mode | `shared_root` | `impl_root` (computed via `../<impl>`) | Pushed |
 |---|---|---|---|
-| Dev (MRI) | `lib/shared` | `lib/mri` (exists) | both |
-| Dev (JRuby) | `lib/shared` | `lib/jruby` (exists) | both |
-| Installed gem (MRI) | `lib` | `lib/mri` (missing) | just `lib` |
-| Installed gem (JRuby) | `lib` | `lib/jruby` (missing) | just `lib` |
+| Dev (MRI) | `lib/shared` | `lib/mri` — sibling of `shared`, exists | both |
+| Dev (JRuby) | `lib/shared` | `lib/jruby` — sibling of `shared`, exists | both |
+| Installed gem (MRI) | `lib` | `<gem>/mri` — sibling of `lib`, missing | just `lib` |
+| Installed gem (JRuby) | `lib` | `<gem>/jruby` — sibling of `lib`, missing | just `lib` |
 
 Zeitwerk maps `<root>/neo4j/...` → `Neo4j::...` regardless of the
 root path, so in dev both `lib/shared/neo4j/...` and
@@ -132,14 +132,18 @@ namespace :gem do
     cp_r 'lib/shared/.', "#{stage}/lib/"
     cp_r "lib/#{impl}/.", "#{stage}/lib/"
     cp 'neo4j-driver.gemspec', stage
-    Dir.chdir(stage) { sh 'gem build neo4j-driver.gemspec' }
+    Dir.chdir(stage) do
+      # GEM_TARGET drives the platform branch in the gemspec below.
+      sh({ 'GEM_TARGET' => impl }, 'gem build neo4j-driver.gemspec')
+    end
   end
 end
 ```
 
 The shared `neo4j-driver.gemspec` reads as a normal one-platform
 gem (`spec.files = Dir['lib/**/*']`, `spec.require_paths = %w[lib]`).
-The platform variant is set by the build invocation:
+The platform variant is selected by the `GEM_TARGET` env var the
+Rake task sets:
 
 ```ruby
 # neo4j-driver.gemspec (excerpt)
@@ -150,8 +154,6 @@ Gem::Specification.new do |spec|
   ...
 end
 ```
-
-The Rake task sets `GEM_TARGET=jruby` for the JRuby build.
 
 ### What the user sees after install
 
