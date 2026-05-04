@@ -49,10 +49,10 @@ module Neo4j
         V5_7 = new(5, 7)
         V6_0 = new(6, 0)
 
+        # Server agreement is a 32-bit big-endian: [reserved, 0, minor, major].
+        # So the low byte is major, the next-lowest is minor.
         def self.from_int(version_int)
-          major = (version_int >> 8) & 0xFF
-          minor = version_int & 0xFF
-          new(major, minor)
+          new(version_int & 0xFF, (version_int >> 8) & 0xFF)
         end
       end
     end

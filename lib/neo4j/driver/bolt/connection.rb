@@ -8,16 +8,19 @@ module Neo4j
         MAGIC_PREAMBLE = "\x60\x60\xB0\x17".b
         DEFAULT_PORT = 7687
 
-        # Bolt protocol versions
-        BOLT_VERSION_6_0 = 0x00_00_06_00
-        BOLT_VERSION_5_7 = 0x00_00_05_07
-        BOLT_VERSION_5_6 = 0x00_00_05_06
+        # Bolt protocol versions. Wire format is a 4-byte big-endian:
+        # [reserved=0, range=0, minor, major]. So version 5.7 packs as
+        # 0x00_00_07_05 (minor=7, major=5). Don't be fooled by 4.4 — that
+        # one is a palindrome.
+        BOLT_VERSION_6_0 = 0x00_00_00_06
+        BOLT_VERSION_5_7 = 0x00_00_07_05
+        BOLT_VERSION_5_6 = 0x00_00_06_05
         BOLT_VERSION_5_5 = 0x00_00_05_05
-        BOLT_VERSION_5_4 = 0x00_00_05_04
-        BOLT_VERSION_5_3 = 0x00_00_05_03
-        BOLT_VERSION_5_2 = 0x00_00_05_02
-        BOLT_VERSION_5_1 = 0x00_00_05_01
-        BOLT_VERSION_5_0 = 0x00_00_05_00
+        BOLT_VERSION_5_4 = 0x00_00_04_05
+        BOLT_VERSION_5_3 = 0x00_00_03_05
+        BOLT_VERSION_5_2 = 0x00_00_02_05
+        BOLT_VERSION_5_1 = 0x00_00_01_05
+        BOLT_VERSION_5_0 = 0x00_00_00_05
         BOLT_VERSION_4_4 = 0x00_00_04_04
 
         attr_reader :server_version, :server_agent, :protocol, :address
@@ -231,17 +234,12 @@ module Neo4j
           # Send magic preamble
           @socket.write(MAGIC_PREAMBLE)
 
-          # Send version proposals (4 versions, highest priority first)
-          versions = [
-            BOLT_VERSION_6_0,
-            BOLT_VERSION_5_7,
-            BOLT_VERSION_5_4,
-            BOLT_VERSION_4_4
-          ]
-
-          versions.each do |version|
-            @socket.write([version].pack('L>'))
-          end
+          # Handshake v1 sends exactly 4 version proposals, highest priority
+          # first; unused slots are zero. We currently only handshake Bolt
+          # 4.4 — 5.x needs a `bolt_agent` map and 5.1+ moves auth to a
+          # separate LOGON. Tracked in TESTKIT.md backlog.
+          proposals = [BOLT_VERSION_4_4, 0, 0, 0]
+          proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
 
