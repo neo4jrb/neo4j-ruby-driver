@@ -48,16 +48,15 @@ module Neo4j
           when ::Date
             # Pack Ruby Date as Neo4j Date structure
             pack_date(value)
-          when defined?(Types::LocalDateTime) && Types::LocalDateTime
-            # Pack Types::LocalDateTime as Neo4j LocalDateTime (without timezone)
+          when Types::LocalDateTime
             pack_local_datetime(value)
-          when defined?(Types::LocalTime) && Types::LocalTime
+          when Types::LocalTime
             pack_local_time(value)
-          when defined?(Types::OffsetTime) && Types::OffsetTime
+          when Types::OffsetTime
             pack_offset_time(value)
-          when defined?(Types::Point) && Types::Point
+          when Types::Point
             pack_point(value)
-          when defined?(Types::Duration) && Types::Duration
+          when Types::Duration
             pack_duration(value)
           else
             raise Exceptions::ClientException, "Unable to convert #{value.class} to Neo4j Value."
