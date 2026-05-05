@@ -144,7 +144,7 @@ Built from the ground up using:
 - `comprehensive_test.rb` - Extended test suite
 - `README.md` - Complete documentation
 - `STATUS.md` - This file
-- `Gemfile` & `neo4j-driver.gemspec` - Gem setup
+- `Gemfile` & `neo4j-ruby-driver{,-java}.gemspec` - Gem setup
 
 ## How to Test
 

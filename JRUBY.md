@@ -122,8 +122,8 @@ split. RubyGems doesn't transparently remap paths, so we merge in a
 Rake task before `gem build` (see `Rakefile`):
 
 ```sh
-bundle exec rake build:mri    # → pkg/neo4j-ruby-driver2-X.Y.Z.gem
-bundle exec rake build:jruby  # → pkg/neo4j-ruby-driver2-X.Y.Z-java.gem
+bundle exec rake build:mri    # → pkg/neo4j-ruby-driver-X.Y.Z.gem
+bundle exec rake build:jruby  # → pkg/neo4j-ruby-driver-X.Y.Z-java.gem
 bundle exec rake build:all    # both
 ```
 
@@ -135,8 +135,8 @@ from re-resolving the project Gemfile under that override (the
 gemspec's STAGED_BUILD branch expects the flat staged `lib/`, which
 doesn't exist at the project root).
 
-There are two gemspecs at the project root, `neo4j-driver.gemspec`
-(MRI / `Gem::Platform::RUBY`) and `neo4j-driver-java.gemspec`
+There are two gemspecs at the project root, `neo4j-ruby-driver.gemspec`
+(MRI / `Gem::Platform::RUBY`) and `neo4j-ruby-driver-java.gemspec`
 (JRuby / `'java'`). Both delegate to `common_gemspec(spec, impl)` in
 `build/gemspec_common.rb`, which sets `spec.metadata['impl']` to the
 chosen impl and branches on `STAGED_BUILD`:
@@ -152,7 +152,7 @@ chosen impl and branches on `STAGED_BUILD`:
 Consumer Gemfile (path or git source):
 
 ```ruby
-gem 'neo4j-ruby-driver2', path: '../neo4j-ruby-driver2'
+gem 'neo4j-ruby-driver', path: '../neo4j-ruby-driver'
 ```
 
 Bundler scans `*.gemspec` in the source and picks the platform-compatible
@@ -163,12 +163,12 @@ To force the MRI flavor on JRuby (e.g. to develop the MRI codebase
 under JRuby), pin gemspec discovery to the MRI file via `:glob`:
 
 ```ruby
-gem 'neo4j-ruby-driver2', path: '../neo4j-ruby-driver2',
-                          glob: 'neo4j-driver.gemspec'
+gem 'neo4j-ruby-driver', path: '../neo4j-ruby-driver',
+                         glob: 'neo4j-ruby-driver.gemspec'
 ```
 
 The dev tree's own Gemfile uses the `gemspec` directive instead of
-`gem`; the equivalent override is `gemspec name: 'neo4j-driver'`.
+`gem`; the equivalent override is `gemspec name: 'neo4j-ruby-driver'`.
 
 For RubyGems-installed gems there is no clean per-gem override —
 `bundle config set --local force_ruby_platform true` exists but
@@ -181,13 +181,13 @@ override above covers it.
 ### What the user sees after install
 
 ```
-gems/neo4j-driver-X.Y.Z/             # MRI install
+gems/neo4j-ruby-driver-X.Y.Z/             # MRI install
 └── lib/
     └── neo4j/
         ├── driver.rb
         └── driver/...
 
-gems/neo4j-driver-X.Y.Z-java/        # JRuby install
+gems/neo4j-ruby-driver-X.Y.Z-java/        # JRuby install
 └── lib/
     └── neo4j/
         ├── driver.rb
@@ -542,7 +542,7 @@ JRuby rows are `continue-on-error` until `lib/jruby/` has code.
 The MRI-on-JRuby flavor is not exercised in CI — see "Selecting a
 flavor from source" above for the override mechanism. It can be
 added later as a sed-based row that pins gemspec discovery to
-`neo4j-driver.gemspec`.
+`neo4j-ruby-driver.gemspec`.
 
 ## Open questions / deferred
 

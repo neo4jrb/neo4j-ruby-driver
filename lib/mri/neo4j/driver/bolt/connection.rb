@@ -274,7 +274,7 @@ module Neo4j
 
           # Use protocol handler to build version-specific HELLO message
           hello_msg = @protocol.build_hello_message(
-            user_agent: "neo4j-ruby-driver2/0.1.0",
+            user_agent: "neo4j-ruby-driver/#{Neo4j::Driver::VERSION}",
             auth: auth_hash
           )
 
