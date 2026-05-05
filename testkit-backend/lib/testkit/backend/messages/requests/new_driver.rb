@@ -11,7 +11,8 @@ module Testkit::Backend::Messages
           user_agent: user_agent,
           connection_timeout: timeout_duration(connection_timeout_ms),
           fetch_size: fetch_size,
-          driver_metrics: true,
+          # TODO: remove driver_metrics from everywhere
+          # driver_metrics: true,
           max_transaction_retry_time: timeout_duration(max_tx_retry_time_ms),
           connection_liveness_check_timeout: timeout_duration(liveness_check_timeout_ms),
           max_connection_pool_size: max_connection_pool_size,

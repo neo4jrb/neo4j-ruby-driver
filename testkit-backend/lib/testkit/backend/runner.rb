@@ -26,7 +26,7 @@ module Testkit
         @command_processor = CommandProcessor.new(socket)
         while @command_processor.process(blocking: true) do
         end
-        socket.close
+        close_socket(socket)
         # monitor = @selector.register(socket, :r)
         # monitor.value = proc { handle_client(socket, @command_processor) }
       end
@@ -41,10 +41,18 @@ module Testkit
         puts "*** #{host}:#{port} disconnected"
 
         @selector.deregister(client_socket)
-        client_socket.close
+        close_socket(client_socket)
         # puts e
         # puts e.backtrace
         # raise e
+      end
+
+      def close_socket(socket)
+        return if socket.closed?
+
+        socket.close
+      rescue Errno::EBADF, IOError
+        nil
       end
     end
   end
