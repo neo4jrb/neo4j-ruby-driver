@@ -13,8 +13,14 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 3.4.0'
 
-  spec.files = Dir['lib/**/*', 'README.md', 'LICENSE']
-  spec.require_paths = ['lib']
+  # Dev-tree layout: lib/{shared, mri, jruby}. The published gem
+  # flattens this into lib/ via a staged build (Pattern 1 — see
+  # JRUBY.md). Until that build infra lands, this gemspec assumes
+  # the dev tree.
+  impl_dir = (RUBY_PLATFORM == 'java') ? 'jruby' : 'mri'
+  spec.files = Dir['lib/shared/**/*', "lib/#{impl_dir}/**/*", 'README.md', 'LICENSE']
+  spec.require_paths = ['lib/shared', "lib/#{impl_dir}"]
+  spec.platform = 'java' if RUBY_PLATFORM == 'java'
 
   # Runtime dependencies
   spec.add_dependency 'connection_pool', '~> 3.0'

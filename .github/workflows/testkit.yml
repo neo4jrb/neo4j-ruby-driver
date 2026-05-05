@@ -7,7 +7,18 @@ on:
 
 jobs:
   testkit:
+    name: testkit (ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest
+    # JRuby implementation isn't imported yet; matrix runs but does
+    # not block until lib/jruby/ has code.
+    continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - "3.4"
+          - "jruby-9.4"
 
     services:
       neo4j:
@@ -42,7 +53,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.4'
+          ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
 
       - uses: actions/setup-python@v5
