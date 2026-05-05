@@ -518,7 +518,7 @@ nothing to fork. CI runs it on both runtimes.
 ## CI matrix
 
 ```
-{mri-3.4, jruby-9.4} × {neo4j-4.4.48-enterprise,
+{mri-3.4, jruby-10.1} × {neo4j-4.4.48-enterprise,
                         neo4j-5.26.21-enterprise,
                         neo4j-2026.01.4-enterprise}
 ```
