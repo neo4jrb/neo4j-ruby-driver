@@ -127,19 +127,45 @@ bundle exec rake build:jruby  # → pkg/neo4j-ruby-driver2-X.Y.Z-java.gem
 bundle exec rake build:all    # both
 ```
 
-The task copies `lib/shared/.` and `lib/<impl>/.` into
-`pkg/stage-<impl>/lib/`, then runs `gem build` from the stage dir
-with `STAGED_BUILD=1` and `GEM_TARGET=<impl>` set. It uses
-`Bundler.with_unbundled_env` to keep the parent Bundler env from
-re-resolving the project Gemfile under those overrides (otherwise
-the JRuby build fails on a non-Java host).
+The task copies `lib/shared/.`, `lib/<impl>/.`, the per-impl
+gemspec, and `build/gemspec_common.rb` into `pkg/stage-<impl>/`,
+then runs `gem build` from the stage dir with `STAGED_BUILD=1` set.
+It uses `Bundler.with_unbundled_env` to keep the parent Bundler env
+from re-resolving the project Gemfile under that override (the
+gemspec's STAGED_BUILD branch expects the flat staged `lib/`, which
+doesn't exist at the project root).
 
-The shared `neo4j-driver.gemspec` branches on `STAGED_BUILD`. In
-dev mode (no env), it points at `lib/shared` and `lib/<impl>` and
-picks the impl from `RUBY_PLATFORM` — that's what Bundler reads
-when consuming the gem from a path/git source. With `STAGED_BUILD=1`
-it emits a flat-lib spec for the published gem; `GEM_TARGET` picks
-the platform suffix.
+There are two gemspecs at the project root, `neo4j-driver.gemspec`
+(MRI / `Gem::Platform::RUBY`) and `neo4j-driver-java.gemspec`
+(JRuby / `'java'`). Both delegate to `common_gemspec(spec, impl)` in
+`build/gemspec_common.rb`, which sets `spec.metadata['impl']` to the
+chosen impl and branches on `STAGED_BUILD`:
+
+- Dev (default): files = `lib/shared/**/*` + `lib/<impl>/**/*`,
+  `require_paths = ['lib/shared', 'lib/<impl>']`. Bundler picks
+  WHICH gemspec via standard platform matching when consuming from
+  a `path:` source.
+- Staged: files = flat `lib/**/*`, `require_paths = ['lib']`.
+
+### Selecting a flavor from source
+
+Consumer Gemfile uses the path source as usual:
+
+```ruby
+gem 'neo4j-ruby-driver2', path: '../neo4j-ruby-driver2'
+```
+
+Bundler scans `*.gemspec` in the path and picks the platform-compatible
+one — ruby on MRI, java on JRuby. To run the MRI flavor on JRuby (e.g.
+to test the MRI codebase under JRuby), use the standard Bundler config:
+
+```sh
+bundle config set --local force_ruby_platform true
+```
+
+The loader stays in sync with whichever gemspec was selected via
+`Gem.loaded_specs['neo4j-ruby-driver2'].metadata['impl']`, so no
+project-specific env var is needed.
 
 ### What the user sees after install
 
