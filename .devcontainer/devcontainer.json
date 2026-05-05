@@ -11,7 +11,7 @@
       "userGid": "automatic"
     },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "version": "latest",
+      "version": "27",
       "moby": true,
       "dockerDashComposeVersion": "v2"
     },
@@ -26,10 +26,10 @@
       "version": "3.11"
     },
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "lts"
+      "version": "22"
     },
     "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "latest"
+      "version": "2.60.0"
     }
   },
 
