@@ -118,42 +118,65 @@ for users who want to branch on it.
 
 The dev tree has `lib/{shared,mri,jruby}/`. The **published gem
 flattens to a normal `lib/`** so end users never see the platform
-split. RubyGems doesn't transparently remap paths, so we do the
-merge in a Rake task before `gem build`:
+split. RubyGems doesn't transparently remap paths, so we merge in a
+Rake task before `gem build` (see `Rakefile`):
 
-```ruby
-# Rakefile (sketch)
-namespace :gem do
-  task :build, [:platform] do |_, args|
-    impl  = args[:platform] || 'mri'   # 'mri' | 'jruby'
-    stage = "pkg/stage-#{impl}"
-    rm_rf stage
-    mkdir_p "#{stage}/lib"
-    cp_r 'lib/shared/.', "#{stage}/lib/"
-    cp_r "lib/#{impl}/.", "#{stage}/lib/"
-    cp 'neo4j-driver.gemspec', stage
-    Dir.chdir(stage) do
-      # GEM_TARGET drives the platform branch in the gemspec below.
-      sh({ 'GEM_TARGET' => impl }, 'gem build neo4j-driver.gemspec')
-    end
-  end
-end
+```sh
+bundle exec rake build:mri    # → pkg/neo4j-ruby-driver2-X.Y.Z.gem
+bundle exec rake build:jruby  # → pkg/neo4j-ruby-driver2-X.Y.Z-java.gem
+bundle exec rake build:all    # both
 ```
 
-The shared `neo4j-driver.gemspec` reads as a normal one-platform
-gem (`spec.files = Dir['lib/**/*']`, `spec.require_paths = %w[lib]`).
-The platform variant is selected by the `GEM_TARGET` env var the
-Rake task sets:
+The task copies `lib/shared/.`, `lib/<impl>/.`, the per-impl
+gemspec, and `build/gemspec_common.rb` into `pkg/stage-<impl>/`,
+then runs `gem build` from the stage dir with `STAGED_BUILD=1` set.
+It uses `Bundler.with_unbundled_env` to keep the parent Bundler env
+from re-resolving the project Gemfile under that override (the
+gemspec's STAGED_BUILD branch expects the flat staged `lib/`, which
+doesn't exist at the project root).
+
+There are two gemspecs at the project root, `neo4j-driver.gemspec`
+(MRI / `Gem::Platform::RUBY`) and `neo4j-driver-java.gemspec`
+(JRuby / `'java'`). Both delegate to `common_gemspec(spec, impl)` in
+`build/gemspec_common.rb`, which sets `spec.metadata['impl']` to the
+chosen impl and branches on `STAGED_BUILD`:
+
+- Dev (default): files = `lib/shared/**/*` + `lib/<impl>/**/*`,
+  `require_paths = ['lib/shared', 'lib/<impl>']`. Bundler picks
+  WHICH gemspec via standard platform matching when consuming from
+  a `path:` source.
+- Staged: files = flat `lib/**/*`, `require_paths = ['lib']`.
+
+### Selecting a flavor from source
+
+Consumer Gemfile (path or git source):
 
 ```ruby
-# neo4j-driver.gemspec (excerpt)
-Gem::Specification.new do |spec|
-  spec.platform = ENV['GEM_TARGET'] == 'jruby' ? 'java' : Gem::Platform::RUBY
-  spec.files = Dir['lib/**/*']
-  spec.require_paths = ['lib']
-  ...
-end
+gem 'neo4j-ruby-driver2', path: '../neo4j-ruby-driver2'
 ```
+
+Bundler scans `*.gemspec` in the source and picks the platform-compatible
+one — ruby on MRI, java on JRuby. The loader reads `spec.metadata['impl']`
+from whichever gemspec was selected, so it stays in sync automatically.
+
+To force the MRI flavor on JRuby (e.g. to develop the MRI codebase
+under JRuby), pin gemspec discovery to the MRI file via `:glob`:
+
+```ruby
+gem 'neo4j-ruby-driver2', path: '../neo4j-ruby-driver2',
+                          glob: 'neo4j-driver.gemspec'
+```
+
+The dev tree's own Gemfile uses the `gemspec` directive instead of
+`gem`; the equivalent override is `gemspec name: 'neo4j-driver'`.
+
+For RubyGems-installed gems there is no clean per-gem override —
+`bundle config set --local force_ruby_platform true` exists but
+applies globally and breaks any other dependency that ships
+JRuby-native variants (e.g. activesupport's transitive `json` dep).
+This is a Bundler limitation, not specific to our gem. In practice,
+the cross-flavor case is a development concern and the path/git
+override above covers it.
 
 ### What the user sees after install
 
@@ -506,14 +529,20 @@ nothing to fork. CI runs it on both runtimes.
 ## CI matrix
 
 ```
-{mri-3.4, jruby-9.4} × {neo4j-4.4.48-enterprise,
-                        neo4j-5.26.21-enterprise,
-                        neo4j-2026.01.4-enterprise}
+{mri-3.4, mri-4.0, jruby-10.1} × {neo4j-4.4.48-enterprise,
+                                  neo4j-5.26.25-enterprise,
+                                  neo4j-2026.04.0-enterprise}
 ```
 
-testkit gate runs once per runtime (single Neo4j version) — same
-baseline mechanism as today, possibly with a separate baseline
-file per runtime if coverage diverges.
+testkit and testkit-stub run once per runtime (single Neo4j version
+each).
+
+JRuby rows are `continue-on-error` until `lib/jruby/` has code.
+
+The MRI-on-JRuby flavor is not exercised in CI — see "Selecting a
+flavor from source" above for the override mechanism. It can be
+added later as a sed-based row that pins gemspec discovery to
+`neo4j-driver.gemspec`.
 
 ## Open questions / deferred
 

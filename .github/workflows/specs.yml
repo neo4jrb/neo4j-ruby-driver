@@ -20,7 +20,7 @@ jobs:
         ruby:
           - "3.4"
           - "4.0"
-          - "jruby-9.4"
+          - "jruby-10.1.0.0"
         neo4j:
           - "4.4.48-enterprise"
           - "5.26.25-enterprise"

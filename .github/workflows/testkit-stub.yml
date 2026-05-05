@@ -18,7 +18,7 @@ jobs:
       matrix:
         ruby:
           - "3.4"
-          - "jruby-9.4"
+          - "jruby-10.1.0.0"
 
     env:
       TEST_DRIVER_NAME: ruby

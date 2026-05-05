@@ -11,7 +11,17 @@ require 'zeitwerk'
 
 module Neo4j
   module Driver
-    def self.implementation = (RUBY_PLATFORM == 'java') ? :jruby : :mri
+    # Picked by the gemspec Bundler/RubyGems actually selected, via
+    # spec.metadata['impl']. This stays correct under
+    # `bundle config force_ruby_platform true` (JRuby user opting into
+    # the MRI flavor), where RUBY_PLATFORM and the loaded gem disagree.
+    # Falls back to RUBY_PLATFORM when the spec isn't visible (e.g. running
+    # straight against the source tree without RubyGems activation).
+    def self.implementation
+      declared = Gem.loaded_specs['neo4j-ruby-driver2']&.metadata&.fetch('impl', nil)
+      return declared.to_sym if declared
+      (RUBY_PLATFORM == 'java') ? :jruby : :mri
+    end
   end
 end
 
