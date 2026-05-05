@@ -151,7 +151,7 @@ export TEST_NEO4J_HOST=localhost
 export TEST_NEO4J_PORT=7687
 export TEST_NEO4J_USER=neo4j
 export TEST_NEO4J_PASS=password
-bundle exec rspec spec/integration/
+bundle exec rspec spec/shared/integration/
 ```
 
 ## Implementation Details
