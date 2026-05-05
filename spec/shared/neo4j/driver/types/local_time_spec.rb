@@ -17,6 +17,12 @@ RSpec.describe Neo4j::Driver::Types::LocalTime do
     it 'eql?' do
       expect(described_class.parse('2018-1-1 8:00')).to eql described_class.parse('2018-7-1 8:00')
     end
+
+    it '+ preserves sub-second precision' do
+      # Regression: an earlier impl truncated the addend via .to_i and
+      # silently dropped any fractional seconds.
+      expect((described_class.from_nanos(0) + 0.5).nanoseconds).to eq 500_000_000
+    end
   end
 
   describe 'cypher functions' do

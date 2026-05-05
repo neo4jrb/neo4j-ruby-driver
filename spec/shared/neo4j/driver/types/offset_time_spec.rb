@@ -25,6 +25,18 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
     it 'eql?' do
       expect(described_class.parse('2018-1-1 8:00Z')).to eql described_class.parse('2018-7-1 8:00+00:00')
     end
+
+    it '+ preserves sub-second precision and the offset' do
+      result = described_class.parse('12:00:00+05:00') + 0.5
+      expect(result.nanosecond).to eq 500_000_000
+      expect(result.tz_offset_seconds).to eq 5 * 3600
+    end
+
+    it '#to_s round-trips a negative offset with non-zero minutes' do
+      # Regression: integer floor-division on `tz_offset_seconds / 3600`
+      # for -12600s gave hours=-4, formatting -03:30 as -04:30.
+      expect(described_class.parse('12:34:56-03:30').to_s).to eq '12:34:56.000000000-03:30'
+    end
   end
 
   describe 'cypher functions' do

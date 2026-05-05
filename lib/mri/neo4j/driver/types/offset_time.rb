@@ -51,9 +51,14 @@ module Neo4j
         end
 
         def to_s
-          offset_hours = @tz_offset_seconds / 3600
-          offset_mins = (@tz_offset_seconds.abs % 3600) / 60
-          format('%02d:%02d:%02d.%09d%+03d:%02d', hour, minute, second, nanosecond, offset_hours, offset_mins)
+          # Apply the sign to the formatted offset as a whole, not to
+          # `hours` alone — Ruby integer division for `-12600 / 3600` is
+          # -4 (floor toward -∞), which would render -03:30 as -04:30.
+          abs = @tz_offset_seconds.abs
+          sign = @tz_offset_seconds.negative? ? '-' : '+'
+          format('%02d:%02d:%02d.%09d%s%02d:%02d',
+                 hour, minute, second, nanosecond,
+                 sign, abs / 3600, (abs % 3600) / 60)
         end
 
         # Order by underlying UTC instant. Two OffsetTimes representing
