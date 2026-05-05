@@ -149,23 +149,34 @@ chosen impl and branches on `STAGED_BUILD`:
 
 ### Selecting a flavor from source
 
-Consumer Gemfile uses the path source as usual:
+Consumer Gemfile (path or git source):
 
 ```ruby
 gem 'neo4j-ruby-driver2', path: '../neo4j-ruby-driver2'
 ```
 
-Bundler scans `*.gemspec` in the path and picks the platform-compatible
-one — ruby on MRI, java on JRuby. To run the MRI flavor on JRuby (e.g.
-to test the MRI codebase under JRuby), use the standard Bundler config:
+Bundler scans `*.gemspec` in the source and picks the platform-compatible
+one — ruby on MRI, java on JRuby. The loader reads `spec.metadata['impl']`
+from whichever gemspec was selected, so it stays in sync automatically.
 
-```sh
-bundle config set --local force_ruby_platform true
+To force the MRI flavor on JRuby (e.g. to develop the MRI codebase
+under JRuby), pin gemspec discovery to the MRI file via `:glob`:
+
+```ruby
+gem 'neo4j-ruby-driver2', path: '../neo4j-ruby-driver2',
+                          glob: 'neo4j-driver.gemspec'
 ```
 
-The loader stays in sync with whichever gemspec was selected via
-`Gem.loaded_specs['neo4j-ruby-driver2'].metadata['impl']`, so no
-project-specific env var is needed.
+The dev tree's own Gemfile uses the `gemspec` directive instead of
+`gem`; the equivalent override is `gemspec name: 'neo4j-driver'`.
+
+For RubyGems-installed gems there is no clean per-gem override —
+`bundle config set --local force_ruby_platform true` exists but
+applies globally and breaks any other dependency that ships
+JRuby-native variants (e.g. activesupport's transitive `json` dep).
+This is a Bundler limitation, not specific to our gem. In practice,
+the cross-flavor case is a development concern and the path/git
+override above covers it.
 
 ### What the user sees after install
 
@@ -521,22 +532,17 @@ nothing to fork. CI runs it on both runtimes.
 {mri-3.4, mri-4.0, jruby-10.1} × {neo4j-4.4.48-enterprise,
                                   neo4j-5.26.25-enterprise,
                                   neo4j-2026.04.0-enterprise}
-
-+ jruby-10.1 [mri flavor]      × {neo4j-5.26.25-enterprise}
 ```
 
-The extra row sets `BUNDLE_FORCE_RUBY_PLATFORM=true` so Bundler
-picks `neo4j-driver.gemspec` (ruby platform) on a JRuby host —
-exercises the override path of the two-gemspec layout.
-
 testkit and testkit-stub run once per runtime (single Neo4j version
-each), with the same matrix shape (`mri-3.4`, `jruby-10.1`, plus
-the `[mri flavor]` extra row).
+each).
 
-JRuby rows (both flavors) are `continue-on-error` for now: the
-native JRuby flavor has no code yet (`lib/jruby/` is empty), and
-the MRI-on-JRuby flavor is exercised here for the first time and
-may surface MRI-specific assumptions in pure-Ruby code.
+JRuby rows are `continue-on-error` until `lib/jruby/` has code.
+
+The MRI-on-JRuby flavor is not exercised in CI — see "Selecting a
+flavor from source" above for the override mechanism. It can be
+added later as a sed-based row that pins gemspec discovery to
+`neo4j-driver.gemspec`.
 
 ## Open questions / deferred
 
