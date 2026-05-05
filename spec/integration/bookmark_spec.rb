@@ -70,7 +70,7 @@ RSpec.describe 'Bookmark' do
   it 'is updated every committed tx' do
     driver.session do |session|
       expect(session.last_bookmarks).not_to be_present
-      expect(Array.new(3) { create_and_expect(session) }.to_set.size).to eq 3
+      expect(3.times.sum(Set.new) { create_and_expect(session) }.size).to eq 3
     end
   end
 
