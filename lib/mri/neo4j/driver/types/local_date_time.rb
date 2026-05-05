@@ -3,77 +3,56 @@
 module Neo4j
   module Driver
     module Types
-      # LocalDateTime (datetime without timezone)
-      # Represents a datetime value without timezone information from Neo4j
-      # Preserves type distinction for correct roundtripping
-      class LocalDateTime
-        include Comparable
+      # Bolt LocalDateTime — wall-clock datetime without timezone.
+      # Stored as the wire-format pair (epoch_seconds, nanoseconds), where
+      # epoch_seconds is the wall-clock components encoded as if they were
+      # UTC. Two LocalDateTimes representing the same wall-clock value
+      # always have the same field values regardless of the host TZ.
+      class LocalDateTime < TemporalValue
+        PARSE_FORMATS = [
+          '%Y-%m-%d %H:%M:%S.%N',
+          '%Y-%m-%dT%H:%M:%S.%N',
+          '%Y-%m-%d %H:%M:%S',
+          '%Y-%m-%dT%H:%M:%S',
+          '%Y-%m-%d %H:%M'
+        ].freeze
 
         attr_reader :epoch_seconds, :nanoseconds
+
+        def self.significant_fields = %i[epoch_seconds nanoseconds]
 
         def initialize(epoch_seconds, nanoseconds)
           @epoch_seconds = epoch_seconds
           @nanoseconds = nanoseconds
         end
 
-        def self.from_epoch(epoch_seconds, nanoseconds)
-          new(epoch_seconds, nanoseconds)
-        end
+        def self.from_epoch(epoch_seconds, nanoseconds) = new(epoch_seconds, nanoseconds)
 
         def self.from_time(time)
-          new(time.to_i, (time.to_f - time.to_i) * 1_000_000_000)
+          new(time.to_i, ((time.to_f - time.to_i) * NANOS_PER_SECOND).round)
         end
 
         def self.parse(string)
-          # Parse datetime string as naive (ignore timezone, just use date/time components)
-          # Strip timezone if present
-          naive_string = string.sub(/[Z\+\-]\d{2}:?\d{2}?$/, '')
-          # Try various formats
-          time = begin
-            ::Time.strptime(naive_string, '%Y-%m-%d %H:%M:%S.%N')
-          rescue ArgumentError
-            begin
-              ::Time.strptime(naive_string, '%Y-%m-%dT%H:%M:%S.%N')
-            rescue ArgumentError
-              begin
-                ::Time.strptime(naive_string, '%Y-%m-%d %H:%M:%S')
-              rescue ArgumentError
-                begin
-                  ::Time.strptime(naive_string, '%Y-%m-%dT%H:%M:%S')
-                rescue ArgumentError
-                  ::Time.strptime(naive_string, '%Y-%m-%d %H:%M')
-                end
-              end
-            end
-          end
-          # Create as UTC to get epoch seconds for the naive datetime
-          utc_time = ::Time.utc(time.year, time.month, time.day, time.hour, time.min, time.sec, time.subsec * 1_000_000)
-          from_time(utc_time)
+          # Strip trailing timezone if present — naive datetime ignores it.
+          naive = string.sub(/[Z+\-]\d{2}:?\d{2}?$/, '')
+          time = PARSE_FORMATS.lazy.filter_map { |fmt| ::Time.strptime(naive, fmt) rescue nil }.first
+          raise ArgumentError, "Invalid LocalDateTime format: #{string}" unless time
+          from_time(::Time.utc(*time_components(time)))
         end
+
+        def self.time_components(time)
+          [time.year, time.month, time.day, time.hour, time.min, time.sec, time.subsec * 1_000_000]
+        end
+        private_class_method :time_components
 
         def to_time
           ::Time.at(@epoch_seconds, @nanoseconds.to_i, :nanosecond)
         end
 
-        def <=>(other)
-          return nil unless other.is_a?(LocalDateTime)
-          cmp = @epoch_seconds <=> other.epoch_seconds
-          cmp == 0 ? @nanoseconds <=> other.nanoseconds : cmp
-        end
-
-        def ==(other)
-          other.is_a?(LocalDateTime) &&
-            @epoch_seconds == other.epoch_seconds &&
-            @nanoseconds == other.nanoseconds
-        end
-
-        alias eql? ==
-
+        # Add a numeric or ActiveSupport::Duration. Sub-second precision
+        # preserved by going through to_f.
         def +(seconds)
-          # Handle ActiveSupport::Duration or numeric seconds
-          secs_to_add = seconds.respond_to?(:to_i) ? seconds.to_i : seconds
-          new_time = to_time + secs_to_add
-          self.class.from_time(new_time)
+          self.class.from_time(to_time + seconds.to_f)
         end
 
         def to_s
