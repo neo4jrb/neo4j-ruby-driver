@@ -37,9 +37,22 @@
       "Bash(git pull --ff-only)",
 
       "Bash(git push)",
-      "Bash(git push origin feature/*)",
-      "Bash(git push -u origin feature/*)",
-      "Bash(git push --set-upstream origin feature/*)",
+      "Bash(git push origin */*)",
+      "Bash(git push -u origin */*)",
+      "Bash(git push --set-upstream origin */*)",
+      "Bash(git push --force-with-lease origin */*)",
+      "Bash(git pull --rebase origin *)",
+      "Bash(git pull --ff-only origin *)",
+      "Bash(git rebase *)",
+      "Bash(git fetch *)",
+      "Bash(git branch -d *)",
+
+      "Bash(bundle exec rake *)",
+      "Bash(bundle exec rspec --format *)",
+
+      "Bash(tar -tOf *)",
+      "Bash(tar -xOf *)",
+      "Bash(tar -tzf *)",
 
       "Bash(mkdir *)",
       "Bash(chmod *)",
