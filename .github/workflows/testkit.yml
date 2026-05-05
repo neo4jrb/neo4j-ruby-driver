@@ -46,7 +46,8 @@ jobs:
       # against "Neo4j/" + this value. Patch number must be omitted.
       TEST_NEO4J_VERSION: '5.26'
       TESTKIT_PATH: ${{ github.workspace }}/../testkit
-      BASELINE: ${{ github.workspace }}/.github/testkit-baseline.txt
+      # Per-impl baseline: MRI and JRuby progress independently.
+      BASELINE: ${{ github.workspace }}/.github/testkit-baseline-${{ startsWith(matrix.ruby, 'jruby') && 'jruby' || 'mri' }}.txt
 
     steps:
       - uses: actions/checkout@v4
@@ -107,9 +108,10 @@ jobs:
             echo "| $PASS | $FAIL | $ERROR | $SKIP |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # The real gate: every test in .github/testkit-baseline.txt MUST
-      # be in the current pass set. This catches "fixed test A, regressed
-      # test B" cases that a simple count comparison would miss.
+      # The real gate: every test in $BASELINE (the impl-specific
+      # testkit-baseline-{mri,jruby}.txt) MUST be in the current pass
+      # set. Catches "fixed test A, regressed test B" cases that a
+      # simple count comparison would miss.
       - name: Regression gate (baseline diff)
         if: always()
         run: |

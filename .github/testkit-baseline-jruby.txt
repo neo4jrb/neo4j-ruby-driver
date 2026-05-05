@@ -1,0 +1,4 @@
+# Tests currently expected to pass under tests/neo4j on JRuby.
+# Empty until lib/jruby/ has code. Grow as JRuby flavor lands features.
+# CI fails if any of these stops passing (regression).
+# Refresh with bin/refresh-testkit-baseline neo4j (running on JRuby).
