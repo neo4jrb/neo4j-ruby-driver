@@ -1,10 +1,17 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::Time do
+RSpec.describe Neo4j::Driver::Types::OffsetTime do
   describe '#<=>' do
-    it 'smaller' do
+    it 'orders by wall clock when offset is the same' do
       expect(described_class.parse('8:05:21.00001-05:00')).to be < described_class.parse('8:06:21.00001-05:00')
-      expect(described_class.parse('8:05:21.00001-06:00')).to be < described_class.parse('8:05:21.00001-05:00')
+    end
+
+    it 'orders by underlying UTC instant when offsets differ' do
+      # Same wall-clock 8:05:21.00001 in two timezones:
+      #   -06:00 (e.g. Mexico City) → 14:05:21 UTC
+      #   -05:00 (e.g. Cancun)      → 13:05:21 UTC
+      # so the -06:00 reading is the *later* instant.
+      expect(described_class.parse('8:05:21.00001-06:00')).to be > described_class.parse('8:05:21.00001-05:00')
     end
 
     it 'addition should be modulo day' do

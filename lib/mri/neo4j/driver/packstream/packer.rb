@@ -53,8 +53,8 @@ module Neo4j
             pack_local_datetime(value)
           when defined?(Types::LocalTime) && Types::LocalTime
             pack_local_time(value)
-          when defined?(Types::Time) && Types::Time
-            pack_time(value)
+          when defined?(Types::OffsetTime) && Types::OffsetTime
+            pack_offset_time(value)
           when defined?(Types::Point) && Types::Point
             pack_point(value)
           when defined?(Types::Duration) && Types::Duration
@@ -260,8 +260,8 @@ module Neo4j
           pack_integer(value.nanoseconds)
         end
 
-        def pack_time(value)
-          # Time structure: signature 0x54, 2 fields (nanos, tz_offset)
+        def pack_offset_time(value)
+          # OffsetTime structure: signature 0x54, 2 fields (nanos, tz_offset)
           @buffer << [TINY_STRUCT | 2, 0x54].pack('CC')
           pack_integer(value.nanoseconds)
           pack_integer(value.tz_offset_seconds)

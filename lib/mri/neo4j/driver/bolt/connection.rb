@@ -363,9 +363,9 @@ module Neo4j
             ::Date.new(1970, 1, 1) + fields[0]
           end
 
-          # Time - signature 0x54
+          # OffsetTime - signature 0x54
           unpacker.register_hydration_handler(0x54) do |fields|
-            Types::Time.from_nanos(fields[0], fields[1])
+            Types::OffsetTime.from_nanos(fields[0], fields[1])
           end
 
           # LocalTime - signature 0x74

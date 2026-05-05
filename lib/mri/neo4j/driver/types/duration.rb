@@ -3,13 +3,13 @@
 module Neo4j
   module Driver
     module Types
-      # Duration
-      # Neo4j stores durations as months, days, seconds, and nanoseconds
-      # All values must be integers (matching Neo4j's Bolt protocol and Java driver)
-      class Duration
+      # Bolt Duration. Stores months, days, seconds, nanoseconds as
+      # distinct ints — Neo4j keeps these separate because months are
+      # variable-length (no fixed conversion to seconds).
+      class Duration < TemporalValue
         attr_reader :months, :days, :seconds, :nanoseconds
 
-        NANOS_PER_SECOND = 1_000_000_000
+        def self.significant_fields = %i[months days seconds nanoseconds]
 
         def initialize(months, days, seconds, nanoseconds)
           @months = months.to_i
@@ -19,8 +19,7 @@ module Neo4j
           normalize!
         end
 
-        # Parse ISO 8601 duration format
-        # Examples: "P1Y2M3DT4H5M6.789S", "P3M", "PT2H30M"
+        # Parse ISO 8601 duration: "P1Y2M3DT4H5M6.789S", "P3M", "PT2H30M"
         def self.parse(string)
           unless string =~ /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/
             raise ArgumentError, "Invalid ISO 8601 duration format: #{string}"
@@ -42,40 +41,30 @@ module Neo4j
           new(total_months, days, total_seconds, nanos)
         end
 
-        def ==(other)
-          return false unless other.is_a?(Duration)
-          @months == other.months &&
-            @days == other.days &&
-            @seconds == other.seconds &&
-            @nanoseconds == other.nanoseconds
-        end
-
         def parts
-          {
-            months: @months,
-            days: @days,
-            seconds: @seconds,
-            nanoseconds: @nanoseconds
-          }
+          { months: @months, days: @days, seconds: @seconds, nanoseconds: @nanoseconds }
         end
 
+        # ISO 8601 form. Nanoseconds get a 9-digit zero-padded suffix on
+        # seconds so 1s + 5ns prints as "PT1.000000005S", not "PT1.5S".
         def to_s
-          "P#{@months}M#{@days}DT#{@seconds}.#{@nanoseconds}S"
+          if @nanoseconds.zero?
+            format('P%dM%dDT%dS', @months, @days, @seconds)
+          else
+            format('P%dM%dDT%d.%09dS', @months, @days, @seconds, @nanoseconds)
+          end
         end
 
         private
 
-        # Normalize nanoseconds overflow/underflow into seconds
-        # e.g., -1ns becomes -1s + 999999999ns
-        # e.g., 1_500_000_000ns becomes 1s + 500_000_000ns
+        # Normalize nanoseconds overflow/underflow into seconds:
+        # -1ns becomes -1s + 999999999ns; 1.5e9 ns becomes 1s + 5e8 ns.
         def normalize!
           if @nanoseconds < 0
-            # Move negative nanoseconds into seconds
             sec_adjust = (@nanoseconds.abs / NANOS_PER_SECOND.to_f).ceil
             @seconds -= sec_adjust
             @nanoseconds += sec_adjust * NANOS_PER_SECOND
           elsif @nanoseconds >= NANOS_PER_SECOND
-            # Move excess nanoseconds into seconds
             sec_adjust = @nanoseconds / NANOS_PER_SECOND
             @seconds += sec_adjust
             @nanoseconds %= NANOS_PER_SECOND
