@@ -7,11 +7,12 @@ on:
 
 jobs:
   rspec:
-    name: rspec (ruby ${{ matrix.ruby }} / neo4j ${{ matrix.neo4j }})
+    name: rspec (ruby ${{ matrix.ruby }}${{ matrix.force_ruby_platform && ' [mri flavor]' || '' }} / neo4j ${{ matrix.neo4j }})
     runs-on: ubuntu-latest
-    # JRuby implementation is not yet imported (lib/jruby/ is empty);
-    # let those rows fail without blocking the matrix until the JRuby
-    # code lands.
+    # JRuby rows are continue-on-error for now: the native JRuby flavor
+    # has no code yet (lib/jruby/ is empty), and the MRI-on-JRuby flavor
+    # is exercised here for the first time and may surface MRI-specific
+    # assumptions in pure-Ruby code.
     continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
 
     strategy:
@@ -25,6 +26,14 @@ jobs:
           - "4.4.48-enterprise"
           - "5.26.25-enterprise"
           - "2026.04.0-enterprise"
+        # Extra row: MRI flavor on JRuby, exercising the
+        # `force_ruby_platform` override of our two-gemspec layout.
+        # Single Neo4j version to avoid blowing up CI minutes — extend
+        # if/when the flavor is promoted out of continue-on-error.
+        include:
+          - ruby: "jruby-10.1.0.0"
+            neo4j: "5.26.25-enterprise"
+            force_ruby_platform: true
 
     services:
       neo4j:
@@ -46,6 +55,9 @@ jobs:
       TEST_NEO4J_URL: bolt://localhost:7687
       TEST_NEO4J_USER: neo4j
       TEST_NEO4J_PASS: password
+      # Drives Bundler's force_ruby_platform setting on the include row
+      # above; ignored on the default rows (matrix value is unset/empty).
+      BUNDLE_FORCE_RUBY_PLATFORM: ${{ matrix.force_ruby_platform }}
 
     steps:
       - uses: actions/checkout@v4

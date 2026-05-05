@@ -518,14 +518,25 @@ nothing to fork. CI runs it on both runtimes.
 ## CI matrix
 
 ```
-{mri-3.4, jruby-10.1} × {neo4j-4.4.48-enterprise,
-                        neo4j-5.26.21-enterprise,
-                        neo4j-2026.01.4-enterprise}
+{mri-3.4, mri-4.0, jruby-10.1} × {neo4j-4.4.48-enterprise,
+                                  neo4j-5.26.25-enterprise,
+                                  neo4j-2026.04.0-enterprise}
+
++ jruby-10.1 [mri flavor]      × {neo4j-5.26.25-enterprise}
 ```
 
-testkit gate runs once per runtime (single Neo4j version) — same
-baseline mechanism as today, possibly with a separate baseline
-file per runtime if coverage diverges.
+The extra row sets `BUNDLE_FORCE_RUBY_PLATFORM=true` so Bundler
+picks `neo4j-driver.gemspec` (ruby platform) on a JRuby host —
+exercises the override path of the two-gemspec layout.
+
+testkit and testkit-stub run once per runtime (single Neo4j version
+each), with the same matrix shape (`mri-3.4`, `jruby-10.1`, plus
+the `[mri flavor]` extra row).
+
+JRuby rows (both flavors) are `continue-on-error` for now: the
+native JRuby flavor has no code yet (`lib/jruby/` is empty), and
+the MRI-on-JRuby flavor is exercised here for the first time and
+may surface MRI-specific assumptions in pure-Ruby code.
 
 ## Open questions / deferred
 
