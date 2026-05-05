@@ -8,17 +8,18 @@ Code's Dev Containers extension or JetBrains Gateway locally.
 | Tool | Version | Notes |
 |------|---------|-------|
 | Ruby (MRI) | 3.4.9 | matches the CI matrix |
-| JRuby | 10.1.0.0 | installed at `$JRUBY_HOME=/opt/jruby` |
+| JRuby | 10.1.0.0 | at `$JRUBY_HOME=/opt/jruby`; tarball SHA-256 verified |
 | Java | OpenJDK 21 (Temurin) | required by JRuby |
 | Python | 3.11 | for testkit's Python orchestration |
-| Node | LTS | for `npm install -g @anthropic-ai/claude-code` |
-| Docker | docker-in-docker | so testkit can launch a Neo4j service container |
-| `gh` | latest | for PR work |
-| Claude Code | latest | installed via npm in `post-create.sh` |
+| Node | 22 | for `npm install -g @anthropic-ai/claude-code` |
+| Docker | engine 27 (docker-in-docker) | so testkit can launch a Neo4j container |
+| `gh` | 2.60.0 | for PR work |
+| Claude Code | latest | installed via npm by `post-create.sh` |
 
-`testkit` is cloned alongside the project at `../testkit` at the same
-pinned commit the CI workflows use, so `bin/run-testkit` works
-out-of-the-box.
+`testkit` is auto-cloned at `/workspaces/testkit` (sibling of the
+project) at the same pinned commit the CI workflows use, and
+`TESTKIT_PATH` is set in the container env so `bin/run-testkit` finds
+it without you exporting anything.
 
 ## Launching a Codespace
 
@@ -27,16 +28,28 @@ First boot runs `post-create.sh` (~3–5 min). Subsequent starts are quick.
 
 ## Running things
 
+### RSpec (no Neo4j needed)
+
 ```bash
-bundle exec rspec                   # MRI specs
-./bin/run-testkit stub              # protocol suite, no DB
-./bin/run-testkit neo4j             # integration suite — needs a Neo4j (see below)
+bundle exec rspec
 ```
 
-### Starting Neo4j inside the codespace
+Should print `400 examples, 0 failures`.
 
-Docker is available via docker-in-docker. To run testkit against a
-real DB:
+### Testkit stub suite (no Neo4j needed)
+
+```bash
+./bin/run-testkit stub
+```
+
+Uses testkit's bundled `boltstub` for protocol-level testing. ~93
+should pass; failures/errors past the baseline are the CI gate. The
+stub baseline lives at `.github/testkit-stub-baseline-mri.txt`.
+
+### Testkit neo4j suite (needs a running Neo4j)
+
+The container has `docker` (via docker-in-docker) so you start Neo4j
+inside the codespace itself:
 
 ```bash
 docker run -d --name neo4j-test \
@@ -45,22 +58,40 @@ docker run -d --name neo4j-test \
   -e NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
   neo4j:5.26.21-enterprise
 
-# Then:
-TEST_NEO4J_HOST=localhost TEST_NEO4J_USER=neo4j \
-  TEST_NEO4J_PASS=password TEST_NEO4J_VERSION=5.26 \
-  ./bin/run-testkit neo4j
+# wait ~10s for Bolt to come up, then:
+TEST_NEO4J_HOST=localhost \
+TEST_NEO4J_USER=neo4j \
+TEST_NEO4J_PASS=password \
+TEST_NEO4J_VERSION=5.26 \
+./bin/run-testkit neo4j
 ```
 
-### Switching to JRuby for a session
+Stop and remove with `docker rm -f neo4j-test` when done. The neo4j
+baseline lives at `.github/testkit-baseline-mri.txt`.
+
+### Refreshing a baseline
+
+```bash
+bin/refresh-testkit-baseline stub      # writes -mri/-jruby suffix automatically
+bin/refresh-testkit-baseline neo4j     # needs Neo4j running (see above)
+```
+
+The script detects the active Ruby and writes to the matching baseline
+file. Review the diff and commit.
+
+## Switching between MRI and JRuby
+
+The container has both. MRI is on `$PATH` by default. To exercise JRuby:
 
 ```bash
 export PATH="$JRUBY_HOME/bin:$PATH"
-bundle install                      # re-resolves for the java platform
-bundle exec rspec
+bundle install                          # re-resolves for the java platform
+bundle exec rspec                       # currently fails — lib/jruby/ is empty
 ```
 
-`Gem.loaded_specs['neo4j-ruby-driver'].metadata['impl']` will report
-`jruby` after the switch — see `lib/shared/neo4j/driver.rb`.
+Switch back by opening a fresh terminal (or `unset` and re-`hash`).
+`Gem.loaded_specs['neo4j-ruby-driver'].metadata['impl']` reports the
+active flavor — see `lib/shared/neo4j/driver.rb`.
 
 ## Notes
 
