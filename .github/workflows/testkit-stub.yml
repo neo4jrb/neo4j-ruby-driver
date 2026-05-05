@@ -84,8 +84,9 @@ jobs:
             echo "| $PASS | $FAIL | $ERROR | $SKIP |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # The real gate: every test in .github/testkit-stub-baseline.txt MUST
-      # be in the current pass set.
+      # The real gate: every test in $BASELINE (the impl-specific
+      # testkit-stub-baseline-{mri,jruby}.txt) MUST be in the current
+      # pass set.
       - name: Regression gate (baseline diff)
         if: always()
         run: |
