@@ -490,17 +490,18 @@ nothing to fork. CI runs it on both runtimes.
 
 ## Spec organization
 
-- `spec/shared/` — RSpec shared examples that exercise the public
-  contract (e.g. "any session implementation should commit
-  cleanly", "any Node should expose labels as symbols"). Both
-  flavors include these.
-- `spec/mri/` — MRI-only tests (PackStream/Bolt internals,
-  connection pool behavior).
+- `spec/shared/` — tests that exercise the public contract. Both
+  flavors must satisfy these, so they live here regardless of
+  which impl they were originally written against. Includes the
+  former `spec/integration/`, `spec/neo4j/driver/`, and
+  `spec/support/` trees.
+- `spec/mri/` — MRI-only tests (e.g. PackStream/Bolt wire,
+  socket I/O, connection pool internals).
 - `spec/jruby/` — JRuby-only tests (Java driver delegation,
   prepended-module behavior).
-- Existing `spec/integration/` and `spec/neo4j/driver/` move
-  under `spec/mri/` (they're testing the MRI impl today) and
-  the protocol-agnostic ones get lifted into `spec/shared/`.
+- `spec/spec_helper.rb` pushes `spec/shared` and the matching
+  impl dir onto `$LOAD_PATH` and sets `exclude_pattern` so the
+  other impl's specs don't run.
 
 ## CI matrix
 

@@ -10,9 +10,9 @@ bundle install
 
 ```bash
 bundle exec rspec                                        # full suite
-bundle exec rspec spec/integration/session_spec.rb       # one file
-bundle exec rspec spec/integration/session_spec.rb:42    # one example
-bundle exec rspec './spec/integration/session_spec.rb[1:2:3]'  # nested rspec id
+bundle exec rspec spec/shared/integration/session_spec.rb       # one file
+bundle exec rspec spec/shared/integration/session_spec.rb:42    # one example
+bundle exec rspec './spec/shared/integration/session_spec.rb[1:2:3]'  # nested rspec id
 bundle exec rspec --format documentation                 # verbose
 ```
 

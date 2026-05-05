@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', 'lib')
+impl = (RUBY_PLATFORM == 'java') ? 'jruby' : 'mri'
+$LOAD_PATH.unshift File.expand_path('shared', __dir__),
+                   File.expand_path(impl, __dir__)
 
 require 'async'
 # require 'async/rspec' unless RUBY_PLATFORM == 'java'
@@ -42,6 +44,6 @@ RSpec.configure do |config|
   config.filter_run_excluding csv: true
   config.filter_run_excluding concurrency: true unless RUBY_PLATFORM == 'java'
   config.filter_run_excluding jruby: true unless RUBY_PLATFORM == 'java'
-  config.exclude_pattern = 'ruby/**/*_spec.rb' if RUBY_PLATFORM == 'java' or true
+  config.exclude_pattern = "#{(RUBY_PLATFORM == 'java') ? 'mri' : 'jruby'}/**/*_spec.rb"
   Neo4j::Driver::Internal::Deprecator.deprecator.behavior = :silence
 end

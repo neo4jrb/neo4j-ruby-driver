@@ -124,10 +124,10 @@ docker run -d --name neo4j-test -p 7687:7687 -p 7474:7474 \
 export TEST_NEO4J_HOST=localhost TEST_NEO4J_PORT=7687
 export TEST_NEO4J_USER=neo4j TEST_NEO4J_PASS=password
 export TEST_NEO4J_SCHEME=bolt
-bundle exec rspec spec/integration/
+bundle exec rspec spec/shared/integration/
 
 # Run specific spec file
-bundle exec rspec spec/integration/direct_driver_spec.rb
-bundle exec rspec spec/integration/transaction_spec.rb
-bundle exec rspec spec/integration/session_spec.rb
+bundle exec rspec spec/shared/integration/direct_driver_spec.rb
+bundle exec rspec spec/shared/integration/transaction_spec.rb
+bundle exec rspec spec/shared/integration/session_spec.rb
 ```

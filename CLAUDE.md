@@ -23,17 +23,21 @@ dated log of architectural choices.
 
 ## Layout
 
+Dev tree is split into `lib/{shared,mri,jruby}/`. The published gem is
+flattened to `lib/` via a staged build (Pattern 1 — see JRUBY.md).
+
 ```
-lib/neo4j/driver.rb       Gem entry (Zeitwerk setup + every stdlib/gem require)
-lib/neo4j/driver/
-  bolt/                   Bolt protocol: connection, messages
-  packstream/             Binary serialization: packer/unpacker
-  types/                  Neo4j types (Node, Relationship, Path, temporal, Point, Duration)
-  exceptions/             Exception hierarchy, one class per file
-  session.rb              Session + auto-commit
-  transaction.rb          Explicit transactions
-  result.rb               Streaming result
+lib/shared/neo4j/driver.rb        Gem entry (Zeitwerk setup; pushes shared + impl roots)
+lib/mri/neo4j/driver/             MRI implementation
+  bolt/                           Bolt protocol: connection, messages
+  packstream/                     Binary serialization: packer/unpacker
+  types/                          Neo4j types (Node, Relationship, Path, temporal, Point, Duration)
+  exceptions/                     Exception hierarchy, one class per file
+  session.rb                      Session + auto-commit
+  transaction.rb                  Explicit transactions
+  result.rb                       Streaming result
   record.rb / summary.rb
+lib/jruby/neo4j/driver/           JRuby implementation (currently empty)
 ```
 
 ## API conventions
@@ -79,8 +83,9 @@ TEST_NEO4J_PASS=password
 bundle exec rspec
 ```
 
-- `spec/integration/` — end-to-end against a running Neo4j instance.
-- `spec/neo4j/driver/` — unit tests.
+- `spec/shared/integration/` — end-to-end against a running Neo4j instance (run on both impls).
+- `spec/shared/neo4j/driver/` — unit tests of the public API (run on both impls).
+- `spec/mri/` and `spec/jruby/` — impl-specific tests.
 
 ## Testkit 
 https://github.com/neo4j-drivers/testkit is the shared integration/conformance test suite for Neo4j drivers. The `testkit-backend/` directory contains the Ruby backend that testkit's Python test runner talks to over a TCP socket using a line-delimited JSON protocol. The `testkit/` directory one level up holds the Python orchestration scripts that testkit's Docker runner calls.
