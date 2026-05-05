@@ -1,4 +1,4 @@
-# Neo4j Ruby Driver 2
+# Neo4j Ruby Driver
 
 A clean, modern implementation of the Neo4j Bolt protocol driver for Ruby, built from the ground up based on the official [Bolt Protocol Specification](https://neo4j.com/docs/bolt/current/).
 

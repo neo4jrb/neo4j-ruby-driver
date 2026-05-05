@@ -1,4 +1,4 @@
-# Neo4j Ruby Driver 2 - Implementation Status
+# Neo4j Ruby Driver - Implementation Status
 
 ## ✅ Successfully Completed
 
