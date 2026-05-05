@@ -46,7 +46,8 @@ jobs:
       # against "Neo4j/" + this value. Patch number must be omitted.
       TEST_NEO4J_VERSION: '5.26'
       TESTKIT_PATH: ${{ github.workspace }}/../testkit
-      BASELINE: ${{ github.workspace }}/.github/testkit-baseline.txt
+      # Per-impl baseline: MRI and JRuby progress independently.
+      BASELINE: ${{ github.workspace }}/.github/testkit-baseline-${{ startsWith(matrix.ruby, 'jruby') && 'jruby' || 'mri' }}.txt
 
     steps:
       - uses: actions/checkout@v4

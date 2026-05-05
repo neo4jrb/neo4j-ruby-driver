@@ -9,15 +9,21 @@ Run:
 
 See `testkit-backend/README.md` for full setup notes.
 
-Two CI gates, one per target:
-- `.github/testkit-baseline.txt` ↔ `.github/workflows/testkit.yml`
-- `.github/testkit-stub-baseline.txt` ↔ `.github/workflows/testkit-stub.yml`
+Two CI gates, one per target. Each gate is split per impl, since
+MRI and JRuby flavors progress independently:
+- `.github/testkit-baseline-{mri,jruby}.txt` ↔ `.github/workflows/testkit.yml`
+- `.github/testkit-stub-baseline-{mri,jruby}.txt` ↔ `.github/workflows/testkit-stub.yml`
+
+The workflow picks the right file based on `matrix.ruby`. JRuby
+baselines are empty until `lib/jruby/` has code; the JRuby row stays
+`continue-on-error` so the empty baseline isn't a blocker.
 
 Each is a sorted list of tests that must keep passing. After moving
 the numbers, **also update the baseline file** (add lines for new
 passers; remove with reason in the commit message if a test
 legitimately stops being expected to pass). Refresh either with
-`bin/refresh-testkit-baseline [neo4j|stub]`.
+`bin/refresh-testkit-baseline [neo4j|stub]` — the script auto-detects
+the impl from the running Ruby and writes to the matching file.
 
 ## Current baseline
 

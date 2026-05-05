@@ -23,7 +23,8 @@ jobs:
     env:
       TEST_DRIVER_NAME: ruby
       TESTKIT_PATH: ${{ github.workspace }}/../testkit
-      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline.txt
+      # Per-impl baseline: MRI and JRuby progress independently.
+      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ startsWith(matrix.ruby, 'jruby') && 'jruby' || 'mri' }}.txt
 
     steps:
       - uses: actions/checkout@v4
