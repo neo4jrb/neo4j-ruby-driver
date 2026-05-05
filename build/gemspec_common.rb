@@ -26,7 +26,7 @@ def common_gemspec(spec, impl)
   # actually selected — including the force_ruby_platform override case.
   spec.metadata['impl'] = impl
 
-  if ENV['STAGED_BUILD']
+  if ENV['STAGED_BUILD'] == '1'
     # Pattern 1 staged build (Rakefile): lib/shared/ and lib/<impl>/
     # have been merged into a flat lib/ inside pkg/stage-*/.
     spec.files = Dir['lib/**/*', 'README.md', 'LICENSE']
