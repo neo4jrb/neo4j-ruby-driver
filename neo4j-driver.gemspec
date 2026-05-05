@@ -13,14 +13,25 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 3.4.0'
 
-  # Dev-tree layout: lib/{shared, mri, jruby}. The published gem
-  # flattens this into lib/ via a staged build (Pattern 1 — see
-  # JRUBY.md). Until that build infra lands, this gemspec assumes
-  # the dev tree.
-  impl_dir = (RUBY_PLATFORM == 'java') ? 'jruby' : 'mri'
-  spec.files = Dir['lib/shared/**/*', "lib/#{impl_dir}/**/*", 'README.md', 'LICENSE']
-  spec.require_paths = ['lib/shared', "lib/#{impl_dir}"]
-  spec.platform = 'java' if RUBY_PLATFORM == 'java'
+  # Two evaluation modes:
+  #   - Dev tree (default): lib/{shared, mri, jruby}/. Bundler reads
+  #     this when resolving the gem from a path/git source, and when
+  #     loading the gem in development. Picks the impl from RUBY_PLATFORM.
+  #   - Staged build (STAGED_BUILD=1): the Rakefile has merged
+  #     lib/shared/ and lib/<impl>/ into a flat lib/ inside pkg/stage-*.
+  #     `gem build` runs there with this gemspec; we emit a flat-lib
+  #     spec so the published .gem looks like a normal one-platform gem.
+  #     GEM_TARGET picks the platform suffix (jruby → -java).
+  if ENV['STAGED_BUILD']
+    spec.files = Dir['lib/**/*', 'README.md', 'LICENSE']
+    spec.require_paths = ['lib']
+    spec.platform = ENV['GEM_TARGET'] == 'jruby' ? 'java' : Gem::Platform::RUBY
+  else
+    impl_dir = (RUBY_PLATFORM == 'java') ? 'jruby' : 'mri'
+    spec.files = Dir['lib/shared/**/*', "lib/#{impl_dir}/**/*", 'README.md', 'LICENSE']
+    spec.require_paths = ['lib/shared', "lib/#{impl_dir}"]
+    spec.platform = 'java' if RUBY_PLATFORM == 'java'
+  end
 
   # Runtime dependencies
   spec.add_dependency 'connection_pool', '~> 3.0'
@@ -32,6 +43,7 @@ Gem::Specification.new do |spec|
   # 3.4, so it needs to be in the Gemfile for the load_csv_spec to
   # require 'csv'.
   spec.add_development_dependency 'csv'
+  spec.add_development_dependency 'rake', '~> 13.0'
   spec.add_development_dependency 'rspec', '~> 3.12'
   spec.add_development_dependency 'rspec-its', '~> 1.3'
 end

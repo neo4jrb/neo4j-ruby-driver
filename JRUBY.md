@@ -118,42 +118,28 @@ for users who want to branch on it.
 
 The dev tree has `lib/{shared,mri,jruby}/`. The **published gem
 flattens to a normal `lib/`** so end users never see the platform
-split. RubyGems doesn't transparently remap paths, so we do the
-merge in a Rake task before `gem build`:
+split. RubyGems doesn't transparently remap paths, so we merge in a
+Rake task before `gem build` (see `Rakefile`):
 
-```ruby
-# Rakefile (sketch)
-namespace :gem do
-  task :build, [:platform] do |_, args|
-    impl  = args[:platform] || 'mri'   # 'mri' | 'jruby'
-    stage = "pkg/stage-#{impl}"
-    rm_rf stage
-    mkdir_p "#{stage}/lib"
-    cp_r 'lib/shared/.', "#{stage}/lib/"
-    cp_r "lib/#{impl}/.", "#{stage}/lib/"
-    cp 'neo4j-driver.gemspec', stage
-    Dir.chdir(stage) do
-      # GEM_TARGET drives the platform branch in the gemspec below.
-      sh({ 'GEM_TARGET' => impl }, 'gem build neo4j-driver.gemspec')
-    end
-  end
-end
+```sh
+bundle exec rake build:mri    # → pkg/neo4j-ruby-driver2-X.Y.Z.gem
+bundle exec rake build:jruby  # → pkg/neo4j-ruby-driver2-X.Y.Z-java.gem
+bundle exec rake build:all    # both
 ```
 
-The shared `neo4j-driver.gemspec` reads as a normal one-platform
-gem (`spec.files = Dir['lib/**/*']`, `spec.require_paths = %w[lib]`).
-The platform variant is selected by the `GEM_TARGET` env var the
-Rake task sets:
+The task copies `lib/shared/.` and `lib/<impl>/.` into
+`pkg/stage-<impl>/lib/`, then runs `gem build` from the stage dir
+with `STAGED_BUILD=1` and `GEM_TARGET=<impl>` set. It uses
+`Bundler.with_unbundled_env` to keep the parent Bundler env from
+re-resolving the project Gemfile under those overrides (otherwise
+the JRuby build fails on a non-Java host).
 
-```ruby
-# neo4j-driver.gemspec (excerpt)
-Gem::Specification.new do |spec|
-  spec.platform = ENV['GEM_TARGET'] == 'jruby' ? 'java' : Gem::Platform::RUBY
-  spec.files = Dir['lib/**/*']
-  spec.require_paths = ['lib']
-  ...
-end
-```
+The shared `neo4j-driver.gemspec` branches on `STAGED_BUILD`. In
+dev mode (no env), it points at `lib/shared` and `lib/<impl>` and
+picks the impl from `RUBY_PLATFORM` — that's what Bundler reads
+when consuming the gem from a path/git source. With `STAGED_BUILD=1`
+it emits a flat-lib spec for the published gem; `GEM_TARGET` picks
+the platform suffix.
 
 ### What the user sees after install
 
