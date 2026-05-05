@@ -38,8 +38,7 @@
   "forwardPorts": [7474, 7687, 7688],
 
   "containerEnv": {
-    "JRUBY_HOME": "/opt/jruby",
-    "TESTKIT_PATH": "/workspaces/testkit"
+    "JRUBY_HOME": "/opt/jruby"
   },
 
   "remoteUser": "vscode",
