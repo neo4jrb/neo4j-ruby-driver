@@ -1,4 +1,4 @@
-# Neo4j Ruby Driver 2
+# Neo4j Ruby Driver
 
 A clean, modern implementation of the Neo4j Bolt protocol driver for Ruby, built from the ground up based on the official [Bolt Protocol Specification](https://neo4j.com/docs/bolt/current/).
 
@@ -41,13 +41,13 @@ lib/neo4j/driver/
 Add to your Gemfile:
 
 ```ruby
-gem 'neo4j-ruby-driver2', path: './neo4j-ruby-driver2'
+gem 'neo4j-ruby-driver', path: './neo4j-ruby-driver'
 ```
 
 Or install locally:
 
 ```bash
-cd neo4j-ruby-driver2
+cd neo4j-ruby-driver
 bundle install
 ```
 

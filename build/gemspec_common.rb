@@ -8,20 +8,20 @@
 # `path:` source via standard platform matching; `bundle config set
 # --local force_ruby_platform true` forces the ruby variant on JRuby.
 def common_gemspec(spec, impl)
-  spec.name          = 'neo4j-ruby-driver2'
+  spec.name          = 'neo4j-ruby-driver'
   spec.version       = '0.1.0'
   spec.authors       = ['Neo4j Driver Team']
   spec.email         = ['drivers@neo4j.com']
 
   spec.summary       = 'Clean Neo4j Bolt driver implementation for Ruby'
   spec.description   = 'A clean, modern implementation of the Neo4j Bolt protocol driver for Ruby'
-  spec.homepage      = 'https://github.com/neo4j/neo4j-ruby-driver2'
+  spec.homepage      = 'https://github.com/neo4jrb/neo4j-ruby-driver'
   spec.license       = 'Apache-2.0'
 
   spec.required_ruby_version = '>= 3.4.0'
 
   # The loader reads this to pick the impl tree at runtime
-  # (`Gem.loaded_specs['neo4j-ruby-driver2'].metadata['impl']`). It's
+  # (`Gem.loaded_specs['neo4j-ruby-driver'].metadata['impl']`). It's
   # how the loader stays in sync with the gemspec Bundler/RubyGems
   # actually selected — including the force_ruby_platform override case.
   spec.metadata['impl'] = impl

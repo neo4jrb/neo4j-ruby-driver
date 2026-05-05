@@ -8,9 +8,9 @@ CLOBBER.include('pkg')
 
 # Pattern 1 staged build (see JRUBY.md): copy lib/shared/ and lib/<impl>/
 # into a temporary pkg/stage-<impl>/lib/ so the published gem has a flat
-# lib/ tree. Each impl has its own gemspec (neo4j-driver.gemspec for MRI,
-# neo4j-driver-java.gemspec for JRuby); both go through STAGED_BUILD=1 to
-# flip from the dev-tree files/require_paths to the flat ones.
+# lib/ tree. Each impl has its own gemspec (neo4j-ruby-driver.gemspec for
+# MRI, neo4j-ruby-driver-java.gemspec for JRuby); both go through
+# STAGED_BUILD=1 to flip from dev-tree files/require_paths to the flat ones.
 def stage_and_build(impl)
   raise ArgumentError, "impl must be 'mri' or 'jruby', got #{impl.inspect}" \
     unless %w[mri jruby].include?(impl)
@@ -18,7 +18,7 @@ def stage_and_build(impl)
   root = __dir__
   pkg = File.join(root, 'pkg')
   stage = File.join(pkg, "stage-#{impl}")
-  gemspec_file = (impl == 'jruby') ? 'neo4j-driver-java.gemspec' : 'neo4j-driver.gemspec'
+  gemspec_file = (impl == 'jruby') ? 'neo4j-ruby-driver-java.gemspec' : 'neo4j-ruby-driver.gemspec'
 
   FileUtils.rm_rf(stage)
   FileUtils.mkdir_p(File.join(stage, 'lib'))

@@ -5,7 +5,7 @@ the shared integration/conformance test suite for Neo4j drivers.
 
 Testkit's Python test runner talks to a per-driver backend process
 over a TCP socket using a line-delimited JSON protocol. This directory
-contains that backend for neo4j-ruby-driver2. The `testkit/` directory
+contains that backend for neo4j-ruby-driver. The `testkit/` directory
 one level up holds the Python orchestration scripts that testkit's
 Docker runner calls.
 
