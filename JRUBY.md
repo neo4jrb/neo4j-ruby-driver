@@ -147,20 +147,34 @@ chosen impl and branches on `STAGED_BUILD`:
   a `path:` source.
 - Staged: files = flat `lib/**/*`, `require_paths = ['lib']`.
 
-### Selecting a flavor from source
+### Selecting a flavor
 
-Consumer Gemfile (path or git source):
+Default consumer Gemfile (any source):
 
 ```ruby
-gem 'neo4j-ruby-driver', path: '../neo4j-ruby-driver'
+gem 'neo4j-ruby-driver'
+# or path: '../neo4j-ruby-driver', or git: '...'
 ```
 
-Bundler scans `*.gemspec` in the source and picks the platform-compatible
-one — ruby on MRI, java on JRuby. The loader reads `spec.metadata['impl']`
-from whichever gemspec was selected, so it stays in sync automatically.
+Bundler picks the platform-compatible gemspec — ruby on MRI, java on
+JRuby. The loader reads `spec.metadata['impl']` from whichever gemspec
+was selected, so it stays in sync automatically.
 
 To force the MRI flavor on JRuby (e.g. to develop the MRI codebase
-under JRuby), pin gemspec discovery to the MRI file via `:glob`:
+under JRuby, or to opt out of the Java-driver delegation), use the
+per-gem `force_ruby_platform: true` option:
+
+```ruby
+gem 'neo4j-ruby-driver', force_ruby_platform: true
+```
+
+This works for any source (rubygems, path, git). It scopes to *this*
+gem only — Bundler still resolves other deps to their native platform
+variants. (The global `bundle config force_ruby_platform true` is too
+coarse and would break deps with JRuby-native code like `json`.)
+
+For path sources with both gemspecs visible, the per-gem flag picks
+the ruby gemspec; equivalently you can use `glob:`:
 
 ```ruby
 gem 'neo4j-ruby-driver', path: '../neo4j-ruby-driver',
@@ -169,14 +183,6 @@ gem 'neo4j-ruby-driver', path: '../neo4j-ruby-driver',
 
 The dev tree's own Gemfile uses the `gemspec` directive instead of
 `gem`; the equivalent override is `gemspec name: 'neo4j-ruby-driver'`.
-
-For RubyGems-installed gems there is no clean per-gem override —
-`bundle config set --local force_ruby_platform true` exists but
-applies globally and breaks any other dependency that ships
-JRuby-native variants (e.g. activesupport's transitive `json` dep).
-This is a Bundler limitation, not specific to our gem. In practice,
-the cross-flavor case is a development concern and the path/git
-override above covers it.
 
 ### What the user sees after install
 
