@@ -81,15 +81,22 @@ file. Review the diff and commit.
 
 ## Switching between MRI and JRuby
 
-The container has both. MRI is on `$PATH` by default. To exercise JRuby:
+The container has both. MRI is on `$PATH` by default. To exercise JRuby
+without polluting the current shell, run inside a subshell:
 
 ```bash
-export PATH="$JRUBY_HOME/bin:$PATH"
-bundle install                          # re-resolves for the java platform
-bundle exec rspec                       # currently fails — lib/jruby/ is empty
+(
+  export PATH="$JRUBY_HOME/bin:$PATH"
+  bundle install              # re-resolves for the java platform
+  bundle exec rspec           # currently fails — lib/jruby/ is empty
+)
 ```
 
-Switch back by opening a fresh terminal (or `unset` and re-`hash`).
+The parentheses create a subshell; env changes don't leak back. To
+switch persistently within one shell, run those commands without the
+subshell wrapper, then open a new terminal when you want to go back to
+MRI (the codespace makes that one click in the terminal panel).
+
 `Gem.loaded_specs['neo4j-ruby-driver'].metadata['impl']` reports the
 active flavor — see `lib/shared/neo4j/driver.rb`.
 
