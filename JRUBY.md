@@ -147,36 +147,57 @@ chosen impl and branches on `STAGED_BUILD`:
   a `path:` source.
 - Staged: files = flat `lib/**/*`, `require_paths = ['lib']`.
 
-### Selecting a flavor from source
+### Selecting a flavor
 
-Consumer Gemfile (path or git source):
+Default consumer Gemfile (any source):
 
 ```ruby
-gem 'neo4j-ruby-driver', path: '../neo4j-ruby-driver'
+gem 'neo4j-ruby-driver'
+# or path: '../neo4j-ruby-driver', or git: '...'
 ```
 
-Bundler scans `*.gemspec` in the source and picks the platform-compatible
-one — ruby on MRI, java on JRuby. The loader reads `spec.metadata['impl']`
-from whichever gemspec was selected, so it stays in sync automatically.
+Bundler picks the platform-compatible gemspec — ruby on MRI, java on
+JRuby. The loader reads `spec.metadata['impl']` from whichever gemspec
+was selected, so it stays in sync automatically.
 
-To force the MRI flavor on JRuby (e.g. to develop the MRI codebase
-under JRuby), pin gemspec discovery to the MRI file via `:glob`:
+To force the MRI flavor on JRuby (e.g. to opt out of the Java-driver
+delegation, or to develop the MRI codebase under JRuby), use Bundler's
+per-gem `force_ruby_platform: true`:
+
+```ruby
+gem 'neo4j-ruby-driver', force_ruby_platform: true
+```
+
+This works for any source (rubygems, path, git) and scopes to *this*
+gem only — Bundler still resolves other deps to their native platform
+variants. The global `bundle config force_ruby_platform true` does the
+same thing repo-wide and would break deps with JRuby-native code (e.g.
+`json`'s java variant).
+
+For path sources with both gemspecs visible, `:glob` works equivalently
+by hiding the java gemspec from discovery:
 
 ```ruby
 gem 'neo4j-ruby-driver', path: '../neo4j-ruby-driver',
                          glob: 'neo4j-ruby-driver.gemspec'
 ```
 
-The dev tree's own Gemfile uses the `gemspec` directive instead of
-`gem`; the equivalent override is `gemspec name: 'neo4j-ruby-driver'`.
+The dev tree's own `Gemfile` uses the `gemspec` directive instead of
+`gem`. The `gemspec` directive accepts `:name`/`:glob` but not
+`force_ruby_platform`, so we use an env-var bridge:
 
-For RubyGems-installed gems there is no clean per-gem override —
-`bundle config set --local force_ruby_platform true` exists but
-applies globally and breaks any other dependency that ships
-JRuby-native variants (e.g. activesupport's transitive `json` dep).
-This is a Bundler limitation, not specific to our gem. In practice,
-the cross-flavor case is a development concern and the path/git
-override above covers it.
+```ruby
+# Gemfile
+if ENV['NEO4J_DRIVER_FORCE_MRI'] == '1'
+  gemspec name: 'neo4j-ruby-driver'   # pin MRI gemspec
+else
+  gemspec                              # platform-based selection
+end
+```
+
+`NEO4J_DRIVER_FORCE_MRI=1 bundle install` on a JRuby host then runs
+the MRI flavor. CI exercises this via an extra matrix row in
+`.github/workflows/{specs,testkit,testkit-stub}.yml`.
 
 ### What the user sees after install
 

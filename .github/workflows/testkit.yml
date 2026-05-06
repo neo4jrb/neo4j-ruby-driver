@@ -7,10 +7,11 @@ on:
 
 jobs:
   testkit:
-    name: testkit (ruby ${{ matrix.ruby }})
+    name: testkit (ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }})
     runs-on: ubuntu-latest
-    # JRuby implementation isn't imported yet; matrix runs but does
-    # not block until lib/jruby/ has code.
+    # JRuby rows are continue-on-error: native JRuby flavor has no code
+    # yet (lib/jruby/ empty), and the MRI-on-JRuby include row below is
+    # exercised here for the first time.
     continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
 
     strategy:
@@ -19,6 +20,12 @@ jobs:
         ruby:
           - "3.4"
           - "jruby-10.1.0.0"
+        force_mri: [false]
+        include:
+          # MRI flavor on JRuby — NEO4J_DRIVER_FORCE_MRI=1 flips the
+          # Gemfile's `gemspec` directive to pin the MRI gemspec.
+          - ruby: "jruby-10.1.0.0"
+            force_mri: true
 
     services:
       neo4j:
@@ -47,7 +54,10 @@ jobs:
       TEST_NEO4J_VERSION: '5.26'
       TESTKIT_PATH: ${{ github.workspace }}/../testkit
       # Per-impl baseline: MRI and JRuby progress independently.
-      BASELINE: ${{ github.workspace }}/.github/testkit-baseline-${{ startsWith(matrix.ruby, 'jruby') && 'jruby' || 'mri' }}.txt
+      # The MRI-on-JRuby flavor uses the MRI baseline since it runs MRI code.
+      BASELINE: ${{ github.workspace }}/.github/testkit-baseline-${{ (startsWith(matrix.ruby, 'jruby') && !matrix.force_mri) && 'jruby' || 'mri' }}.txt
+      # Empty string when force_mri is false; '1' on the include row.
+      NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
 
     steps:
       - uses: actions/checkout@v4
