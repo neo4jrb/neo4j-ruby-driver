@@ -81,8 +81,10 @@ file. Review the diff and commit.
 
 ## Switching between MRI and JRuby
 
-The container has both. MRI is on `$PATH` by default. To exercise JRuby
-without polluting the current shell, run inside a subshell:
+The container has both. MRI is on `$PATH` by default. Three useful modes:
+
+**JRuby flavor on JRuby** (the native cross-flavor case; will work
+once `lib/jruby/` has code):
 
 ```bash
 (
@@ -92,10 +94,19 @@ without polluting the current shell, run inside a subshell:
 )
 ```
 
-The parentheses create a subshell; env changes don't leak back. To
-switch persistently within one shell, run those commands without the
-subshell wrapper, then open a new terminal when you want to go back to
-MRI (the codespace makes that one click in the terminal panel).
+**MRI flavor on JRuby** (run the MRI codebase under the JVM):
+
+```bash
+(
+  export PATH="$JRUBY_HOME/bin:$PATH"
+  export NEO4J_DRIVER_FORCE_MRI=1   # Gemfile pins the MRI gemspec
+  bundle install
+  bundle exec rspec
+)
+```
+
+The parentheses create a subshell; env changes don't leak back. CI
+exercises both these modes via matrix rows.
 
 `Gem.loaded_specs['neo4j-ruby-driver'].metadata['impl']` reports the
 active flavor — see `lib/shared/neo4j/driver.rb`.
