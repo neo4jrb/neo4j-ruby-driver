@@ -17,6 +17,13 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
     it 'eql?' do
       expect(described_class.parse('2018-7-1 8:00Z')).to eql described_class.parse('2018-7-1 8:00+05:00')
     end
+
+    it '+ preserves sub-second precision' do
+      base = described_class.parse('2026-01-01 00:00:00')
+      result = base + 0.5
+      expect(result.nanoseconds).to eq 500_000_000
+      expect(result.epoch_seconds).to eq base.epoch_seconds
+    end
   end
 
   describe 'cypher functions' do

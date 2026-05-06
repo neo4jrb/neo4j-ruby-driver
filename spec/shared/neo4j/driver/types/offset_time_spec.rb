@@ -1,10 +1,17 @@
 # frozen_string_literal: true
 
-RSpec.describe Neo4j::Driver::Types::Time do
+RSpec.describe Neo4j::Driver::Types::OffsetTime do
   describe '#<=>' do
-    it 'smaller' do
+    it 'orders by wall clock when offset is the same' do
       expect(described_class.parse('8:05:21.00001-05:00')).to be < described_class.parse('8:06:21.00001-05:00')
-      expect(described_class.parse('8:05:21.00001-06:00')).to be < described_class.parse('8:05:21.00001-05:00')
+    end
+
+    it 'orders by underlying UTC instant when offsets differ' do
+      # Same wall-clock 8:05:21.00001 in two timezones:
+      #   -06:00 (e.g. Mexico City) → 14:05:21 UTC
+      #   -05:00 (e.g. Cancun)      → 13:05:21 UTC
+      # so the -06:00 reading is the *later* instant.
+      expect(described_class.parse('8:05:21.00001-06:00')).to be > described_class.parse('8:05:21.00001-05:00')
     end
 
     it 'addition should be modulo day' do
@@ -17,6 +24,18 @@ RSpec.describe Neo4j::Driver::Types::Time do
 
     it 'eql?' do
       expect(described_class.parse('2018-1-1 8:00Z')).to eql described_class.parse('2018-7-1 8:00+00:00')
+    end
+
+    it '+ preserves sub-second precision and the offset' do
+      result = described_class.parse('12:00:00+05:00') + 0.5
+      expect(result.nanosecond).to eq 500_000_000
+      expect(result.tz_offset_seconds).to eq 5 * 3600
+    end
+
+    it '#to_s round-trips a negative offset with non-zero minutes' do
+      # Regression: integer floor-division on `tz_offset_seconds / 3600`
+      # for -12600s gave hours=-4, formatting -03:30 as -04:30.
+      expect(described_class.parse('12:34:56-03:30').to_s).to eq '12:34:56.000000000-03:30'
     end
   end
 

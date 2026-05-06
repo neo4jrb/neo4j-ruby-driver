@@ -12,9 +12,17 @@ cd "$(dirname "$0")/.."
 
 TARGET="${1:-neo4j}"
 case "$TARGET" in
-  neo4j) OUT=.github/testkit-baseline.txt;      EXCLUDE=.github/testkit-baseline-exclude.txt ;;
-  stub)  OUT=.github/testkit-stub-baseline.txt; EXCLUDE=.github/testkit-stub-baseline-exclude.txt ;;
+  neo4j|stub) ;;
   *) echo "Unknown target: $TARGET (expected: neo4j | stub)" >&2; exit 2 ;;
+esac
+
+# Detect impl from the running Ruby; baselines are per-impl since MRI
+# and JRuby flavors progress independently.
+IMPL=$(ruby -e 'print RUBY_PLATFORM == "java" ? "jruby" : "mri"')
+
+case "$TARGET" in
+  neo4j) OUT=.github/testkit-baseline-${IMPL}.txt;      EXCLUDE=.github/testkit-baseline-exclude-${IMPL}.txt ;;
+  stub)  OUT=.github/testkit-stub-baseline-${IMPL}.txt; EXCLUDE=.github/testkit-stub-baseline-exclude-${IMPL}.txt ;;
 esac
 
 OUTPUT_TMP=$(mktemp)
@@ -40,10 +48,10 @@ else
 fi
 
 {
-  echo "# Tests currently expected to pass under tests/$TARGET."
+  echo "# Tests currently expected to pass under tests/$TARGET on $IMPL."
   echo "# CI fails if any of these stops passing (regression)."
   echo "# Add lines as we fix more; remove with reason in commit msg."
-  echo "# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline $TARGET."
+  echo "# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline $TARGET (running on $IMPL)."
   echo "# Tests known to fail in CI for env reasons live in"
   echo "# $EXCLUDE and are skipped here."
   echo ""

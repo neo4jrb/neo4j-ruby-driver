@@ -1,6 +1,27 @@
 # frozen_string_literal: true
 
 RSpec.describe Neo4j::Driver::Types::Duration do
+  describe '#to_s' do
+    it 'zero-pads nanoseconds to 9 digits' do
+      # Regression: an earlier impl appended nanos directly so 5ns
+      # rendered as ".5S" — off by 9 orders of magnitude.
+      expect(described_class.new(0, 0, 1, 5).to_s).to eq 'P0M0DT1.000000005S'
+    end
+
+    it 'omits the fractional part when nanoseconds are zero' do
+      expect(described_class.new(0, 0, 1, 0).to_s).to eq 'P0M0DT1S'
+    end
+  end
+
+  describe '#hash' do
+    it 'matches == (eql?/hash contract)' do
+      a = described_class.new(1, 2, 3, 4)
+      b = described_class.new(1, 2, 3, 4)
+      expect(a).to eql b
+      expect(a.hash).to eq b.hash
+    end
+  end
+
   describe 'param' do
     subject(:result) do
       driver.session do |session|
