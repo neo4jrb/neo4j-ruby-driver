@@ -9,7 +9,12 @@ source 'https://rubygems.org'
 # force_ruby_platform: true` instead; that DSL option exists on `gem`
 # but not on `gemspec`, hence the env-var bridge here.)
 if ENV['NEO4J_DRIVER_FORCE_MRI'] == '1'
-  gemspec name: 'neo4j-ruby-driver'
+  # Both `name:` and `glob:` are required: `name:` narrows the initial
+  # gemspec lookup, but `gemspec` forwards to an implicit path source
+  # whose default glob (`{,*,*/*}.gemspec`) would otherwise re-discover
+  # neo4j-ruby-driver-java.gemspec — and Bundler's resolver would then
+  # pick the java variant on a JRuby host, defeating the override.
+  gemspec name: 'neo4j-ruby-driver', glob: 'neo4j-ruby-driver.gemspec'
 else
   gemspec
 end
