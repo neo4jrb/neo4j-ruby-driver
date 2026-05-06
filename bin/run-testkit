@@ -9,13 +9,19 @@
 # quickly on one area.
 #
 # Requires TESTKIT_PATH to point at a local clone of
-# https://github.com/neo4j-drivers/testkit (defaults to ~/projects/testkit).
+# https://github.com/neo4j-drivers/testkit. Defaults to the project's
+# sibling directory (matches the CI convention).
 # A running Neo4j is required at TEST_NEO4J_HOST:TEST_NEO4J_PORT (defaults
 # localhost:7687, user neo4j / pass password).
 
 set -euo pipefail
 
-TESTKIT_PATH="${TESTKIT_PATH:-$HOME/projects/testkit}"
+# Default to sibling of the project (matches the CI workflow convention
+# `${{ github.workspace }}/../testkit`). Works in the codespace
+# (/workspaces/testkit), in CI, and in the typical local layout where
+# both repos sit under one parent directory.
+PROJECT_ROOT="$(cd "$(dirname "$0")/.."; pwd)"
+TESTKIT_PATH="${TESTKIT_PATH:-$(dirname "$PROJECT_ROOT")/testkit}"
 # Simple target: "neo4j", "stub", "tls" → discover tests/<target>/
 # Dotted target: tests.neo4j.test_session_run[.TestCase[.test_method]] → specific
 TEST_TARGET="${1:-neo4j}"
