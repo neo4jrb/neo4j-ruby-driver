@@ -64,9 +64,14 @@ bundle install --quiet
 # ------------------------------------------------------------- Claude Code
 # Install via the official npm package. Auth happens interactively on
 # first `claude` invocation.
+#
+# No sudo: the devcontainer Node feature (NVM-based) puts npm's prefix
+# under /usr/local/share/nvm/... which is writable by the dev user.
+# `sudo npm` strips PATH and fails with "npm: command not found" because
+# root's secure_path doesn't include the NVM dir.
 if ! command -v claude >/dev/null; then
   echo ">>> Installing Claude Code CLI"
-  sudo npm install -g @anthropic-ai/claude-code
+  npm install -g @anthropic-ai/claude-code
 fi
 
 echo ""
