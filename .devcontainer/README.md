@@ -81,10 +81,13 @@ file. Review the diff and commit.
 
 ## Switching between MRI and JRuby
 
-The container has both. MRI is on `$PATH` by default. Three useful modes:
+The container has both Rubies installed. The default shell uses MRI;
+no setup needed for the standard MRI-flavor-on-MRI path. To exercise
+the other two flavor combinations, run inside a subshell so PATH
+changes don't leak back:
 
-**JRuby flavor on JRuby** (the native cross-flavor case; will work
-once `lib/jruby/` has code):
+**JRuby flavor on JRuby** (the native JRuby path; will work once
+`lib/jruby/` has code):
 
 ```bash
 (
@@ -94,7 +97,7 @@ once `lib/jruby/` has code):
 )
 ```
 
-**MRI flavor on JRuby** (run the MRI codebase under the JVM):
+**MRI flavor on JRuby** (run the pure-Ruby codebase under the JVM):
 
 ```bash
 (
@@ -105,8 +108,7 @@ once `lib/jruby/` has code):
 )
 ```
 
-The parentheses create a subshell; env changes don't leak back. CI
-exercises both these modes via matrix rows.
+CI exercises all three combinations via matrix rows.
 
 `Gem.loaded_specs['neo4j-ruby-driver'].metadata['impl']` reports the
 active flavor — see `lib/shared/neo4j/driver.rb`.
