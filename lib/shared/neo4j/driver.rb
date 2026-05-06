@@ -14,13 +14,19 @@ module Neo4j
     # Picked from the gemspec Bundler/RubyGems actually selected, via
     # spec.metadata['impl']. Stays correct when the user opts into the
     # MRI flavor on JRuby (e.g. `gem 'neo4j-ruby-driver',
-    # force_ruby_platform: true` in their Gemfile), where RUBY_PLATFORM
-    # and the loaded gem disagree. Falls back to RUBY_PLATFORM when the
-    # spec isn't visible (raw source tree without RubyGems activation).
+    # force_ruby_platform: true` in their Gemfile), where the host Ruby
+    # and the loaded gem disagree.
+    #
+    # No RUBY_PLATFORM fallback: the cross-flavor mode makes
+    # RUBY_PLATFORM == 'java' a misleading proxy for "JRuby flavor"
+    # (it tells you the host, not the gem). When the spec metadata
+    # isn't visible (raw source-tree without RubyGems activation),
+    # default to :mri — that's the established flavor; consumers
+    # wanting the JRuby flavor without Bundler need to load the gem
+    # through Bundler/RubyGems so the metadata bridge works.
     def self.implementation
       declared = Gem.loaded_specs['neo4j-ruby-driver']&.metadata&.fetch('impl', nil)
-      return declared.to_sym if declared
-      (RUBY_PLATFORM == 'java') ? :jruby : :mri
+      declared&.to_sym || :mri
     end
   end
 end
