@@ -24,7 +24,9 @@ module Neo4j
         loader.push_dir(shared_root)
         loader.push_dir(impl_root) if File.directory?(impl_root)
         yield loader if block_given?
-        loader.ignore(File.expand_path('neo4j*ruby*driver*.rb', __dir__))
+        Dir[File.expand_path('neo4j*ruby*driver*.rb', __dir__)].each do |path|
+          loader.ignore(path)
+        end
         loader.setup
         loader.eager_load
       end
