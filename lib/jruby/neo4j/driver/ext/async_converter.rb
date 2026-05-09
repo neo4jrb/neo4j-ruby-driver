@@ -48,7 +48,7 @@ module Neo4j::Driver::Ext
         variable.resolve([value, error])
       end
       value, error = variable.wait
-      raise mapped_exception(e.cause) if error
+      raise mapped_exception(error.cause || error) if error
       value
     end
   end
