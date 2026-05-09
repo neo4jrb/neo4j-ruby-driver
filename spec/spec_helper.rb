@@ -42,8 +42,8 @@ RSpec.configure do |config|
   config.filter_run_excluding auth: :none
   config.filter_run_excluding version: method(:not_version?)
   config.filter_run_excluding csv: true
-  config.filter_run_excluding concurrency: true unless RUBY_PLATFORM == 'java'
-  config.filter_run_excluding jruby: true unless RUBY_PLATFORM == 'java'
-  config.exclude_pattern = "#{(RUBY_PLATFORM == 'java') ? 'mri' : 'jruby'}/**/*_spec.rb"
+  config.filter_run_excluding concurrency: true unless Neo4j::Driver::Loader.jruby?
+  config.filter_run_excluding jruby: true unless Neo4j::Driver::Loader.jruby?
+  config.exclude_pattern = "#{Neo4j::Driver::Loader.jruby? ? 'mri' : 'jruby'}/**/*_spec.rb"
   Neo4j::Driver::Internal::Deprecator.deprecator.behavior = :silence
 end
