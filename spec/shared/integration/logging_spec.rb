@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe 'LoggingSpec', concurrency: true do
-  let(:logger) { ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG) }
+  let(:logger) { ::Logger.new(IO::NULL, level: ::Logger::DEBUG) }
 
   it 'log records debug and trace info' do
     expect(logger).to receive(:add).at_least(:twice)

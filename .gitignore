@@ -3,3 +3,6 @@ Gemfile.lock
 .ruby-version
 .idea/
 pkg/
+
+*.jar
+neo4j-ruby-driver_jars.rb

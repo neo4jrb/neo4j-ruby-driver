@@ -9,6 +9,7 @@ module Neo4j
     # or transaction committed/rolled back). The session itself does not
     # hold a connection — only its in-flight operation does.
     class Session
+      include Internal::DurationNormalizer
       def initialize(connection_provider, options = {})
         @connection_provider = connection_provider
         @options = options
@@ -233,8 +234,6 @@ module Neo4j
         # Successful drain: Result already released its connection from on_success.
       end
 
-      # Convert timeout from seconds (or ActiveSupport::Duration) to milliseconds for Bolt protocol
-      def timeout_to_milliseconds(timeout) = timeout&.then { (it.to_f * 1000).round }
 
       def execute_transaction(access_mode, timeout: nil, metadata: nil, &block)
         raise Exceptions::ClientException, 'Session is closed' unless @open

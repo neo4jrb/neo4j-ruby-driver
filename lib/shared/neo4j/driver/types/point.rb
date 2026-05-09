@@ -34,6 +34,10 @@ module Neo4j
           @z.nil? ? 2 : 3
         end
 
+        def coordinates
+          [x, y, z].compact.map(&:to_f)
+        end
+
         def to_s
           if @z
             "Point{srid=#{@srid}, x=#{@x}, y=#{@y}, z=#{@z}}"
