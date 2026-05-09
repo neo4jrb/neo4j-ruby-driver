@@ -2,7 +2,23 @@
 
 module TestkitBackend
   module Requests
-    class NewSession < Data.define(:driver_id, :access_mode, :database, :bookmarks)
+    # Mirror of testkit's NewSession. Captures every field the protocol
+    # may send; fields without a driver counterpart are received but
+    # silently ignored at session-construction time (see TODO list in
+    # `build_options`).
+    class NewSession < Data.define(
+      :driver_id,
+      :access_mode,
+      :bookmarks,
+      :database,
+      :fetch_size,
+      :impersonated_user,
+      :bookmark_manager_id,
+      :authorization_token,
+      :notifications_min_severity,
+      :notifications_disabled_categories,
+      :disable_auto_commit_retries
+    )
       include Request
 
       def execute
@@ -13,6 +29,12 @@ module TestkitBackend
       private
 
       def build_options
+        # Driver-supported options. Fields received but not wired through
+        # yet (driver gap):
+        #   fetch_size, impersonated_user, bookmark_manager_id,
+        #   authorization_token (per-session auth), notifications_*,
+        #   disable_auto_commit_retries.
+        # Promote each as the driver feature lands.
         {
           default_access_mode: access_mode_const,
           database: database,

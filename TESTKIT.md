@@ -108,3 +108,63 @@ After each change that moves numbers:
 3. Update the matching `tests/<target>` cluster section if the shape changed, not just the counts.
 4. Refresh the baseline file: `bin/refresh-testkit-baseline [neo4j|stub]`.
 5. Mention the cluster (or size delta) and the affected target in the commit message.
+
+## Protocol coverage
+
+Backend covers every request type in testkit's `nutkit/protocol/requests.py` and every response in `responses.py`. Driver-side capability gaps are recorded as comments inline and tabulated below; ungated tests calling those handlers receive a `DriverError` with code `NotImplemented`.
+
+### Request handlers
+
+| Handler | Status | Driver-side gap (if any) |
+|---|---|---|
+| **Test orchestration** ||
+| `StartTest`, `StartSubTest` | real ||
+| `GetFeatures` | real ||
+| **Driver lifecycle** ||
+| `NewDriver` | real (every protocol field captured; some unused — see source) ||
+| `DriverClose` | real ||
+| `VerifyConnectivity` | real ||
+| `CheckMultiDBSupport` | real ||
+| `GetServerInfo` | stub | needs `Driver#server_info` (return `Summary#server_info` from a probe query, or surface from `verify_connectivity`) |
+| `CheckDriverIsEncrypted` | stub | needs `Driver#encrypted?` (derive from URI scheme + `:encrypted` option) |
+| `VerifyAuthentication` | stub | needs `Driver#verify_authentication(token)` (HELLO/LOGON probe with the supplied token) |
+| `CheckSessionAuthSupport` | stub | needs `Driver#supports_session_auth?` (Bolt ≥ 5.1; we negotiate already) |
+| **Auth-token managers** ||
+| `NewAuthTokenManager`, `AuthTokenManagerClose` | stub (handle plumbing) | needs `:auth_token_manager` option + callback round-trip |
+| `NewBasicAuthTokenManager`, `NewBearerAuthTokenManager` | stub (handle plumbing) | same as above + bearer's `expiresInMs` accounting |
+| **Bookmark manager** ||
+| `NewBookmarkManager`, `BookmarkManagerClose` | stub (handle plumbing) | needs `:bookmark_manager` option + supplier/consumer Proc round-trip |
+| **Client cert provider** ||
+| `NewClientCertificateProvider`, `ClientCertificateProviderClose` | stub (handle plumbing) | needs `:client_certificate_provider` option + cert callback round-trip |
+| **Session / transaction / result** ||
+| `NewSession`, `SessionClose`, `SessionLastBookmarks` | real (every protocol field captured) ||
+| `SessionRun` | real ||
+| `SessionReadTransaction`, `SessionWriteTransaction`, `SessionBeginTransaction` | real ||
+| `TransactionRun`, `TransactionCommit`, `TransactionRollback`, `TransactionClose` | real ||
+| `ResultNext`, `ResultSingle`, `ResultPeek`, `ResultConsume`, `ResultList` | real ||
+| `ResultSingleOptional` | partial | needs `Result#single_optional` (currently delegates to `Result#single` and rescues empty) |
+| **Driver internals (test-only APIs)** ||
+| `ForcedRoutingTableUpdate` | stub | needs `Routing::LoadBalancer#force_refresh` |
+| `GetRoutingTable` | stub | needs `Routing::LoadBalancer#snapshot` |
+| `GetConnectionPoolMetrics` | stub | needs per-address pool metrics |
+| **Fake time** ||
+| `FakeTimeInstall`, `FakeTimeTick`, `FakeTimeUninstall` | stub | needs injectable `Internal::Clock` (one-time refactor of all `Time.now` callsites) |
+| **Other** ||
+| `ExecuteQuery` | stub | needs `Driver#execute_query` |
+| `CypherTypeField` | stub | backend-only (typed-field path-walking; no driver gap) |
+
+Async-completion messages (`ResolverResolutionCompleted`, `RetryablePositive`, `RetryableNegative`, the various `*Completed` token/cert/bookmark callbacks) are handled inline by their parent flow, not as standalone dispatched handlers — same pattern as the resolver round-trip already wired in `NewDriver`.
+
+### Response classes
+
+All 47 instantiable classes from `nutkit/protocol/responses.py` are mirrored in `testkit-backend/response.rb`. The existing `Summary` keeps its custom `payload` shape (delegates to `summary_payload.rb`); new code paths can use the typed nested classes (`SummaryCounters`, `SummaryQuery`, `ServerInfo`, `GqlStatusObject`) directly if it's cleaner. `Response::DriverError.not_implemented(msg)` is the standard helper for stub handlers.
+
+### Adding feature flags
+
+Feature flags advertised by `GetFeatures` gate which testkit tests actually run. To turn on a new feature:
+
+1. Verify the underlying handler is `real` (or upgrade it from `stub`).
+2. Add the flag to `testkit-backend/requests/get_features.rb`.
+3. Run `./bin/run-testkit stub` (or `neo4j`); update the baseline if the new tests pass cleanly.
+
+Conservative default: a stub stays untested by testkit until its flag is advertised.
