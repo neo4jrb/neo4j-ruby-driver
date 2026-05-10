@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import sys,json; d=json.loads\\(sys.stdin.read\\(\\)\\); print\\('cwd:',d.get\\('cwd'\\)\\); print\\('ts:',d.get\\('timestamp'\\)\\); print\\('keys:',list\\(d.keys\\(\\)\\)[:10]\\)\")",
+      "Bash(python3 -)"
+    ]
+  }
+}

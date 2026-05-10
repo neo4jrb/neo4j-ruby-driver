@@ -139,7 +139,7 @@ The narrow exceptions are a few handlers where the gap is purely backend-interna
 | `SessionRun`, `SessionReadTransaction`, `SessionWriteTransaction`, `SessionBeginTransaction` | real ||
 | `TransactionRun`, `TransactionCommit`, `TransactionRollback`, `TransactionClose` | real ||
 | `ResultNext`, `ResultSingle`, `ResultPeek`, `ResultConsume`, `ResultList` | real ||
-| `ResultSingleOptional` | real | via `Result#single_optional` — drains stream, returns `[record_or_nil, warnings]` |
+| `ResultSingleOptional` | not handled | Java/Go/JS-shaped: `Result#single_optional` is not on the public Driver API. `Feature:API:Result.SingleOptional` not advertised; gated tests skip. The dispatcher returns `Response::UnknownType` if testkit ever calls it ungated. |
 | **Driver internals (test-only APIs)** |||
 | `ForcedRoutingTableUpdate`, `GetRoutingTable` | real | via `Driver#force_routing_table_update` / `#routing_table_snapshot` → `LoadBalancer#force_refresh` / `#snapshot`. Raises `ClientException` on direct-driver scheme. |
 | `GetConnectionPoolMetrics` | calls Driver | `Driver#pool_metrics` raises `NotImplementedError` — pool metrics infrastructure not yet implemented |
