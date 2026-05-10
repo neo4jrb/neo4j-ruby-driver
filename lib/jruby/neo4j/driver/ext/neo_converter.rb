@@ -29,7 +29,7 @@ module Neo4j
           when Types::LocalDateTime
             Java::JavaTime::LocalDateTime.of_epoch_second(object.epoch_seconds, object.nanoseconds,
                                                           Java::JavaTime::ZoneOffset::UTC)
-          when ActiveSupport::TimeWithZone
+          when defined?(ActiveSupport::TimeWithZone) && ActiveSupport::TimeWithZone
             to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
           when Time, DateTime
             to_zoned_date_time(object, object.formatted_offset)

@@ -6,7 +6,7 @@ module Neo4j
       module MapConverter
         def to_h
           java_method(:asMap, [java.util.function.Function]).call(&:itself).to_hash
-            .transform_values!(&:as_ruby_object).symbolize_keys!
+            .transform_values!(&:as_ruby_object).transform_keys!(&:to_sym)
         end
       end
     end

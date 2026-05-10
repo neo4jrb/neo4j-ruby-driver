@@ -45,7 +45,7 @@ module Neo4j
             Time.parse(time.to_string)
           else
             instant = time.to_instant
-            Time.at(instant.epoch_second, instant.nano, :nsec).in_time_zone(TZInfo::Timezone.get(zone_id))
+            Time.at(instant.epoch_second, instant.nano, :nsec, in: TZInfo::Timezone.get(zone_id))
           end
         end
 
