@@ -93,10 +93,14 @@ module Neo4j
         private
 
         # Internal-only accessor. NOT part of the public API — Java's
-        # ResultSummary doesn't expose the raw wire metadata either. The
-        # one in-tree consumer is Session#harvest_auto_commit_bookmark
-        # (which reaches in via send) because the auto-commit bookmark
-        # only ever lives on the wire SUCCESS metadata.
+        # ResultSummary doesn't expose the raw wire metadata either.
+        # In-tree consumers reach in via send when the public API can't
+        # surface a wire-format detail they need:
+        #   - Session#harvest_auto_commit_bookmark (auto-commit bookmark
+        #     only lives on the wire SUCCESS metadata)
+        #   - testkit-backend SummaryPayload (a few fields where testkit
+        #     asserts wire-format faithfulness — e.g. queryType nullness,
+        #     pre-5.x notification severity key, plan/profile extras)
         attr_reader :metadata
       end
     end
