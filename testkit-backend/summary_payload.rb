@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
 module TestkitBackend
-  # Builds the testkit Summary `data` payload from a driver Summary.
-  #
-  # Lives separately because the Summary payload is the most complex
-  # cross-protocol mapping in the backend — pulling it out of the
-  # request handlers keeps each request method short and readable.
+  # Builds the testkit Summary `data` payload from a driver
+  # Summary::ResultSummary. Uses only the public Summary API — no
+  # reaching into wire metadata. The Notification/Plan/Profile
+  # serialisation lives on those classes themselves (#to_h), this
+  # payload class just maps query_type back to the wire string and
+  # walks the typed accessors.
   class SummaryPayload < Data.define(:summary)
     INTEGER_COUNTERS = %i[
       nodes_created nodes_deleted relationships_created relationships_deleted
@@ -13,15 +14,25 @@ module TestkitBackend
       constraints_added constraints_removed system_updates
     ].freeze
 
+    # ResultSummary#query_type returns the typed enum-like symbol; testkit
+    # expects the original Bolt wire token. One-line inversion.
+    QUERY_TYPE_TO_WIRE = {
+      Neo4j::Driver::Summary::QueryType::READ_ONLY    => 'r',
+      Neo4j::Driver::Summary::QueryType::WRITE_ONLY   => 'w',
+      Neo4j::Driver::Summary::QueryType::READ_WRITE   => 'rw',
+      Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE => 's'
+    }.freeze
+
     def to_h
+      notifications = summary.notifications
       {
         'database' => summary.database&.name,
         'query' => query_payload,
-        'queryType' => summary.metadata[:type],
+        'queryType' => QUERY_TYPE_TO_WIRE[summary.query_type],
         'counters' => counters_payload,
-        'notifications' => stringify_keys_deep(summary.metadata[:notifications]),
-        'plan' => stringify_keys_deep(summary.metadata[:plan]),
-        'profile' => stringify_keys_deep(summary.metadata[:profile]),
+        'notifications' => (notifications.empty? ? nil : notifications.map(&:to_h)),
+        'plan' => summary.plan&.to_h,
+        'profile' => summary.profile&.to_h,
         'resultAvailableAfter' => summary.result_available_after,
         'resultConsumedAfter' => summary.result_consumed_after,
         'serverInfo' => server_info_payload
@@ -61,18 +72,6 @@ module TestkitBackend
         'agent' => server.agent,
         'protocolVersion' => server.protocol_version
       }
-    end
-
-    # Plan / profile / notifications come back from the server as nested
-    # maps with symbol keys (the unpacker symbolises). Testkit only
-    # checks they're dicts/lists; passing the raw structure with string
-    # keys is the simplest faithful representation.
-    def stringify_keys_deep(value)
-      case value
-      when Hash  then value.transform_keys(&:to_s).transform_values(&method(:stringify_keys_deep))
-      when Array then value.map(&method(:stringify_keys_deep))
-      else value
-      end
     end
   end
 end

@@ -193,7 +193,7 @@ module Neo4j
       end
 
       def finalize(metadata)
-        @summary = Summary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection)
+        @summary = Summary::ResultSummary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection)
         @consumed = true
       end
 
