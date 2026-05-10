@@ -46,6 +46,13 @@ module TestkitBackend
       execute
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
       Response::DriverError.from(e, registry: registry)
+    rescue NotImplementedError => e
+      # Driver methods that aren't fully implemented raise this; the
+      # backend turns it into a recognisable DriverError so testkit
+      # records the gap as a normal driver failure (and surfaces the
+      # message we wrote in the driver method itself — that's the canonical
+      # "what's missing" location, grep with `raise NotImplementedError`).
+      Response::DriverError.not_implemented(e.message)
     rescue ClientGeneratedError, Registry::UnknownHandle, ArgumentError => e
       Response::FrontendError.new(msg: "#{e.class}: #{e.message}")
     rescue StandardError => e

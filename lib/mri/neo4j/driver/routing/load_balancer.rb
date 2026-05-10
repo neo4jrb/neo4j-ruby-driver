@@ -79,6 +79,20 @@ module Neo4j
           end
         end
 
+        # Test-only API. Return the current routing table for the given
+        # database, fetching one if the cache is empty/expired.
+        def snapshot(database)
+          ensure_routing_table(database)
+        end
+
+        # Test-only API. Force a fresh ROUTE call for the given database,
+        # ignoring TTL/cache. `bookmarks` are accepted for parity with the
+        # Java reference but not yet threaded through fetch_routing_table.
+        def force_refresh(database, _bookmarks = nil)
+          invalidate_routing_table(database)
+          ensure_routing_table(database)
+        end
+
         private
 
         def parse_routing_context(uri)

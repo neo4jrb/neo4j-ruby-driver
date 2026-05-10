@@ -83,6 +83,25 @@ module Neo4j
         record
       end
 
+      # Like #single but returns nil for an empty result instead of
+      # raising. >1 records returns the first with a warning enumerating
+      # the extras (mirrors the Python driver's `Result.single(strict=
+      # False)`). The result stream is always fully drained.
+      #
+      # Returns [record_or_nil, warnings_array].
+      def single_optional
+        raise Exceptions::ResultConsumedException if @discarded
+
+        return [nil, []] unless has_next?
+
+        record = self.next
+        return [record, []] unless has_next?
+
+        extras = 0
+        extras += 1 while has_next? && (self.next; true)
+        [record, ["Expected at most one record but found #{1 + extras}."]]
+      end
+
       def each(&block)
         raise Exceptions::ResultConsumedException if @discarded
         return to_enum(:each) unless block_given?

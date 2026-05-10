@@ -7,8 +7,10 @@ module TestkitBackend
   #
   # Override #payload when the default (camelize members → hash) doesn't fit.
   #
-  # Coverage maps onto testkit's nutkit/protocol/responses.py (48 classes).
-  # See TESTKIT.md for the per-handler/response coverage table.
+  # Coverage maps onto testkit's nutkit/protocol/responses.py (47
+  # instantiable classes; BaseError is abstract and not mirrored). Plus
+  # one backend-internal class, UnknownType, for graceful protocol
+  # evolution. See TESTKIT.md for the per-handler/response coverage table.
   module Response
     module Mixin
       # Default JSON `name` is the unqualified class name.

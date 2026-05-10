@@ -2,26 +2,17 @@
 
 module TestkitBackend
   module Requests
-    # Forces the driver to refresh its routing table for the given
-    # database NOW, ignoring TTL/cache. Test-only API — never exposed
-    # to driver users. Testkit uses it to set up scenarios for failure-
-    # injection tests.
+    # Forces a fresh fetch of the routing table for the given database,
+    # ignoring TTL/cache. Test-only API; raises ClientException on a
+    # direct (`bolt://`) driver where routing-table semantics don't apply.
     #
-    # DRIVER GAP: we have routing (Routing::LoadBalancer / RoutingTable)
-    # but no public method to force a refresh from outside. Java's
-    # reference: org.neo4j.driver.internal.InternalDriver expose a
-    # `routingTableRegistry().refresh(...)` test-internal entry point.
-    # The cleanest port:
-    #   - Routing::LoadBalancer#force_refresh(database, bookmarks)
-    #   - Driver delegates to it when scheme is routing; raises ArgumentError
-    #     otherwise (forced-refresh on a direct driver is meaningless)
+    # Real impl in Driver#force_routing_table_update → LoadBalancer#force_refresh.
     class ForcedRoutingTableUpdate < Data.define(:driver_id, :database, :bookmarks)
       include Request
 
       def execute
-        Response::DriverError.not_implemented(
-          'ForcedRoutingTableUpdate: routing table not exposed for forced refresh (see handler comment).'
-        )
+        registry.fetch(driver_id).force_routing_table_update(database, bookmarks)
+        Response::Driver.new(id: driver_id)
       end
     end
   end

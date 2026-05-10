@@ -2,23 +2,23 @@
 
 module TestkitBackend
   module Requests
-    # Returns the current routing table (database, ttl, routers, readers,
-    # writers as address strings). Test-only — not part of the public
-    # driver API. Testkit asserts the routing-protocol behaviour.
+    # Returns the current routing table snapshot for the given database
+    # (or default DB if nil). Test-only API.
     #
-    # DRIVER GAP: Routing::RoutingTable carries the data already; the
-    # missing piece is a Driver-level accessor that takes a database
-    # name and returns the snapshot. Cleanest port:
-    #   - Routing::LoadBalancer#snapshot(database) -> a small struct
-    #   - Driver delegates when routing; raises on direct driver
-    # Conversion from internal RoutingTable to Response::RoutingTable's
-    # field shape is straightforward (addresses already as strings).
+    # Real impl in Driver#routing_table_snapshot → LoadBalancer#snapshot,
+    # which may trigger a fetch if the cache is empty/expired. Raises
+    # ClientException on a direct (`bolt://`) driver.
     class GetRoutingTable < Data.define(:driver_id, :database)
       include Request
 
       def execute
-        Response::DriverError.not_implemented(
-          'GetRoutingTable: routing table snapshot not exposed (see handler comment).'
+        table = registry.fetch(driver_id).routing_table_snapshot(database)
+        Response::RoutingTable.new(
+          database: table.database,
+          ttl: ((table.expires_at - Time.now) * 1000).to_i,  # ms remaining
+          routers: table.routers.map(&:to_s),
+          readers: table.readers.map(&:to_s),
+          writers: table.writers.map(&:to_s)
         )
       end
     end
