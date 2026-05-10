@@ -48,10 +48,33 @@ RUN_LOG="$ARTIFACTS/run.log"
 cleanup() {
   if [ -n "${BACKEND_PID:-}" ] && kill -0 "$BACKEND_PID" 2>/dev/null; then
     kill "$BACKEND_PID" 2>/dev/null || true
+    # Give the backend ~2s to shut down gracefully on SIGTERM, then SIGKILL.
+    # JRuby + Netty doesn't always honor SIGTERM promptly, and a stuck
+    # backend on the next run causes the EADDRINUSE / stale-port-up
+    # silent-failure mode this script is meant to avoid.
+    for _ in $(seq 1 20); do
+      kill -0 "$BACKEND_PID" 2>/dev/null || break
+      sleep 0.1
+    done
+    if kill -0 "$BACKEND_PID" 2>/dev/null; then
+      kill -9 "$BACKEND_PID" 2>/dev/null || true
+    fi
     wait "$BACKEND_PID" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT INT TERM
+
+# Refuse to start if something is already on the port. Without this the
+# port-up poll below can be satisfied by a stale process — the new
+# backend dies with EADDRINUSE but `nc -z` returns success on the first
+# tick, the script proceeds, and testkit talks to the stale code.
+if nc -z 127.0.0.1 "$BACKEND_PORT" 2>/dev/null; then
+  echo "Port $BACKEND_PORT is already in use — kill the stale backend or set TEST_BACKEND_PORT" >&2
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$BACKEND_PORT" -sTCP:LISTEN >&2 || true
+  fi
+  exit 4
+fi
 
 echo "-> Starting backend on port $BACKEND_PORT (log: $BACKEND_LOG)"
 TEST_BACKEND_PORT="$BACKEND_PORT" \
@@ -64,14 +87,17 @@ BACKEND_PID=$!
 BACKEND_BOOT_TICKS="${BACKEND_BOOT_TICKS:-300}"
 PORT_UP=0
 for _ in $(seq 1 "$BACKEND_BOOT_TICKS"); do
-  if nc -z 127.0.0.1 "$BACKEND_PORT" 2>/dev/null; then
-    PORT_UP=1
-    break
-  fi
+  # Liveness check first: if the backend died (e.g. EADDRINUSE from a
+  # late-binding stale process, load error), surface it before trusting
+  # `nc -z` — otherwise a stale port-up state masks the new-backend death.
   if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
     echo "Backend process exited before binding port $BACKEND_PORT" >&2
     cat "$BACKEND_LOG" >&2
     exit 3
+  fi
+  if nc -z 127.0.0.1 "$BACKEND_PORT" 2>/dev/null; then
+    PORT_UP=1
+    break
   fi
   sleep 0.1
 done
