@@ -3,3 +3,4 @@ Gemfile.lock
 .ruby-version
 .idea/
 pkg/
+.claude/settings.local.json

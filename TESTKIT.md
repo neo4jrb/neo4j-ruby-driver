@@ -108,3 +108,59 @@ After each change that moves numbers:
 3. Update the matching `tests/<target>` cluster section if the shape changed, not just the counts.
 4. Refresh the baseline file: `bin/refresh-testkit-baseline [neo4j|stub]`.
 5. Mention the cluster (or size delta) and the affected target in the commit message.
+
+## Protocol coverage
+
+Backend covers every request type in testkit's `nutkit/protocol/requests.py` and every response in `responses.py`. Each backend handler calls the driver directly; driver-side capability gaps are surfaced as `raise NotImplementedError` in the relevant driver method (grep `lib/` with `raise NotImplementedError` for the canonical TODO list). The backend's `safely_execute` translates `NotImplementedError` into `DriverError code='NotImplemented'`, so ungated tests calling those handlers see a normal driver-thrown error.
+
+The narrow exceptions are a few handlers where the gap is purely backend-internal (no driver method to call) — those return `DriverError.not_implemented` directly from the handler.
+
+### Request handlers
+
+| Handler | Status | Notes |
+|---|---|---|
+| **Test orchestration** |||
+| `StartTest`, `StartSubTest`, `GetFeatures` | real ||
+| **Driver lifecycle** |||
+| `NewDriver`, `DriverClose`, `VerifyConnectivity` | real | NewDriver captures every protocol field; some not yet wired through to driver — see TODO in handler |
+| `CheckMultiDBSupport` | real ||
+| `GetServerInfo` | calls Driver | `Driver#server_info` raises `NotImplementedError` until the probe-and-return is wired |
+| `CheckDriverIsEncrypted` | real | via `Driver#encrypted?` — URI scheme + `:encrypted` option |
+| `VerifyAuthentication` | calls Driver | `Driver#verify_authentication` raises `NotImplementedError` until HELLO/LOGON probe lands |
+| `CheckSessionAuthSupport` | real | via `Driver#supports_session_auth?` — checks negotiated protocol's `supports_re_auth?`. Today returns `false` (we only negotiate Bolt 4.4). |
+| **Auth-token managers** |||
+| `NewAuthTokenManager`, `AuthTokenManagerClose`, `NewBasicAuthTokenManager`, `NewBearerAuthTokenManager` | handle plumbing | Backend ack with lifecycle response. The "not implemented" surfaces only when the driver actually invokes a token-manager callback (which requires `:auth_token_manager` option support in the driver — not yet there). |
+| **Bookmark manager** |||
+| `NewBookmarkManager`, `BookmarkManagerClose` | handle plumbing | Same as above for `:bookmark_manager` option |
+| **Client cert provider** |||
+| `NewClientCertificateProvider`, `ClientCertificateProviderClose` | handle plumbing | Same as above for `:client_certificate_provider` option |
+| **Session / transaction / result** |||
+| `NewSession`, `SessionClose`, `SessionLastBookmarks` | real | NewSession captures every protocol field |
+| `SessionRun`, `SessionReadTransaction`, `SessionWriteTransaction`, `SessionBeginTransaction` | real ||
+| `TransactionRun`, `TransactionCommit`, `TransactionRollback`, `TransactionClose` | real ||
+| `ResultNext`, `ResultSingle`, `ResultPeek`, `ResultConsume`, `ResultList` | real ||
+| `ResultSingleOptional` | not handled | Java/Go/JS-shaped: `Result#single_optional` is not on the public Driver API. `Feature:API:Result.SingleOptional` not advertised; gated tests skip. The dispatcher returns `Response::UnknownType` if testkit ever calls it ungated. |
+| **Driver internals (test-only APIs)** |||
+| `ForcedRoutingTableUpdate`, `GetRoutingTable` | real | via `Driver#force_routing_table_update` / `#routing_table_snapshot` → `LoadBalancer#force_refresh` / `#snapshot`. Raises `ClientException` on direct-driver scheme. |
+| `GetConnectionPoolMetrics` | calls Driver | `Driver#pool_metrics` raises `NotImplementedError` — pool metrics infrastructure not yet implemented |
+| **Fake time** |||
+| `FakeTimeInstall`, `FakeTimeTick`, `FakeTimeUninstall` | backend stub | needs injectable `Internal::Clock` (refactor of all `Time.now` callsites). Returns `DriverError.not_implemented` directly from handler since there's no driver method to call. |
+| **Other** |||
+| `ExecuteQuery` | real | via `Driver#execute_query` — honours `:database` and `:routing`; ignores impersonation / bookmark-manager / per-session auth / etc. until those features land |
+| `CypherTypeField` | backend stub | backend-only (typed-field path-walking), no driver gap; not implemented yet |
+
+Async-completion messages (`ResolverResolutionCompleted`, `RetryablePositive`, `RetryableNegative`, the various `*Completed` token/cert/bookmark callbacks) are handled inline by their parent flow, not as standalone dispatched handlers — same pattern as the resolver round-trip already wired in `NewDriver`.
+
+### Response classes
+
+All 47 instantiable classes from `nutkit/protocol/responses.py` are mirrored in `testkit-backend/response.rb`. The existing `Summary` keeps its custom `payload` shape (delegates to `summary_payload.rb`); new code paths can use the typed nested classes (`SummaryCounters`, `SummaryQuery`, `ServerInfo`, `GqlStatusObject`) directly if it's cleaner. `Response::DriverError.not_implemented(msg)` is the standard helper used by both `safely_execute` (for `NotImplementedError` from driver methods) and the few backend-only stubs (`FakeTime*`, `CypherTypeField`).
+
+### Adding feature flags
+
+Feature flags advertised by `GetFeatures` gate which testkit tests actually run. To turn on a new feature:
+
+1. Verify the underlying driver method does the right thing (no longer raises `NotImplementedError`).
+2. Add the flag to `testkit-backend/requests/get_features.rb`.
+3. Run `./bin/run-testkit stub` (or `neo4j`); update the baseline if the new tests pass cleanly.
+
+Conservative default: each driver method's `raise NotImplementedError` keeps testkit's gated tests skipping until the flag is advertised AND the implementation is real.
