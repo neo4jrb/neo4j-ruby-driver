@@ -19,19 +19,6 @@ module Neo4j
           @position = data[:position] && Position.new(data[:position])
         end
 
-        # camelCase string-keyed serialisation for cross-protocol use
-        # (testkit-backend, JSON dumps, etc.).
-        def to_h
-          {
-            'code' => @code,
-            'title' => @title,
-            'description' => @description,
-            'severityLevel' => @severity_level,
-            'category' => @category,
-            'position' => @position&.to_h
-          }.compact
-        end
-
         # Inner type — character offset / line / column where the
         # notification applies in the query text.
         class Position
@@ -41,10 +28,6 @@ module Neo4j
             @offset = position_data[:offset]
             @line = position_data[:line]
             @column = position_data[:column]
-          end
-
-          def to_h
-            { 'offset' => @offset, 'line' => @line, 'column' => @column }
           end
         end
       end

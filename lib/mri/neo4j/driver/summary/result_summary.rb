@@ -6,9 +6,7 @@ module Neo4j
       # Summary of query execution. Mirrors Java's
       # org.neo4j.driver.summary.ResultSummary — same name and place in
       # the namespace; no public `metadata` accessor, no Bolt-wire-format
-      # leakage. Internal callers that need the raw protocol metadata
-      # (the Result-stream bookmark, mostly) can reach it via send(:metadata)
-      # — that's the deliberately-private escape hatch.
+      # leakage.
       class ResultSummary
         def initialize(metadata, query_text = nil, parameters = {}, connection = nil)
           @metadata = metadata
@@ -94,11 +92,11 @@ module Neo4j
 
         private
 
-        # Internal-only accessor. NOT part of the public API. Used by
-        # Session#harvest_auto_commit_bookmark (via send) and by the
-        # testkit-backend (which intentionally pokes wire-format details).
-        # Prefer the typed accessors (#counters, #plan, #notifications, etc.)
-        # for any new caller.
+        # Internal-only accessor. NOT part of the public API — Java's
+        # ResultSummary doesn't expose the raw wire metadata either. The
+        # one in-tree consumer is Session#harvest_auto_commit_bookmark
+        # (which reaches in via send) because the auto-commit bookmark
+        # only ever lives on the wire SUCCESS metadata.
         attr_reader :metadata
       end
     end

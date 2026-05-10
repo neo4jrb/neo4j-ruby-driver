@@ -14,10 +14,6 @@ module Neo4j
           @records = profile_data[:rows] || profile_data[:records] || 0
           @rows = @records
         end
-
-        def to_h
-          super.merge('dbHits' => @db_hits, 'rows' => @rows)
-        end
       end
     end
   end

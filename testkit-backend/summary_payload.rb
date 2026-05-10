@@ -2,11 +2,10 @@
 
 module TestkitBackend
   # Builds the testkit Summary `data` payload from a driver
-  # Summary::ResultSummary. Uses only the public Summary API — no
-  # reaching into wire metadata. The Notification/Plan/Profile
-  # serialisation lives on those classes themselves (#to_h), this
-  # payload class just maps query_type back to the wire string and
-  # walks the typed accessors.
+  # Summary::ResultSummary using only public Summary API. All
+  # protocol-shaped serialisation (camelCase keys, wire query-type
+  # tokens, Notification/Plan/Profile dict layouts) lives here, not
+  # on the driver.
   class SummaryPayload < Data.define(:summary)
     INTEGER_COUNTERS = %i[
       nodes_created nodes_deleted relationships_created relationships_deleted
@@ -30,9 +29,9 @@ module TestkitBackend
         'query' => query_payload,
         'queryType' => QUERY_TYPE_TO_WIRE[summary.query_type],
         'counters' => counters_payload,
-        'notifications' => (notifications.empty? ? nil : notifications.map(&:to_h)),
-        'plan' => summary.plan&.to_h,
-        'profile' => summary.profile&.to_h,
+        'notifications' => (notifications.empty? ? nil : notifications.map(&method(:notification_dict))),
+        'plan' => plan_dict(summary.plan),
+        'profile' => profile_dict(summary.profile),
         'resultAvailableAfter' => summary.result_available_after,
         'resultConsumedAfter' => summary.result_consumed_after,
         'serverInfo' => server_info_payload
@@ -72,6 +71,53 @@ module TestkitBackend
         'agent' => server.agent,
         'protocolVersion' => server.protocol_version
       }
+    end
+
+    def notification_dict(notification)
+      {
+        'code' => notification.code,
+        'title' => notification.title,
+        'description' => notification.description,
+        'severityLevel' => notification.severity_level&.to_s,
+        'category' => notification.category&.to_s,
+        'position' => position_dict(notification.position)
+      }.compact
+    end
+
+    def position_dict(position)
+      return nil unless position
+
+      { 'offset' => position.offset, 'line' => position.line, 'column' => position.column }
+    end
+
+    def plan_dict(plan)
+      return nil unless plan
+
+      {
+        'operatorType' => plan.operator_type,
+        'identifiers' => plan.identifiers.to_a,
+        'args' => plan_args(plan),
+        'children' => plan.children.map(&method(:plan_dict))
+      }
+    end
+
+    def profile_dict(profile)
+      return nil unless profile
+
+      plan_dict(profile).merge(
+        'dbHits' => profile.db_hits,
+        'rows' => profile.records,
+        'children' => profile.children.map(&method(:profile_dict))
+      )
+    end
+
+    # JRuby's `arguments` returns a Java Map<String, Value>; the Ext
+    # module exposes a Ruby-idiomatic `args` (Map → Hash, Value →
+    # ruby_object). MRI's `arguments` is already a primitive-valued
+    # Ruby hash. Either way, normalise keys to strings for the wire.
+    def plan_args(plan)
+      raw = plan.respond_to?(:args) ? plan.args : plan.arguments
+      raw.transform_keys(&:to_s)
     end
   end
 end
