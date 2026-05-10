@@ -3,6 +3,7 @@ Gemfile.lock
 .ruby-version
 .idea/
 pkg/
+.claude/settings.local.json
 
 *.jar
 neo4j-ruby-driver_jars.rb

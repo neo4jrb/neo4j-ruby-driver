@@ -2,9 +2,38 @@
 
 module TestkitBackend
   module Requests
-    class NewDriver < Data.define(:uri, :authorization_token, :max_connection_pool_size,
-                                  :connection_acquisition_timeout_ms, :max_tx_retry_time_ms,
-                                  :connection_timeout_ms, :resolver_registered)
+    # Mirror of testkit's NewDriver — every field declared in
+    # nutkit/protocol/requests.py:NewDriver is captured here, even if not
+    # yet wired through to the Ruby driver. That way debugging a payload
+    # is straightforward (introspectable Data members) and adding driver-
+    # side support later is just an `execute`-side change, no schema work.
+    #
+    # Fields with no driver counterpart yet are listed under "TODO" in
+    # `build_options`; they're silently ignored at construction time but
+    # NOT dropped from the request schema.
+    class NewDriver < Data.define(
+      :uri,
+      :authorization_token,
+      :auth_token_manager_id,
+      :user_agent,
+      :resolver_registered,
+      :domain_name_resolver_registered,
+      :connection_timeout_ms,
+      :fetch_size,
+      :max_tx_retry_time_ms,
+      :encrypted,
+      :trusted_certificates,
+      :liveness_check_timeout_ms,
+      :max_connection_lifetime_ms,
+      :max_connection_pool_size,
+      :connection_acquisition_timeout_ms,
+      :notifications_min_severity,
+      :notifications_disabled_categories,
+      :telemetry_disabled,
+      :client_certificate,
+      :client_certificate_provider_id,
+      :disable_auto_commit_retries
+    )
       include Request
 
       def execute
@@ -28,6 +57,14 @@ module TestkitBackend
       end
 
       def build_options
+        # Driver-supported options. Fields received but not wired through
+        # yet (driver gap):
+        #   auth_token_manager_id, user_agent, domain_name_resolver_registered,
+        #   fetch_size, encrypted, trusted_certificates,
+        #   liveness_check_timeout_ms, max_connection_lifetime_ms,
+        #   notifications_*, telemetry_disabled, client_certificate*,
+        #   disable_auto_commit_retries
+        # Promote each to a key here as the driver feature lands.
         {
           max_connection_pool_size: max_connection_pool_size,
           connection_acquisition_timeout: ms_to_seconds(connection_acquisition_timeout_ms),

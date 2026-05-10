@@ -6,6 +6,11 @@ module TestkitBackend
   # conversion handled by the shared mixin.
   #
   # Override #payload when the default (camelize members → hash) doesn't fit.
+  #
+  # Coverage maps onto testkit's nutkit/protocol/responses.py (47
+  # instantiable classes; BaseError is abstract and not mirrored). Plus
+  # one backend-internal class, UnknownType, for graceful protocol
+  # evolution. See TESTKIT.md for the per-handler/response coverage table.
   module Response
     module Mixin
       # Default JSON `name` is the unqualified class name.
@@ -24,9 +29,127 @@ module TestkitBackend
       end
     end
 
+    # ─────────────────────────────────────────────────────── Test orchestration
+
+    # Response to StartTest — backend confirms the test should run.
+    class RunTest < Data.define
+      include Mixin
+    end
+
+    # Response to StartTest — backend wants to opt in/out per subtest.
+    # Testkit will then send a StartSubTest for each subtest.
+    class RunSubTests < Data.define
+      include Mixin
+    end
+
+    # Response to StartTest / StartSubTest — backend wants the test skipped.
+    class SkipTest < Data.define(:reason)
+      include Mixin
+    end
+
+    # Response to GetFeatures — list of advertised feature flag strings.
+    class FeatureList < Data.define(:features)
+      include Mixin
+    end
+
+    # ────────────────────────────────────────────────────────── Driver lifecycle
+
     class Driver < Data.define(:id)
       include Mixin
     end
+
+    # ──────────────────────────────────────────── Auth token managers (B-stubs)
+
+    class AuthTokenManager < Data.define(:id)
+      include Mixin
+    end
+
+    # Sent FROM backend asking the test to call its provider function and
+    # respond with AuthTokenManagerGetAuthCompleted.
+    class AuthTokenManagerGetAuthRequest < Data.define(:id, :auth_token_manager_id)
+      include Mixin
+    end
+
+    # Sent FROM backend when the driver wants to notify the manager of a
+    # security exception. Test responds with
+    # AuthTokenManagerHandleSecurityExceptionRequestCompleted.
+    class AuthTokenManagerHandleSecurityExceptionRequest <
+          Data.define(:id, :auth_token_manager_id, :auth, :error_code)
+      include Mixin
+    end
+
+    class BasicAuthTokenManager < Data.define(:id)
+      include Mixin
+    end
+
+    class BasicAuthTokenProviderRequest < Data.define(:id, :basic_auth_token_manager_id)
+      include Mixin
+    end
+
+    class BearerAuthTokenManager < Data.define(:id)
+      include Mixin
+    end
+
+    class BearerAuthTokenProviderRequest < Data.define(:id, :bearer_auth_token_manager_id)
+      include Mixin
+    end
+
+    # ────────────────────────────────────────────────── Client cert (B-stub)
+
+    class ClientCertificateProvider < Data.define(:id)
+      include Mixin
+    end
+
+    class ClientCertificateProviderRequest < Data.define(:id, :client_certificate_provider_id)
+      include Mixin
+    end
+
+    # ────────────────────────────────────────────────── Resolver / DNS callbacks
+
+    # Sent FROM backend when the driver's custom resolver fires; the test
+    # responds with ResolverResolutionCompleted carrying resolved addresses.
+    class ResolverResolutionRequired < Data.define(:id, :address)
+      include Mixin
+    end
+
+    # Sent FROM backend when the driver's domain-name resolver fires.
+    class DomainNameResolutionRequired < Data.define(:id, :name)
+      include Mixin
+    end
+
+    # ─────────────────────────────────────────────────── Bookmark manager (B-stub)
+
+    class BookmarkManager < Data.define(:id)
+      include Mixin
+    end
+
+    class BookmarksSupplierRequest < Data.define(:id, :bookmark_manager_id)
+      include Mixin
+    end
+
+    class BookmarksConsumerRequest < Data.define(:id, :bookmark_manager_id, :bookmarks)
+      include Mixin
+    end
+
+    # ─────────────────────────────────────────────────────── Driver capabilities
+
+    class MultiDBSupport < Data.define(:id, :available)
+      include Mixin
+    end
+
+    class DriverIsAuthenticated < Data.define(:id, :authenticated)
+      include Mixin
+    end
+
+    class SessionAuthSupport < Data.define(:id, :available)
+      include Mixin
+    end
+
+    class DriverIsEncrypted < Data.define(:encrypted)
+      include Mixin
+    end
+
+    # ─────────────────────────────────────────────────────────── Session / tx / result
 
     class Session < Data.define(:id)
       include Mixin
@@ -48,7 +171,22 @@ module TestkitBackend
       end
     end
 
+    # A single value extracted from a record (response to CypherTypeField).
+    class Field < Data.define(:value)
+      include Mixin
+    end
+
     class NullRecord < Data.define
+      include Mixin
+    end
+
+    class RecordList < Data.define(:records)
+      include Mixin
+    end
+
+    # Response to ResultSingleOptional. `record` is nil-or-Record, `warnings`
+    # is a list of strings.
+    class RecordOptional < Data.define(:record, :warnings)
       include Mixin
     end
 
@@ -56,13 +194,7 @@ module TestkitBackend
       include Mixin
     end
 
-    class FeatureList < Data.define(:features)
-      include Mixin
-    end
-
-    class RunTest < Data.define
-      include Mixin
-    end
+    # ─────────────────────────────────────────────────────── Managed transaction
 
     # Sent during a SessionReadTransaction / SessionWriteTransaction's
     # nested loop, to tell testkit "I've started a tx, here's its id".
@@ -78,10 +210,12 @@ module TestkitBackend
       include Mixin
     end
 
-    class RecordList < Data.define(:records)
-      include Mixin
-    end
+    # ──────────────────────────────────────────────── Summary (rich nested types)
 
+    # Custom payload shape: the existing Summary subclass builds the hash
+    # itself rather than relying on the default member→camelCase map. Kept
+    # for backward compat with the populated payloads in `summary_payload.rb`;
+    # nested helper classes below are for new code paths.
     class Summary
       include Mixin
 
@@ -94,16 +228,89 @@ module TestkitBackend
       end
     end
 
-    class MultiDBSupport < Data.define(:id, :available)
+    class ServerInfo < Data.define(:address, :agent, :protocol_version)
       include Mixin
     end
 
-    class ResolverResolutionRequired < Data.define(:id, :address)
+    class SummaryCounters < Data.define(
+      :constraints_added, :constraints_removed,
+      :contains_system_updates, :contains_updates,
+      :indexes_added, :indexes_removed,
+      :labels_added, :labels_removed,
+      :nodes_created, :nodes_deleted,
+      :properties_set,
+      :relationships_created, :relationships_deleted,
+      :system_updates
+    )
       include Mixin
     end
 
-    class DriverError < Data.define(:id, :error_type, :code, :msg, :retryable)
+    class SummaryQuery < Data.define(:text, :parameters)
       include Mixin
+    end
+
+    # Per testkit: gqlStatus/statusDescription/classification/severity are
+    # required strings; rawClassification/rawSeverity may be nil; position
+    # is nil or {column, line, offset}; diagnosticRecord is a dict;
+    # isNotification is a bool.
+    class GqlStatusObject < Data.define(
+      :gql_status, :status_description, :position,
+      :classification, :raw_classification,
+      :severity, :raw_severity,
+      :diagnostic_record, :is_notification
+    )
+      include Mixin
+    end
+
+    # ──────────────────────────────────────────────────── Routing / pool / metrics
+
+    class RoutingTable < Data.define(:database, :ttl, :routers, :readers, :writers)
+      include Mixin
+    end
+
+    class ConnectionPoolMetrics < Data.define(:in_use, :idle)
+      include Mixin
+    end
+
+    # ───────────────────────────────────────────────────────── ExecuteQuery
+
+    class EagerResult < Data.define(:keys, :records, :summary)
+      include Mixin
+    end
+
+    # ───────────────────────────────────────────────────────── Fake-time
+
+    class FakeTimeAck < Data.define
+      include Mixin
+    end
+
+    # ──────────────────────────────────────────────────────────── Errors
+
+    class DriverError < Data.define(
+      :id, :error_type, :code, :msg, :retryable,
+      :gql_status, :status_description,
+      :cause, :diagnostic_record,
+      :classification, :raw_classification
+    )
+      include Mixin
+
+      # Used by stub handlers (categories B and C in TESTKIT.md): tells
+      # testkit "the driver doesn't support this yet." `code: 'NotImplemented'`
+      # is the convention; testkit treats it as a normal driver-thrown
+      # error and the test will fail (or skip if it's gated on a feature
+      # we don't advertise).
+      def self.not_implemented(msg)
+        new(
+          id: nil,
+          error_type: 'NotImplementedError',
+          code: 'NotImplemented',
+          msg: msg,
+          retryable: false,
+          gql_status: nil, status_description: nil,
+          cause: nil, diagnostic_record: nil,
+          classification: nil, raw_classification: nil
+        )
+      end
 
       # Stash the exception in the registry under the same id we hand
       # to testkit — RetryableNegative will look it up and re-raise.
@@ -114,9 +321,21 @@ module TestkitBackend
           error_type: exception.class.name,
           code: exception.respond_to?(:code) ? exception.code : nil,
           msg: exception.message,
-          retryable: exception.is_a?(Neo4j::Driver::Exceptions::TransientException)
+          retryable: exception.is_a?(Neo4j::Driver::Exceptions::TransientException),
+          gql_status: nil, status_description: nil,
+          cause: nil, diagnostic_record: nil,
+          classification: nil, raw_classification: nil
         )
       end
+    end
+
+    # Nested type used as DriverError#cause. Mirrors testkit's GqlError.
+    class GqlError < Data.define(
+      :msg, :gql_status, :status_description,
+      :cause, :diagnostic_record,
+      :classification, :raw_classification
+    )
+      include Mixin
     end
 
     class FrontendError < Data.define(:msg)
@@ -127,6 +346,9 @@ module TestkitBackend
       include Mixin
     end
 
+    # Backend-internal: returned when dispatch encounters a request name
+    # that doesn't map to any handler class. Kept for graceful protocol
+    # evolution; testkit treats unknown response names as test failures.
     class UnknownType < Data.define(:message)
       include Mixin
 
