@@ -26,7 +26,12 @@ module Neo4j
           loader.push_dir(shared_root)
           loader.push_dir(impl_root) if File.directory?(impl_root)
           yield loader if block_given?
-          Dir[File.expand_path('neo4j*ruby*driver*.rb', __dir__)].each { loader.ignore(it) }
+          # ignore the Bundler.require-friendly entry files (neo4j-ruby-driver.rb, neo4j-ruby-driver_loader.rb,
+          # neo4j_ruby_driver.rb) since Zeitwerk would otherwise try to
+          # autoload them as constants with the wrong names.
+          loader.ignore(File.expand_path(__FILE__))
+          loader.ignore(File.expand_path('neo4j-ruby-driver.rb', __dir__))
+          loader.ignore(File.expand_path('neo4j_ruby_driver.rb', __dir__))
           loader.setup
           loader.eager_load
         end
