@@ -32,7 +32,7 @@ module Neo4j
           when defined?(ActiveSupport::TimeWithZone) && ActiveSupport::TimeWithZone
             to_zoned_date_time(object, object.time_zone.tzinfo.identifier)
           when Time, DateTime
-            to_zoned_date_time(object, object.formatted_offset)
+            to_zoned_date_time(object, zone_identifier_for(object))
           when Date
             Java::JavaTime::LocalDate.of(object.year, object.month, object.day)
           when Symbol
@@ -51,6 +51,11 @@ module Neo4j
         def to_zoned_date_time(object, zone)
           Java::JavaTime::ZonedDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
                                            object.nsec, Java::JavaTime::ZoneId.of(zone))
+        end
+
+        def zone_identifier_for(time)
+          zone = time.zone
+          zone.respond_to?(:identifier) ? zone.identifier : time.formatted_offset
         end
       end
     end
