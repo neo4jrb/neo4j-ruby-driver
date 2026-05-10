@@ -1,4 +1,6 @@
-# Tests currently expected to pass under tests/stub on JRuby.
-# Empty until lib/jruby/ has code. Grow as JRuby flavor lands features.
+# Tests currently expected to pass under tests/stub on jruby.
 # CI fails if any of these stops passing (regression).
-# Refresh with bin/refresh-testkit-baseline stub (running on JRuby).
+# Add lines as we fix more; remove with reason in commit msg.
+# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline stub (running on jruby).
+# Tests known to fail in CI for env reasons live in
+# .github/testkit-stub-baseline-exclude-jruby.txt and are skipped here.

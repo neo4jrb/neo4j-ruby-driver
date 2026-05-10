@@ -22,7 +22,7 @@ module TestkitBackend
       include Request
 
       def execute
-        session = registry.fetch(driver_id).session(build_options)
+        session = registry.fetch(driver_id).session(**build_options)
         Response::Session.new(id: registry.store(session))
       end
 

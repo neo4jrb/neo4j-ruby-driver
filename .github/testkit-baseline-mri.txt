@@ -1,9 +1,9 @@
-# Tests currently expected to pass under tests/neo4j.
+# Tests currently expected to pass under tests/neo4j on mri.
 # CI fails if any of these stops passing (regression).
 # Add lines as we fix more; remove with reason in commit msg.
-# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline neo4j.
+# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline neo4j (running on mri).
 # Tests known to fail in CI for env reasons live in
-# .github/testkit-baseline-exclude.txt and are skipped here.
+# .github/testkit-baseline-exclude-mri.txt and are skipped here.
 
 test_agent_string (tests.neo4j.test_summary.TestSummary.test_agent_string)
 test_autocommit_transactions_should_support_metadata (tests.neo4j.test_session_run.TestSessionRun.test_autocommit_transactions_should_support_metadata)

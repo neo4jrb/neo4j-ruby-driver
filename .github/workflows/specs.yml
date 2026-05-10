@@ -22,9 +22,9 @@ jobs:
           - "4.0"
           - "jruby-10.1.0.0"
         neo4j:
-          - "4.4.48-enterprise"
-          - "5.26.25-enterprise"
-          - "2026.04.0-enterprise"
+          - "4.4.48"
+          - "5.26.25"
+          - "2026.04.0"
         # Default value so the `include` below adds a new row rather
         # than merging into existing combinations (GH Actions semantics).
         force_mri: [false]
@@ -33,12 +33,12 @@ jobs:
           # NEO4J_DRIVER_FORCE_MRI=1 (the Gemfile's `gemspec name:` flip).
           # Single Neo4j version to keep CI minutes reasonable.
           - ruby: "jruby-10.1.0.0"
-            neo4j: "5.26.25-enterprise"
+            neo4j: "2026.04.0"
             force_mri: true
 
     services:
       neo4j:
-        image: neo4j:${{ matrix.neo4j }}
+        image: neo4j:${{ matrix.neo4j }}-enterprise
         env:
           NEO4J_AUTH: neo4j/password
           NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"

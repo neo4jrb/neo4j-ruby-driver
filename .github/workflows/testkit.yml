@@ -162,6 +162,17 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: testkit-run-log
+          # Suffix per-matrix-row so artifacts don't overwrite each other.
+          # actions/upload-artifact@v4 errors on duplicate names rather than
+          # silently merging, so distinct names are required.
+          name: testkit-run-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
           path: ${{ steps.log.outputs.log }}
+          if-no-files-found: ignore
+
+      - name: Upload backend log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testkit-backend-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
+          path: /tmp/testkit-run-*/backend.log
           if-no-files-found: ignore

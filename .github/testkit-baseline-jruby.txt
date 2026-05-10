@@ -1,4 +1,27 @@
-# Tests currently expected to pass under tests/neo4j on JRuby.
-# Empty until lib/jruby/ has code. Grow as JRuby flavor lands features.
+# Tests currently expected to pass under tests/neo4j on jruby.
 # CI fails if any of these stops passing (regression).
-# Refresh with bin/refresh-testkit-baseline neo4j (running on JRuby).
+# Add lines as we fix more; remove with reason in commit msg.
+# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline neo4j (running on jruby).
+# Tests known to fail in CI for env reasons live in
+# .github/testkit-baseline-exclude-jruby.txt and are skipped here.
+
+test_autocommit_transactions_should_support_metadata (tests.neo4j.test_session_run.TestSessionRun.test_autocommit_transactions_should_support_metadata)
+test_can_return_node (tests.neo4j.test_session_run.TestSessionRun.test_can_return_node)
+test_can_return_relationship (tests.neo4j.test_session_run.TestSessionRun.test_can_return_relationship)
+test_does_not_update_last_bookmark_on_rollback (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_does_not_update_last_bookmark_on_rollback)
+test_error_on_incorrect_credentials (tests.neo4j.test_authentication.TestAuthenticationBasic.test_error_on_incorrect_credentials)
+test_error_on_incorrect_credentials_tx (tests.neo4j.test_authentication.TestAuthenticationBasic.test_error_on_incorrect_credentials_tx)
+test_fail_nicely_when_using_http_port (tests.neo4j.test_direct_driver.TestDirectDriver.test_fail_nicely_when_using_http_port)
+test_fails_on_bad_syntax (tests.neo4j.test_session_run.TestSessionRun.test_fails_on_bad_syntax)
+test_fails_on_missing_parameter (tests.neo4j.test_session_run.TestSessionRun.test_fails_on_missing_parameter)
+test_iteration_larger_than_fetch_size (tests.neo4j.test_session_run.TestSessionRun.test_iteration_larger_than_fetch_size)
+test_iteration_nested (tests.neo4j.test_session_run.TestSessionRun.test_iteration_nested)
+test_iteration_smaller_than_fetch_size (tests.neo4j.test_session_run.TestSessionRun.test_iteration_smaller_than_fetch_size)
+test_long_string (tests.neo4j.test_session_run.TestSessionRun.test_long_string)
+test_partial_iteration (tests.neo4j.test_session_run.TestSessionRun.test_partial_iteration)
+test_recover_from_fail_on_streaming (tests.neo4j.test_session_run.TestSessionRun.test_recover_from_fail_on_streaming)
+test_recover_from_invalid_query (tests.neo4j.test_session_run.TestSessionRun.test_recover_from_invalid_query)
+test_regex_in_parameter (tests.neo4j.test_session_run.TestSessionRun.test_regex_in_parameter)
+test_regex_inline (tests.neo4j.test_session_run.TestSessionRun.test_regex_inline)
+test_success_on_basic_token (tests.neo4j.test_authentication.TestAuthenticationBasic.test_success_on_basic_token)
+test_success_on_provide_realm_with_basic_token (tests.neo4j.test_authentication.TestAuthenticationBasic.test_success_on_provide_realm_with_basic_token)

@@ -21,7 +21,7 @@ module Neo4j
         @connection_provider = build_connection_provider(@uri, auth)
       end
 
-      def session(options = {}, &block)
+      def session(**options)
         raise Exceptions::ClientException, 'Driver is closed' if @closed
 
         merged_options = @options.merge(options)
