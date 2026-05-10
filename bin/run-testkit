@@ -33,7 +33,7 @@ TEST_NEO4J_PASS="${TEST_NEO4J_PASS:-password}"
 # ("Neo4j/5.26.21" -> "Neo4j/5.26") and compares against
 # "Neo4j/$TEST_NEO4J_VERSION". Set this to the 2-segment major.minor of
 # whatever Neo4j you're running locally; patch number must be omitted.
-TEST_NEO4J_VERSION="${TEST_NEO4J_VERSION:-5.26}"
+TEST_NEO4J_VERSION="${TEST_NEO4J_VERSION:-2026.04}"
 
 if [ ! -d "$TESTKIT_PATH" ]; then
   echo "testkit not found at $TESTKIT_PATH" >&2

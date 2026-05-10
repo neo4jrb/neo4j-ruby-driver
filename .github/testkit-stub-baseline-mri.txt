@@ -1,9 +1,9 @@
-# Tests currently expected to pass under tests/stub.
+# Tests currently expected to pass under tests/stub on mri.
 # CI fails if any of these stops passing (regression).
 # Add lines as we fix more; remove with reason in commit msg.
-# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline stub.
+# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline stub (running on mri).
 # Tests known to fail in CI for env reasons live in
-# .github/testkit-stub-baseline-exclude.txt and are skipped here.
+# .github/testkit-stub-baseline-exclude-mri.txt and are skipped here.
 
 test_4x4_populates_node_element_id_with_id (tests.stub.basic_query.test_basic_query.TestBasicQuery.test_4x4_populates_node_element_id_with_id)
 test_4x4_populates_path_element_ids_with_long (tests.stub.basic_query.test_basic_query.TestBasicQuery.test_4x4_populates_path_element_ids_with_long)
