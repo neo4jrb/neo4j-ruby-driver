@@ -58,16 +58,26 @@ TEST_BACKEND_PORT="$BACKEND_PORT" \
   bundle exec ruby testkit-backend/backend.rb > "$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 
-# Wait up to 5s for the port to come up
-for _ in $(seq 1 50); do
+# JRuby cold-start + zeitwerk eager_load can take well over the CRuby budget.
+# 30s default keeps us comfortably above worst-case JRuby startup with no cost
+# on the fast path (loop exits on first port-up tick).
+BACKEND_BOOT_TICKS="${BACKEND_BOOT_TICKS:-300}"
+PORT_UP=0
+for _ in $(seq 1 "$BACKEND_BOOT_TICKS"); do
   if nc -z 127.0.0.1 "$BACKEND_PORT" 2>/dev/null; then
+    PORT_UP=1
     break
+  fi
+  if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+    echo "Backend process exited before binding port $BACKEND_PORT" >&2
+    cat "$BACKEND_LOG" >&2
+    exit 3
   fi
   sleep 0.1
 done
 
-if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
-  echo "Backend failed to start" >&2
+if [ "$PORT_UP" != 1 ]; then
+  echo "Backend did not bind port $BACKEND_PORT within $((BACKEND_BOOT_TICKS / 10))s (PID $BACKEND_PID still alive)" >&2
   cat "$BACKEND_LOG" >&2
   exit 3
 fi
