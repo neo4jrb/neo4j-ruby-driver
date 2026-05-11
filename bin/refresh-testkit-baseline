@@ -29,7 +29,13 @@ OUTPUT_TMP=$(mktemp)
 EXCLUDE_TMP=$(mktemp)
 trap 'rm -f "$OUTPUT_TMP" "$EXCLUDE_TMP"' EXIT
 
-./bin/run-testkit "$TARGET" > "$OUTPUT_TMP" 2>&1 || true
+USE_LATEST="${USE_LATEST_RUN:-0}"
+if [ "$USE_LATEST" = "1" ]; then
+  LOG=$(ls -td /tmp/testkit-run-*/run.log 2>/dev/null | head -1)
+  test -f "$LOG" || { echo "no recent run.log"; exit 1; }
+else
+  ./bin/run-testkit "$TARGET" > "$OUTPUT_TMP" 2>&1 || true
+fi
 
 # bin/run-testkit prints "  test log:    <path>/run.log"; pull that line.
 LOG=$(awk '/test log:/{print $NF}' "$OUTPUT_TMP" | tail -1)
