@@ -5,114 +5,29 @@
 # Testkit (https://github.com/neo4j-drivers/testkit) is the shared
 # integration/conformance test suite for Neo4j drivers. Its Python test
 # runner talks to a language-specific "backend" process over a TCP
-# socket using a simple framed JSON protocol. This file is the entry
-# point for the Ruby backend.
+# socket using a framed JSON protocol. This is the entry point for
+# the Ruby backend.
 #
 # Run it standalone for local development:
-#   bundle exec ruby testkit-backend/backend.rb
+#   bundle exec ruby testkit-backend/backend.rb [PORT]
 #
 # Then from a testkit clone:
 #   export TEST_DRIVER_NAME=ruby
-#   export TEST_NEO4J_HOST=localhost
-#   python3 -m unittest tests.neo4j.test_session_run
+#   python3 -m unittest tests.stub.basic_query.test_basic_query
 
 $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
-require 'neo4j/driver'
 
+require 'active_support/all'
 require 'json'
-require 'securerandom'
+require 'neo4j/driver'
+require 'nio'
+require 'ostruct'
 require 'socket'
-require 'zeitwerk'
+require_relative 'loader'
 
-module TestkitBackend; end
+TestkitBackend::Loader.load
 
-loader = Zeitwerk::Loader.new
-loader.push_dir(__dir__, namespace: TestkitBackend)
-loader.inflector.inflect('check_multi_db_support' => 'CheckMultiDBSupport')
-loader.setup
-
-module TestkitBackend
-  class Server
-    DEFAULT_HOST = ENV.fetch('TEST_BACKEND_HOST', '0.0.0.0')
-    DEFAULT_PORT = Integer(ENV.fetch('TEST_BACKEND_PORT', 9876))
-
-    def initialize(host: DEFAULT_HOST, port: DEFAULT_PORT)
-      @host = host
-      @port = port
-    end
-
-    def run
-      tcp = TCPServer.new(@host, @port)
-      warn "Testkit backend listening on #{@host}:#{@port}"
-
-      loop do
-        client = tcp.accept
-        Thread.new(client) { |sock| handle(sock) }
-      end
-    end
-
-    private
-
-    def handle(socket)
-      Connection.new(socket).run
-    rescue StandardError => e
-      warn "Unhandled backend error: #{e.class}: #{e.message}"
-      warn e.backtrace.first(10).join("\n")
-    ensure
-      socket.close rescue nil
-    end
-  end
-
-  class Connection
-    REQUEST_BEGIN = '#request begin'
-    REQUEST_END = '#request end'
-    RESPONSE_BEGIN = '#response begin'
-    RESPONSE_END = '#response end'
-
-    attr_reader :registry
-
-    def initialize(socket)
-      @socket = socket
-      @registry = Registry.new
-    end
-
-    def run
-      while (request = read_request)
-        write_response(Request.dispatch(request, registry, self))
-      end
-    end
-
-    # Public so request handlers can drive nested loops — managed
-    # transactions need to write a RetryableTry response and then
-    # consume more requests inside their own execute method.
-    def write_response(response)
-      @socket.write("#{RESPONSE_BEGIN}\n#{JSON.generate(response.to_payload)}\n#{RESPONSE_END}\n")
-      @socket.flush
-    end
-
-    def read_request
-      line = read_line
-      line = read_line while line && line != REQUEST_BEGIN
-      return nil unless line
-
-      body = +''
-      loop do
-        line = read_line
-        return nil if line.nil?
-        break if line == REQUEST_END
-
-        body << line << "\n"
-      end
-
-      JSON.parse(body)
-    end
-
-    private
-
-    def read_line
-      @socket.gets&.chomp
-    end
-  end
+if $PROGRAM_NAME == __FILE__
+  port = Integer(ARGV[0] || ENV.fetch('TEST_BACKEND_PORT', 9876))
+  TestkitBackend::Runner.new(port).run
 end
-
-TestkitBackend::Server.new.run if $PROGRAM_NAME == __FILE__

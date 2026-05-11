@@ -24,6 +24,8 @@ group :development, :test do
   gem 'rspec-its', '~> 1.3'
   gem 'async'
   gem 'activesupport'
+  gem 'nio4r'
+  gem 'ostruct'
   gem 'ffaker'
   gem 'bigdecimal'
 end

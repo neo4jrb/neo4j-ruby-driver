@@ -1,13 +1,12 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    class TransactionRollback < Data.define(:tx_id)
-      include Request
+    class TransactionRollback < Request
+      def process
+        reference('Transaction')
+      end
 
-      def execute
-        registry.fetch(tx_id).rollback
-        Response::Transaction.new(id: tx_id)
+      def to_object
+        fetch(tx_id).tap(&:rollback)
       end
     end
   end

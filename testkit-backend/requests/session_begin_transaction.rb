@@ -1,13 +1,12 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    class SessionBeginTransaction < Data.define(:session_id, :tx_meta, :timeout)
-      include Request
+    class SessionBeginTransaction < Request
+      def process
+        reference('Transaction')
+      end
 
-      def execute
-        tx = registry.fetch(session_id).begin_transaction(**tx_options(tx_meta, timeout))
-        Response::Transaction.new(id: registry.store(tx))
+      def to_object
+        fetch(session_id).begin_transaction(metadata: decode(tx_meta), timeout: timeout_duration)
       end
     end
   end

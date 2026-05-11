@@ -1,89 +1,71 @@
-# frozen_string_literal: true
-
 module TestkitBackend
-  # Mixin for testkit request types.
-  #
-  # A concrete request is a `Data.define(...)` subclass listing only the
-  # data fields it consumes — the registry is threaded through transparently
-  # so it never appears in the field declaration:
-  #
-  #   class TransactionCommit < Data.define(:tx_id)
-  #     include Request
-  #
-  #     def execute
-  #       registry.take(tx_id).commit
-  #       Response::Transaction.new(id: tx_id)
-  #     end
-  #   end
-  #
-  # Field names are snake_case in Ruby; `from_json` maps them to
-  # camelCase JSON keys automatically.
-  module Request
-    def self.included(base)
-      base.extend(ClassMethods)
+  class Request < OpenStruct
+    include Conversion
+    delegate :delete, :fetch, :store, to: TestkitBackend::ObjectCache
+    attr_reader :data
+
+    def self.from(request, objects = nil)
+      Requests.const_get(request[:name]).new(request[:data].transform_keys { |key| key.to_s.underscore }, objects)
     end
 
-    module ClassMethods
-      def from_json(data, registry, connection)
-        kwargs = members.each_with_object(registry: registry, connection: connection) do |name, acc|
-          acc[name] = data[Casing.camel(name)]
-        end
-        new(**kwargs)
+    def self.object_from(request)
+      from(request).to_object
+    end
+
+    def initialize(hash, command_processor)
+      @data = hash
+      @command_processor = command_processor
+      super(hash)
+    end
+
+    def process_request
+      process
+    rescue Neo4j::Driver::Exceptions::Neo4jException => e
+      driver_error(e)
+    rescue Neo4j::Driver::Exceptions::IllegalStateException, Neo4j::Driver::Exceptions::NoSuchRecordException,
+      Neo4j::Driver::Exceptions::NoSuchRecordException, Neo4j::Driver::Exceptions::UntrustedServerException,
+      ArgumentError => e
+      puts e
+      puts e.backtrace_locations
+      driver_error(e)
+    rescue TestkitBackend::Requests::RollbackException => e
+      named_entity('FrontendError', msg: "")
+    rescue StandardError => e
+      puts e.inspect
+      puts e.backtrace_locations
+      named_entity('BackendError', msg: e.message)
+    end
+
+    def process
+      response.to_testkit
+    end
+
+    private
+
+    def driver_error(e)
+      Responses::DriverError.new(e).to_testkit
+    end
+
+    def decode(request)
+      request&.transform_values(&Request.method(:object_from)) || {}
+    end
+
+    def reference(name)
+      named_entity(name, id: store(to_object))
+    end
+
+    def named_entity(name, **hash)
+      { name: name }.tap do |entity|
+        entity[:data] = hash.transform_keys { |key| key.is_a?(String) ? key : key.to_s.camelize(:lower) } unless hash.empty?
       end
     end
 
-    attr_reader :registry, :connection
-
-    def initialize(registry:, connection:, **fields)
-      @registry = registry
-      @connection = connection
-      super(**fields)
+    def value_entity(name, object)
+      named_entity(name, value: object)
     end
 
-    # Run the request and translate exceptions into the appropriate
-    # error response. Concrete subclasses implement `#execute`.
-    def safely_execute
-      execute
-    rescue Neo4j::Driver::Exceptions::Neo4jException => e
-      Response::DriverError.from(e, registry: registry)
-    rescue NotImplementedError => e
-      # Driver methods that aren't fully implemented raise this; the
-      # backend turns it into a recognisable DriverError so testkit
-      # records the gap as a normal driver failure (and surfaces the
-      # message we wrote in the driver method itself — that's the canonical
-      # "what's missing" location, grep with `raise NotImplementedError`).
-      Response::DriverError.not_implemented(e.message)
-    rescue ClientGeneratedError, Registry::UnknownHandle, ArgumentError => e
-      Response::FrontendError.new(msg: "#{e.class}: #{e.message}")
-    rescue StandardError => e
-      warn "[backend] #{e.class}: #{e.message}\n  #{e.backtrace.first(5).join("\n  ")}"
-      Response::BackendError.new(msg: "#{e.class}: #{e.message}")
-    end
-
-    # Translate testkit's tx_meta dict + millisecond timeout into the
-    # {metadata:, timeout:} kwargs accepted by the driver's
-    # begin_transaction / execute_read / execute_write. Used by both
-    # the explicit and managed transaction handlers.
-    def tx_options(tx_meta, timeout_ms)
-      {
-        metadata: Cypher.decode_value_map(tx_meta),
-        timeout: timeout_ms && timeout_ms / 1000.0
-      }.compact
-    end
-
-    def self.dispatch(request_json, registry, connection)
-      name = request_json['name'].to_s
-      klass = lookup(name)
-      return Response::UnknownType.new(message: "No handler for request #{name}") unless klass
-
-      klass.from_json(request_json['data'] || {}, registry, connection).safely_execute
-    end
-
-    def self.lookup(name)
-      klass = Requests.const_get(name, false)
-      klass if klass.is_a?(Class) && klass.include?(Request)
-    rescue NameError
-      nil
+    def timeout_duration(field = @table[:timeout])
+      field&.*(1e-3.seconds)
     end
   end
 end

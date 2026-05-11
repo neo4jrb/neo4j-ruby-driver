@@ -1,22 +1,78 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    # Zero-field example. Returns the static feature list.
-    class GetFeatures < Data.define
-      include Request
+    class GetFeatures < Request
+      # j - jruby
+      # r - MRI
+      # a - java
+      FEATURES =
+        {
+          'Feature:API:BookmarkManager' => 'a',
+          'Feature:API:ConnectionAcquisitionTimeout' => 'ja',
+          'Feature:API:Driver.ExecuteQuery' => 'ja',
+          'Feature:API:Driver:GetServerInfo' => '',
+          'Feature:API:Driver.IsEncrypted' => 'jar',
+          'Feature:API:Driver:NotificationsConfig' => 'ja',
+          'Feature:API:Driver.VerifyAuthentication' => 'ja',
+          'Feature:API:Driver.VerifyConnectivity' => '',
+          'Feature:API:Driver.SupportsSessionAuth' => 'ja',
+          'Feature:API:Liveness.Check' => 'ja',
+          'Feature:API:Result.List' => 'ja',
+          'Feature:API:Result.Peek' => 'ja',
+          'Feature:API:Result.Single' => 'ja',
+          'Feature:API:Result.SingleOptional' => '',
+          'Feature:API:RetryableExceptions' => '',
+          'Feature:API:Session:AuthConfig' => 'a',
+          'Feature:API:Session:NotificationsConfig' => 'a',
+          'Feature:API:SSLConfig' => 'ja',
+          'Feature:API:SSLSchemes' => 'ja',
+          'Feature:API:Type.Spatial' => '',
+          'Feature:API:Type.Temporal' => 'a', # Most tests pass. Implement SubTests to skip some e.g. old System timezone
+          'Feature:Auth:Bearer' => 'jar',
+          'Feature:Auth:Custom' => 'jar',
+          'Feature:Auth:Kerberos' => 'jar',
+          'Feature:Auth:Managed' => 'a',
+          'Feature:Bolt:3.0' => 'jar',
+          'Feature:Bolt:4.1' => 'jar',
+          'Feature:Bolt:4.2' => 'jar',
+          'Feature:Bolt:4.3' => 'jar',
+          'Feature:Bolt:4.4' => 'jar',
+          'Feature:Bolt:5.0' => 'jar',
+          'Feature:Bolt:5.1' => 'jar',
+          'Feature:Bolt:5.2' => 'jar',
+          'Feature:Bolt:5.3' => 'ja',
+          'Feature:Bolt:5.4' => 'ja',
+          'Feature:Bolt:5.5' => 'ja',
+          'Feature:Bolt:5.6' => 'ja',
+          'Feature:Bolt:5.7' => 'ja',
+          'Feature:Bolt:5.8' => 'ja',
+          'Feature:Bolt:6.0' => 'ja',
+          'Feature:Bolt:Patch:UTC' => 'ja',
+          'Feature:Impersonation' => 'ja',
+          'Feature:TLS:1.1' => 'a', # TODO works for java,
+          'Feature:TLS:1.2' => 'ja',
+          'Feature:TLS:1.3' => 'a', # TODO works for java
+          'AuthorizationExpiredTreatment' => 'ja',
+          'Optimization:AuthPipelining' => 'a',
+          'Optimization:ConnectionReuse' => '', # disabled for java
+          'Optimization:EagerTransactionBegin' => 'ja',
+          'Optimization:ImplicitDefaultArguments' => 'ja',
+          'Optimization:MinimalBookmarksSet' => '',
+          'Optimization:MinimalResets' => '', # disabled for java
+          'Optimization:MinimalVerifyAuthentication' => '',
+          'Optimization:PullPipelining' => 'ja',
+          'Optimization:ResultListFetchAll' => 'ja',
+          'Detail:ClosedDriverIsEncrypted' => '',
+          'Detail:DefaultSecurityConfigValueEquality' => 'ja',
+          'ConfHint:connection.recv_timeout_seconds' => 'ja',
+          'Backend:MockTime' => 'a',
+          'Backend:RTFetch' => '',
+          'Backend:RTForceUpdate' => '',
+        }
 
-      FEATURES = %w[
-        Feature:API:ConnectionAcquisitionTimeout
-        Feature:API:Driver.VerifyConnectivity
-        Feature:API:Result.List
-        Feature:API:Result.Peek
-        Feature:API:Result.Single
-        Feature:Bolt:4.4
-      ].freeze
-
-      def execute
-        Response::FeatureList.new(features: FEATURES)
+      def process
+        platform = RUBY_PLATFORM == 'java' ? 'j' : 'r'
+        features_list = FEATURES.select { |_, value| value.include?(platform) }.keys
+        named_entity('FeatureList', features: features_list)
       end
     end
   end

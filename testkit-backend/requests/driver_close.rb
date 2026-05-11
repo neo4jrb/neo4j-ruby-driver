@@ -1,13 +1,12 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    class DriverClose < Data.define(:driver_id)
-      include Request
+    class DriverClose < Request
+      def process
+        reference('Driver')
+      end
 
-      def execute
-        registry.delete(driver_id)&.close
-        Response::Driver.new(id: driver_id)
+      def to_object
+        delete(driver_id).tap(&:close)
       end
     end
   end
