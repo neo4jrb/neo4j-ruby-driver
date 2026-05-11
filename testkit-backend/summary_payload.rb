@@ -2,17 +2,16 @@
 
 module TestkitBackend
   # Builds the testkit Summary `data` payload from a driver
-  # Summary::ResultSummary. Uses the public Summary API for fields
-  # with a clean Java-shaped accessor (counters, server, query,
-  # database, timings); reaches into the private `metadata` escape
-  # hatch for fields where testkit asserts wire-format faithfulness:
-  #   - queryType: nil when the server didn't send `:type` (the public
-  #     API defaults to READ_ONLY, which loses that distinction).
-  #   - notifications: 4.x sends `severity`, 5.x sends `severityLevel`
-  #     + `category`. Tests assert against the as-shipped key.
-  #   - plan / profile: include implementation-specific extras like
-  #     `pageCacheMisses`, `pageCacheHitRatio`, `time` that the public
-  #     Plan/ProfiledPlan API doesn't expose.
+  # Summary::ResultSummary using only the public Summary API. All
+  # protocol-shaped serialisation (camelCase keys, wire query-type
+  # tokens, Notification/Plan/Profile dict layouts) lives here, not
+  # on the driver.
+  #
+  # Tests that depend on wire-format details the public API doesn't
+  # surface (pre-5.x notification severity key, Plan/Profile
+  # implementation extras, nullable queryType) are explicitly
+  # skipped via Requests::StartTest::SKIP_TESTS — same approach the
+  # Java backend takes.
   class SummaryPayload < Data.define(:summary)
     INTEGER_COUNTERS = %i[
       nodes_created nodes_deleted relationships_created relationships_deleted
@@ -20,16 +19,25 @@ module TestkitBackend
       constraints_added constraints_removed system_updates
     ].freeze
 
+    # ResultSummary#query_type returns the typed enum-like symbol; testkit
+    # expects the original Bolt wire token. One-line inversion.
+    QUERY_TYPE_TO_WIRE = {
+      Neo4j::Driver::Summary::QueryType::READ_ONLY    => 'r',
+      Neo4j::Driver::Summary::QueryType::WRITE_ONLY   => 'w',
+      Neo4j::Driver::Summary::QueryType::READ_WRITE   => 'rw',
+      Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE => 's'
+    }.freeze
+
     def to_h
-      meta = wire_metadata
+      notifications = summary.notifications
       {
         'database' => summary.database&.name,
         'query' => query_payload,
-        'queryType' => meta[:type],
+        'queryType' => QUERY_TYPE_TO_WIRE[summary.query_type],
         'counters' => counters_payload,
-        'notifications' => stringify_keys_deep(meta[:notifications]),
-        'plan' => stringify_keys_deep(meta[:plan]),
-        'profile' => stringify_keys_deep(meta[:profile]),
+        'notifications' => (notifications.empty? ? nil : notifications.map(&method(:notification_dict))),
+        'plan' => plan_dict(summary.plan),
+        'profile' => profile_dict(summary.profile),
         'resultAvailableAfter' => summary.result_available_after,
         'resultConsumedAfter' => summary.result_consumed_after,
         'serverInfo' => server_info_payload
@@ -37,17 +45,6 @@ module TestkitBackend
     end
 
     private
-
-    # ResultSummary#metadata is private (Java's ResultSummary doesn't
-    # expose raw wire metadata at all). On MRI the accessor exists for
-    # exactly this kind of internal consumer; on JRuby the underlying
-    # Java summary has no equivalent, so we degrade to an empty hash
-    # — the JRuby flavor has no baseline expectations on the wire-
-    # faithful fields and produces nil entries here, which matches the
-    # status quo.
-    def wire_metadata
-      summary.respond_to?(:metadata, true) ? summary.send(:metadata) : {}
-    end
 
     def query_payload
       query = summary.query
@@ -82,12 +79,51 @@ module TestkitBackend
       }
     end
 
-    def stringify_keys_deep(value)
-      case value
-      when Hash  then value.transform_keys(&:to_s).transform_values { stringify_keys_deep(it) }
-      when Array then value.map { stringify_keys_deep(it) }
-      else value
-      end
+    def notification_dict(notification)
+      {
+        'code' => notification.code,
+        'title' => notification.title,
+        'description' => notification.description,
+        'severityLevel' => notification.severity_level&.to_s,
+        'category' => notification.category&.to_s,
+        'position' => position_dict(notification.position)
+      }.compact
+    end
+
+    def position_dict(position)
+      return nil unless position
+
+      { 'offset' => position.offset, 'line' => position.line, 'column' => position.column }
+    end
+
+    def plan_dict(plan)
+      return nil unless plan
+
+      {
+        'operatorType' => plan.operator_type,
+        'identifiers' => plan.identifiers.to_a,
+        'args' => plan_args(plan),
+        'children' => plan.children.map(&method(:plan_dict))
+      }
+    end
+
+    def profile_dict(profile)
+      return nil unless profile
+
+      plan_dict(profile).merge(
+        'dbHits' => profile.db_hits,
+        'rows' => profile.records,
+        'children' => profile.children.map(&method(:profile_dict))
+      )
+    end
+
+    # JRuby's `arguments` returns a Java Map<String, Value>; the Ext
+    # module exposes a Ruby-idiomatic `args` (Map → Hash, Value →
+    # ruby_object). MRI's `arguments` is already a primitive-valued
+    # Ruby hash. Either way, normalise keys to strings for the wire.
+    def plan_args(plan)
+      raw = plan.respond_to?(:args) ? plan.args : plan.arguments
+      raw.transform_keys(&:to_s)
     end
   end
 end

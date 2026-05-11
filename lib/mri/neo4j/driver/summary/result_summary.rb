@@ -19,13 +19,14 @@ module Neo4j
           Query.new(@query_text, @parameters)
         end
 
+        # Mirrors Java's ResultSummary#queryType — returns nil when the
+        # server didn't send a :type field (testkit relies on this).
         def query_type
           case @metadata[:type]
           when 'r' then QueryType::READ_ONLY
           when 'w' then QueryType::WRITE_ONLY
           when 'rw' then QueryType::READ_WRITE
           when 's' then QueryType::SCHEMA_WRITE
-          else QueryType::READ_ONLY
           end
         end
 
@@ -93,14 +94,10 @@ module Neo4j
         private
 
         # Internal-only accessor. NOT part of the public API — Java's
-        # ResultSummary doesn't expose the raw wire metadata either.
-        # In-tree consumers reach in via send when the public API can't
-        # surface a wire-format detail they need:
-        #   - Session#harvest_auto_commit_bookmark (auto-commit bookmark
-        #     only lives on the wire SUCCESS metadata)
-        #   - testkit-backend SummaryPayload (a few fields where testkit
-        #     asserts wire-format faithfulness — e.g. queryType nullness,
-        #     pre-5.x notification severity key, plan/profile extras)
+        # ResultSummary doesn't expose the raw wire metadata either. The
+        # one in-tree consumer is Session#harvest_auto_commit_bookmark
+        # (which reaches in via send) because the auto-commit bookmark
+        # only ever lives on the wire SUCCESS metadata.
         attr_reader :metadata
       end
     end
