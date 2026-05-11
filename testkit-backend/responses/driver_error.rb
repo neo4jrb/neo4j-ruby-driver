@@ -6,13 +6,11 @@ module TestkitBackend
           id: store(@object),
           errorType: @object.class.name,
           msg: @object.message,
-          code: @object.try(:code),
-          gqlStatus: @object.try(:gql_status),
-          statusDescription: @object.try(:status_description),
-          diagnosticRecord: gql_diagnostic_record,
-          classification: @object.try(:classification)&.to_s,
-          rawClassification: @object.try(:raw_classification),
-          cause: cause_data,
+          code: try_value(:code),
+          gqlStatus: try_value(:gql_status),
+          statusDescription: try_value(:status_description),
+          classification: try_value(:classification)&.to_s,
+          rawClassification: try_value(:raw_classification),
           retryable: @object.is_a?(Neo4j::Driver::Exceptions::TransientException) ||
                      @object.is_a?(Neo4j::Driver::Exceptions::ServiceUnavailableException)
         }.compact
@@ -20,18 +18,12 @@ module TestkitBackend
 
       private
 
-      def gql_diagnostic_record
-        rec = @object.try(:diagnostic_record)
-        return nil unless rec
+      # Java methods often return Optional<T>; unwrap if needed.
+      def try_value(name)
+        return nil unless @object.respond_to?(name)
 
-        rec.respond_to?(:to_h) ? rec.to_h : rec
-      end
-
-      def cause_data
-        cause = @object.try(:gql_cause) || @object.try(:cause)
-        return nil unless cause && cause != @object
-
-        DriverError.new(cause).data
+        v = @object.send(name)
+        v.respond_to?(:or_else) ? v.or_else(nil) : v
       end
     end
   end
