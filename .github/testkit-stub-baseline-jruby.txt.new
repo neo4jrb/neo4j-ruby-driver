@@ -1,10 +1,3 @@
-# Tests currently expected to pass under tests/stub on jruby.
-# CI fails if any of these stops passing (regression).
-# Add lines as we fix more; remove with reason in commit msg.
-# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline stub (running on jruby).
-# Tests known to fail in CI for env reasons live in
-# .github/testkit-stub-baseline-exclude-jruby.txt and are skipped here.
-
 test_0_timeout (tests.stub.session_run_parameters.test_session_run_parameters.TestSessionRunParameters.test_0_timeout)
 test_0_timeout (tests.stub.tx_begin_parameters.test_tx_begin_parameters.TestTxBeginParameters.test_0_timeout)
 test_4x4_populates_node_element_id_with_id (tests.stub.basic_query.test_basic_query.TestBasicQuery.test_4x4_populates_node_element_id_with_id)
