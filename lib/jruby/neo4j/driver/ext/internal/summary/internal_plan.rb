@@ -13,11 +13,6 @@ module Neo4j
             def identifiers
               super.to_a
             end
-
-            # this part should probably be included in testkit-backend
-            def to_h
-              {operator_type:, args:, identifiers:, children: children&.map(&:to_h)}
-            end
           end
         end
       end

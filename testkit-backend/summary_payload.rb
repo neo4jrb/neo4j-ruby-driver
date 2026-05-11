@@ -1,11 +1,17 @@
 # frozen_string_literal: true
 
 module TestkitBackend
-  # Builds the testkit Summary `data` payload from a driver Summary.
+  # Builds the testkit Summary `data` payload from a driver
+  # Summary::ResultSummary using only the public Summary API. All
+  # protocol-shaped serialisation (camelCase keys, wire query-type
+  # tokens, Notification/Plan/Profile dict layouts) lives here, not
+  # on the driver.
   #
-  # Lives separately because the Summary payload is the most complex
-  # cross-protocol mapping in the backend — pulling it out of the
-  # request handlers keeps each request method short and readable.
+  # Tests that depend on wire-format details the public API doesn't
+  # surface (pre-5.x notification severity key, Plan/Profile
+  # implementation extras, nullable queryType) are explicitly
+  # skipped via Requests::StartTest::SKIP_TESTS — same approach the
+  # Java backend takes.
   class SummaryPayload < Data.define(:summary)
     INTEGER_COUNTERS = %i[
       nodes_created nodes_deleted relationships_created relationships_deleted
@@ -13,15 +19,25 @@ module TestkitBackend
       constraints_added constraints_removed system_updates
     ].freeze
 
+    # ResultSummary#query_type returns the typed enum-like symbol; testkit
+    # expects the original Bolt wire token. One-line inversion.
+    QUERY_TYPE_TO_WIRE = {
+      Neo4j::Driver::Summary::QueryType::READ_ONLY    => 'r',
+      Neo4j::Driver::Summary::QueryType::WRITE_ONLY   => 'w',
+      Neo4j::Driver::Summary::QueryType::READ_WRITE   => 'rw',
+      Neo4j::Driver::Summary::QueryType::SCHEMA_WRITE => 's'
+    }.freeze
+
     def to_h
+      notifications = summary.notifications
       {
         'database' => summary.database&.name,
         'query' => query_payload,
-        'queryType' => summary.metadata[:type],
+        'queryType' => QUERY_TYPE_TO_WIRE[summary.query_type],
         'counters' => counters_payload,
-        'notifications' => stringify_keys_deep(summary.metadata[:notifications]),
-        'plan' => stringify_keys_deep(summary.metadata[:plan]),
-        'profile' => stringify_keys_deep(summary.metadata[:profile]),
+        'notifications' => (notifications.empty? ? nil : notifications.map(&method(:notification_dict))),
+        'plan' => plan_dict(summary.plan),
+        'profile' => profile_dict(summary.profile),
         'resultAvailableAfter' => summary.result_available_after,
         'resultConsumedAfter' => summary.result_consumed_after,
         'serverInfo' => server_info_payload
@@ -63,16 +79,51 @@ module TestkitBackend
       }
     end
 
-    # Plan / profile / notifications come back from the server as nested
-    # maps with symbol keys (the unpacker symbolises). Testkit only
-    # checks they're dicts/lists; passing the raw structure with string
-    # keys is the simplest faithful representation.
-    def stringify_keys_deep(value)
-      case value
-      when Hash  then value.transform_keys(&:to_s).transform_values(&method(:stringify_keys_deep))
-      when Array then value.map(&method(:stringify_keys_deep))
-      else value
-      end
+    def notification_dict(notification)
+      {
+        'code' => notification.code,
+        'title' => notification.title,
+        'description' => notification.description,
+        'severityLevel' => notification.severity_level&.to_s,
+        'category' => notification.category&.to_s,
+        'position' => position_dict(notification.position)
+      }.compact
+    end
+
+    def position_dict(position)
+      return nil unless position
+
+      { 'offset' => position.offset, 'line' => position.line, 'column' => position.column }
+    end
+
+    def plan_dict(plan)
+      return nil unless plan
+
+      {
+        'operatorType' => plan.operator_type,
+        'identifiers' => plan.identifiers.to_a,
+        'args' => plan_args(plan),
+        'children' => plan.children.map(&method(:plan_dict))
+      }
+    end
+
+    def profile_dict(profile)
+      return nil unless profile
+
+      plan_dict(profile).merge(
+        'dbHits' => profile.db_hits,
+        'rows' => profile.records,
+        'children' => profile.children.map(&method(:profile_dict))
+      )
+    end
+
+    # JRuby's `arguments` returns a Java Map<String, Value>; the Ext
+    # module exposes a Ruby-idiomatic `args` (Map → Hash, Value →
+    # ruby_object). MRI's `arguments` is already a primitive-valued
+    # Ruby hash. Either way, normalise keys to strings for the wire.
+    def plan_args(plan)
+      raw = plan.respond_to?(:args) ? plan.args : plan.arguments
+      raw.transform_keys(&:to_s)
     end
   end
 end

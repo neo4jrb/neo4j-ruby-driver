@@ -99,8 +99,12 @@ jobs:
         if: always()
         run: |
           LOG="${{ steps.log.outputs.log }}"
-          grep -E ' \.\.\. ok$' "$LOG" | sed -E 's/ \.\.\. ok$//' | sort > /tmp/current-pass.txt
-          grep -vE '^(#|$)' "$BASELINE" | sort > /tmp/baseline.txt
+          # `sort -u` because testkit can report a single test id more
+          # than once in a single run (e.g. v3/v4 suites both assert the
+          # same Bolt-version-agnostic test). Without -u a passing dup
+          # would surface as a phantom "new pass" against the baseline.
+          grep -E ' \.\.\. ok$' "$LOG" | sed -E 's/ \.\.\. ok$//' | sort -u > /tmp/current-pass.txt
+          grep -vE '^(#|$)' "$BASELINE" | sort -u > /tmp/baseline.txt
 
           REGRESSED=$(comm -23 /tmp/baseline.txt /tmp/current-pass.txt)
           NEW=$(comm -13 /tmp/baseline.txt /tmp/current-pass.txt)

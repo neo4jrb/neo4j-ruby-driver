@@ -199,7 +199,12 @@ module Neo4j
       # Explicit-tx Results don't trigger this — Transaction#commit harvests
       # the bookmark from the COMMIT response itself.
       def harvest_auto_commit_bookmark(summary)
-        bookmark = summary.metadata[:bookmark]
+        # `metadata` is private on ResultSummary (deliberately not part of
+        # the public Java-shaped API). Bookmark only ever lives on the wire
+        # SUCCESS metadata; no public Summary accessor for it because Java's
+        # ResultSummary doesn't expose one either. send() bypasses the
+        # private check for this internal-only consumer.
+        bookmark = summary.send(:metadata)[:bookmark]
         update_bookmarks(bookmark) if bookmark
       end
 
