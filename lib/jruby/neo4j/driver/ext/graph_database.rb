@@ -23,7 +23,9 @@ module Neo4j
             java_config = to_java_config(Neo4j::Driver::Config, **config)
             Internal::DriverFactory
               .new(&domain_name_resolver)
-              .new_instance(java_uri, org.neo4j.driver.internal.security.StaticAuthTokenManager.new(auth_token),
+              .new_instance(java_uri,
+                            org.neo4j.driver.internal.security.StaticAuthTokenManager.new(auth_token),
+                            nil, # ClientCertificateManager — added in newer Java DriverFactory
                             java_config)
           end
         end

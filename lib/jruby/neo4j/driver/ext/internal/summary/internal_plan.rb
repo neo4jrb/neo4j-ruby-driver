@@ -13,6 +13,10 @@ module Neo4j
             def identifiers
               super.to_a
             end
+
+            def to_h
+              { operator_type:, args:, identifiers:, children: children&.map(&:to_h) }
+            end
           end
         end
       end

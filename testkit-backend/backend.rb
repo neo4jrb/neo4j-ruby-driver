@@ -23,6 +23,7 @@ require 'neo4j/driver'
 require 'nio'
 require 'ostruct'
 require 'socket'
+require 'uri'
 require_relative 'loader'
 
 TestkitBackend::Loader.load

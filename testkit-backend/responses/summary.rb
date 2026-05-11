@@ -32,9 +32,9 @@ module TestkitBackend
 
       def notifications(ns)
         ns.map do |n|
-          # to_map(n, *%w[code title description raw_category raw_severity_level])
           to_map(n, *%w[code title description])
-            # .merge(to_map(n, *%w[category severity_level]) { |o| o&.name || 'UNKNOWN' })
+            .merge(to_map(n, *%w[raw_category raw_severity_level]) { |o| o&.then(&:to_s) }.compact)
+            .merge(to_map(n, *%w[category severity_level]) { |o| o.respond_to?(:name) ? o.name : (o || 'UNKNOWN') })
             .merge(map_entry(n, :position, :column, :line, :offset))
         end
       end

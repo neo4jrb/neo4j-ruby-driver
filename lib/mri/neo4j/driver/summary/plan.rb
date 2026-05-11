@@ -13,6 +13,12 @@ module Neo4j
           @arguments = plan_data[:args] || {}
           @children = (plan_data[:children] || []).map { |child| self.class.new(child) }
         end
+
+        # Backend-friendly Ruby hash. Mirrors JRuby InternalPlan#to_h.
+        def to_h
+          { operator_type: @operator_type, args: @arguments, identifiers: @identifiers,
+            children: @children.map(&:to_h) }
+        end
       end
     end
   end
