@@ -12,7 +12,7 @@ module TestkitBackend
           queryType: @object.query_type,
           notifications: @object.notifications&.then(&method(:notifications)),
           plan: (plan_to_h(@object.plan) if @object.has_plan?),
-          profile: @object.has_profile? ? @object.profile.then { |p| { db_hits: p.db_hits } } : nil,
+          profile: (plan_to_h(@object.profile) if @object.has_profile?),
         }.merge!(to_map(@object, *%w[result_available_after result_consumed_after]))
       end
 

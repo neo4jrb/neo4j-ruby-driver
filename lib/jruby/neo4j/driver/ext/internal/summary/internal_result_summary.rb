@@ -14,17 +14,19 @@ module Neo4j
               end
             end
 
+            # Wire string ('r'/'w'/'rw'/'s'). Cannot delegate to
+            # Driver::Summary::QueryType — on JRuby that constant
+            # resolves to the Java QueryType enum (via include_package
+            # in driver.rb), shadowing the Ruby module.
+            QUERY_TYPE_WIRE = {
+              QueryType::READ_ONLY => 'r',
+              QueryType::READ_WRITE => 'rw',
+              QueryType::WRITE_ONLY => 'w',
+              QueryType::SCHEMA_WRITE => 's'
+            }.freeze
+
             def query_type
-              case super
-              when QueryType::READ_ONLY
-                Driver::Summary::QueryType::READ_ONLY
-              when QueryType::READ_WRITE
-                Driver::Summary::QueryType::READ_WRITE
-              when QueryType::WRITE_ONLY
-                Driver::Summary::QueryType::WRITE_ONLY
-              when QueryType::SCHEMA_WRITE
-                Driver::Summary::QueryType::SCHEMA_WRITE
-              end
+              QUERY_TYPE_WIRE[super]
             end
           end
         end

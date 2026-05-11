@@ -24,7 +24,7 @@ module Neo4j
 
         def mapped_exception(exception)
           mapped_neo4j_exception_class(exception)
-            &.new(exception.message, code: exception.code, suppressed: suppressed(exception)) ||
+            &.new(exception.message, **neo4j_exception_kwargs(exception)) ||
             mapped_runtime_exception_class(exception)&.new(exception.message) || exception
         end
 
@@ -32,6 +32,23 @@ module Neo4j
 
         def suppressed(e)
           e.suppressed.map(&method(:mapped_exception))
+        end
+
+        # Pull through the GQL fields the testkit DriverError schema
+        # asserts on (gql_status, status_description, classification,
+        # raw_classification, diagnostic_record). All of these were
+        # added to org.neo4j.driver.exceptions.Neo4jException in the
+        # GQL-aware Bolt 5.7+ work; auto-aliased on JRuby.
+        def neo4j_exception_kwargs(e)
+          {
+            code: e.code,
+            suppressed: suppressed(e),
+            gql_status: e.try(:gql_status),
+            status_description: e.try(:status_description),
+            classification: e.try(:classification)&.to_s,
+            raw_classification: e.try(:raw_classification),
+            diagnostic_record: e.try(:diagnostic_record)&.then { |d| d.respond_to?(:to_h) ? d.to_h : d }
+          }
         end
 
         def mapped_neo4j_exception_class(exception_class)
