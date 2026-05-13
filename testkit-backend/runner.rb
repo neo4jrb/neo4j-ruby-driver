@@ -19,17 +19,20 @@ module TestkitBackend
       _, port, host = socket.peeraddr
       puts "*** #{host}:#{port} connected"
 
-      @command_processor = CommandProcessor.new(socket)
-      begin
-        while @command_processor.process(blocking: true) do
+      # One thread per testkit connection. The previous serial loop
+      # blocked here until the client disconnected — fine on JRuby
+      # native (Java driver is fast) but on JRuby[mri-flavor] the
+      # pure-Ruby Bolt path is slow enough that the listen backlog
+      # overflows and testkit gets ConnectionRefused on retries.
+      Thread.new(socket, host, port) do |sock, h, p|
+        cp = CommandProcessor.new(sock)
+        while cp.process(blocking: true) do
         end
       rescue StandardError => e
-        # Per-connection failure: log and close, but keep the runner
-        # alive so other tests can connect.
-        warn "*** #{host}:#{port} handler crashed: #{e.class}: #{e.message}"
+        warn "*** #{h}:#{p} handler crashed: #{e.class}: #{e.message}"
         warn e.backtrace.first(15).join("\n")
       ensure
-        close_socket(socket)
+        close_socket(sock)
       end
     end
 
