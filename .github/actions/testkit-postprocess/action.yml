@@ -64,7 +64,10 @@ runs:
       shell: bash
       run: |
         LOG="${{ steps.log.outputs.path }}"
-        PASS=$(wc -l < "${{ steps.pass.outputs.path }}")
+        # Raw counts — every parametrised occurrence is its own
+        # pass/fail/error result. The dedup'd unique-test-id count
+        # used by the gate is reported separately below.
+        PASS=$(grep -cE ' \.\.\. ok$' "$LOG" || true)
         FAIL=$(grep -cE ' \.\.\. FAIL$' "$LOG" || true)
         ERROR=$(grep -cE ' \.\.\. ERROR$' "$LOG" || true)
         SKIP=$(grep -cE 'skipped' "$LOG" || true)
@@ -76,13 +79,22 @@ runs:
           echo "| $PASS | $FAIL | $ERROR | $SKIP |"
         } >> "$GITHUB_STEP_SUMMARY"
 
-    # Mandatory: every test in $BASELINE MUST be in the current pass set.
+    # Mandatory gate. A baseline test regresses if:
+    # - its test_id isn't in the current pass set, OR
+    # - any parametrised occurrence of it failed (even if another
+    #   occurrence passed). That second case catches "3 of 4 params
+    #   ok + 1 FAIL" which the dedup'd pass set would otherwise hide.
     - name: Regression gate (baseline diff)
       if: always()
       shell: bash
       run: |
+        LOG="${{ steps.log.outputs.path }}"
         grep -vE '^[[:space:]]*(#|$)' "${{ inputs.baseline_path }}" | sort -u > /tmp/baseline.txt
-        REGRESSED=$(comm -23 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
+        grep -E ' \.\.\. (FAIL|ERROR)$' "$LOG" | sed -E 's/ \.\.\. (FAIL|ERROR)$//' | sort -u > /tmp/current-fail.txt
+
+        MISSING=$(comm -23 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
+        FAILED=$(comm -12 /tmp/baseline.txt /tmp/current-fail.txt)
+        REGRESSED=$( { echo "$MISSING"; echo "$FAILED"; } | grep -vE '^$' | sort -u )
         NEW=$(comm -13 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
 
         {
@@ -94,7 +106,7 @@ runs:
             echo '```'
           fi
           if [ -n "$REGRESSED" ]; then
-            echo "### ❌ Regressed tests (previously in baseline, now not passing)"
+            echo "### ❌ Regressed tests (previously in baseline, now not passing or failed for at least one parameter set)"
             echo '```'
             echo "$REGRESSED"
             echo '```'
@@ -102,11 +114,11 @@ runs:
         } >> "$GITHUB_STEP_SUMMARY"
 
         if [ -n "$REGRESSED" ]; then
-          echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) no longer pass"
+          echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) regressed"
           echo "$REGRESSED" | sed 's/^/::error::regressed: /'
           exit 1
         fi
-        echo "All baseline tests still pass."
+        echo "All baseline tests still pass for every parameter set."
 
     # When this run finds tests that pass but aren't in the baseline,
     # push the refreshed baseline back to the PR branch.
