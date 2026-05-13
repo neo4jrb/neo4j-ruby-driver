@@ -39,16 +39,25 @@ module Neo4j
         # raw_classification, diagnostic_record). All of these were
         # added to org.neo4j.driver.exceptions.Neo4jException in the
         # GQL-aware Bolt 5.7+ work; auto-aliased on JRuby.
+        #
+        # Java's accessors return Optional<T> for the nullable fields;
+        # unwrap to nil/value here so the Ruby exception only ever
+        # exposes plain Ruby values — the JRuby driver isn't allowed to
+        # leak Java types over the public API.
         def neo4j_exception_kwargs(e)
           {
             code: e.code,
             suppressed: suppressed(e),
-            gql_status: e.try(:gql_status),
-            status_description: e.try(:status_description),
-            classification: e.try(:classification)&.to_s,
-            raw_classification: e.try(:raw_classification),
-            diagnostic_record: e.try(:diagnostic_record)&.then { |d| d.respond_to?(:to_h) ? d.to_h : d }
+            gql_status: unwrap_optional(e.try(:gql_status)),
+            status_description: unwrap_optional(e.try(:status_description)),
+            classification: unwrap_optional(e.try(:classification))&.to_s,
+            raw_classification: unwrap_optional(e.try(:raw_classification)),
+            diagnostic_record: unwrap_optional(e.try(:diagnostic_record))&.to_h
           }
+        end
+
+        def unwrap_optional(v)
+          v.respond_to?(:or_else) ? v.or_else(nil) : v
         end
 
         def mapped_neo4j_exception_class(exception_class)

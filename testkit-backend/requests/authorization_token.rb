@@ -8,7 +8,7 @@ module TestkitBackend
         when 'bearer', 'kerberos'
           Neo4j::Driver::AuthTokens.send(scheme, credentials)
         else
-          Neo4j::Driver::AuthTokens.custom(principal, credentials, realm, scheme, **parameters)
+          Neo4j::Driver::AuthTokens.custom(principal, credentials, realm, scheme, parameters)
         end
       end
     end

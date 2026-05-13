@@ -22,7 +22,6 @@ module Neo4j
 
     module Internal
       java_import org.neo4j.driver.internal.shaded.bolt.connection.DatabaseName
-      BoltServerAddress = Java::OrgNeo4jDriverInternalShadedBoltConnection::BoltServerAddress
     end
 
     module Net
@@ -64,6 +63,5 @@ Java::OrgNeo4jDriverInternalShadedBoltConnectionRoutedImplCluster::RoutingTableR
 Java::OrgNeo4jDriverObservationMetricsInternal::InternalConnectionPoolMetrics.include Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics
 Java::OrgNeo4jDriverInternalSummary::InternalNotification.prepend Neo4j::Driver::Ext::Internal::Summary::InternalNotification
 Java::OrgNeo4jDriverInternalSummary::InternalPlan.prepend Neo4j::Driver::Ext::Internal::Summary::InternalPlan
-Java::OrgNeo4jDriverInternalSummary::InternalProfiledPlan.prepend Neo4j::Driver::Ext::Internal::Summary::InternalProfiledPlan
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
