@@ -12,12 +12,17 @@ module Neo4j
               end
             end
 
-            # Driver::Summary::QueryType lives in lib/shared/, so Zeitwerk
-            # loads our Ruby module before Java's include_package tries to
-            # auto-vivify the same constant. The Ruby module wins → both
-            # flavors see the same wire-string constants. We still need
-            # the Java enum in the case selector — use the fully-qualified
-            # name rather than java_import (which would shadow our module).
+            # Driver::Summary::QueryType is a Ruby module in lib/shared/.
+            # include_package only fills missing constants on a module via
+            # const_missing — Java never overrides Ruby constants that
+            # already exist, regardless of load order. So our Ruby module
+            # wins on both flavours.
+            #
+            # The case selector still needs the Java enum. Fully-qualifying
+            # Java::OrgNeo4jDriverSummary::QueryType keeps readers from
+            # wondering whether `QueryType` here means the Ruby module or
+            # the Java enum, and avoids a java_import line whose only job
+            # would be to disambiguate this one method.
             def query_type
               case super
               when Java::OrgNeo4jDriverSummary::QueryType::READ_ONLY    then Driver::Summary::QueryType::READ_ONLY
