@@ -130,40 +130,66 @@ runs:
       shell: bash
       run: |
         BASELINE="${{ inputs.baseline_path }}"
-        # Treat indented `# …` as header too; whitespace-only is blank.
-        awk '/^[[:space:]]*#/ || /^[[:space:]]*$/ { print; next } { exit }' "$BASELINE" > /tmp/header.txt
-        {
-          cat /tmp/header.txt
-          cat /tmp/baseline.txt "${{ steps.pass.outputs.path }}" | sort -u
-        } > /tmp/new-baseline.txt
+        BRANCH="${{ github.event.pull_request.head.ref }}"
 
-        # No-op check before committing — covers the corner case where
-        # the diff that earlier looked non-empty round-trips to the
-        # same on-disk content (e.g. header normalisation).
-        if cmp -s "$BASELINE" /tmp/new-baseline.txt; then
+        # Build the refreshed baseline file. Re-derive on each retry so
+        # we always merge against the freshest remote content.
+        rebuild_baseline() {
+          # Treat indented `# …` as header too; whitespace-only as blank.
+          awk '/^[[:space:]]*#/ || /^[[:space:]]*$/ { print; next } { exit }' "$BASELINE" > /tmp/header.txt
+          {
+            cat /tmp/header.txt
+            { grep -vE '^[[:space:]]*(#|$)' "$BASELINE"; cat "${{ steps.pass.outputs.path }}"; } | sort -u
+          } > /tmp/new-baseline.txt
+          # No-op? Cover the corner case where the diff that earlier
+          # looked non-empty round-trips to the same on-disk content
+          # (e.g. header normalisation).
+          if cmp -s "$BASELINE" /tmp/new-baseline.txt; then
+            return 1
+          fi
+          mv /tmp/new-baseline.txt "$BASELINE"
+          return 0
+        }
+
+        if ! rebuild_baseline; then
           echo "Baseline file content unchanged; nothing to commit."
           exit 0
         fi
-        mv /tmp/new-baseline.txt "$BASELINE"
 
         git config user.name 'github-actions[bot]'
         git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-        git add "$BASELINE"
-        if git diff --cached --quiet; then
-          echo "No staged changes; skipping commit."
-          exit 0
-        fi
-        git commit -m "ci: refresh $(basename "$BASELINE") with new passing tests"
 
-        # Retry on race: concurrent matrix row (different baseline file
-        # but same branch) or author push during CI.
-        BRANCH="${{ github.event.pull_request.head.ref }}"
+        # Race-safe push loop. actions/checkout for pull_request events
+        # gives us a synthetic merge commit, not the PR head — so
+        # `git pull --rebase` here would try to rebase the merge over
+        # any new remote commit and conflict. Instead, on each attempt:
+        #   1. Stash our local baseline rewrite
+        #   2. Fetch + hard-reset to the latest remote branch tip
+        #   3. Re-apply the rewrite on top
+        #   4. Commit fresh and push
+        # That way concurrent pushes from sibling matrix rows just
+        # mean we rebuild against their new tip, not fight with rebase.
         for attempt in 1 2 3; do
-          if git pull --rebase --autostash origin "$BRANCH" \
-             && git push origin "HEAD:$BRANCH"; then
+          cp "$BASELINE" /tmp/baseline-snapshot.txt
+          git fetch origin "$BRANCH"
+          git checkout -B "$BRANCH" "origin/$BRANCH"
+          cp /tmp/baseline-snapshot.txt "$BASELINE"
+          # Re-derive against the new remote BASELINE in case the
+          # sibling row already added some of the same tests.
+          if ! rebuild_baseline; then
+            echo "Baseline already up to date on origin; nothing to push."
             exit 0
           fi
-          echo "Push attempt $attempt failed; retrying after backoff…"
+          git add "$BASELINE"
+          if git diff --cached --quiet; then
+            echo "No staged changes after resync; skipping commit."
+            exit 0
+          fi
+          git commit -m "ci: refresh $(basename "$BASELINE") with new passing tests"
+          if git push origin "HEAD:$BRANCH"; then
+            exit 0
+          fi
+          echo "Push attempt $attempt failed (remote moved); retrying…"
           sleep $((attempt * 3))
         done
         echo "::error::Failed to push baseline refresh after 3 retries"
