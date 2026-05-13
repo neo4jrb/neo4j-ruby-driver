@@ -309,14 +309,19 @@ module Neo4j
             Types::Node.new(fields[0], fields[1].map(&:to_sym), fields[2], fields[3])
           end
 
-          # Signature 0x52 - Relationship (bound)
+          # Signature 0x52 - Relationship (bound).
+          # Bolt 5.0+ adds startNodeElementId and endNodeElementId as
+          # fields[6] / fields[7]; older protocols omit them and the
+          # constructor falls back to nil.
           unpacker.register_hydration_handler(0x52) do |fields|
-            Types::Relationship.new(fields[0], fields[1], fields[2], fields[3].to_sym, fields[4], fields[5])
+            Types::Relationship.new(fields[0], fields[1], fields[2], fields[3].to_sym,
+                                    fields[4], fields[5], fields[6], fields[7])
           end
 
-          # Signature 0x72 - UnboundRelationship (relationships in paths)
+          # Signature 0x72 - UnboundRelationship (relationships in paths).
+          # Bolt 5.0+ adds elementId as fields[3].
           unpacker.register_hydration_handler(0x72) do |fields|
-            Types::UnboundRelationship.new(fields[0], fields[1].to_sym, fields[2])
+            Types::UnboundRelationship.new(fields[0], fields[1].to_sym, fields[2], fields[3])
           end
 
           # Signature 0x50 - Path
@@ -338,13 +343,14 @@ module Neo4j
               # Handle negative indices (relationship traversed in reverse)
               if rel_idx < 0
                 unbound_rel = unbound_rels[rel_idx.abs - 1]
-                bound_rel = unbound_rel.bind(next_node.id, current_node.id)
-                segments << Types::Path::Segment.new(current_node, next_node, bound_rel)
+                bound_rel = unbound_rel.bind(next_node.id, current_node.id,
+                                             next_node.element_id, current_node.element_id)
               else
                 unbound_rel = unbound_rels[rel_idx - 1]
-                bound_rel = unbound_rel.bind(current_node.id, next_node.id)
-                segments << Types::Path::Segment.new(current_node, next_node, bound_rel)
+                bound_rel = unbound_rel.bind(current_node.id, next_node.id,
+                                             current_node.element_id, next_node.element_id)
               end
+              segments << Types::Path::Segment.new(current_node, next_node, bound_rel)
 
               bound_rels << bound_rel
               current_node = next_node
