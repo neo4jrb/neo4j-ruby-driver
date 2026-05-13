@@ -24,7 +24,7 @@ module Neo4j
 
         def mapped_exception(exception)
           mapped_neo4j_exception_class(exception)
-            &.new(exception.message, code: exception.code, suppressed: suppressed(exception)) ||
+            &.new(exception.message, **neo4j_exception_kwargs(exception)) ||
             mapped_runtime_exception_class(exception)&.new(exception.message) || exception
         end
 
@@ -32,6 +32,32 @@ module Neo4j
 
         def suppressed(e)
           e.suppressed.map(&method(:mapped_exception))
+        end
+
+        # Pull through the GQL fields the testkit DriverError schema
+        # asserts on (gql_status, status_description, classification,
+        # raw_classification, diagnostic_record). All of these were
+        # added to org.neo4j.driver.exceptions.Neo4jException in the
+        # GQL-aware Bolt 5.7+ work; auto-aliased on JRuby.
+        #
+        # Java's accessors return Optional<T> for the nullable fields;
+        # unwrap to nil/value here so the Ruby exception only ever
+        # exposes plain Ruby values — the JRuby driver isn't allowed to
+        # leak Java types over the public API.
+        def neo4j_exception_kwargs(e)
+          {
+            code: e.code,
+            suppressed: suppressed(e),
+            gql_status: unwrap_optional(e.try(:gql_status)),
+            status_description: unwrap_optional(e.try(:status_description)),
+            classification: unwrap_optional(e.try(:classification))&.to_s,
+            raw_classification: unwrap_optional(e.try(:raw_classification)),
+            diagnostic_record: unwrap_optional(e.try(:diagnostic_record))&.to_h
+          }
+        end
+
+        def unwrap_optional(v)
+          v.respond_to?(:or_else) ? v.or_else(nil) : v
         end
 
         def mapped_neo4j_exception_class(exception_class)

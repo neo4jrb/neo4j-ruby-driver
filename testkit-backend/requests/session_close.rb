@@ -1,13 +1,12 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    class SessionClose < Data.define(:session_id)
-      include Request
+    class SessionClose < Request
+      def process
+        reference('Session')
+      end
 
-      def execute
-        registry.delete(session_id)&.close
-        Response::Session.new(id: session_id)
+      def to_object
+        delete(session_id).tap(&:close)
       end
     end
   end

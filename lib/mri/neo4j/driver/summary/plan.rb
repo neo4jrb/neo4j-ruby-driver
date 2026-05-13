@@ -13,6 +13,10 @@ module Neo4j
           @arguments = plan_data[:args] || {}
           @children = (plan_data[:children] || []).map { |child| self.class.new(child) }
         end
+
+        # Alias args → arguments to match JRuby's InternalPlan#args helper,
+        # so cross-flavour callers can use either name.
+        alias_method :args, :arguments
       end
     end
   end

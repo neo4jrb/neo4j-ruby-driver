@@ -1,14 +1,12 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    # Single-field example.
-    class TransactionCommit < Data.define(:tx_id)
-      include Request
+    class TransactionCommit < Request
+      def process
+        reference('Transaction')
+      end
 
-      def execute
-        registry.fetch(tx_id).commit
-        Response::Transaction.new(id: tx_id)
+      def to_object
+        fetch(tx_id).tap(&:commit)
       end
     end
   end

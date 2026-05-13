@@ -1,13 +1,12 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    class SessionLastBookmarks < Data.define(:session_id)
-      include Request
+    class SessionLastBookmarks < Request
+      def process
+        named_entity('Bookmarks', bookmarks: to_object.map(&:value))
+      end
 
-      def execute
-        bookmarks = registry.fetch(session_id).last_bookmarks.to_a.map(&:value)
-        Response::Bookmarks.new(bookmarks: bookmarks)
+      def to_object
+        fetch(session_id).last_bookmarks
       end
     end
   end

@@ -19,8 +19,9 @@ module Neo4j
         end
 
         # Bind this relationship to specific start and end nodes
-        def bind(start_node_id, end_node_id)
-          Relationship.new(@id, start_node_id, end_node_id, @type, @properties, @element_id)
+        def bind(start_node_id, end_node_id, start_node_element_id = nil, end_node_element_id = nil)
+          Relationship.new(@id, start_node_id, end_node_id, @type, @properties,
+                           @element_id, start_node_element_id, end_node_element_id)
         end
       end
     end

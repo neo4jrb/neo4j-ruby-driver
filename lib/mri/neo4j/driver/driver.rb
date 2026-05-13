@@ -119,7 +119,7 @@ module Neo4j
         session(session_opts) do |s|
           method = routing == 'r' ? :execute_read : :execute_write
           s.send(method) do |tx|
-            result = tx.run(cypher, params)
+            result = tx.run(cypher, **params)
             records = result.to_a
             keys = result.keys
             summary = result.consume

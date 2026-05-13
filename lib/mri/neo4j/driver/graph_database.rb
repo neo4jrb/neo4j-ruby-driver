@@ -23,6 +23,14 @@ module Neo4j
           end
         end
 
+        # The JRuby flavor wires a domain_name_resolver block into
+        # Java's DriverFactory; MRI doesn't have an equivalent hook yet,
+        # so internal_driver collapses to driver and ignores the block.
+        # Same API surface keeps the testkit-backend cross-flavour.
+        def internal_driver(uri, auth_token = nil, **config, &_domain_name_resolver)
+          driver(uri, auth_token, **config)
+        end
+
         private
 
         def validate_uri(uri)

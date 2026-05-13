@@ -1,21 +1,14 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    # Multi-field example with nested data (params, txMeta).
-    class SessionRun < Data.define(:session_id, :cypher, :params, :tx_meta, :timeout)
-      include Request
-
-      def execute
-        config = { timeout: timeout_seconds, metadata: Cypher.decode_value_map(tx_meta) }.compact
-        result = registry.fetch(session_id).run(cypher, Cypher.decode_value_map(params), config)
-        Response::Result.new(id: registry.store(result), keys: result.keys.map(&:to_s))
+    class SessionRun < Request
+      def response
+        Responses::Result.new(fetch(session_id).run(cypher, decode(params), to_config))
       end
 
       private
 
-      def timeout_seconds
-        timeout && timeout / 1000.0
+      def to_config
+        { metadata: decode(tx_meta), timeout: timeout_duration }
       end
     end
   end

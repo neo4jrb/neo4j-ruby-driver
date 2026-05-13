@@ -45,7 +45,7 @@ module Neo4j
         raise
       end
 
-      def run(query, parameters = {})
+      def run(query, **parameters)
         raise Exceptions::ClientException, 'Cannot run more queries in this transaction, it has been rolled back' if @failed
         raise Exceptions::ClientException, 'Transaction is closed' unless @open
 

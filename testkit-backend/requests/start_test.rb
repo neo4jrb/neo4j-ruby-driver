@@ -1,17 +1,20 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
     # Skip patterns mirror the Java testkit-backend's StartTest
-    # (sync flavor), so we automatically opt out of the same tests
-    # that are unsatisfiable across the official Neo4j drivers.
-    # Source: neo4j-java-driver testkit-backend StartTest.java —
-    # COMMON_SKIP_PATTERN_TO_REASON + SYNC_SKIP_PATTERN_TO_REASON.
-    #
-    # Test names match the form testkit sends (no leading `tests.`).
-    class StartTest < Data.define(:test_name)
-      include Request
+    # (COMMON + SYNC patterns), so we automatically opt out of the
+    # same tests that are unsatisfiable across the official Neo4j
+    # drivers. Source: neo4j-java-driver testkit-backend StartTest.java.
+    class StartTest < Request
+      # Single-test exact-match skips.
+      SKIP_EXACT = {
+        'neo4j.test_direct_driver.TestDirectDriver.test_custom_resolver' =>
+          'Does not call resolver for direct connections (hardcoded skip in Java)',
+        'stub.session_run_parameters.test_session_run_parameters.TestSessionRunParameters.test_empty_query' =>
+          'Rejects empty string (hardcoded skip in Java)'
+      }.freeze
 
+      # Regex-pattern skips. Ordered from most-specific to most-general
+      # so a path-pinned reason wins over a name-suffix reason.
       SKIP_PATTERNS = {
         /\Astub\.summary\.test_summary\.TestSummaryBasicInfoDiscard\.test_times\z/ =>
           "Driver sets summary's resultAvailableAfter to -1 on discard",
@@ -38,35 +41,37 @@ module TestkitBackend
         /\.test_supports_multi_db\z/ => 'Database is None',
         /\.TestAuthenticationSchemes[^.]+\.test_custom_scheme_empty\z/ =>
           'This test needs updating to implement expected behaviour',
-        /\.TestOptimizations\.test_uses_implicit_default_arguments\z/ =>
-          'Driver does not implement optimization for qid in explicit transaction',
-        /\.TestOptimizations\.test_uses_implicit_default_arguments_multi_query\z/ =>
-          'Driver does not implement optimization for qid in explicit transaction',
-        /\.TestOptimizations\.test_uses_implicit_default_arguments_multi_query_nested\z/ =>
+        /\.TestOptimizations\.test_uses_implicit_default_arguments(?:_multi_query(?:_nested)?)?\z/ =>
           'Driver does not implement optimization for qid in explicit transaction',
         /\.TestResultSingle\.test_result_single_with_2_records\z/ =>
           'This test needs updating to implement expected behaviour',
-        /\.TestAuthTokenManager[^.]+\.test_notify_on_token_expired_pull_using_session_run\z/ =>
-          'Background handling of pipelined PULL failure might result in manager ' \
-          'notification response being sent before respective Testkit request',
-        /\.TestAuthTokenManager[^.]+\.test_notify_on_token_expired_pull_using_tx_run\z/ =>
+        /\.TestConnectionAcquisitionTimeoutMs\.test_should_encompass_the_handshake_time/ =>
+          'Driver handles connection acquisition timeout differently',
+        /\.TestConnectionAcquisitionTimeoutMs\.test_router_handshake_has_own_timeout_too_slow\z/ =>
+          'Driver handles connection acquisition timeout differently',
+        /\.TestConnectionAcquisitionTimeoutMs\.test_should_fail_when_acquisition_timeout_is_reached_first/ =>
+          'Driver handles connection acquisition timeout differently',
+        /\.TestConnectionAcquisitionTimeoutMs\.test_should_encompass_the_version_handshake_(?:in_time|time_out)\z/ =>
+          'Driver handles connection acquisition timeout differently',
+        /\.TestAuthenticationSchemes[^.]+\.test_(?:basic|bearer|custom|kerberos)_scheme\z/ =>
+          'Tests for driver with API_AUTH_PIPELINING are (currently) missing when logon is supported',
+        /\.TestAuthTokenManager[^.]+\.test_notify_on_token_expired_pull_using_(?:session|tx)_run\z/ =>
           'Background handling of pipelined PULL failure might result in manager ' \
           'notification response being sent before respective Testkit request'
       }.freeze
 
-      def execute
-        if (reason = skip_reason_for(test_name))
-          Response::SkipTest.new(reason: reason)
-        else
-          Response::RunTest.new
-        end
+      def process
+        reason = SKIP_EXACT[test_name] ||
+                 SKIP_PATTERNS.find { |pattern, _| pattern.match?(test_name) }&.last
+        reason ? skip(reason) : run
       end
 
-      private
+      def run(_ = nil)
+        named_entity('RunTest')
+      end
 
-      def skip_reason_for(name)
-        SKIP_PATTERNS.each { |pattern, reason| return reason if pattern.match?(name) }
-        nil
+      def skip(reason = 'Skipping passing')
+        named_entity('SkipTest', reason: reason)
       end
     end
   end

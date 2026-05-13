@@ -6,10 +6,10 @@ module Neo4j
       # Mirrors org.neo4j.driver.summary.QueryType — coarse classification
       # of what a query did (read, write, both, or schema mutation).
       module QueryType
-        READ_ONLY = :read_only
-        WRITE_ONLY = :write_only
-        READ_WRITE = :read_write
-        SCHEMA_WRITE = :schema_write
+        READ_ONLY = 'r'
+        WRITE_ONLY = 'w'
+        READ_WRITE = 'rw'
+        SCHEMA_WRITE = 's'
       end
     end
   end

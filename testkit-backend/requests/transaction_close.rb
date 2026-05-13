@@ -1,13 +1,12 @@
-# frozen_string_literal: true
-
 module TestkitBackend
   module Requests
-    class TransactionClose < Data.define(:tx_id)
-      include Request
+    class TransactionClose < Request
+      def process
+        reference('Transaction')
+      end
 
-      def execute
-        registry.delete(tx_id)&.close
-        Response::Transaction.new(id: tx_id)
+      def to_object
+        fetch(tx_id).tap(&:close)
       end
     end
   end
