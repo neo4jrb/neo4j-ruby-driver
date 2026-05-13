@@ -105,7 +105,17 @@ module TestkitBackend
       }.freeze
 
       def process
-        platform = RUBY_PLATFORM == 'java' ? 'j' : 'r'
+        # On JRuby[mri-flavor] CI (NEO4J_DRIVER_FORCE_MRI=1), the driver
+        # we actually load is the MRI implementation even though
+        # RUBY_PLATFORM is still 'java'. Advertise MRI features in that
+        # case so we don't claim Bolt:5.x and then handshake 4.4.
+        platform = if ENV['NEO4J_DRIVER_FORCE_MRI'] == '1'
+                     'r'
+                   elsif RUBY_PLATFORM == 'java'
+                     'j'
+                   else
+                     'r'
+                   end
         named_entity('FeatureList', features: FEATURES.select { |_, tag| tag.include?(platform) }.keys)
       end
     end
