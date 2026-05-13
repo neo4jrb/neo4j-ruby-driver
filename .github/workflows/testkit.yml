@@ -126,17 +126,25 @@ jobs:
         if: always()
         run: |
           LOG="${{ steps.log.outputs.log }}"
-          # `sort -u` because testkit can report a single test id more
-          # than once in a single run (e.g. v3/v4 suites both assert the
-          # same Bolt-version-agnostic test). Without -u a passing dup
-          # would surface as a phantom "new pass" against the baseline.
+          # testkit reports the same test_id multiple times when a test
+          # runs with multiple parameter sets (subTest parametrise, or
+          # the test method runs across several Bolt-version classes
+          # that all qualname back to the defining class). `sort -u`
+          # collapses to "test passed at least once". The COUNT we
+          # display elsewhere still uses raw occurrences — every
+          # parameter set is its own success.
           grep -E ' \.\.\. ok$' "$LOG" | sed -E 's/ \.\.\. ok$//' | sort -u > /tmp/current-pass.txt
-          # Strip comment / blank lines from baseline
+          grep -E ' \.\.\. (FAIL|ERROR)$' "$LOG" | sed -E 's/ \.\.\. (FAIL|ERROR)$//' | sort -u > /tmp/current-fail.txt
           grep -vE '^(#|$)' "$BASELINE" | sort -u > /tmp/baseline.txt
 
-          # Tests in baseline that are NOT in current pass → regression
-          REGRESSED=$(comm -23 /tmp/baseline.txt /tmp/current-pass.txt)
-          # Tests in current pass that are NOT in baseline → new wins
+          # A baseline test regresses if it's not in current pass set,
+          # OR (importantly) if any of its parametrised occurrences
+          # failed. Catching the second case means a 4-parameter test
+          # that passes 3× and fails 1× is correctly flagged, not
+          # silently green because one variant passed.
+          MISSING=$(comm -23 /tmp/baseline.txt /tmp/current-pass.txt)
+          FAILED=$(comm -12 /tmp/baseline.txt /tmp/current-fail.txt)
+          REGRESSED=$( { echo "$MISSING"; echo "$FAILED"; } | grep -vE '^$' | sort -u )
           NEW=$(comm -13 /tmp/baseline.txt /tmp/current-pass.txt)
 
           {
@@ -148,7 +156,7 @@ jobs:
               echo '```'
             fi
             if [ -n "$REGRESSED" ]; then
-              echo "### ❌ Regressed tests (previously in baseline, now not passing)"
+              echo "### ❌ Regressed tests (previously in baseline, now not passing or failed for at least one parameter set)"
               echo '```'
               echo "$REGRESSED"
               echo '```'
@@ -156,11 +164,11 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ -n "$REGRESSED" ]; then
-            echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) no longer pass"
+            echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) regressed"
             echo "$REGRESSED" | sed 's/^/::error::regressed: /'
             exit 1
           fi
-          echo "All baseline tests still pass."
+          echo "All baseline tests still pass for every parameter set."
 
       - name: Upload run log
         if: always()
