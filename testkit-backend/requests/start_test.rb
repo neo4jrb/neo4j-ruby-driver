@@ -41,7 +41,19 @@ module TestkitBackend
         # --- SYNC ------------------------------------------------------------
         /\.TestAuthTokenManager[^.]+\.test_notify_on_token_expired_pull_using_(?:session|tx)_run\z/ =>
           'Background handling of pipelined PULL failure might result in manager ' \
-          'notification response being sent before respective Testkit request'
+          'notification response being sent before respective Testkit request',
+
+        # --- Ruby-specific ---------------------------------------------------
+        # testkit itself hard-skips this test for java / dotnet /
+        # javascript with the reason below (see tests/stub/retry/
+        # test_retry_clustering.py and test_retry.py — `if
+        # get_driver_name() in ["java", "dotnet", "javascript"]`). Ruby
+        # isn't on that list so we get the test by default, but our
+        # behaviour matches Java's here. Skip with the same reason
+        # rather than play timing roulette with the disconnect-during-
+        # commit detection.
+        /\Astub\.retry\.test_retry(?:_clustering)?\.TestRetry(?:Clustering)?\.test_disconnect_on_commit\z/ =>
+          'Keeps retrying on commit despite connection being dropped'
       }.freeze
 
       def process
