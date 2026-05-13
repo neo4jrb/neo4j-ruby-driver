@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Re-triggered by the auto-refresh step in the postprocess action
+  # after it pushes a baseline update — see "Re-trigger CI on the
+  # bot's commit" there. workflow_dispatch is the only way for the
+  # composite action to fire a fresh run that's tied to the just-
+  # pushed commit (GITHUB_TOKEN pushes don't fire pull_request).
+  workflow_dispatch:
 
 jobs:
   testkit-stub:
@@ -14,10 +20,13 @@ jobs:
     # exercised here for the first time.
     continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
 
-    # contents: write lets the auto-update step push baseline refreshes
-    # back to the PR branch via the default GITHUB_TOKEN.
+    # contents: write — lets the auto-update step push baseline
+    # refreshes back to the PR branch via the default GITHUB_TOKEN.
+    # actions: write — lets the same step `gh workflow run` a fresh
+    # CI run against the bot's commit so PR-checks UI gets a status.
     permissions:
       contents: write
+      actions: write
 
     strategy:
       fail-fast: false
@@ -83,6 +92,7 @@ jobs:
           # runs the same code path so it must not push baseline
           # updates. JRuby native owns jruby.txt.
           auto_refresh_enabled: ${{ !matrix.force_mri }}
+          workflow_filename: testkit-stub.yml
 
       - name: Upload run log
         if: always()
