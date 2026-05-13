@@ -1,0 +1,170 @@
+name: Testkit postprocess
+description: >
+  Shared post-run steps for both testkit workflows: locate the run log,
+  extract the passing-tests list, summarise counts, run the regression
+  gate, and auto-refresh the baseline on PR branches. Centralises the
+  log-parsing format so the stub and integration workflows can't drift.
+
+inputs:
+  target_label:
+    description: Short label for step summaries (e.g. "stub" or "integration").
+    required: true
+  baseline_path:
+    description: Absolute path to the impl-specific baseline file.
+    required: true
+  auto_refresh_enabled:
+    description: >
+      Set to "true" only on the matrix row that owns the baseline file.
+      Other rows still run the gate but won't push baseline updates.
+    required: false
+    default: "false"
+
+outputs:
+  log:
+    description: Path to the testkit run.log.
+    value: ${{ steps.log.outputs.path }}
+  pass_list:
+    description: Path to a sorted file of unique passing test ids.
+    value: ${{ steps.pass.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    # The freshest /tmp/testkit-run-* dir holds the log from this run.
+    - name: Locate run log
+      id: log
+      if: always()
+      shell: bash
+      run: |
+        path=$(ls -td /tmp/testkit-run-* 2>/dev/null | head -1)/run.log
+        test -f "$path" || { echo "no run.log produced"; exit 1; }
+        echo "path=$path" >> "$GITHUB_OUTPUT"
+
+    # One place to define the "passing" log line format. Everything
+    # downstream (counts, gate, baseline auto-refresh) consumes this
+    # file, so a future testkit format tweak only needs an update here.
+    # `sort -u` because testkit can list a single test id more than
+    # once (parametrised cases shared between v3/v4 suites); duplicates
+    # would otherwise surface as phantom "new passes" against the
+    # baseline.
+    - name: Extract pass list
+      id: pass
+      if: always()
+      shell: bash
+      run: |
+        path=/tmp/testkit-pass-list.txt
+        grep -E ' \.\.\. ok$' "${{ steps.log.outputs.path }}" \
+          | sed -E 's/ \.\.\. ok$//' \
+          | sort -u > "$path"
+        echo "path=$path" >> "$GITHUB_OUTPUT"
+        echo "$(wc -l < "$path") unique passing tests."
+
+    - name: Summarise counts
+      if: always()
+      shell: bash
+      run: |
+        LOG="${{ steps.log.outputs.path }}"
+        PASS=$(wc -l < "${{ steps.pass.outputs.path }}")
+        FAIL=$(grep -cE ' \.\.\. FAIL$' "$LOG" || true)
+        ERROR=$(grep -cE ' \.\.\. ERROR$' "$LOG" || true)
+        SKIP=$(grep -cE 'skipped' "$LOG" || true)
+        {
+          echo "## Testkit (${{ inputs.target_label }}) results"
+          echo ""
+          echo "| Pass | Fail | Error | Skip |"
+          echo "|-----:|-----:|------:|-----:|"
+          echo "| $PASS | $FAIL | $ERROR | $SKIP |"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    # Mandatory: every test in $BASELINE MUST be in the current pass set.
+    - name: Regression gate (baseline diff)
+      if: always()
+      shell: bash
+      run: |
+        grep -vE '^[[:space:]]*(#|$)' "${{ inputs.baseline_path }}" | sort -u > /tmp/baseline.txt
+        REGRESSED=$(comm -23 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
+        NEW=$(comm -13 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
+
+        {
+          echo ""
+          if [ -n "$NEW" ]; then
+            echo "### ✅ New passing tests (will be auto-added to baseline on PR runs)"
+            echo '```'
+            echo "$NEW"
+            echo '```'
+          fi
+          if [ -n "$REGRESSED" ]; then
+            echo "### ❌ Regressed tests (previously in baseline, now not passing)"
+            echo '```'
+            echo "$REGRESSED"
+            echo '```'
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        if [ -n "$REGRESSED" ]; then
+          echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) no longer pass"
+          echo "$REGRESSED" | sed 's/^/::error::regressed: /'
+          exit 1
+        fi
+        echo "All baseline tests still pass."
+
+    # When this run finds tests that pass but aren't in the baseline,
+    # push the refreshed baseline back to the PR branch.
+    #
+    # GITHUB_TOKEN pushes deliberately don't trigger pull_request
+    # events, so this commit lands on the PR without restarting CI.
+    #
+    # Guards:
+    # - only on pull_request events (skip pushes to main)
+    # - skip fork PRs (GITHUB_TOKEN can't push to forks)
+    # - auto_refresh_enabled: only the matrix row that owns this
+    #   baseline (e.g. MRI 3.4 owns mri.txt; JRuby[mri-flavor]
+    #   doesn't) actually pushes.
+    # - success() means the regression gate above passed.
+    - name: Auto-refresh baseline with new passing tests
+      if: |
+        success()
+        && github.event_name == 'pull_request'
+        && github.event.pull_request.head.repo.full_name == github.repository
+        && inputs.auto_refresh_enabled == 'true'
+      shell: bash
+      run: |
+        BASELINE="${{ inputs.baseline_path }}"
+        # Treat indented `# …` as header too; whitespace-only is blank.
+        awk '/^[[:space:]]*#/ || /^[[:space:]]*$/ { print; next } { exit }' "$BASELINE" > /tmp/header.txt
+        {
+          cat /tmp/header.txt
+          cat /tmp/baseline.txt "${{ steps.pass.outputs.path }}" | sort -u
+        } > /tmp/new-baseline.txt
+
+        # No-op check before committing — covers the corner case where
+        # the diff that earlier looked non-empty round-trips to the
+        # same on-disk content (e.g. header normalisation).
+        if cmp -s "$BASELINE" /tmp/new-baseline.txt; then
+          echo "Baseline file content unchanged; nothing to commit."
+          exit 0
+        fi
+        mv /tmp/new-baseline.txt "$BASELINE"
+
+        git config user.name 'github-actions[bot]'
+        git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        git add "$BASELINE"
+        if git diff --cached --quiet; then
+          echo "No staged changes; skipping commit."
+          exit 0
+        fi
+        git commit -m "ci: refresh $(basename "$BASELINE") with new passing tests"
+
+        # Retry on race: concurrent matrix row (different baseline file
+        # but same branch) or author push during CI.
+        BRANCH="${{ github.event.pull_request.head.ref }}"
+        for attempt in 1 2 3; do
+          if git pull --rebase --autostash origin "$BRANCH" \
+             && git push origin "HEAD:$BRANCH"; then
+            exit 0
+          fi
+          echo "Push attempt $attempt failed; retrying after backoff…"
+          sleep $((attempt * 3))
+        done
+        echo "::error::Failed to push baseline refresh after 3 retries"
+        exit 1

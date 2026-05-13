@@ -73,126 +73,16 @@ jobs:
         continue-on-error: true
         run: ./bin/run-testkit stub
 
-      - name: Locate run log
-        id: log
+      - uses: ./.github/actions/testkit-postprocess
+        id: postprocess
         if: always()
-        run: |
-          LOG=$(ls -td /tmp/testkit-run-* 2>/dev/null | head -1)/run.log
-          test -f "$LOG" || { echo "no run.log produced"; exit 1; }
-          echo "log=$LOG" >> "$GITHUB_OUTPUT"
-
-      - name: Summarise counts
-        if: always()
-        run: |
-          LOG="${{ steps.log.outputs.log }}"
-          PASS=$(grep -cE ' \.\.\. ok$' "$LOG" || true)
-          FAIL=$(grep -cE ' \.\.\. FAIL$' "$LOG" || true)
-          ERROR=$(grep -cE ' \.\.\. ERROR$' "$LOG" || true)
-          SKIP=$(grep -cE 'skipped' "$LOG" || true)
-          {
-            echo "## Testkit (stub) results"
-            echo ""
-            echo "| Pass | Fail | Error | Skip |"
-            echo "|-----:|-----:|------:|-----:|"
-            echo "| $PASS | $FAIL | $ERROR | $SKIP |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      # The real gate: every test in $BASELINE (the impl-specific
-      # testkit-stub-baseline-{mri,jruby}.txt) MUST be in the current
-      # pass set.
-      - name: Regression gate (baseline diff)
-        if: always()
-        run: |
-          LOG="${{ steps.log.outputs.log }}"
-          # `sort -u` because testkit can report a single test id more
-          # than once in a single run (e.g. v3/v4 suites both assert the
-          # same Bolt-version-agnostic test). Without -u a passing dup
-          # would surface as a phantom "new pass" against the baseline.
-          grep -E ' \.\.\. ok$' "$LOG" | sed -E 's/ \.\.\. ok$//' | sort -u > /tmp/current-pass.txt
-          grep -vE '^(#|$)' "$BASELINE" | sort -u > /tmp/baseline.txt
-
-          REGRESSED=$(comm -23 /tmp/baseline.txt /tmp/current-pass.txt)
-          NEW=$(comm -13 /tmp/baseline.txt /tmp/current-pass.txt)
-
-          {
-            echo ""
-            if [ -n "$NEW" ]; then
-              echo "### ✅ New passing tests (consider adding to baseline)"
-              echo '```'
-              echo "$NEW"
-              echo '```'
-            fi
-            if [ -n "$REGRESSED" ]; then
-              echo "### ❌ Regressed tests (previously in baseline, now not passing)"
-              echo '```'
-              echo "$REGRESSED"
-              echo '```'
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ -n "$REGRESSED" ]; then
-            echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) no longer pass"
-            echo "$REGRESSED" | sed 's/^/::error::regressed: /'
-            exit 1
-          fi
-          echo "All baseline tests still pass."
-
-      # Auto-refresh the baseline file when this run finds tests that pass
-      # but aren't in $BASELINE yet. Pushes back to the PR branch via the
-      # default GITHUB_TOKEN, which is no-CI-loop-by-design.
-      #
-      # Guards:
-      # - only on pull_request events (skip pushes to main)
-      # - skip fork PRs (GITHUB_TOKEN can't push to forks)
-      # - skip the mri-flavor JRuby row (MRI 3.4 owns mri.txt — letting
-      #   both rows write the same file would race / disagree on env-
-      #   specific passes)
-      # - success() means the regression gate above didn't exit 1
-      - name: Auto-refresh baseline with new passing tests
-        if: |
-          success()
-          && github.event_name == 'pull_request'
-          && github.event.pull_request.head.repo.full_name == github.repository
-          && !matrix.force_mri
-        run: |
-          LOG="${{ steps.log.outputs.log }}"
-          grep -E ' \.\.\. ok$' "$LOG" | sed -E 's/ \.\.\. ok$//' | sort -u > /tmp/current-pass.txt
-          grep -vE '^(#|$)' "$BASELINE" | sort -u > /tmp/baseline.txt
-          NEW=$(comm -13 /tmp/baseline.txt /tmp/current-pass.txt)
-          if [ -z "$NEW" ]; then
-            echo "No new passing tests; baseline already up to date."
-            exit 0
-          fi
-          echo "Adding to $(basename "$BASELINE"):"
-          echo "$NEW" | sed 's/^/  + /'
-
-          # Preserve the header (leading # comments + blank line); append
-          # the merged-and-sorted pass set.
-          awk '/^[^#]/ && NF { exit } { print }' "$BASELINE" > /tmp/header.txt
-          {
-            cat /tmp/header.txt
-            cat /tmp/baseline.txt /tmp/current-pass.txt | sort -u
-          } > /tmp/new-baseline.txt
-          mv /tmp/new-baseline.txt "$BASELINE"
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "$BASELINE"
-          git commit -m "ci: refresh $(basename "$BASELINE") with new passing tests"
-
-          # Retry on race: concurrent matrix row (different baseline
-          # file but same branch) or author pushing during CI.
-          BRANCH="${{ github.event.pull_request.head.ref }}"
-          for attempt in 1 2 3; do
-            if git pull --rebase --autostash origin "$BRANCH" \
-               && git push origin "HEAD:$BRANCH"; then
-              exit 0
-            fi
-            echo "Push attempt $attempt failed; retrying after backoff…"
-            sleep $((attempt * 3))
-          done
-          echo "::error::Failed to push baseline refresh after 3 retries"
-          exit 1
+        with:
+          target_label: stub
+          baseline_path: ${{ env.BASELINE }}
+          # MRI 3.4 owns mri.txt; the JRuby[mri-flavor] include row
+          # runs the same code path so it must not push baseline
+          # updates. JRuby native owns jruby.txt.
+          auto_refresh_enabled: ${{ !matrix.force_mri }}
 
       - name: Upload run log
         if: always()
@@ -202,7 +92,7 @@ jobs:
           # actions/upload-artifact@v4 errors on duplicate names rather than
           # silently merging, so distinct names are required.
           name: testkit-stub-run-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
-          path: ${{ steps.log.outputs.log }}
+          path: ${{ steps.postprocess.outputs.log }}
           if-no-files-found: ignore
 
       - name: Upload backend log

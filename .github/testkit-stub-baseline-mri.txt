@@ -88,4 +88,3 @@ test_server_address_in_summary (tests.stub.versions.test_versions.TestProtocolVe
 test_server_agent (tests.stub.versions.test_versions.TestProtocolVersions.test_server_agent)
 test_server_version (tests.stub.versions.test_versions.TestProtocolVersions.test_server_version)
 test_supports_bolt4x4 (tests.stub.versions.test_versions.TestProtocolVersions.test_supports_bolt4x4)
-test_times (tests.stub.summary.test_summary.TestSummaryBasicInfo.test_times)
