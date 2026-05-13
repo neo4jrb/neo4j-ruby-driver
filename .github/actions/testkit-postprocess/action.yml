@@ -104,7 +104,10 @@ runs:
 
         MISSING=$(comm -23 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
         FAILED=$(comm -12 /tmp/baseline.txt /tmp/current-fail.txt)
-        REGRESSED=$( { echo "$MISSING"; echo "$FAILED"; } | grep -vE '^$' | sort -u )
+        # awk 'NF' to drop empty lines without grep — grep -vE '^$'
+        # returns 1 when nothing matches, and bash 4.4+ propagates that
+        # through `$(...)` under `set -e`, killing the script silently.
+        REGRESSED=$( { echo "$MISSING"; echo "$FAILED"; } | awk 'NF' | sort -u )
         NEW=$(comm -13 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
 
         {
