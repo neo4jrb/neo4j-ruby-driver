@@ -14,6 +14,11 @@ jobs:
     # exercised here for the first time.
     continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
 
+    # contents: write lets the auto-update step push baseline refreshes
+    # back to the PR branch via the default GITHUB_TOKEN.
+    permissions:
+      contents: write
+
     strategy:
       fail-fast: false
       matrix:
@@ -161,6 +166,63 @@ jobs:
             exit 1
           fi
           echo "All baseline tests still pass."
+
+      # Auto-refresh the baseline file when this run finds tests that pass
+      # but aren't in $BASELINE yet. Pushes back to the PR branch via the
+      # default GITHUB_TOKEN, which is no-CI-loop-by-design.
+      #
+      # Guards:
+      # - only on pull_request events (skip pushes to main)
+      # - skip fork PRs (GITHUB_TOKEN can't push to forks)
+      # - skip the mri-flavor JRuby row (MRI 3.4 owns mri.txt — letting
+      #   both rows write the same file would race / disagree on env-
+      #   specific passes)
+      # - success() means the regression gate above didn't exit 1
+      - name: Auto-refresh baseline with new passing tests
+        if: |
+          success()
+          && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && !matrix.force_mri
+        run: |
+          LOG="${{ steps.log.outputs.log }}"
+          grep -E ' \.\.\. ok$' "$LOG" | sed -E 's/ \.\.\. ok$//' | sort -u > /tmp/current-pass.txt
+          grep -vE '^(#|$)' "$BASELINE" | sort -u > /tmp/baseline.txt
+          NEW=$(comm -13 /tmp/baseline.txt /tmp/current-pass.txt)
+          if [ -z "$NEW" ]; then
+            echo "No new passing tests; baseline already up to date."
+            exit 0
+          fi
+          echo "Adding to $(basename "$BASELINE"):"
+          echo "$NEW" | sed 's/^/  + /'
+
+          # Preserve the header (leading # comments + blank line); append
+          # the merged-and-sorted pass set.
+          awk '/^[^#]/ && NF { exit } { print }' "$BASELINE" > /tmp/header.txt
+          {
+            cat /tmp/header.txt
+            cat /tmp/baseline.txt /tmp/current-pass.txt | sort -u
+          } > /tmp/new-baseline.txt
+          mv /tmp/new-baseline.txt "$BASELINE"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$BASELINE"
+          git commit -m "ci: refresh $(basename "$BASELINE") with new passing tests"
+
+          # Retry on race: concurrent matrix row (different baseline
+          # file but same branch) or author pushing during CI.
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          for attempt in 1 2 3; do
+            if git pull --rebase --autostash origin "$BRANCH" \
+               && git push origin "HEAD:$BRANCH"; then
+              exit 0
+            fi
+            echo "Push attempt $attempt failed; retrying after backoff…"
+            sleep $((attempt * 3))
+          done
+          echo "::error::Failed to push baseline refresh after 3 retries"
+          exit 1
 
       - name: Upload run log
         if: always()
