@@ -4,8 +4,8 @@ module TestkitBackend
     # We never emit one. Stub for parity.
     class ClientCertificateProviderCompleted < Request
       def process
-        raise NotImplementedError,
-              'ClientCertificateProvider callbacks are not implemented (driver does not advertise Feature:API:SSLClientCertificate)'
+        named_entity('BackendError',
+                     msg: 'ClientCertificateProvider callbacks are not implemented (driver does not advertise Feature:API:SSLClientCertificate)')
       end
     end
   end

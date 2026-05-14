@@ -9,9 +9,9 @@ module TestkitBackend
     # rare and we don't currently advertise the relevant feature.
     class CypherTypeField < Request
       def process
-        raise NotImplementedError,
-              'CypherTypeField introspection is not implemented; ' \
-              'driver eager-converts cypher values to native Ruby types at hydration time.'
+        named_entity('BackendError',
+                     msg: 'CypherTypeField introspection is not implemented; ' \
+                          'driver eager-converts cypher values to native Ruby types at hydration time.')
       end
     end
   end

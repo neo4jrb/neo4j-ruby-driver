@@ -4,8 +4,8 @@ module TestkitBackend
     # BookmarksConsumerRequest. We never emit one. Stub for parity.
     class BookmarksConsumerCompleted < Request
       def process
-        raise NotImplementedError,
-              'BookmarkManager callbacks are not implemented (driver does not advertise Feature:API:BookmarkManager)'
+        named_entity('BackendError',
+                     msg: 'BookmarkManager callbacks are not implemented (driver does not advertise Feature:API:BookmarkManager)')
       end
     end
   end

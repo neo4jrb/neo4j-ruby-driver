@@ -33,8 +33,13 @@ module TestkitBackend
       # tzinfo (already a driver runtime dep) is the authoritative source
       # for whether an IANA zone id is known. The check matches Java's
       # ZoneId.getAvailableZoneIds().contains(tzId).
+      #
+      # `params` is the value of the request's `subtestArguments` field.
+      # JSON.parse uses symbolize_names: true at the wire boundary and
+      # Request.from only underscores the top-level `data` keys, so
+      # nested hashes (this one) keep their original symbol keys.
       def check_tz_id_supported(params)
-        tz_id = params['tz_id']
+        tz_id = params[:tz_id]
         TZInfo::Timezone.get(tz_id) && nil
       rescue TZInfo::InvalidTimezoneIdentifier
         "Timezone not supported: #{tz_id}"
@@ -44,16 +49,16 @@ module TestkitBackend
       # params and verify the explicit utc_offset matches what tzinfo
       # would derive for that instant. Skip if either step fails.
       def check_date_time_supported(params)
-        data = params.dig('dt', 'data') or raise "param 'dt' expected to contain 'data'"
-        tz = TZInfo::Timezone.get(data['timezone_id'])
-        local = ::Time.new(data['year'], data['month'], data['day'],
-                           data['hour'], data['minute'],
-                           data['second'] + data['nanosecond'] / 1e9, 0)
+        data = params.dig(:dt, :data) or raise "param 'dt' expected to contain 'data'"
+        tz = TZInfo::Timezone.get(data[:timezone_id])
+        local = ::Time.new(data[:year], data[:month], data[:day],
+                           data[:hour], data[:minute],
+                           data[:second] + data[:nanosecond] / 1e9, 0)
         derived_offset = tz.period_for_local(local, true).utc_total_offset
-        return nil if derived_offset == data['utc_offset_s']
+        return nil if derived_offset == data[:utc_offset_s]
 
         "DateTime not supported: Unmatched UTC offset. TestKit expected " \
-        "#{data['utc_offset_s']}, local zone db yielded #{derived_offset}"
+        "#{data[:utc_offset_s]}, local zone db yielded #{derived_offset}"
       rescue TZInfo::InvalidTimezoneIdentifier, TZInfo::AmbiguousTime, TZInfo::PeriodNotFound, ArgumentError => e
         "DateTime not supported: #{e.message}"
       end
