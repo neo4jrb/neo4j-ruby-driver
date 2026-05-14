@@ -55,11 +55,12 @@ module Neo4j
         run_extra.reject! { |_, v| v.nil? || (v.respond_to?(:empty?) && v.empty?) }
 
         connection = acquire_connection(session_access_mode)
+        fetch_size = effective_fetch_size
 
         run_response =
           begin
             connection.send_message(Bolt::Message.run(query, parameters, run_extra))
-            connection.send_message(Bolt::Message.pull)
+            connection.send_message(Bolt::Message.pull(n: fetch_size))
             connection.flush
             connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException
@@ -81,6 +82,7 @@ module Neo4j
         @current_result = Result.new(
           connection, keys,
           query_text: query, parameters: parameters, run_metadata: run_response.metadata,
+          fetch_size: fetch_size,
           on_summary: method(:harvest_auto_commit_bookmark),
           on_release: -> { @connection_provider.release(connection) }
         )
@@ -183,6 +185,14 @@ module Neo4j
 
       def acquire_connection(access_mode)
         @connection_provider.acquire(access_mode: access_mode, database: @options[:database])
+      end
+
+      # Records per PULL batch. Matches Java/Python defaults (1000). The
+      # user can override per-driver via the `fetch_size` option and the
+      # special value `-1` means "pull all records in one batch".
+      def effective_fetch_size
+        size = @options[:fetch_size]
+        size.nil? ? 1000 : size
       end
 
       # Default access mode for the session — drives connection routing for

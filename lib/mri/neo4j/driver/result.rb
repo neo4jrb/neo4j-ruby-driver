@@ -14,12 +14,14 @@ module Neo4j
     class Result
       include Enumerable
 
-      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {}, on_summary: nil, on_release: nil)
+      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {},
+                     fetch_size: 1000, on_summary: nil, on_release: nil)
         @connection = connection
         @keys = keys
         @query_text = query_text
         @parameters = parameters
         @run_metadata = run_metadata
+        @fetch_size = fetch_size  # used when SUCCESS carries has_more=true to request the next batch
         @on_summary = on_summary  # called with the built Summary when stream ends in SUCCESS
         @on_release = on_release  # called once when the connection is no longer needed
         @records = []       # records pulled into memory by #buffer (not by iteration)
@@ -37,8 +39,12 @@ module Neo4j
         return false if @consumed
         return true if @peeked_record
 
+        # Loop until the stream gives us a RECORD or signals end. A
+        # SUCCESS in the middle (has_more=true) triggers another PULL
+        # in on_success, so the next iteration's fetch_response reads
+        # the first record of the new batch.
         with_record_handler(->(msg) { @peeked_record = build_record(msg) }) do
-          @connection.fetch_response.accept(self)
+          @connection.fetch_response.accept(self) until @consumed || @peeked_record
         end
         !@peeked_record.nil?
       rescue StandardError
@@ -150,6 +156,16 @@ module Neo4j
       end
 
       def on_success(msg)
+        # has_more=true means the server still has records beyond the
+        # last PULL's batch limit. Send another PULL with the same
+        # batch size and keep streaming — `drain_until_consumed` /
+        # `has_next?` loop continues since @consumed stays false.
+        if msg.metadata[:has_more]
+          @connection.send_message(Bolt::Message.pull(n: @fetch_size))
+          @connection.flush
+          return
+        end
+
         finalize(msg.metadata)
         @on_summary&.call(@summary)
         # Stream is done — auto-commit results don't need the connection

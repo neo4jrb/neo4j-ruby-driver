@@ -53,9 +53,11 @@ module Neo4j
             PackStream::Structure.new(ROLLBACK, [])
           end
 
+          # Caller must specify n explicitly — Java/Python default is 1000
+          # records per batch but the call site (Session/Transaction) knows
+          # the configured fetch_size and passes it through. Default-here
+          # would silently mask "forgot to plumb fetch_size".
           def pull(extra = {})
-            # Default to pulling all records (n=-1)
-            extra = { n: -1 }.merge(extra)
             PackStream::Structure.new(PULL, [extra])
           end
 
