@@ -158,6 +158,9 @@ runs:
 
         # Build the refreshed baseline file. Re-derive on each retry so
         # we always merge against the freshest remote content.
+        # Inputs: the on-disk $BASELINE and the pass list.
+        # Output: rewrites $BASELINE in place. Returns 1 (no-op) if
+        # the merge produces the same content already on disk.
         rebuild_baseline() {
           # Treat indented `# …` as header too; whitespace-only as blank.
           awk '/^[[:space:]]*#/ || /^[[:space:]]*$/ { print; next } { exit }' "$BASELINE" > /tmp/header.txt
@@ -165,20 +168,12 @@ runs:
             cat /tmp/header.txt
             { grep -vE '^[[:space:]]*(#|$)' "$BASELINE"; cat "${{ steps.pass.outputs.path }}"; } | sort -u
           } > /tmp/new-baseline.txt
-          # No-op? Cover the corner case where the diff that earlier
-          # looked non-empty round-trips to the same on-disk content
-          # (e.g. header normalisation).
           if cmp -s "$BASELINE" /tmp/new-baseline.txt; then
             return 1
           fi
           mv /tmp/new-baseline.txt "$BASELINE"
           return 0
         }
-
-        if ! rebuild_baseline; then
-          echo "Baseline file content unchanged; nothing to commit."
-          exit 0
-        fi
 
         git config user.name 'github-actions[bot]'
         git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -187,19 +182,17 @@ runs:
         # gives us a synthetic merge commit, not the PR head — so
         # `git pull --rebase` here would try to rebase the merge over
         # any new remote commit and conflict. Instead, on each attempt:
-        #   1. Stash our local baseline rewrite
-        #   2. Fetch + hard-reset to the latest remote branch tip
-        #   3. Re-apply the rewrite on top
-        #   4. Commit fresh and push
-        # That way concurrent pushes from sibling matrix rows just
-        # mean we rebuild against their new tip, not fight with rebase.
+        #   1. Fetch + hard-reset to the latest remote branch tip
+        #   2. Re-merge the pass list into the freshly-fetched baseline
+        #   3. Commit + push
+        # The merge is idempotent (`sort -u`), so racing sibling rows
+        # just mean we rebuild against their new tip instead of fighting
+        # with rebase. We deliberately do NOT snapshot a pre-fetch
+        # baseline and restore it — that would let stale local content
+        # win over the freshly-fetched remote content.
         for attempt in 1 2 3; do
-          cp "$BASELINE" /tmp/baseline-snapshot.txt
           git fetch origin "$BRANCH"
           git checkout -B "$BRANCH" "origin/$BRANCH"
-          cp /tmp/baseline-snapshot.txt "$BASELINE"
-          # Re-derive against the new remote BASELINE in case the
-          # sibling row already added some of the same tests.
           if ! rebuild_baseline; then
             echo "Baseline already up to date on origin; nothing to push."
             exit 0
