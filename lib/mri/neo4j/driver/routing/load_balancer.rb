@@ -300,7 +300,12 @@ module Neo4j
 
         def open_connection(address)
           uri = "bolt://#{address}"
-          Bolt::Connection.new(uri, @auth, @options).connect
+          # routing_context goes into the HELLO map so the cluster can
+          # apply the configured policy / region (the same routing
+          # context is sent to readers/writers too; non-router servers
+          # just ignore it).
+          opts = @options.merge(routing_context: @routing_context)
+          Bolt::Connection.new(uri, @auth, opts).connect
         end
 
         def symbolize(value)
