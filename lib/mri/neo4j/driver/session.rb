@@ -131,16 +131,13 @@ module Neo4j
         execute_transaction(AccessMode::WRITE, timeout:, metadata:, &block)
       end
 
-      # TODO(close-cancel-semantics): the buffer call below pulls every
-      # remaining RECORD off the wire just to discard them client-side, and
-      # any FAILURE that the drain surfaces gets silently swallowed by
-      # Driver#session's block-form. Java-faithful behaviour is to send
-      # DISCARD/RESET, abandon the stream server-side, and propagate
-      # nothing — no swallow needed. Requires fixing Connection#reset! to
-      # drain by terminal-for-RESET (not by queue-pop count). The
-      # 'reports failure in close' integration spec encodes the current
-      # incorrect contract and would need to flip. Tracked as backlog
-      # item #12 in TESTKIT.md.
+      # Close any pending result by asking the server to abandon
+      # remaining records (DISCARD) rather than pulling them just to
+      # throw them away client-side. Matches Java's behaviour and is
+      # required by testkit's session_run.test_discard_on_session_close_*
+      # scripts which lie about has_more=true to verify the driver
+      # eventually sends DISCARD. With pagination, draining via buffer
+      # would loop forever on those scripts.
       def close
         return unless @open
 
@@ -150,15 +147,15 @@ module Neo4j
           if @current_result
             connection = @current_result.connection
             begin
-              @current_result.buffer
+              @current_result.consume
             rescue Exceptions::Neo4jException => e
               pending_error = e
             end
-            # Any failure during the last result leaves the connection in
+            # Any failure during the consume leaves the connection in
             # the server's FAILED state; RESET so the next borrower starts
             # from a clean READY state.
             connection.reset! if @current_result.failed?
-            @current_result.discard!  # also releases the connection
+            @current_result.discard!  # idempotent; releases the connection
           end
         ensure
           @open = false
