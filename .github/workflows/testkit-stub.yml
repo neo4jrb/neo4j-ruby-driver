@@ -16,13 +16,10 @@ jobs:
 
     # contents: write — lets the auto-update step push baseline
     # refreshes back to the PR branch via the default GITHUB_TOKEN.
-    # checks: write — lets the same step synthesise a passing check
-    # tied to the bot's commit (the GITHUB_TOKEN push doesn't fire
-    # pull_request, so without this the PR-checks UI shows "no
-    # checks reported" against the new HEAD).
+    # The fan-in replicate-checks-on-bot-commit job below carries the
+    # checks: write permission separately.
     permissions:
       contents: write
-      checks: write
 
     strategy:
       fail-fast: false
@@ -88,9 +85,6 @@ jobs:
           # runs the same code path so it must not push baseline
           # updates. JRuby native owns jruby.txt.
           auto_refresh_enabled: ${{ !matrix.force_mri }}
-          # Match the job name so the synthesised check on the bot's
-          # commit groups with the PR's testkit-stub matrix row.
-          check_name: testkit-stub (ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }})
 
       - name: Upload run log
         if: always()
@@ -110,3 +104,23 @@ jobs:
           name: testkit-stub-backend-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
           path: /tmp/testkit-run-*/backend.log
           if-no-files-found: ignore
+
+  # Fan-in: after every matrix row's actual check has settled on the
+  # original PR SHA, replicate them onto whatever HEAD is now (the bot's
+  # commit if a row auto-refreshed the baseline). Without this, a single
+  # successful row's synthesised check would land alone on the new HEAD
+  # and the PR-checks UI would flip green prematurely.
+  replicate-on-bot-commit:
+    needs: testkit-stub
+    if: |
+      always()
+      && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/replicate-checks-on-bot-commit
+        with:
+          check_name_regex: ^testkit-stub

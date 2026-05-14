@@ -1,0 +1,51 @@
+name: Replicate matrix-row checks onto current PR HEAD
+description: >
+  Run as a fan-in after all matrix rows of a workflow complete. If the
+  testkit-postprocess auto-refresh pushed a baseline commit (so the PR
+  HEAD has moved beyond the SHA the matrix ran against), replicate each
+  matching check run from the original SHA onto the new HEAD with the
+  same conclusion. This keeps the PR-checks UI honest: it only goes
+  green when every matrix row's actual result is reflected on HEAD, and
+  a single row's pass cannot mark the whole rollup green prematurely.
+
+inputs:
+  check_name_regex:
+    description: >
+      ERE used by `gh api --jq test(...)` to filter check runs on the
+      original SHA. Should match this workflow's matrix-row job names
+      (e.g. "^testkit-stub \\(ruby ").
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Replicate matrix-row checks onto current PR HEAD
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        BRANCH="${{ github.event.pull_request.head.ref }}"
+        ORIG="${{ github.event.pull_request.head.sha }}"
+        NEW=$(gh api "repos/${{ github.repository }}/git/refs/heads/$BRANCH" --jq .object.sha)
+        if [ "$ORIG" = "$NEW" ]; then
+          echo "PR HEAD unchanged ($ORIG); nothing to replicate."
+          exit 0
+        fi
+        echo "PR HEAD moved $ORIG -> $NEW; replicating checks matching /${{ inputs.check_name_regex }}/."
+        gh api "repos/${{ github.repository }}/commits/$ORIG/check-runs?per_page=100" \
+          --jq ".check_runs[] | select(.name | test(\"${{ inputs.check_name_regex }}\")) | \"\(.name)\t\(.conclusion)\"" \
+        | while IFS=$'\t' read -r NAME CONCL; do
+            # `null` shows up when a check is still pending; fan-in
+            # ran with `needs: ...` so completed runs are guaranteed,
+            # but be defensive.
+            [ -z "$CONCL" ] || [ "$CONCL" = "null" ] && CONCL=neutral
+            echo "  $NAME [$CONCL]"
+            gh api -X POST "/repos/${{ github.repository }}/check-runs" \
+              -f name="$NAME" \
+              -f head_sha="$NEW" \
+              -f status=completed \
+              -f conclusion="$CONCL" \
+              -f "output[title]=Replicated from $ORIG" \
+              -f "output[summary]=Baseline auto-refresh moved HEAD. Replicated this check's outcome from the original PR commit so the new HEAD reflects the actual matrix-row result." \
+              > /dev/null
+          done

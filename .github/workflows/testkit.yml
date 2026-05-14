@@ -16,13 +16,10 @@ jobs:
 
     # contents: write — lets the auto-update step push baseline
     # refreshes back to the PR branch via the default GITHUB_TOKEN.
-    # checks: write — lets the same step synthesise a passing check
-    # tied to the bot's commit (the GITHUB_TOKEN push doesn't fire
-    # pull_request, so without this the PR-checks UI shows "no
-    # checks reported" against the new HEAD).
+    # The fan-in replicate-checks-on-bot-commit job below carries the
+    # checks: write permission separately.
     permissions:
       contents: write
-      checks: write
 
     strategy:
       fail-fast: false
@@ -114,9 +111,6 @@ jobs:
           # runs the same code path so it must not push baseline
           # updates. JRuby native owns jruby.txt.
           auto_refresh_enabled: ${{ !matrix.force_mri }}
-          # Match the job name so the synthesised check on the bot's
-          # commit groups with the PR's testkit matrix row.
-          check_name: testkit (ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }})
 
       - name: Upload run log
         if: always()
@@ -136,3 +130,23 @@ jobs:
           name: testkit-backend-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
           path: /tmp/testkit-run-*/backend.log
           if-no-files-found: ignore
+
+  # See testkit-stub.yml for rationale on the fan-in.
+  replicate-on-bot-commit:
+    needs: testkit
+    if: |
+      always()
+      && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/replicate-checks-on-bot-commit
+        with:
+          # Character class with a literal space — `^testkit ` would
+          # work in regex but YAML trailing-space handling is brittle.
+          # Crucially this must NOT match `testkit-stub` rows (separate
+          # workflow runs its own fan-in below).
+          check_name_regex: ^testkit[ ]

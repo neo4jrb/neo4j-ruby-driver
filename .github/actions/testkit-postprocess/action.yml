@@ -18,15 +18,6 @@ inputs:
       Other rows still run the gate but won't push baseline updates.
     required: false
     default: "false"
-  check_name:
-    description: >
-      Name to use for the synthetic check posted on the bot's commit
-      after a successful auto-refresh push. Should match the calling
-      job's name so the PR-checks UI groups them together (e.g.
-      "testkit-stub (ruby 3.4)"). When empty, no check is posted.
-    required: false
-    default: ""
-
 outputs:
   log:
     description: Path to the testkit run.log.
@@ -215,30 +206,3 @@ runs:
         echo "::error::Failed to push baseline refresh after 3 retries"
         exit 1
 
-    # The bot's push above used GITHUB_TOKEN, which deliberately
-    # doesn't fire pull_request events — so the PR's checks UI would
-    # otherwise show "no checks reported" against the new HEAD.
-    #
-    # Re-dispatching the workflow would work but costs an entire CI
-    # cycle per pushing matrix row, and the answer is forgone: the
-    # baseline we just pushed is derived from the pass set that just
-    # satisfied the gate, so the new baseline trivially satisfies the
-    # gate too (new_baseline ⊆ pass_set; pass_set didn't change).
-    # Instead, synthesise a passing check tied to the bot's commit
-    # via the Check Runs API. Costs one HTTP call.
-    - name: Synthesise check on the bot's commit
-      if: |
-        steps.refresh.outputs.pushed == 'true'
-        && inputs.check_name != ''
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        SHA=$(git rev-parse HEAD)
-        gh api -X POST "/repos/${{ github.repository }}/check-runs" \
-          -f name="${{ inputs.check_name }}" \
-          -f head_sha="$SHA" \
-          -f status=completed \
-          -f conclusion=success \
-          -f "output[title]=Baseline auto-refreshed" \
-          -f "output[summary]=Baseline updated by github-actions[bot]. The new baseline is a superset of what already passed the regression gate on the previous commit, so it trivially satisfies the gate too."
