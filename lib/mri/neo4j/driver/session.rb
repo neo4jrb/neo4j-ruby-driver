@@ -262,7 +262,8 @@ module Neo4j
         loop do
           begin
             return run_managed_transaction(op_mode, tx_options, &block)
-          rescue Exceptions::ServiceUnavailableException, Exceptions::TransientException => e
+          rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException,
+                 Exceptions::TransientException => e
             errors << e
 
             if Time.now - start_time >= max_retry_time
