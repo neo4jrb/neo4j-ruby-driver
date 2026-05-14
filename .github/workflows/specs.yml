@@ -70,22 +70,3 @@ jobs:
 
       - name: Run RSpec
         run: bundle exec rspec --format progress
-
-  # See testkit-stub.yml for rationale on the fan-in. Driver specs has
-  # no auto-refresh of its own, but if testkit / testkit-stub move HEAD
-  # via a baseline refresh, we still need rspec's matrix-row outcomes
-  # on the new HEAD or the PR-checks UI looks incomplete.
-  replicate-on-bot-commit:
-    needs: rspec
-    if: |
-      always()
-      && github.event_name == 'pull_request'
-      && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    permissions:
-      checks: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/replicate-checks-on-bot-commit
-        with:
-          check_name_regex: ^rspec[ ]
