@@ -55,11 +55,12 @@ module Neo4j
         run_extra.reject! { |_, v| v.nil? || (v.respond_to?(:empty?) && v.empty?) }
 
         connection = acquire_connection(session_access_mode)
+        fetch_size = effective_fetch_size
 
         run_response =
           begin
             connection.send_message(Bolt::Message.run(query, parameters, run_extra))
-            connection.send_message(Bolt::Message.pull)
+            connection.send_message(Bolt::Message.pull(n: fetch_size))
             connection.flush
             connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException
@@ -81,6 +82,7 @@ module Neo4j
         @current_result = Result.new(
           connection, keys,
           query_text: query, parameters: parameters, run_metadata: run_response.metadata,
+          fetch_size: fetch_size,
           on_summary: method(:harvest_auto_commit_bookmark),
           on_release: -> { @connection_provider.release(connection) }
         )
@@ -129,16 +131,13 @@ module Neo4j
         execute_transaction(AccessMode::WRITE, timeout:, metadata:, &block)
       end
 
-      # TODO(close-cancel-semantics): the buffer call below pulls every
-      # remaining RECORD off the wire just to discard them client-side, and
-      # any FAILURE that the drain surfaces gets silently swallowed by
-      # Driver#session's block-form. Java-faithful behaviour is to send
-      # DISCARD/RESET, abandon the stream server-side, and propagate
-      # nothing — no swallow needed. Requires fixing Connection#reset! to
-      # drain by terminal-for-RESET (not by queue-pop count). The
-      # 'reports failure in close' integration spec encodes the current
-      # incorrect contract and would need to flip. Tracked as backlog
-      # item #12 in TESTKIT.md.
+      # Close any pending result by asking the server to abandon
+      # remaining records (DISCARD) rather than pulling them just to
+      # throw them away client-side. Matches Java's behaviour and is
+      # required by testkit's session_run.test_discard_on_session_close_*
+      # scripts which lie about has_more=true to verify the driver
+      # eventually sends DISCARD. With pagination, draining via buffer
+      # would loop forever on those scripts.
       def close
         return unless @open
 
@@ -148,15 +147,15 @@ module Neo4j
           if @current_result
             connection = @current_result.connection
             begin
-              @current_result.buffer
+              @current_result.consume
             rescue Exceptions::Neo4jException => e
               pending_error = e
             end
-            # Any failure during the last result leaves the connection in
+            # Any failure during the consume leaves the connection in
             # the server's FAILED state; RESET so the next borrower starts
             # from a clean READY state.
             connection.reset! if @current_result.failed?
-            @current_result.discard!  # also releases the connection
+            @current_result.discard!  # idempotent; releases the connection
           end
         ensure
           @open = false
@@ -183,6 +182,14 @@ module Neo4j
 
       def acquire_connection(access_mode)
         @connection_provider.acquire(access_mode: access_mode, database: @options[:database])
+      end
+
+      # Records per PULL batch. Matches Java/Python defaults (1000). The
+      # user can override per-driver via the `fetch_size` option and the
+      # special value `-1` means "pull all records in one batch".
+      def effective_fetch_size
+        size = @options[:fetch_size]
+        size.nil? ? 1000 : size
       end
 
       # Default access mode for the session — drives connection routing for
@@ -262,7 +269,8 @@ module Neo4j
         loop do
           begin
             return run_managed_transaction(op_mode, tx_options, &block)
-          rescue Exceptions::ServiceUnavailableException, Exceptions::TransientException => e
+          rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException,
+                 Exceptions::TransientException => e
             errors << e
 
             if Time.now - start_time >= max_retry_time

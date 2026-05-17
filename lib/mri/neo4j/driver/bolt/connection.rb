@@ -272,10 +272,16 @@ module Neo4j
                         {}
                       end
 
-          # Use protocol handler to build version-specific HELLO message
+          # Use protocol handler to build version-specific HELLO message.
+          # `routing_context` is set by Routing::LoadBalancer (nil for
+          # direct bolt:// drivers); the protocol handler drops it from
+          # the HELLO payload when nil. `user_agent` may be overridden by
+          # the caller (testkit threads its configured agent through the
+          # driver options).
           hello_msg = @protocol.build_hello_message(
-            user_agent: "neo4j-ruby-driver/#{Neo4j::Driver::VERSION}",
-            auth: auth_hash
+            user_agent: @options[:user_agent] || "neo4j-ruby-driver/#{Neo4j::Driver::VERSION}",
+            auth: auth_hash,
+            routing: @options[:routing_context]
           )
 
           send_message(hello_msg)
