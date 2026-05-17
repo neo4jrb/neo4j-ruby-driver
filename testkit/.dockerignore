@@ -1,0 +1,11 @@
+# Build context for testkit/Dockerfile is the testkit/ directory
+# itself, not the project root, so the docker context is already tiny.
+# This file just keeps in-place artifacts out:
+#   - CAs/, CustomCAs/ are populated by testkit at build time and
+#     copied in explicitly via COPY in the Dockerfile; without ignoring
+#     them here, an out-of-date local copy could shadow what testkit
+#     freshly drops.
+# In practice testkit always re-populates them before building, so
+# this is belt-and-suspenders.
+*.pyc
+__pycache__/

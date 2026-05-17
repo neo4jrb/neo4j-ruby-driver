@@ -7,3 +7,9 @@ pkg/
 
 *.jar
 neo4j-ruby-driver_jars.rb
+
+# Populated by testkit's _ensure_image() before docker build
+# (CAs/ from testkit's tests/tls/certs/driver/trusted,
+#  CustomCAs/ from .../custom). Transient build context.
+testkit/CAs/
+testkit/CustomCAs/

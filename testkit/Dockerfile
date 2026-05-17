@@ -1,0 +1,42 @@
+# Driver image built and run by testkit's main.py from this directory.
+#
+# testkit.driver.py:_ensure_image() copies testkit's TLS fixtures into
+# ./CAs/ and ./CustomCAs/ here at build time, then `docker build`s this
+# Dockerfile with the testkit/ folder as the context. The container is
+# then started by testkit with /testkit, /driver and /artifacts mounted
+# and `python3 /testkit/driver/bootstrap.py` as entrypoint; bootstrap
+# runs the phase scripts in order: build.py, unittests.py, backend.py,
+# integration.py / stress.py.
+#
+# Switch runtime via BASE_IMAGE. Defaults to MRI; pass
+#   --build-arg BASE_IMAGE=jruby:10.1.0.0-jdk21
+# (or via TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE under testkit) for JRuby.
+ARG BASE_IMAGE=ruby:3.4-slim
+FROM ${BASE_IMAGE}
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8
+
+# Native-gem builds (bigdecimal, ffi, …) need a C toolchain on slim
+# images. JRuby's image already ships a JDK; the apt set below is a
+# superset that works for both bases.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        git \
+        build-essential \
+        libssl-dev \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# testkit copies its TLS fixtures into ./CAs and ./CustomCAs at build
+# time. update-ca-certificates is safe to run if either dir is empty.
+COPY CAs/ /usr/local/share/ca-certificates/
+COPY CustomCAs/ /usr/local/share/custom-ca-certificates/
+RUN update-ca-certificates 2>/dev/null || true
+
+# The driver source is mounted at /driver at run time, so the image
+# itself is intentionally source-free. build.py runs `bundle install`
+# from that mount on first phase entry; testkit caches the resulting
+# image layers in CI.
+WORKDIR /driver
+EXPOSE 9876
