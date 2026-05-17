@@ -1,4 +1,4 @@
-GG# Tests currently expected to pass under tests/neo4j on mri.
+# Tests currently expected to pass under tests/neo4j on mri.
 # CI fails if any of these stops passing (regression).
 # Add lines as we fix more; remove with reason in commit msg.
 # Sorted alphabetically. Refresh with bin/refresh-testkit-baseline neo4j (running on mri).
