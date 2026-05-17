@@ -124,11 +124,14 @@ module Neo4j
         # Internal — mirrors Java's
         # RoutingTableRegistry#getRoutingTableHandler(databaseName).
         # Pure read: returns the cached table for the database, or a
-        # fresh empty one if no table has been fetched yet. Deliberately
-        # does NOT force a fetch — testkit's get_routing_table contract
-        # is "what's currently known", and an auto-fetch here causes a
-        # second ROUTE on a stub server that already hung up after the
-        # first (see test_should_fail_on_routing_table_with_no_reader).
+        # new empty placeholder if no table has ever been fetched.
+        # (Empty means routers/readers/writers are all empty — it is
+        # NOT `fresh?`; callers that want a fetched table go through
+        # ensure_routing_table_is_fresh.) Deliberately does NOT force
+        # a fetch — testkit's get_routing_table contract is "what's
+        # currently known", and an auto-fetch here causes a second
+        # ROUTE on a stub server that already hung up after the first
+        # (see test_should_fail_on_routing_table_with_no_reader).
         def routing_table_handler(database)
           @refresh_lock.synchronize do
             Handler.new(@routing_tables[database] || RoutingTable.new(database: database))
