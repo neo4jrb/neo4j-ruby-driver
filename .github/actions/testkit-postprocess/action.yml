@@ -41,15 +41,33 @@ runs:
     # once (parametrised cases shared between v3/v4 suites); duplicates
     # would otherwise surface as phantom "new passes" against the
     # baseline.
+    # The awk handles two unittest output shapes:
+    #   1) "<header> ... ok"                          — clean pass
+    #   2) "<header> ... /path:N: UserWarning: ..."   — header split
+    #      "  warnings.warn(...)"                       by a Python
+    #      "ok"                                         warning, with
+    #                                                   a bare "ok"
+    #                                                   on its own line
+    # Shape 2 surfaces whenever testkit's nutkit protocol code emits a
+    # UserWarning during a test (e.g. backend-compat checks). A naive
+    # ` \.\.\. ok$` grep silently drops those passes, which then look
+    # like regressions against the baseline.
     - name: Extract pass list
       id: pass
       if: always()
       shell: bash
       run: |
         path=/tmp/testkit-pass-list.txt
-        grep -E ' \.\.\. ok$' "${{ steps.log.outputs.path }}" \
-          | sed -E 's/ \.\.\. ok$//' \
-          | sort -u > "$path"
+        awk '
+          / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); print; pending=""; next }
+          / \.\.\. FAIL$/    { pending=""; next }
+          / \.\.\. ERROR$/   { pending=""; next }
+          / \.\.\. skipped/  { pending=""; next }
+          / \.\.\. /         { line=$0; sub(/ \.\.\. .*$/, "", line); pending=line; next }
+          /^ok$/             { if (pending) { print pending; pending="" } }
+          /^FAIL$/           { pending="" }
+          /^ERROR$/          { pending="" }
+        ' "${{ steps.log.outputs.path }}" | sort -u > "$path"
         echo "path=$path" >> "$GITHUB_OUTPUT"
         echo "$(wc -l < "$path") unique passing tests."
 
@@ -61,9 +79,11 @@ runs:
         # Raw counts — every parametrised occurrence is its own
         # pass/fail/error result. The dedup'd unique-test-id count
         # used by the gate is reported separately below.
-        PASS=$(grep -cE ' \.\.\. ok$' "$LOG" || true)
-        FAIL=$(grep -cE ' \.\.\. FAIL$' "$LOG" || true)
-        ERROR=$(grep -cE ' \.\.\. ERROR$' "$LOG" || true)
+        # Count both shapes (inline " ... ok" and bare "ok" after a
+        # warning-split header) so warnings don't make the totals lie.
+        PASS=$(awk '/ \.\.\. ok$/ { c++; next } /^ok$/ { c++ } END { print c+0 }' "$LOG")
+        FAIL=$(awk '/ \.\.\. FAIL$/ { c++; next } /^FAIL$/ { c++ } END { print c+0 }' "$LOG")
+        ERROR=$(awk '/ \.\.\. ERROR$/ { c++; next } /^ERROR$/ { c++ } END { print c+0 }' "$LOG")
         SKIP=$(grep -cE 'skipped' "$LOG" || true)
         {
           echo "## Testkit (${{ inputs.target_label }}) results"
@@ -84,7 +104,19 @@ runs:
       run: |
         LOG="${{ steps.log.outputs.path }}"
         grep -vE '^[[:space:]]*(#|$)' "${{ inputs.baseline_path }}" | sort -u > /tmp/baseline.txt
-        grep -E ' \.\.\. (FAIL|ERROR)$' "$LOG" | sed -E 's/ \.\.\. (FAIL|ERROR)$//' | sort -u > /tmp/current-fail.txt
+        # Same warning-split awareness as Extract pass list: a bare
+        # "FAIL"/"ERROR" line after a header split by a Python
+        # UserWarning means the original test header is the failure.
+        awk '
+          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print; pending=""; next }
+          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print; pending=""; next }
+          / \.\.\. ok$/      { pending=""; next }
+          / \.\.\. skipped/  { pending=""; next }
+          / \.\.\. /         { line=$0; sub(/ \.\.\. .*$/, "", line); pending=line; next }
+          /^FAIL$/           { if (pending) { print pending; pending="" } }
+          /^ERROR$/          { if (pending) { print pending; pending="" } }
+          /^ok$/             { pending="" }
+        ' "$LOG" | sort -u > /tmp/current-fail.txt
 
         MISSING=$(comm -23 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
         FAILED=$(comm -12 /tmp/baseline.txt /tmp/current-fail.txt)
