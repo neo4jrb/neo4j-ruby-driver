@@ -44,6 +44,15 @@ module Neo4j
           release(conn)
         end
 
+        # Mirrors Java: a Direct (bolt://) driver has no routing-table
+        # registry. testkit's GetRoutingTable / ForcedRoutingTableUpdate
+        # handlers expect a clean error here rather than NoMethodError
+        # so callers can distinguish "wrong scheme" from a real bug.
+        def routing_table_registry
+          raise Exceptions::ClientException,
+                'Routing table is only available on routing (neo4j://) drivers'
+        end
+
         def close
           @pool&.shutdown { |conn| conn.close rescue nil }
         end

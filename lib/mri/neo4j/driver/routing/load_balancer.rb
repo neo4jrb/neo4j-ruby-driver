@@ -114,21 +114,35 @@ module Neo4j
           end
         end
 
-        # Test-only API. Return the current routing table for the given
-        # database, fetching one if the cache is empty / not fresh.
-        def snapshot(database)
+        # Internal — mirrors Java's
+        # ConnectionProvider#getRoutingTableRegistry(). LoadBalancer is
+        # both the connection provider and the routing-table registry;
+        # the layer split exists in Java mostly because it predates
+        # generics. Used by testkit's GetRoutingTable handler.
+        def routing_table_registry = self
+
+        # Internal — mirrors Java's
+        # RoutingTableRegistry#getRoutingTableHandler(databaseName).
+        # Returns a Handler wrapping the current table (fetching one
+        # if the cache is empty / not fresh) so the JRuby/MRI testkit
+        # handler chain is identical.
+        def routing_table_handler(database)
           ensure_routing_table_is_fresh(database, :read)
-          @refresh_lock.synchronize { @routing_tables[database] }
+          @refresh_lock.synchronize { Handler.new(@routing_tables[database]) }
         end
 
-        # Test-only API. Force a fresh ROUTE call for the given database,
-        # ignoring TTL/cache. `bookmarks` are accepted for parity with the
+        # Internal — force a fresh ROUTE call for the given database
+        # regardless of TTL/cache. Used by ForcedRoutingTableUpdate
+        # testkit handler. `bookmarks` are accepted for parity with the
         # Java reference but not yet threaded through fetch_routing_table.
-        def force_refresh(database, _bookmarks = nil)
+        def refresh(database, _bookmarks = nil)
           invalidate_routing_table(database)
           ensure_routing_table_is_fresh(database, :read)
-          @refresh_lock.synchronize { @routing_tables[database] }
         end
+
+        # Mirrors org.neo4j.driver.internal.cluster.RoutingTableHandler
+        # for the slim surface testkit reads (just .routing_table).
+        Handler = Struct.new(:routing_table)
 
         # Called by RoutedConnection on a fatal connection-level error
         # (or DatabaseUnavailable). Removes the address from every
