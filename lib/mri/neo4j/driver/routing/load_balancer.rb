@@ -37,9 +37,9 @@ module Neo4j
         # acquire, deactivate on connection failure and try again. Raises
         # ServiceUnavailableException only when the role bucket has been
         # exhausted by deactivations.
-        def acquire(access_mode: :write, database: nil)
+        def acquire(access_mode: :write, database: nil, bookmarks: nil)
           access_mode = access_mode.to_sym
-          ensure_routing_table_is_fresh(database, access_mode)
+          ensure_routing_table_is_fresh(database, access_mode, bookmarks: bookmarks)
 
           last_error = nil
           loop do
@@ -123,21 +123,27 @@ module Neo4j
 
         # Internal — mirrors Java's
         # RoutingTableRegistry#getRoutingTableHandler(databaseName).
-        # Returns a Handler wrapping the current table (fetching one
-        # if the cache is empty / not fresh) so the JRuby/MRI testkit
-        # handler chain is identical.
+        # Pure read: returns the cached table for the database, or a
+        # fresh empty one if no table has been fetched yet. Deliberately
+        # does NOT force a fetch — testkit's get_routing_table contract
+        # is "what's currently known", and an auto-fetch here causes a
+        # second ROUTE on a stub server that already hung up after the
+        # first (see test_should_fail_on_routing_table_with_no_reader).
         def routing_table_handler(database)
-          ensure_routing_table_is_fresh(database, :read)
-          @refresh_lock.synchronize { Handler.new(@routing_tables[database]) }
+          @refresh_lock.synchronize do
+            Handler.new(@routing_tables[database] || RoutingTable.new(database: database))
+          end
         end
 
         # Internal — force a fresh ROUTE call for the given database
         # regardless of TTL/cache. Used by ForcedRoutingTableUpdate
-        # testkit handler. `bookmarks` are accepted for parity with the
-        # Java reference but not yet threaded through fetch_routing_table.
-        def refresh(database, _bookmarks = nil)
-          invalidate_routing_table(database)
-          ensure_routing_table_is_fresh(database, :read)
+        # testkit handler. Threads bookmarks through to the ROUTE
+        # payload so causal-consistency assertions work.
+        def refresh(database, bookmarks = nil)
+          @refresh_lock.synchronize do
+            invalidate_routing_table(database)
+            update_routing_table(database, bookmarks: bookmarks)
+          end
         end
 
         # Mirrors org.neo4j.driver.internal.cluster.RoutingTableHandler
@@ -188,13 +194,14 @@ module Neo4j
         # requested `access_mode`. Cheap fast path when the cached table
         # is still fresh; otherwise fetches one inside the lock with a
         # second freshness check (double-checked locking pattern matches
-        # Python's ensure_routing_table_is_fresh).
-        def ensure_routing_table_is_fresh(database, access_mode)
+        # Python's ensure_routing_table_is_fresh). Optional `bookmarks`
+        # are threaded into the ROUTE payload.
+        def ensure_routing_table_is_fresh(database, access_mode, bookmarks: nil)
           @refresh_lock.synchronize do
             table = @routing_tables[database]
             return table if table && table.fresh?(readonly: access_mode == :read)
 
-            update_routing_table(database)
+            update_routing_table(database, bookmarks: bookmarks)
           end
         end
 
@@ -207,13 +214,13 @@ module Neo4j
         # the existing table came back without writers (likely-stale),
         # otherwise prefer the existing routers list first. Each failed
         # router is `deactivate`d before moving on to the next.
-        def update_routing_table(database)
+        def update_routing_table(database, bookmarks: nil)
           existing = @routing_tables[database]
           prefer_seed = existing.nil? || existing.initialized_without_writers
 
           errors = []
           routers_in_order(existing, prefer_seed: prefer_seed).each do |router|
-            new_table = fetch_routing_table_from(router, database, errors)
+            new_table = fetch_routing_table_from(router, database, bookmarks, errors)
             next unless new_table
 
             apply_routing_table(database, new_table)
@@ -247,7 +254,7 @@ module Neo4j
         # the router; protocol-level failures (e.g. ClientException
         # while routing) just record the error so the caller tries the
         # next router.
-        def fetch_routing_table_from(router, database, errors)
+        def fetch_routing_table_from(router, database, bookmarks, errors)
           pool = pool_for(router)
           conn = nil
           begin
@@ -257,7 +264,7 @@ module Neo4j
             # update_routing_table's iteration over remaining routers
             # would stop on the first unreachable one.
             conn = pool.pop(timeout: acquisition_timeout_seconds)
-            rt = conn.route(database: database, bookmarks: [], routing_context: @routing_context)
+            rt = conn.route(database: database, bookmarks: Array(bookmarks), routing_context: @routing_context)
             new_table = RoutingTable.from_response(symbolize(rt), database)
 
             if new_table.routers.empty? || new_table.readers.empty?

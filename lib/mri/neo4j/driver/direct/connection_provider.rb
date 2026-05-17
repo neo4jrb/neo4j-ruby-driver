@@ -19,7 +19,7 @@ module Neo4j
           @options = options
         end
 
-        def acquire(access_mode: nil, database: nil)
+        def acquire(access_mode: nil, database: nil, bookmarks: nil)
           pool.pop(timeout: acquisition_timeout_seconds)
         rescue ::Timeout::Error
           raise Exceptions::ClientException,

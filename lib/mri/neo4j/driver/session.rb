@@ -46,11 +46,15 @@ module Neo4j
 
         # `mode` is sent for read sessions (matches routing-server
         # expectations); writers are the default and omit the field.
+        # `bookmarks` is the current bookmark snapshot so server-side
+        # causal consistency works across auto-commit runs without an
+        # explicit transaction.
         run_extra = {
           db: @options[:database],
           mode: (session_access_mode == :read ? 'r' : nil),
           tx_timeout: timeout_to_milliseconds(timeout),
-          tx_metadata:
+          tx_metadata:,
+          bookmarks: current_bookmarks_for_extra
         }
         run_extra.reject! { |_, v| v.nil? || (v.respond_to?(:empty?) && v.empty?) }
 
@@ -181,7 +185,20 @@ module Neo4j
       private
 
       def acquire_connection(access_mode)
-        @connection_provider.acquire(access_mode: access_mode, database: @options[:database])
+        @connection_provider.acquire(
+          access_mode: access_mode,
+          database: @options[:database],
+          bookmarks: current_bookmarks_for_extra
+        )
+      end
+
+      # Current bookmark snapshot as a plain array of strings, ready
+      # for the wire. Returns nil when empty so the BEGIN/RUN extras
+      # hash's `reject!` strips the key entirely (testkit's stub
+      # scripts strictly compare against omission).
+      def current_bookmarks_for_extra
+        bookmarks = @last_bookmarks.to_a.map(&:value)
+        bookmarks unless bookmarks.empty?
       end
 
       # Records per PULL batch. Matches Java/Python defaults (1000). The
