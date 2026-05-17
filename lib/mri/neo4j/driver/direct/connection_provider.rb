@@ -9,9 +9,11 @@ module Neo4j
       # (acquire / release / verify_connectivity / supports_multi_db? / close)
       # so Driver can hold either polymorphically without branching on scheme.
       #
-      # Direct ignores the `access_mode` and `database` kwargs to acquire:
-      # all sessions hit the same server, role/database routing is not its
-      # concern.
+      # Direct ignores the `access_mode`, `database`, and `bookmarks`
+      # kwargs to acquire: all sessions hit the same server, so
+      # role/database/bookmark-aware routing is not its concern. The
+      # kwargs are accepted so call sites stay polymorphic with
+      # Routing::LoadBalancer.
       class ConnectionProvider
         def initialize(uri, auth, options = {})
           @uri = uri
@@ -19,7 +21,7 @@ module Neo4j
           @options = options
         end
 
-        def acquire(access_mode: nil, database: nil)
+        def acquire(access_mode: nil, database: nil, bookmarks: nil)
           pool.pop(timeout: acquisition_timeout_seconds)
         rescue ::Timeout::Error
           raise Exceptions::ClientException,
