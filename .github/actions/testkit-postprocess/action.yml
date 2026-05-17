@@ -73,13 +73,55 @@ runs:
       shell: bash
       run: |
         path=/tmp/testkit-pass-list.txt
+        # Normalise headers to the canonical form
+        #     test_x (module.Class.test_x)
+        # The "inside the parens" piece changed across Python versions:
+        #   Python 3.10-: "test_x (module.Class.test_x)" (with method)
+        #   Python 3.11+: "test_x (module.Class)"        (no method)
+        # Our baselines were generated with the older shape, and the
+        # runner container that testkit's main.py spins up uses the
+        # newer one. Appending ".<method>" when it's missing canonicalises
+        # both shapes so the gate compares apples to apples regardless of
+        # which Python ran the suite.
         awk '
-          / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); print; pending=""; next }
-          / \.\.\. FAIL$/    { pending=""; next }
-          / \.\.\. ERROR$/   { pending=""; next }
-          / \.\.\. skipped/  { pending=""; next }
+          # POSIX awk only (gawk match-with-array form is not portable).
+          # Local var "cl" instead of "close" — macOS awk reserves close.
+          function canon(s,    op, cl, head, inner, suffix) {
+            op = index(s, " (")
+            if (!op) return s
+            cl = length(s)
+            if (substr(s, cl, 1) != ")") return s
+            head = substr(s, 1, op - 1)
+            inner = substr(s, op + 2, cl - op - 2)
+            suffix = "." head
+            if (length(inner) < length(suffix) ||
+                substr(inner, length(inner) - length(suffix) + 1) != suffix) {
+              return head " (" inner suffix ")"
+            }
+            return s
+          }
+          # When unittest emits multiple tests on one line (output buffer
+          # race: "test_a (id1) ... test_b (id2) ... ok"), the trailing
+          # result belongs to the LAST segment; the others completed
+          # silently — and since the inline format only drops the result
+          # token for passing tests that get merged this way, treat them
+          # all as passes.
+          function emit_pass(s,    n, parts, i) {
+            n = split(s, parts, / \.\.\. /)
+            for (i = 1; i <= n; i++) print canon(parts[i])
+          }
+          # For inline FAIL/ERROR/skipped: only the LAST segment is the
+          # failure / skip; merged earlier segments still passed.
+          function emit_pre_pass(s,    n, parts, i) {
+            n = split(s, parts, / \.\.\. /)
+            for (i = 1; i < n; i++) print canon(parts[i])
+          }
+          / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
+          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); emit_pre_pass($0); pending=""; next }
+          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); emit_pre_pass($0); pending=""; next }
+          / \.\.\. skipped/  { sub(/ \.\.\. skipped.*/, ""); emit_pre_pass($0); pending=""; next }
           / \.\.\. /         { line=$0; sub(/ \.\.\. .*$/, "", line); pending=line; next }
-          /^ok$/             { if (pending) { print pending; pending="" } }
+          /^ok$/             { if (pending) { emit_pass(pending); pending="" } }
           /^FAIL$/           { pending="" }
           /^ERROR$/          { pending="" }
         ' "${{ steps.log.outputs.path }}" | sort -u > "$path"
@@ -119,17 +161,39 @@ runs:
       run: |
         LOG="${{ steps.log.outputs.path }}"
         grep -vE '^[[:space:]]*(#|$)' "${{ inputs.baseline_path }}" | sort -u > /tmp/baseline.txt
-        # Same warning-split awareness as Extract pass list: a bare
-        # "FAIL"/"ERROR" line after a header split by a Python
-        # UserWarning means the original test header is the failure.
+        # Same warning-split awareness as Extract pass list, plus the
+        # canon() normalisation so Python 3.11+ output (no .test_method
+        # inside the parens) matches baselines recorded under older
+        # Python (which kept it).
         awk '
-          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print; pending=""; next }
-          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print; pending=""; next }
+          # POSIX awk only (see Extract pass list for the same canon).
+          function canon(s,    op, cl, head, inner, suffix) {
+            op = index(s, " (")
+            if (!op) return s
+            cl = length(s)
+            if (substr(s, cl, 1) != ")") return s
+            head = substr(s, 1, op - 1)
+            inner = substr(s, op + 2, cl - op - 2)
+            suffix = "." head
+            if (length(inner) < length(suffix) ||
+                substr(inner, length(inner) - length(suffix) + 1) != suffix) {
+              return head " (" inner suffix ")"
+            }
+            return s
+          }
+          # On a merged "test_a (id1) ... test_b (id2) ... FAIL" line, only
+          # the LAST segment is the failure — the earlier ones passed.
+          function last_segment(s,    n, parts) {
+            n = split(s, parts, / \.\.\. /)
+            return parts[n]
+          }
+          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print canon(last_segment($0)); pending=""; next }
+          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print canon(last_segment($0)); pending=""; next }
           / \.\.\. ok$/      { pending=""; next }
           / \.\.\. skipped/  { pending=""; next }
           / \.\.\. /         { line=$0; sub(/ \.\.\. .*$/, "", line); pending=line; next }
-          /^FAIL$/           { if (pending) { print pending; pending="" } }
-          /^ERROR$/          { if (pending) { print pending; pending="" } }
+          /^FAIL$/           { if (pending) { print canon(pending); pending="" } }
+          /^ERROR$/          { if (pending) { print canon(pending); pending="" } }
           /^ok$/             { pending="" }
         ' "$LOG" | sort -u > /tmp/current-fail.txt
 
