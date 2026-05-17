@@ -12,6 +12,14 @@ inputs:
   baseline_path:
     description: Absolute path to the impl-specific baseline file.
     required: true
+  log_path:
+    description: >
+      Explicit path to the testkit run log. Set this when the workflow
+      already knows where it wrote the log (e.g. `tee /tmp/run.log`).
+      Empty default preserves the legacy auto-discovery for
+      `bin/run-testkit`, which writes under `/tmp/testkit-run-*`.
+    required: false
+    default: ''
 
 outputs:
   log:
@@ -24,14 +32,21 @@ outputs:
 runs:
   using: composite
   steps:
-    # The freshest /tmp/testkit-run-* dir holds the log from this run.
+    # Explicit log_path wins; otherwise fall back to the legacy
+    # bin/run-testkit convention of `/tmp/testkit-run-*/run.log`.
     - name: Locate run log
       id: log
       if: always()
       shell: bash
       run: |
-        path=$(ls -td /tmp/testkit-run-* 2>/dev/null | head -1)/run.log
-        test -f "$path" || { echo "no run.log produced"; exit 1; }
+        explicit="${{ inputs.log_path }}"
+        if [ -n "$explicit" ]; then
+          test -f "$explicit" || { echo "log not at $explicit"; exit 1; }
+          path="$explicit"
+        else
+          path=$(ls -td /tmp/testkit-run-* 2>/dev/null | head -1)/run.log
+          test -f "$path" || { echo "no run.log produced"; exit 1; }
+        fi
         echo "path=$path" >> "$GITHUB_OUTPUT"
 
     # One place to define the "passing" log line format. Everything
