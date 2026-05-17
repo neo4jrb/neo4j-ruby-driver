@@ -54,14 +54,28 @@ module Neo4j
             begin
               inner = pool.pop(timeout: acquisition_timeout_seconds)
               return RoutedConnection.new(self, inner, address, access_mode, database)
-            rescue Exceptions::ServiceUnavailableException, ::Timeout::Error => e
+            rescue Exceptions::ServiceUnavailableException => e
+              # Server is unreachable (open_connection raised inside the
+              # pool's create block). Drop the address from every table
+              # and tear down its pool; loop and try another address.
               last_error = e
               deactivate(address)
+            rescue ::Timeout::Error
+              # Pool exhaustion at max_pool_size, not a server failure.
+              # Mirrors Direct::ConnectionProvider#acquire so the user
+              # sees the same actionable error regardless of scheme.
+              raise Exceptions::ClientException,
+                    "Unable to acquire connection from the pool within configured maximum time of #{format_acquisition_timeout}"
             end
           end
         end
 
         def release(connection)
+          # Direct provider tolerates nil; mirror that. Internal callers
+          # always release a RoutedConnection but guard so the wrong
+          # type doesn't NoMethodError later.
+          return unless connection.respond_to?(:discard_on_release)
+
           if connection.discard_on_release
             discard(connection.address_obj, connection.inner)
             return
@@ -221,8 +235,14 @@ module Neo4j
         # next router.
         def fetch_routing_table_from(router, database, errors)
           pool = pool_for(router)
-          conn = pool.pop(timeout: acquisition_timeout_seconds)
+          conn = nil
           begin
+            # pop is inside the begin block on purpose: open_connection
+            # is the pool's create block and can raise ServiceUnavailable
+            # (router unreachable). If that escaped the method,
+            # update_routing_table's iteration over remaining routers
+            # would stop on the first unreachable one.
+            conn = pool.pop(timeout: acquisition_timeout_seconds)
             rt = conn.route(database: database, bookmarks: [], routing_context: @routing_context)
             new_table = RoutingTable.from_response(symbolize(rt), database)
 
@@ -239,16 +259,16 @@ module Neo4j
             new_table
           rescue Exceptions::ServiceUnavailableException, ::Timeout::Error => e
             errors << e
-            # Connection is presumed dead; deactivate tears down the
-            # pool so the conn's `created` slot is reclaimed implicitly.
-            conn.close rescue nil
+            # Connection (if any) is presumed dead; deactivate tears
+            # down the pool so the conn's `created` slot is reclaimed.
+            conn&.close rescue nil
             deactivate(router)
             nil
           rescue Exceptions::Neo4jException => e
             errors << e
-            # Server-side failure — conn is in FAILED state, drop it
-            # and free a slot for the next user of the pool.
-            discard(router, conn)
+            # Server-side failure — if we have a connection, it's in
+            # FAILED state, so drop it and free a slot.
+            discard(router, conn) if conn
             nil
           end
         end
@@ -322,6 +342,10 @@ module Neo4j
 
         def acquisition_timeout_seconds
           @options[:connection_acquisition_timeout] || Driver::DEFAULT_ACQUISITION_TIMEOUT
+        end
+
+        def format_acquisition_timeout
+          "#{(acquisition_timeout_seconds * 1000).to_i}ms"
         end
       end
     end
