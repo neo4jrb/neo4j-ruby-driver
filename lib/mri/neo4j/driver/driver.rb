@@ -153,22 +153,6 @@ module Neo4j
               'Driver#server_info: not yet exposed (probe-and-return needed)'
       end
 
-      # Test-only API. Return the current routing table snapshot for
-      # the given database (or default DB if nil). Raises on a non-
-      # routing driver — testkit only invokes this against `neo4j://`
-      # URIs.
-      def routing_table_snapshot(database = nil)
-        require_routing!('routing_table_snapshot')
-        @connection_provider.snapshot(database)
-      end
-
-      # Test-only API. Force a fresh fetch of the routing table for the
-      # given database, ignoring TTL.
-      def force_routing_table_update(database = nil, bookmarks = nil)
-        require_routing!('force_routing_table_update')
-        @connection_provider.force_refresh(database, bookmarks)
-      end
-
       # Per-server-address pool metrics: how many connections currently
       # in use vs. idle. Test-only API.
       #
@@ -180,18 +164,22 @@ module Neo4j
               'Driver#pool_metrics: per-address pool metrics not yet implemented'
       end
 
+      # Internal — mirrors Java's Driver#getSessionFactory() so testkit
+      # backend handlers (GetRoutingTable, ForcedRoutingTableUpdate)
+      # can use the same chain on both JRuby and MRI:
+      #   driver.session_factory.connection_provider
+      #         .routing_table_registry.routing_table_handler(db)
+      #         .routing_table
+      # MRI has no real SessionFactory layer — Driver plays both roles.
+      def session_factory = self
+
+      attr_reader :connection_provider
+
       private
 
       def build_connection_provider(uri, auth)
         klass = uri.scheme.start_with?('neo4j') ? Routing::LoadBalancer : Direct::ConnectionProvider
         klass.new(uri, auth, @options)
-      end
-
-      def require_routing!(method_name)
-        return if @connection_provider.is_a?(Routing::LoadBalancer)
-
-        raise Exceptions::ClientException,
-              "Driver##{method_name} requires a routing (`neo4j://`) URI scheme"
       end
     end
   end

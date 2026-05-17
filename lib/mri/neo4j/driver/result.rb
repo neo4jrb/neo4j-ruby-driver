@@ -14,12 +14,14 @@ module Neo4j
     class Result
       include Enumerable
 
-      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {}, on_summary: nil, on_release: nil)
+      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {},
+                     fetch_size: 1000, on_summary: nil, on_release: nil)
         @connection = connection
         @keys = keys
         @query_text = query_text
         @parameters = parameters
         @run_metadata = run_metadata
+        @fetch_size = fetch_size  # used when SUCCESS carries has_more=true to request the next batch
         @on_summary = on_summary  # called with the built Summary when stream ends in SUCCESS
         @on_release = on_release  # called once when the connection is no longer needed
         @records = []       # records pulled into memory by #buffer (not by iteration)
@@ -27,6 +29,7 @@ module Neo4j
         @consumed = false   # stream has been fully drained from the wire
         @discarded = false  # records were explicitly released; further access raises
         @failed = false     # stream ended with a server FAILURE; connection needs RESET
+        @cancelled = false  # consume() called mid-stream — server should DISCARD, not paginate
         @peeked_record = nil
       end
 
@@ -37,8 +40,12 @@ module Neo4j
         return false if @consumed
         return true if @peeked_record
 
+        # Loop until the stream gives us a RECORD or signals end. A
+        # SUCCESS in the middle (has_more=true) triggers another PULL
+        # in on_success, so the next iteration's fetch_response reads
+        # the first record of the new batch.
         with_record_handler(->(msg) { @peeked_record = build_record(msg) }) do
-          @connection.fetch_response.accept(self)
+          @connection.fetch_response.accept(self) until @consumed || @peeked_record
         end
         !@peeked_record.nil?
       rescue StandardError
@@ -102,8 +109,13 @@ module Neo4j
         return @summary if @discarded
 
         @peeked_record = nil
+        # Set the cancel flag before draining so on_success swaps the
+        # next pagination step from PULL to DISCARD — the server then
+        # abandons remaining records and replies with the final summary
+        # SUCCESS, instead of streaming every record into the void.
+        @cancelled = true
         begin
-          drain_until_consumed { |_msg| } # records are silently discarded
+          drain_until_consumed { |_msg| } unless @consumed
         ensure
           @records.clear
           @discarded = true
@@ -150,6 +162,17 @@ module Neo4j
       end
 
       def on_success(msg)
+        # has_more=true means the server still has records beyond the
+        # last PULL's batch limit. Either pull the next batch or, if
+        # consume() asked to cancel the stream, send DISCARD instead so
+        # the server stops shipping records and returns the summary.
+        if msg.metadata[:has_more]
+          next_msg = @cancelled ? Bolt::Message.discard(n: -1) : Bolt::Message.pull(n: @fetch_size)
+          @connection.send_message(next_msg)
+          @connection.flush
+          return
+        end
+
         finalize(msg.metadata)
         @on_summary&.call(@summary)
         # Stream is done — auto-commit results don't need the connection

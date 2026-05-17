@@ -9,6 +9,7 @@ module Neo4j
       def initialize(connection, session, bookmarks = [], options = {}, on_release: nil)
         @connection = connection
         @session = session
+        @options = options
         @on_release = on_release  # called once when the connection is no longer needed
         @open = true
         @committed = false
@@ -51,8 +52,10 @@ module Neo4j
 
         consume_current_result
 
+        fetch_size = effective_fetch_size
+
         @connection.send_message(Bolt::Message.run(query, parameters))
-        @connection.send_message(Bolt::Message.pull)
+        @connection.send_message(Bolt::Message.pull(n: fetch_size))
         @connection.flush
 
         run_response =
@@ -65,7 +68,8 @@ module Neo4j
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
 
-        @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters, run_metadata: run_response.metadata)
+        @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters,
+                                     run_metadata: run_response.metadata, fetch_size: fetch_size)
       end
 
       def commit
@@ -144,6 +148,13 @@ module Neo4j
       end
 
       private
+
+      # See Session#effective_fetch_size. Transactions inherit the session
+      # options at open, so the same default rules apply.
+      def effective_fetch_size
+        size = @options[:fetch_size]
+        size.nil? ? 1000 : size
+      end
 
       def consume_current_result
         return unless @current_result

@@ -3,17 +3,19 @@
 module Neo4j
   module Driver
     module Routing
-      # Routing-aware connection pooling.
+      # Routing-aware connection provider. Mirrors the design of Java's
+      # RoutingTableHandlerImpl + LoadBalancer and Python's Neo4jPool:
       #
-      # Replaces Driver's single TimedStack with one pool per server address,
-      # plus an in-memory routing table cache (keyed by database). On
-      # acquire(access_mode:), picks a server from the appropriate role
-      # bucket (round-robin), opens/checkout from that server's pool, and
-      # falls through to the next server on connection failure.
-      #
-      # Slice 1 scope: happy-path verify_connectivity + session.run for one
-      # database. No leader-change retry, no transient retry, no per-database
-      # cache eviction. Those land in subsequent slices.
+      # - Per-database RoutingTable cache, mutated through @refresh_lock.
+      # - Per-server connection pools (TimedStack), keyed by ServerAddress.
+      # - acquire(access_mode:) ensures the table is fresh, then loops
+      #   selecting an address and opening a connection; on connection
+      #   failure the address is `deactivate`d (forgotten from every
+      #   table + per-server pool torn down) and we retry until the role
+      #   bucket is exhausted.
+      # - Connections handed out are wrapped in RoutedConnection so the
+      #   pool gets called back on write-side leader changes (NotALeader,
+      #   ForbiddenOnReadOnlyDatabase) and stale-server connection errors.
       class LoadBalancer
         ROUTING_CONTEXT_RESERVED_KEYS = %w[address].freeze
 
@@ -25,72 +27,142 @@ module Neo4j
           @pools = {}                      # ServerAddress => ConnectionPool::TimedStack
           @routing_tables = {}             # database (str or nil) => RoutingTable
           @cursor = Hash.new(0)            # round-robin per (database, role)
-          # Monitor (reentrant) because ensure_routing_table holds the lock
-          # while it goes through pool_for, which also locks.
-          @mutex = Monitor.new
+          # Monitor (reentrant) because ensure_routing_table_is_fresh holds
+          # the lock while it goes through pool_for, which also locks.
+          @refresh_lock = Monitor.new
         end
 
         # Open (or pop) a connection appropriate for `access_mode` against
-        # `database` (nil = home db). Tries each server in role order until
-        # one succeeds; raises if none do.
+        # `database` (nil = home db). Loops: select an address, try to
+        # acquire, deactivate on connection failure and try again. Raises
+        # ServiceUnavailableException only when the role bucket has been
+        # exhausted by deactivations.
         def acquire(access_mode: :write, database: nil)
-          acquire_with_table(database, access_mode)
-        rescue Exceptions::ServiceUnavailableException
-          # Failure-driven refresh: if every server in the role is unreachable
-          # (or the role is empty), the cached table is likely stale. Refetch
-          # and try once more — a leader change or topology shift is often
-          # invisible to us until we hit it.
-          invalidate_routing_table(database)
-          acquire_with_table(database, access_mode)
+          access_mode = access_mode.to_sym
+          ensure_routing_table_is_fresh(database, access_mode)
+
+          last_error = nil
+          loop do
+            address = select_address(database, access_mode)
+            unless address
+              raise last_error || Exceptions::SessionExpiredException.new(
+                "No #{access_mode} servers available for database #{database.inspect}"
+              )
+            end
+
+            pool = pool_for(address)
+            begin
+              inner = pool.pop(timeout: acquisition_timeout_seconds)
+              return RoutedConnection.new(self, inner, address, access_mode, database)
+            rescue Exceptions::ServiceUnavailableException => e
+              # Server is unreachable (open_connection raised inside the
+              # pool's create block). Drop the address from every table
+              # and tear down its pool; loop and try another address.
+              last_error = e
+              deactivate(address)
+            rescue ::Timeout::Error
+              # Pool exhaustion at max_pool_size, not a server failure.
+              # Mirrors Direct::ConnectionProvider#acquire so the user
+              # sees the same actionable error regardless of scheme.
+              raise Exceptions::ClientException,
+                    "Unable to acquire connection from the pool within configured maximum time of #{format_acquisition_timeout}"
+            end
+          end
         end
 
         def release(connection)
-          pool = @pools[ServerAddress.parse(connection.address)]
-          pool&.push(connection)
+          # Direct provider tolerates nil; mirror that. Internal callers
+          # always release a RoutedConnection but guard so the wrong
+          # type doesn't NoMethodError later.
+          return unless connection.respond_to?(:discard_on_release)
+
+          if connection.discard_on_release
+            discard(connection.address_obj, connection.inner)
+            return
+          end
+
+          @refresh_lock.synchronize do
+            pool = @pools[connection.address_obj]
+            pool&.push(connection.inner)
+          end
         end
 
-        # Routing-aware verify_connectivity: fetch a fresh routing table,
-        # then probe *any* reader to confirm the cluster is reachable.
+        # Routing-aware verify_connectivity: force-refresh the routing
+        # table, then probe *any* reader to confirm the cluster is
+        # reachable. RESET so the borrowed connection lands back in the
+        # pool in a known-clean state (matches testkit's
+        # `test_routing_from_pool` expectation of one RESET per probe).
         def verify_connectivity
-          # Force a fresh fetch — verify_connectivity is a probe, not a hit
-          # against cached state. Matches the Java driver's behaviour and the
-          # testkit `test_routing_fetches_home_db` expectation.
           invalidate_routing_table(nil)
           conn = acquire(access_mode: :read)
-          # RESET ensures the borrowed connection is in a known-clean state
-          # for the probe and matches what testkit's `test_routing_from_pool`
-          # asserts (one RESET per verify_connectivity).
           conn.reset!
           release(conn)
         end
 
-        # Routing requires Bolt 4.0+ (the ROUTE message and `CALL dbms.routing.
-        # getRoutingTable` are 4.0+ features). If we got this far the answer
-        # is always true.
+        # Routing requires Bolt 4.0+ (the ROUTE message and `CALL
+        # dbms.routing.getRoutingTable` are 4.0+ features). If we got
+        # this far the answer is always true.
         def supports_multi_db?
           true
         end
 
         def close
-          @mutex.synchronize do
+          @refresh_lock.synchronize do
             @pools.each_value { |pool| pool.shutdown { |conn| conn.close rescue nil } }
             @pools.clear
             @routing_tables.clear
           end
         end
 
-        # Test-only API. Return the current routing table for the given
-        # database, fetching one if the cache is empty/expired.
-        def snapshot(database)
-          ensure_routing_table(database)
+        # Internal — mirrors Java's
+        # ConnectionProvider#getRoutingTableRegistry(). LoadBalancer is
+        # both the connection provider and the routing-table registry;
+        # the layer split exists in Java mostly because it predates
+        # generics. Used by testkit's GetRoutingTable handler.
+        def routing_table_registry = self
+
+        # Internal — mirrors Java's
+        # RoutingTableRegistry#getRoutingTableHandler(databaseName).
+        # Returns a Handler wrapping the current table (fetching one
+        # if the cache is empty / not fresh) so the JRuby/MRI testkit
+        # handler chain is identical.
+        def routing_table_handler(database)
+          ensure_routing_table_is_fresh(database, :read)
+          @refresh_lock.synchronize { Handler.new(@routing_tables[database]) }
         end
 
-        # Test-only API. Force a fresh ROUTE call for the given database,
-        # ignoring TTL/cache. `bookmarks` are accepted for parity with the
+        # Internal — force a fresh ROUTE call for the given database
+        # regardless of TTL/cache. Used by ForcedRoutingTableUpdate
+        # testkit handler. `bookmarks` are accepted for parity with the
         # Java reference but not yet threaded through fetch_routing_table.
-        def force_refresh(database, _bookmarks = nil)
+        def refresh(database, _bookmarks = nil)
           invalidate_routing_table(database)
-          ensure_routing_table(database)
+          ensure_routing_table_is_fresh(database, :read)
+        end
+
+        # Mirrors org.neo4j.driver.internal.cluster.RoutingTableHandler
+        # for the slim surface testkit reads (just .routing_table).
+        Handler = Struct.new(:routing_table)
+
+        # Called by RoutedConnection on a fatal connection-level error
+        # (or DatabaseUnavailable). Removes the address from every
+        # database's routing table and tears down its connection pool.
+        def deactivate(address)
+          @refresh_lock.synchronize do
+            @routing_tables.each_value { |table| table.forget(address) }
+            pool = @pools.delete(address)
+            pool&.shutdown { |conn| conn.close rescue nil }
+          end
+        end
+
+        # Called by RoutedConnection on a write-mode operation that hit
+        # NotALeader / ForbiddenOnReadOnlyDatabase. The server is alive
+        # but no longer the leader for this db — drop it from the writers
+        # bucket only; routers/readers stay.
+        def on_write_failure(address, database)
+          @refresh_lock.synchronize do
+            @routing_tables[database]&.forget_writer(address)
+          end
         end
 
         private
@@ -112,81 +184,148 @@ module Neo4j
           context
         end
 
-        def ensure_routing_table(database)
-          @mutex.synchronize do
-            cached = @routing_tables[database]
-            return cached if cached && !cached.expired?
+        # Make sure a usable routing table exists for `database` and the
+        # requested `access_mode`. Cheap fast path when the cached table
+        # is still fresh; otherwise fetches one inside the lock with a
+        # second freshness check (double-checked locking pattern matches
+        # Python's ensure_routing_table_is_fresh).
+        def ensure_routing_table_is_fresh(database, access_mode)
+          @refresh_lock.synchronize do
+            table = @routing_tables[database]
+            return table if table && table.fresh?(readonly: access_mode == :read)
 
-            @routing_tables[database] = fetch_routing_table(database)
+            update_routing_table(database)
           end
         end
 
         def invalidate_routing_table(database)
-          @mutex.synchronize { @routing_tables.delete(database) }
+          @refresh_lock.synchronize { @routing_tables.delete(database) }
         end
 
-        def acquire_with_table(database, access_mode)
-          table = ensure_routing_table(database)
-          servers = table.servers_for(access_mode)
-          raise Exceptions::ServiceUnavailableException,
-                "No #{access_mode} servers available in routing table" if servers.empty?
+        # Refresh the routing table from a router. Routers are tried in
+        # priority order: prefer the seed address if we have no table or
+        # the existing table came back without writers (likely-stale),
+        # otherwise prefer the existing routers list first. Each failed
+        # router is `deactivate`d before moving on to the next.
+        def update_routing_table(database)
+          existing = @routing_tables[database]
+          prefer_seed = existing.nil? || existing.initialized_without_writers
 
-          try_servers(servers, database, access_mode)
-        end
+          errors = []
+          routers_in_order(existing, prefer_seed: prefer_seed).each do |router|
+            new_table = fetch_routing_table_from(router, database, errors)
+            next unless new_table
 
-        def fetch_routing_table(database)
-          last_error = nil
-          initial_routers.each do |address|
-            pool = pool_for(address)
-            router_conn = pool.pop(timeout: acquisition_timeout_seconds)
-            begin
-              rt = router_conn.route(
-                database: database, bookmarks: [], routing_context: @routing_context
-              )
-              return RoutingTable.from_response(symbolize(rt), database)
-            ensure
-              pool.push(router_conn)
-            end
-          rescue Exceptions::ServiceUnavailableException, ::Timeout::Error => e
-            last_error = e
+            apply_routing_table(database, new_table)
+            return @routing_tables[database]
           end
 
-          raise last_error || Exceptions::ServiceUnavailableException.new('No routers available')
-        end
-
-        # The driver's URI host:port is the seed router on first call. After
-        # routing tables exist they may name additional routers; not yet used
-        # in slice 1.
-        def initial_routers
-          [ServerAddress.parse("#{@uri.host}:#{@uri.port || ServerAddress::DEFAULT_PORT}")]
-        end
-
-        def try_servers(servers, database, access_mode)
-          last_error = nil
-          servers.size.times do
-            address = next_server(servers, database, access_mode)
-            pool = pool_for(address)
-            begin
-              return pool.pop(timeout: acquisition_timeout_seconds)
-            rescue Exceptions::ServiceUnavailableException, ::Timeout::Error => e
-              last_error = e
-            end
-          end
-
-          raise last_error || Exceptions::ServiceUnavailableException.new(
-            "All #{access_mode} servers unreachable"
+          last = errors.last
+          raise Exceptions::ServiceUnavailableException.new(
+            "Unable to retrieve routing information for database #{database.inspect}: " \
+            "tried #{errors.length} router(s) without success" \
+            "#{last ? " (last: #{last.message})" : ''}",
+            suppressed: errors
           )
         end
 
-        def next_server(servers, database, access_mode)
-          key = [database, access_mode]
-          server = servers[@cursor[key] % servers.size]
-          @cursor[key] += 1
-          server
+        def routers_in_order(existing, prefer_seed:)
+          seed = seed_router
+          existing_others = existing ? existing.routers.to_a - [seed] : []
+          prefer_seed ? [seed, *existing_others] : [*existing_others, seed]
+        end
+
+        # The driver's URI host:port is the seed router. Multi-seed
+        # discovery (via resolver / URI list) is a future slice; one
+        # seed is enough to bootstrap most clusters.
+        def seed_router
+          ServerAddress.parse("#{@uri.host}:#{@uri.port || ServerAddress::DEFAULT_PORT}")
+        end
+
+        # Returns a new RoutingTable on success, nil on a per-router
+        # failure. Connection-level failures additionally `deactivate`
+        # the router; protocol-level failures (e.g. ClientException
+        # while routing) just record the error so the caller tries the
+        # next router.
+        def fetch_routing_table_from(router, database, errors)
+          pool = pool_for(router)
+          conn = nil
+          begin
+            # pop is inside the begin block on purpose: open_connection
+            # is the pool's create block and can raise ServiceUnavailable
+            # (router unreachable). If that escaped the method,
+            # update_routing_table's iteration over remaining routers
+            # would stop on the first unreachable one.
+            conn = pool.pop(timeout: acquisition_timeout_seconds)
+            rt = conn.route(database: database, bookmarks: [], routing_context: @routing_context)
+            new_table = RoutingTable.from_response(symbolize(rt), database)
+
+            if new_table.routers.empty? || new_table.readers.empty?
+              errors << Exceptions::ServiceUnavailableException.new(
+                "Router #{router} returned a routing table with no " \
+                "#{new_table.routers.empty? ? 'routers' : 'readers'}"
+              )
+              pool.push(conn)
+              return nil
+            end
+
+            pool.push(conn)
+            new_table
+          rescue Exceptions::ServiceUnavailableException, ::Timeout::Error => e
+            errors << e
+            # Connection (if any) is presumed dead; deactivate tears
+            # down the pool so the conn's `created` slot is reclaimed.
+            conn&.close rescue nil
+            deactivate(router)
+            nil
+          rescue Exceptions::Neo4jException => e
+            errors << e
+            # Server-side failure — if we have a connection, it's in
+            # FAILED state, so drop it and free a slot.
+            discard(router, conn) if conn
+            nil
+          end
+        end
+
+        def apply_routing_table(database, new_table)
+          existing = @routing_tables[database]
+          if existing
+            existing.update(new_table)
+          else
+            @routing_tables[database] = new_table
+          end
+        end
+
+        # Round-robin within the role bucket of the table for `database`.
+        # Returns nil when the bucket is empty (typically after one or
+        # more deactivations during the acquire loop).
+        def select_address(database, access_mode)
+          @refresh_lock.synchronize do
+            table = @routing_tables[database] or return nil
+            servers = table.servers_for(access_mode).to_a
+            return nil if servers.empty?
+
+            key = [database, access_mode]
+            address = servers[@cursor[key] % servers.size]
+            @cursor[key] += 1
+            address
+          end
+        end
+
+        # Close a checked-out connection without putting it back. Used
+        # when the connection is in a known-bad state (server FAILED,
+        # write-failure on a NotALeader, etc.) so we don't poison the
+        # pool. `decrement_created` frees the slot in TimedStack so the
+        # next pop can lazily build a fresh one.
+        def discard(address, conn)
+          conn.close rescue nil
+          @refresh_lock.synchronize do
+            @pools[address]&.decrement_created
+          end
         end
 
         def pool_for(address)
-          @mutex.synchronize do
+          @refresh_lock.synchronize do
             @pools[address] ||= ConnectionPool::TimedStack.new(size: max_pool_size) do
               open_connection(address)
             end
@@ -195,7 +334,12 @@ module Neo4j
 
         def open_connection(address)
           uri = "bolt://#{address}"
-          Bolt::Connection.new(uri, @auth, @options).connect
+          # routing_context goes into the HELLO map so the cluster can
+          # apply the configured policy / region (the same routing
+          # context is sent to readers/writers too; non-router servers
+          # just ignore it).
+          opts = @options.merge(routing_context: @routing_context)
+          Bolt::Connection.new(uri, @auth, opts).connect
         end
 
         def symbolize(value)
@@ -212,6 +356,10 @@ module Neo4j
 
         def acquisition_timeout_seconds
           @options[:connection_acquisition_timeout] || Driver::DEFAULT_ACQUISITION_TIMEOUT
+        end
+
+        def format_acquisition_timeout
+          "#{(acquisition_timeout_seconds * 1000).to_i}ms"
         end
       end
     end
