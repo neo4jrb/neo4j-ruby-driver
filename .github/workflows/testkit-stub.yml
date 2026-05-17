@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  # Pinned testkit ref. Bump intentionally. Promoted to workflow-level so
+  # the boltstub cache key below can reference it (job-level env can't be
+  # used inside cache keys at the step level).
+  TESTKIT_REF: a233c3f32c9e7db33d856345c4c98f487d15aabb
+
 jobs:
   testkit-stub:
     name: testkit-stub (ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }})
@@ -33,6 +39,11 @@ jobs:
       BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ (startsWith(matrix.ruby, 'jruby') && !matrix.force_mri) && 'jruby' || 'mri' }}.txt
       # Empty string when force_mri is false; '1' on the include row.
       NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
+      # Use the Rust boltstub (testkit/boltstub_rs) instead of the Python
+      # implementation. Authors quote a 2-3× speedup on stub tests.
+      # testkit/tests/stub/shared.py reads this env var; when truthy it
+      # spawns the `boltstub` binary on PATH instead of `python -m boltstub`.
+      TEST_RUSTY_STUB: 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -46,12 +57,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Pin testkit so upstream changes can't make our baseline gate
-      # fail through no fault of ours. Bump intentionally when needed.
       # Shallow-fetch just the pinned commit (no full history needed).
       - name: Clone testkit
-        env:
-          TESTKIT_REF: a233c3f32c9e7db33d856345c4c98f487d15aabb
         run: |
           git init "$TESTKIT_PATH"
           git -C "$TESTKIT_PATH" remote add origin https://github.com/neo4j-drivers/testkit.git
@@ -61,8 +68,29 @@ jobs:
       - name: Install testkit Python deps
         run: pip install -Ur "$TESTKIT_PATH/requirements.txt"
 
-      # tests/stub uses an internal boltstub server (testkit/boltstub),
-      # not a real Neo4j — no service container needed.
+      # Cache the compiled Rust boltstub binary by testkit ref. Source is
+      # frozen per ref, so we rebuild only when TESTKIT_REF is bumped.
+      - name: Cache Rust boltstub binary
+        id: cache-boltstub
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/boltstub
+          key: boltstub-${{ runner.os }}-${{ env.TESTKIT_REF }}
+
+      - name: Install Rust toolchain
+        if: steps.cache-boltstub.outputs.cache-hit != 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Matches testkit/boltstub_rs/rust-toolchain.toml; bump in lockstep.
+          toolchain: '1.88'
+
+      - name: Build Rust boltstub
+        if: steps.cache-boltstub.outputs.cache-hit != 'true'
+        # `--locked` pins to testkit's Cargo.lock for reproducible builds.
+        run: cargo install --locked --path "$TESTKIT_PATH/boltstub_rs"
+
+      # tests/stub uses an internal boltstub server (now the Rust one via
+      # TEST_RUSTY_STUB), not a real Neo4j — no service container needed.
       - name: Run testkit stub suite
         id: testkit
         continue-on-error: true
