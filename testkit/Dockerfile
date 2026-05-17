@@ -17,12 +17,17 @@ FROM ${BASE_IMAGE}
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8
 
-# Native-gem builds (bigdecimal, ffi, …) need a C toolchain on slim
-# images. JRuby's image already ships a JDK; the apt set below is a
-# superset that works for both bases.
+# - python3 is the entrypoint: testkit starts the container with
+#   `python3 /testkit/driver/bootstrap.py`, which then runs the phase
+#   scripts in order (build.py, unittests.py, backend.py, …).
+# - build-essential / libssl-dev / pkg-config support native-gem builds
+#   on the slim images.
+# JRuby's image already ships a JDK; the apt set below is a superset
+# that works for both bases.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         git \
+        python3 \
         build-essential \
         libssl-dev \
         pkg-config \
