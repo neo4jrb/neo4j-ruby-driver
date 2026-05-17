@@ -59,7 +59,19 @@ module Neo4j
         end
 
         def fetch_response
-          with_error_handling { @inner.fetch_response }
+          with_error_handling do
+            response = @inner.fetch_response
+            # Surface server FAILUREs as exceptions inside the wrapper
+            # so write-failure / database-unavailable get classified
+            # and the pool gets notified. Without this, the caller's
+            # downstream .assert_success! raises outside our rescue
+            # and on_write_failure / deactivate never fire (eg.
+            # test_should_fail_when_writing_on_writer_that_returns_not_a_leader_code).
+            # Non-FAILURE responses fall through to the caller's
+            # .assert_success! unchanged.
+            response.assert_success! if response.is_a?(Bolt::Message::Failure)
+            response
+          end
         end
 
         def fetch_all
