@@ -1,4 +1,4 @@
-# Tests currently expected to pass under tests/neo4j on mri.
+GG# Tests currently expected to pass under tests/neo4j on mri.
 # CI fails if any of these stops passing (regression).
 # Add lines as we fix more; remove with reason in commit msg.
 # Sorted alphabetically. Refresh with bin/refresh-testkit-baseline neo4j (running on mri).
@@ -93,3 +93,4 @@ test_unconsumed_result (tests.neo4j.test_tx_run.TestTxRun.test_unconsumed_result
 test_updates_last_bookmark (tests.neo4j.test_session_run.TestSessionRun.test_updates_last_bookmark)
 test_updates_last_bookmark_on_commit (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_updates_last_bookmark_on_commit)
 test_updates_last_bookmark_on_commit (tests.neo4j.test_tx_run.TestTxRun.test_updates_last_bookmark_on_commit)
+test_can_handle_multiple_bookmarks (tests.neo4j.test_bookmarks.TestBookmarks.test_can_handle_multiple_bookmarks)
