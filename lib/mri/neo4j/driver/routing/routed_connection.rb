@@ -3,14 +3,22 @@
 module Neo4j
   module Driver
     module Routing
-      # Bolt::Connection wrapper that classifies errors and feeds the
-      # routing table back. Mirrors Java's RoutedBoltConnection +
-      # RoutingErrorHandler.onWriteFailure / onConnectionFailure.
+      # Bolt::Connection wrapper that classifies routing-relevant
+      # errors and feeds the routing table back. Mirrors Java's
+      # RoutedBoltConnection + RoutingErrorHandler.onWriteFailure /
+      # onConnectionFailure.
       #
-      # The wrapper is opaque to Session/Transaction/Result — every
-      # method that exists on Bolt::Connection and is called from those
-      # callers is forwarded here; everything else is exposed via the
-      # `inner` accessor for LoadBalancer's own release path.
+      # The wrapper is a pure delegator on the read/write path — every
+      # method is forwarded straight to the inner Bolt::Connection.
+      # Classification doesn't happen on the wire-call boundary because
+      # Bolt failures only become exceptions when the caller does
+      # `.assert_success!` on the response (which raises outside the
+      # delegator), and streaming failures only become exceptions when
+      # Result's visitor dispatches to `on_failure`. Both of those call
+      # sites — plus session.rb / transaction.rb's wire-error rescues —
+      # invoke `classify_failure(error)` explicitly to run the side
+      # effects (deactivate / on_write_failure) and get the
+      # (possibly-swapped) exception to re-raise.
       class RoutedConnection
         extend Forwardable
 
@@ -38,95 +46,55 @@ module Neo4j
           @discard_on_release = false
         end
 
-        # --- Pure forwards (can't raise classifiable errors) -----------
-
         def_delegators :@inner,
                        :address, :server_agent, :server_version, :protocol,
-                       :closed?, :close, :pending_responses?
+                       :closed?, :close, :pending_responses?,
+                       :send_message, :send_all, :flush,
+                       :fetch_response, :fetch_all,
+                       :reset!, :route
 
-        # --- Error-classifying forwards --------------------------------
-
-        def send_message(message)
-          with_error_handling { @inner.send_message(message) }
-        end
-
-        def send_all(*messages)
-          with_error_handling { @inner.send_all(*messages) }
-        end
-
-        def flush
-          with_error_handling { @inner.flush }
-        end
-
-        def fetch_response
-          with_error_handling { @inner.fetch_response }
-        end
-
-        # Run a caught exception through the same classify-and-side-effect
-        # chain that wraps wire calls, then return what to re-raise.
-        # Callers use this when the FAILURE response is detected outside
-        # the wrapper — e.g. session.rb's `fetch_response.assert_success!`
-        # raises after fetch_response returned a Failure, and Result's
-        # visitor dispatches to on_failure which then raises. Both go
-        # through this so on_write_failure / deactivate fire, and the
-        # exception class is swapped where appropriate.
+        # Run a caught exception through the routing classifier:
+        # - ServiceUnavailableException → deactivate(address); mark
+        #   the connection discardable; return the same exception.
+        # - TransientException with DatabaseUnavailable → same.
+        # - ClientException with NotALeader / ForbiddenOnReadOnly on
+        #   a WRITE → on_write_failure(address, database); mark
+        #   discardable; return a SessionExpiredException (so session
+        #   retry catches it) with the original error code preserved.
+        # - Anything else → return the same exception unchanged.
+        #
+        # Callers: session.rb (RUN-response rescue), transaction.rb
+        # (BEGIN/RUN/COMMIT rescues), Result#on_failure (streaming
+        # PULL/DISCARD). Each invokes this in its catch-Neo4jException
+        # block and re-raises whatever we return.
         def classify_failure(error)
-          with_error_handling { raise error }
-        rescue StandardError => classified
-          classified
-        end
-
-        def fetch_all
-          with_error_handling { @inner.fetch_all }
-        end
-
-        def reset!
-          with_error_handling { @inner.reset! }
-        end
-
-        def route(**kwargs)
-          with_error_handling { @inner.route(**kwargs) }
-        end
-
-        private
-
-        def with_error_handling
-          yield
-        rescue Exceptions::ServiceUnavailableException
-          # Server is unreachable: evict from every routing table and
-          # tear down the per-server pool. The session-level retry will
-          # acquire a fresh connection from another address.
-          @discard_on_release = true
-          @pool.deactivate(@address_obj)
-          raise
-        rescue Exceptions::TransientException => e
-          # DatabaseUnavailable is the only transient error that should
-          # actually invalidate the server — the database has gone away
-          # there. Other transients (deadlocks, etc.) are retry-on-same.
-          if e.code == DATABASE_UNAVAILABLE_CODE
+          case error
+          when Exceptions::ServiceUnavailableException
             @discard_on_release = true
             @pool.deactivate(@address_obj)
+            error
+          when Exceptions::TransientException
+            if error.code == DATABASE_UNAVAILABLE_CODE
+              @discard_on_release = true
+              @pool.deactivate(@address_obj)
+            end
+            error
+          when Exceptions::ClientException
+            if @access_mode == :write && WRITE_FAILURE_CODES.include?(error.code)
+              @discard_on_release = true
+              @pool.on_write_failure(@address_obj, @database)
+              Exceptions::SessionExpiredException.new(
+                "Server at #{@address_obj} no longer accepts writes for database " \
+                "#{@database.inspect} (#{error.code})",
+                code: error.code,
+                suppressed: [error]
+              )
+            else
+              error
+            end
+          else
+            error
           end
-          raise
-        rescue Exceptions::ClientException => e
-          # NotALeader / ForbiddenOnReadOnlyDatabase on a WRITE means the
-          # connected server is alive but no longer the writer for this
-          # db. Evict from writers only and re-raise as SessionExpired so
-          # the session-level retry path picks it up.
-          if @access_mode == :write && WRITE_FAILURE_CODES.include?(e.code)
-            # Connection is in server-FAILED state after a write failure;
-            # discard rather than push back, so the next acquire builds
-            # a fresh one against whichever server takes over as writer.
-            @discard_on_release = true
-            @pool.on_write_failure(@address_obj, @database)
-            raise Exceptions::SessionExpiredException.new(
-              "Server at #{@address_obj} no longer accepts writes for database " \
-              "#{@database.inspect} (#{e.code})",
-              code: e.code,
-              suppressed: [e]
-            )
-          end
-          raise
         end
       end
     end
