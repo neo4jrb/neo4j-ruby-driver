@@ -50,6 +50,13 @@ jobs:
       TEST_DRIVER_REPO: ${{ github.workspace }}
       TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE: ${{ matrix.base_image }}
       TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
+      # Use the Rust boltstub for the STUB_TESTS portion. testkit's
+      # runner image ships /usr/local/bin/boltstub; with TEST_RUSTY_STUB
+      # truthy tests/stub/shared.py spawns the binary instead of
+      # `python -m boltstub`. 2-3× speedup on the stub suite per the
+      # testkit authors. Matches testkit-stub.yml. (No effect on
+      # INTEGRATION/TLS phases which don't use the bolt stub server.)
+      TEST_RUSTY_STUB: 'true'
 
     steps:
       - uses: actions/checkout@v4
