@@ -62,6 +62,20 @@ module Neo4j
           with_error_handling { @inner.fetch_response }
         end
 
+        # Run a caught exception through the same classify-and-side-effect
+        # chain that wraps wire calls, then return what to re-raise.
+        # Callers use this when the FAILURE response is detected outside
+        # the wrapper — e.g. session.rb's `fetch_response.assert_success!`
+        # raises after fetch_response returned a Failure, and Result's
+        # visitor dispatches to on_failure which then raises. Both go
+        # through this so on_write_failure / deactivate fire, and the
+        # exception class is swapped where appropriate.
+        def classify_failure(error)
+          with_error_handling { raise error }
+        rescue StandardError => classified
+          classified
+        end
+
         def fetch_all
           with_error_handling { @inner.fetch_all }
         end

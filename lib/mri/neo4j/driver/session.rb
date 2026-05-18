@@ -67,13 +67,19 @@ module Neo4j
             connection.send_message(Bolt::Message.pull(n: fetch_size))
             connection.flush
             connection.fetch_response.assert_success!
-          rescue Exceptions::Neo4jException
+          rescue Exceptions::Neo4jException => e
             # Server is in FAILED state and any queued messages (e.g. the
             # PULL that followed our RUN) will be IGNORED. Drain them and
             # RESET so the connection is immediately reusable.
             connection.reset!
             @connection_provider.release(connection)
-            raise
+            # For routed connections, run the error through the
+            # classifier so on_write_failure / deactivate fire and
+            # NotALeader is surfaced as SessionExpired. The
+            # `.assert_success!` above raises *outside* RoutedConnection's
+            # wrapper, so this is the only place the classifier sees
+            # FAILURE responses to RUN.
+            raise classify_for(connection, e)
           rescue StandardError
             # Transport-level failure (IO/socket) — the connection is
             # likely dead. Return it to the pool either way so this lease
@@ -190,6 +196,13 @@ module Neo4j
           database: @options[:database],
           bookmarks: current_bookmarks_for_extra
         )
+      end
+
+      # Threads a caught Neo4jException through the connection's
+      # error classifier (if it's a RoutedConnection). Returns the
+      # (possibly swapped) exception ready to re-raise.
+      def classify_for(connection, error)
+        connection.respond_to?(:classify_failure) ? connection.classify_failure(error) : error
       end
 
       # Current bookmark snapshot as a plain array of strings, ready

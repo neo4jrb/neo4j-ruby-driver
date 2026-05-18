@@ -29,14 +29,14 @@ module Neo4j
         @connection.flush
 
         @connection.fetch_response.assert_success!
-      rescue Exceptions::Neo4jException
+      rescue Exceptions::Neo4jException => e
         # BEGIN failed — server is now in FAILED state. Clear it before
         # propagating so the connection is reusable by whoever is managing
         # this session's pool checkout.
         @connection.reset!
         @open = false
         release_connection
-        raise
+        raise classify_failure(e)
       rescue StandardError
         # Transport-level failure (IO/socket). RESET will likely fail
         # too on a dead connection, but release the lease so it doesn't
@@ -61,9 +61,9 @@ module Neo4j
         run_response =
           begin
             @connection.fetch_response.assert_success!
-          rescue Exceptions::Neo4jException
+          rescue Exceptions::Neo4jException => e
             @failed = true
-            raise
+            raise classify_failure(e)
           end
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
@@ -94,10 +94,10 @@ module Neo4j
         response =
           begin
             @connection.fetch_response.assert_success!
-          rescue Exceptions::Neo4jException
+          rescue Exceptions::Neo4jException => e
             @failed = true
             rollback_via_reset
-            raise
+            raise classify_failure(e)
           end
 
         @committed = true
@@ -148,6 +148,14 @@ module Neo4j
       end
 
       private
+
+      # Threads a caught Neo4jException through the connection's
+      # classifier (if it's a RoutedConnection) so on_write_failure /
+      # deactivate fire and NotALeader gets swapped to SessionExpired.
+      # Returns the (possibly swapped) exception to re-raise.
+      def classify_failure(error)
+        @connection.respond_to?(:classify_failure) ? @connection.classify_failure(error) : error
+      end
 
       # See Session#effective_fetch_size. Transactions inherit the session
       # options at open, so the same default rules apply.

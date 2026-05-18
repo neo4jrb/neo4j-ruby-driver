@@ -186,7 +186,14 @@ module Neo4j
         # Connection is in FAILED state; the caller (Session) will RESET
         # before releasing. We just mark failed; the caller path drives
         # the release via #discard!.
-        raise msg.to_exception
+        #
+        # For routed connections, thread the failure through the
+        # classifier so DatabaseUnavailable / NotALeader on a mid-stream
+        # PULL still trigger deactivate / on_write_failure. The classify
+        # returns the (possibly swapped) exception to raise.
+        error = msg.to_exception
+        error = @connection.classify_failure(error) if @connection.respond_to?(:classify_failure)
+        raise error
       end
 
       def on_ignored(_msg)
