@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'connection_pool'
+require 'forwardable'
 require 'neo4j-ruby-driver_loader'
 require 'set'
 require 'socket'
