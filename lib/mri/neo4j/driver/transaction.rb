@@ -18,12 +18,19 @@ module Neo4j
         @current_result = nil
 
         # Begin the transaction
-        begin_extra = {}
-        begin_extra[:bookmarks] = bookmarks if bookmarks&.any?
-        begin_extra[:db] = options[:database] if options[:database]
-        begin_extra[:mode] = options[:access_mode] if options[:access_mode]
-        begin_extra[:tx_timeout] = options[:timeout] if options[:timeout]
-        begin_extra[:tx_metadata] = options[:metadata] if options[:metadata]
+        # Same reject! pattern session.rb uses for RUN extras — drops
+        # keys whose values are nil or an empty collection so the
+        # serialised BEGIN map matches what testkit's stub scripts
+        # expect (e.g. `BEGIN {"db": "adb"}` not
+        # `BEGIN {"db": "adb", "tx_metadata": {}}`).
+        begin_extra = {
+          bookmarks: bookmarks,
+          db: options[:database],
+          mode: options[:access_mode],
+          tx_timeout: options[:timeout],
+          tx_metadata: options[:metadata]
+        }
+        begin_extra.reject! { |_, v| v.nil? || (v.respond_to?(:empty?) && v.empty?) }
 
         @connection.send_message(Bolt::Message.begin_transaction(begin_extra))
         @connection.flush
