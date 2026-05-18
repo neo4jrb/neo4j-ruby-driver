@@ -79,7 +79,7 @@ module Neo4j
             # `.assert_success!` above raises *outside* RoutedConnection's
             # wrapper, so this is the only place the classifier sees
             # FAILURE responses to RUN.
-            raise classify_for(connection, e)
+            raise connection.classify_failure(e)
           rescue StandardError
             # Transport-level failure (IO/socket) — the connection is
             # likely dead. Return it to the pool either way so this lease
@@ -198,12 +198,6 @@ module Neo4j
         )
       end
 
-      # Threads a caught Neo4jException through the connection's
-      # error classifier (if it's a RoutedConnection). Returns the
-      # (possibly swapped) exception ready to re-raise.
-      def classify_for(connection, error)
-        connection.respond_to?(:classify_failure) ? connection.classify_failure(error) : error
-      end
 
       # Current bookmark snapshot as a plain array of strings, ready
       # for the wire. Returns nil when empty so the BEGIN/RUN extras
