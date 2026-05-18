@@ -55,8 +55,7 @@ module Neo4j
           tx_timeout: timeout_to_milliseconds(timeout),
           tx_metadata:,
           bookmarks: current_bookmarks_for_extra
-        }
-        run_extra.reject! { |_, v| v.nil? || (v.respond_to?(:empty?) && v.empty?) }
+        }.compact_blank!
 
         connection = acquire_connection(session_access_mode)
         fetch_size = effective_fetch_size
