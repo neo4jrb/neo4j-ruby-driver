@@ -106,24 +106,36 @@ runs:
           # silently — and since the inline format only drops the result
           # token for passing tests that get merged this way, treat them
           # all as passes.
+          # Filter to segments ending in ")" so that warning-text suffixes
+          # ("/path:N: UserWarning: …" attached after the last " ... ")
+          # are skipped without leaking into the pass list.
           function emit_pass(s,    n, parts, i) {
             n = split(s, parts, / \.\.\. /)
-            for (i = 1; i <= n; i++) print canon(parts[i])
+            for (i = 1; i <= n; i++)
+              if (parts[i] ~ /\)$/) print canon(parts[i])
           }
-          # For inline FAIL/ERROR/skipped: only the LAST segment is the
-          # failure / skip; merged earlier segments still passed.
-          function emit_pre_pass(s,    n, parts, i) {
+          # For inline FAIL/ERROR/skipped: only the LAST test-header
+          # segment is the failure / skip; merged earlier headers still
+          # passed.
+          function emit_pre_pass(s,    n, parts, i, last_idx) {
             n = split(s, parts, / \.\.\. /)
-            for (i = 1; i < n; i++) print canon(parts[i])
+            last_idx = 0
+            for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) last_idx = i
+            for (i = 1; i < last_idx; i++)
+              if (parts[i] ~ /\)$/) print canon(parts[i])
           }
           / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
           / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); emit_pre_pass($0); pending=""; next }
           / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); emit_pre_pass($0); pending=""; next }
           / \.\.\. skipped/  { sub(/ \.\.\. skipped.*/, ""); emit_pre_pass($0); pending=""; next }
-          / \.\.\. /         { line=$0; sub(/ \.\.\. .*$/, "", line); pending=line; next }
+          # Warning-split / unfinished line: keep the WHOLE line as pending
+          # so that on the eventual bare "ok"/"FAIL"/"ERROR" we can
+          # recover every merged segment. emit_pass/emit_pre_pass drop
+          # the warning-text tail via the ")"-suffix filter.
+          / \.\.\. /         { pending=$0; next }
           /^ok$/             { if (pending) { emit_pass(pending); pending="" } }
-          /^FAIL$/           { pending="" }
-          /^ERROR$/          { pending="" }
+          /^FAIL$/           { if (pending) { emit_pre_pass(pending); pending="" } }
+          /^ERROR$/          { if (pending) { emit_pre_pass(pending); pending="" } }
         ' "${{ steps.log.outputs.path }}" | sort -u > "$path"
         echo "path=$path" >> "$GITHUB_OUTPUT"
         echo "$(wc -l < "$path") unique passing tests."
@@ -182,18 +194,23 @@ runs:
             return s
           }
           # On a merged "test_a (id1) ... test_b (id2) ... FAIL" line, only
-          # the LAST segment is the failure — the earlier ones passed.
-          function last_segment(s,    n, parts) {
+          # the LAST test-header segment is the failure — the earlier ones
+          # passed. Find the rightmost segment ending in ")" so trailing
+          # warning text (which never ends in ")") gets ignored.
+          function last_paren_segment(s,    n, parts, i, last) {
             n = split(s, parts, / \.\.\. /)
-            return parts[n]
+            for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) last = parts[i]
+            return last
           }
-          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print canon(last_segment($0)); pending=""; next }
-          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print canon(last_segment($0)); pending=""; next }
+          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print canon(last_paren_segment($0)); pending=""; next }
+          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print canon(last_paren_segment($0)); pending=""; next }
           / \.\.\. ok$/      { pending=""; next }
           / \.\.\. skipped/  { pending=""; next }
-          / \.\.\. /         { line=$0; sub(/ \.\.\. .*$/, "", line); pending=line; next }
-          /^FAIL$/           { if (pending) { print canon(pending); pending="" } }
-          /^ERROR$/          { if (pending) { print canon(pending); pending="" } }
+          # Warning-split line: keep WHOLE line as pending so we can
+          # recover the right header on the eventual bare result.
+          / \.\.\. /         { pending=$0; next }
+          /^FAIL$/           { if (pending) { print canon(last_paren_segment(pending)); pending="" } }
+          /^ERROR$/          { if (pending) { print canon(last_paren_segment(pending)); pending="" } }
           /^ok$/             { pending="" }
         ' "$LOG" | sort -u > /tmp/current-fail.txt
 
