@@ -19,6 +19,18 @@ module Neo4j
       class LoadBalancer
         ROUTING_CONTEXT_RESERVED_KEYS = %w[address].freeze
 
+        # Codes that mean "this is a client mistake, retrying the
+        # routing fetch against another router won't help, fail fast".
+        # Matches Python's Neo4jError._is_fatal_during_discovery.
+        FATAL_DISCOVERY_CODES = %w[
+          Neo.ClientError.Database.DatabaseNotFound
+          Neo.ClientError.Transaction.InvalidBookmark
+          Neo.ClientError.Transaction.InvalidBookmarkMixture
+          Neo.ClientError.Statement.TypeError
+          Neo.ClientError.Statement.ArgumentError
+          Neo.ClientError.Request.Invalid
+        ].freeze
+
         def initialize(uri, auth, options = {})
           @uri = uri
           @auth = auth
@@ -289,12 +301,28 @@ module Neo4j
             deactivate(router)
             nil
           rescue Exceptions::Neo4jException => e
-            errors << e
-            # Server-side failure — if we have a connection, it's in
-            # FAILED state, so drop it and free a slot.
+            # Connection is in FAILED state; drop it before we either
+            # re-raise (fatal) or try the next router (transient).
             discard(router, conn) if conn
+            raise if fatal_during_discovery?(e)
+
+            errors << e
             nil
           end
+        end
+
+        # A subset of Neo.ClientError.* codes means the request itself
+        # is unsatisfiable — retrying against a different router can't
+        # help. Propagate immediately so the caller sees the original
+        # exception class and code rather than a wrapped
+        # ServiceUnavailableException with the original buried in
+        # `suppressed`. Mirrors Python's _is_fatal_during_discovery.
+        def fatal_during_discovery?(error)
+          code = error.code.to_s
+          return true if FATAL_DISCOVERY_CODES.include?(code)
+
+          code.start_with?('Neo.ClientError.Security.') &&
+            code != 'Neo.ClientError.Security.AuthorizationExpired'
         end
 
         def apply_routing_table(database, new_table)
