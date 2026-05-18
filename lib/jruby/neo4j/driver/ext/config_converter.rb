@@ -33,8 +33,17 @@ module Neo4j
             method = :with_logging
             value = Neo4j::Driver::Ext::Logger.new(value)
           when 'resolver'
+            # LinkedHashSet (not HashSet) preserves the order the caller's
+            # resolver returned. The Java driver's ServerAddressResolver
+            # contract is `Set<ServerAddress>`, but its routing layer
+            # iterates that Set in its natural order to pick a router to
+            # probe — with a plain HashSet that's hash-of-host:port order,
+            # so the driver effectively picks at random and tests like
+            # test_should_read_successfully_on_empty_discovery_result_using_session_run
+            # (which expect probes in the resolver-returned order) become
+            # flaky.
             proc = value
-            value = ->(address) { java.util.HashSet.new(proc.call(address)) }
+            value = ->(address) { java.util.LinkedHashSet.new(proc.call(address)) }
           when 'bookmarks'
             return [method, *value]
           when 'trust_strategy'

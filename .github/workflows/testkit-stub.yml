@@ -5,96 +5,95 @@ on:
     branches: [main]
   pull_request:
 
-env:
-  # Pinned testkit ref. Bump intentionally. Promoted to workflow-level so
-  # the boltstub cache key below can reference it (job-level env can't be
-  # used inside cache keys at the step level).
-  TESTKIT_REF: a233c3f32c9e7db33d856345c4c98f487d15aabb
-
 jobs:
   testkit-stub:
-    name: testkit-stub (ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }})
+    name: testkit-stub (${{ matrix.flavor }})
     runs-on: ubuntu-latest
-    # JRuby rows are continue-on-error: native JRuby flavor has no code
-    # yet (lib/jruby/ empty), and the MRI-on-JRuby include row below is
-    # exercised here for the first time.
-    continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
+    # JRuby-based rows are still incubating; let the matrix surface
+    # their results without blocking the merge.
+    continue-on-error: ${{ matrix.base_image != 'ruby:3.4-slim' }}
 
     strategy:
       fail-fast: false
       matrix:
-        ruby:
-          - "3.4"
-          - "jruby-10.1.0.0"
-        force_mri: [false]
         include:
-          - ruby: "jruby-10.1.0.0"
-            force_mri: true
+          # Pure MRI: ruby:3.4-slim base, runs lib/mri/.
+          - flavor: mri
+            base_image: ruby:3.4-slim
+            force_mri: ''
+          # Native JRuby: jruby:10.1.0.0-jdk21 base, runs lib/jruby/.
+          - flavor: jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: ''
+          # MRI-on-JRuby forward-compat: jruby image as the runtime but
+          # NEO4J_DRIVER_FORCE_MRI=1 flips the Gemfile to the MRI gemspec
+          # so we exercise lib/mri/ under JRuby. Uses the mri baseline
+          # because it runs MRI code.
+          - flavor: mri-on-jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: '1'
 
     env:
+      # testkit.main.py contract: TEST_DRIVER_REPO points at the driver
+      # source it should mount as /driver in the container; TEST_DRIVER_NAME
+      # selects the artifact namespace and docker image name. See
+      # testkit/driver.py:_get_glue and :_ensure_image.
       TEST_DRIVER_NAME: ruby
-      TESTKIT_PATH: ${{ github.workspace }}/../testkit
-      # Per-impl baseline: MRI and JRuby progress independently.
-      # The MRI-on-JRuby flavor uses the MRI baseline since it runs MRI code.
-      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ (startsWith(matrix.ruby, 'jruby') && !matrix.force_mri) && 'jruby' || 'mri' }}.txt
-      # Empty string when force_mri is false; '1' on the include row.
-      NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
-      # Use the Rust boltstub (testkit/boltstub_rs) instead of the Python
-      # implementation. Authors quote a 2-3× speedup on stub tests.
-      # testkit/tests/stub/shared.py reads this env var; when truthy it
-      # spawns the `boltstub` binary on PATH instead of `python -m boltstub`.
+      TEST_DRIVER_REPO: ${{ github.workspace }}
+      # Switch the driver image between MRI and JRuby via the BASE_IMAGE
+      # build arg honoured by testkit/Dockerfile. testkit forwards env vars
+      # prefixed with TESTKIT_DRIVER_BUILD_ARG_ as --build-arg.
+      TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE: ${{ matrix.base_image }}
+      # MRI-on-JRuby row passes '1', the others pass '' (no-op). Baked
+      # into the image as ENV so Gemfile sees it at bundle/run time.
+      TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
+      # Use the Rust boltstub baked into testkit's runner image
+      # (testkit/runner_image/Dockerfile installs /usr/local/bin/boltstub).
+      # tests/stub/shared.py reads this env var; when truthy it spawns the
+      # binary on PATH instead of `python -m boltstub`. Authors quote a
+      # 2-3× speedup on stub tests.
       TEST_RUSTY_STUB: 'true'
+      # mri-on-jruby uses the MRI baseline because it runs MRI code
+      # (just under the JRuby runtime); the other two map directly.
+      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby }}
-          bundler-cache: true
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # Shallow-fetch just the pinned commit (no full history needed).
-      - name: Clone testkit
+      # testkit.json carries the pinned testkit ref this driver was tested
+      # against — same source of truth used by testkit's own tooling. The
+      # workflow no longer hardcodes it.
+      - name: Clone pinned testkit
         run: |
-          git init "$TESTKIT_PATH"
-          git -C "$TESTKIT_PATH" remote add origin https://github.com/neo4j-drivers/testkit.git
-          git -C "$TESTKIT_PATH" fetch --depth 1 origin "$TESTKIT_REF"
-          git -C "$TESTKIT_PATH" checkout FETCH_HEAD
+          REF=$(python3 -c "import json; print(json.load(open('testkit/testkit.json'))['testkit']['ref'])")
+          mkdir -p "$RUNNER_TEMP/testkit"
+          git -C "$RUNNER_TEMP/testkit" init
+          git -C "$RUNNER_TEMP/testkit" remote add origin https://github.com/neo4j-drivers/testkit.git
+          git -C "$RUNNER_TEMP/testkit" fetch --depth 1 origin "$REF"
+          git -C "$RUNNER_TEMP/testkit" checkout FETCH_HEAD
+          echo "TESTKIT_PATH=$RUNNER_TEMP/testkit" >> "$GITHUB_ENV"
 
       - name: Install testkit Python deps
-        run: pip install -Ur "$TESTKIT_PATH/requirements.txt"
+        run: pip install -Ur "$TESTKIT_PATH/requirements.txt" teamcity-messages
 
-      # Cache the compiled Rust boltstub binary by testkit ref. Source is
-      # frozen per ref, so we rebuild only when TESTKIT_REF is bumped.
-      - name: Cache Rust boltstub binary
-        id: cache-boltstub
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/boltstub
-          key: boltstub-${{ runner.os }}-${{ env.TESTKIT_REF }}
-
-      - name: Install Rust toolchain
-        if: steps.cache-boltstub.outputs.cache-hit != 'true'
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          # Matches testkit/boltstub_rs/rust-toolchain.toml; bump in lockstep.
-          toolchain: '1.88'
-
-      - name: Build Rust boltstub
-        if: steps.cache-boltstub.outputs.cache-hit != 'true'
-        # `--locked` pins to testkit's Cargo.lock for reproducible builds.
-        run: cargo install --locked --path "$TESTKIT_PATH/boltstub_rs"
-
-      # tests/stub uses an internal boltstub server (now the Rust one via
-      # TEST_RUSTY_STUB), not a real Neo4j — no service container needed.
+      # testkit.main.py orchestrates the whole flow: builds the driver
+      # image from testkit/Dockerfile (BASE_IMAGE supplied above), starts
+      # the driver container with our backend, builds the runner image
+      # (which already includes the Rust boltstub), then runs the stub
+      # suite against the backend. `--tests STUB_TESTS` keeps it scoped
+      # to stubs only (no Neo4j needed). Stdout is tee'd so the
+      # regression gate can parse it.
       - name: Run testkit stub suite
         id: testkit
         continue-on-error: true
-        run: ./bin/run-testkit stub
+        run: |
+          set -o pipefail
+          cd "$TESTKIT_PATH"
+          python3 main.py --tests STUB_TESTS 2>&1 | tee "$RUNNER_TEMP/run.log"
 
       - uses: ./.github/actions/testkit-postprocess
         id: postprocess
@@ -102,22 +101,24 @@ jobs:
         with:
           target_label: stub
           baseline_path: ${{ env.BASELINE }}
+          log_path: ${{ runner.temp }}/run.log
 
       - name: Upload run log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          # Suffix per-matrix-row so artifacts don't overwrite each other.
-          # actions/upload-artifact@v4 errors on duplicate names rather than
-          # silently merging, so distinct names are required.
-          name: testkit-stub-run-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
+          # Per-matrix-row name; upload-artifact@v4 errors on duplicates.
+          name: testkit-stub-run-log-${{ matrix.flavor }}
           path: ${{ steps.postprocess.outputs.log }}
           if-no-files-found: ignore
 
-      - name: Upload backend log
+      # testkit dumps backend / docker / build logs under
+      # $TESTKIT_PATH/artifacts at run time; bundle them all so a failing
+      # job is debuggable without re-running locally.
+      - name: Upload testkit artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: testkit-stub-backend-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
-          path: /tmp/testkit-run-*/backend.log
+          name: testkit-stub-artifacts-${{ matrix.flavor }}
+          path: ${{ env.TESTKIT_PATH }}/artifacts/
           if-no-files-found: ignore

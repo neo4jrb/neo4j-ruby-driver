@@ -61,8 +61,42 @@ fi
   echo "# Tests known to fail in CI for env reasons live in"
   echo "# $EXCLUDE and are skipped here."
   echo ""
-  grep -E ' \.\.\. ok$' "$LOG" \
-    | sed -E 's/ \.\.\. ok$//' \
+  # Use the same extraction the CI gate runs (canon for Python version
+  # drift; ")"-suffix filter to skip unittest-docstring headers like
+  # "Everything in time scenario. ... ok" that would otherwise pollute
+  # the baseline; merge-line handling for output buffer races; warning-
+  # split handling for nutkit's UserWarning chatter).
+  # Kept inline to avoid a shared-shell-script abstraction for one
+  # producer + one consumer (.github/actions/testkit-postprocess).
+  awk '
+    function canon(s,    op, cl, head, inner, suffix) {
+      op = index(s, " (")
+      if (!op) return s
+      cl = length(s)
+      if (substr(s, cl, 1) != ")") return s
+      head = substr(s, 1, op - 1)
+      inner = substr(s, op + 2, cl - op - 2)
+      suffix = "." head
+      if (length(inner) < length(suffix) ||
+          substr(inner, length(inner) - length(suffix) + 1) != suffix) {
+        return head " (" inner suffix ")"
+      }
+      return s
+    }
+    function emit_pass(s,    n, parts, i) {
+      n = split(s, parts, / \.\.\. /)
+      for (i = 1; i <= n; i++)
+        if (parts[i] ~ /\)$/) print canon(parts[i])
+    }
+    / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
+    / \.\.\. FAIL$/    { pending=""; next }
+    / \.\.\. ERROR$/   { pending=""; next }
+    / \.\.\. skipped/  { pending=""; next }
+    / \.\.\. /         { pending=$0; next }
+    /^ok$/             { if (pending) { emit_pass(pending); pending="" } }
+    /^FAIL$/           { pending="" }
+    /^ERROR$/          { pending="" }
+  ' "$LOG" \
     | sort -u \
     | comm -23 - "$EXCLUDE_TMP"
 } > "$OUT"
