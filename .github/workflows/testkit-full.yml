@@ -1,0 +1,123 @@
+name: Testkit (full matrix, manual)
+
+# Manual-only — runs the full testkit suite (stub + integration across
+# the 10 hardcoded Neo4j configs + TLS) per driver flavour. Cost is
+# substantial (~50 min per row, 3 rows in parallel) so this is
+# never triggered by push/PR. Use it to self-test the docker glue
+# against the matrix the Neo4j drivers team's TeamCity nightly would
+# exercise, before asking them to wire us into their pipeline.
+on:
+  workflow_dispatch:
+    inputs:
+      configs:
+        description: |
+          Optional space-separated list to narrow the testkit Neo4j
+          configs (e.g., "4.4-enterprise-neo4j 5.26-enterprise-cluster-neo4j").
+          Leave blank to run the full 10-config matrix.
+        required: false
+        default: ''
+
+jobs:
+  testkit-full:
+    name: testkit-full (${{ matrix.flavor }})
+    # Restrict the dispatch to main so we don't accidentally burn an
+    # hour of runner minutes on every feature branch.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # All rows are continue-on-error — the workflow's purpose is to
+    # surface signal, not gate merges. Pre-handoff smoke test.
+    continue-on-error: true
+    # 3 rows × ~50 min = generous ceiling. Cap so a hung job doesn't
+    # eat 6 hours of minutes silently.
+    timeout-minutes: 90
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: mri
+            base_image: ruby:3.4-slim
+            force_mri: ''
+          - flavor: jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: ''
+          - flavor: mri-on-jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: '1'
+
+    env:
+      TEST_DRIVER_NAME: ruby
+      TEST_DRIVER_REPO: ${{ github.workspace }}
+      TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE: ${{ matrix.base_image }}
+      TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clone pinned testkit
+        run: |
+          REF=$(python3 -c "import json; print(json.load(open('testkit/testkit.json'))['testkit']['ref'])")
+          mkdir -p "$RUNNER_TEMP/testkit"
+          git -C "$RUNNER_TEMP/testkit" init
+          git -C "$RUNNER_TEMP/testkit" remote add origin https://github.com/neo4j-drivers/testkit.git
+          git -C "$RUNNER_TEMP/testkit" fetch --depth 1 origin "$REF"
+          git -C "$RUNNER_TEMP/testkit" checkout FETCH_HEAD
+          echo "TESTKIT_PATH=$RUNNER_TEMP/testkit" >> "$GITHUB_ENV"
+
+      - name: Install testkit Python deps
+        run: pip install -Ur "$TESTKIT_PATH/requirements.txt" teamcity-messages
+
+      # Everything testkit knows how to run, except STRESS (long-running
+      # by design, not what we want from a smoke test). main.py iterates
+      # Neo4j configs internally for INTEGRATION/TLS/TESTKIT_TESTS;
+      # STUB runs once.
+      - name: Run testkit (full)
+        id: testkit
+        run: |
+          set -o pipefail
+          cd "$TESTKIT_PATH"
+          ARGS=(--tests TESTKIT_TESTS INTEGRATION_TESTS STUB_TESTS TLS_TESTS)
+          if [ -n "${{ inputs.configs }}" ]; then
+            ARGS+=(--configs ${{ inputs.configs }})
+          fi
+          python3 main.py "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/run.log"
+
+      # No regression gate here — this workflow is informational. The
+      # postprocess action's summary table on the job page is enough
+      # to read off pass/fail/error counts. Use the artifacts to dig in.
+      - name: Summarise counts (no gate)
+        if: always()
+        shell: bash
+        run: |
+          LOG="$RUNNER_TEMP/run.log"
+          PASS=$(awk '/ \.\.\. ok$/ { c++; next } /^ok$/ { c++ } END { print c+0 }' "$LOG")
+          FAIL=$(awk '/ \.\.\. FAIL$/ { c++; next } /^FAIL$/ { c++ } END { print c+0 }' "$LOG")
+          ERROR=$(awk '/ \.\.\. ERROR$/ { c++; next } /^ERROR$/ { c++ } END { print c+0 }' "$LOG")
+          SKIP=$(grep -cE 'skipped' "$LOG" || true)
+          {
+            echo "## testkit-full (${{ matrix.flavor }}) results"
+            echo ""
+            echo "| Pass | Fail | Error | Skip |"
+            echo "|-----:|-----:|------:|-----:|"
+            echo "| $PASS | $FAIL | $ERROR | $SKIP |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testkit-full-run-log-${{ matrix.flavor }}
+          path: ${{ runner.temp }}/run.log
+          if-no-files-found: ignore
+
+      - name: Upload testkit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testkit-full-artifacts-${{ matrix.flavor }}
+          path: ${{ env.TESTKIT_PATH }}/artifacts/
+          if-no-files-found: ignore

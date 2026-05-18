@@ -4,7 +4,7 @@
 # with the list of currently-passing tests. Review `git diff` before
 # committing.
 #
-# Usage: bin/refresh-testkit-baseline [neo4j|stub]   (defaults to neo4j)
+# Usage: bin/refresh-testkit-baseline [neo4j|stub|tls]   (defaults to neo4j)
 
 set -euo pipefail
 
@@ -12,8 +12,8 @@ cd "$(dirname "$0")/.."
 
 TARGET="${1:-neo4j}"
 case "$TARGET" in
-  neo4j|stub) ;;
-  *) echo "Unknown target: $TARGET (expected: neo4j | stub)" >&2; exit 2 ;;
+  neo4j|stub|tls) ;;
+  *) echo "Unknown target: $TARGET (expected: neo4j | stub | tls)" >&2; exit 2 ;;
 esac
 
 # Detect impl from the running Ruby; baselines are per-impl since MRI
@@ -23,6 +23,7 @@ IMPL=$(ruby -e 'print RUBY_PLATFORM == "java" ? "jruby" : "mri"')
 case "$TARGET" in
   neo4j) OUT=.github/testkit-baseline-${IMPL}.txt;      EXCLUDE=.github/testkit-baseline-exclude-${IMPL}.txt ;;
   stub)  OUT=.github/testkit-stub-baseline-${IMPL}.txt; EXCLUDE=.github/testkit-stub-baseline-exclude-${IMPL}.txt ;;
+  tls)   OUT=.github/testkit-tls-baseline-${IMPL}.txt;  EXCLUDE=.github/testkit-tls-baseline-exclude-${IMPL}.txt ;;
 esac
 
 OUTPUT_TMP=$(mktemp)
