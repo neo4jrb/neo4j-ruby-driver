@@ -27,7 +27,8 @@ module Neo4j
           mode: options[:access_mode],
           tx_timeout: options[:timeout],
           tx_metadata: options[:metadata]
-        }.compact_blank!
+        }
+        begin_extra.reject!(&Internal::Extras::BLANK)
 
         @connection.send_message(Bolt::Message.begin_transaction(begin_extra))
         @connection.flush
