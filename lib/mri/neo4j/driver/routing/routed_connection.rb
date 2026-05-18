@@ -38,10 +38,12 @@ module Neo4j
 
         # --- Pure forwards (can't raise classifiable errors) -----------
 
-        def address       = @inner.address
-        def protocol      = @inner.protocol
-        def closed?       = @inner.closed?
-        def close         = @inner.close
+        def address        = @inner.address
+        def server_agent   = @inner.server_agent
+        def server_version = @inner.server_version
+        def protocol       = @inner.protocol
+        def closed?        = @inner.closed?
+        def close          = @inner.close
         def pending_responses? = @inner.pending_responses?
 
         # --- Error-classifying forwards --------------------------------
