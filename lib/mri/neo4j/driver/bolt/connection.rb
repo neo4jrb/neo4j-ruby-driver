@@ -134,14 +134,20 @@ module Neo4j
 
             loop do
               chunk_size = @socket.read(2)&.unpack1('S>')
-              # Nil chunk size means clean EOF on a half-read header —
-              # treat as a broken connection so the wrapper turns it
-              # into a ServiceUnavailableException rather than us
-              # silently returning a half-decoded response.
+              # Clean EOF on a half-read header — surface as IOError
+              # so the wrapper turns it into a ServiceUnavailable
+              # rather than us silently returning a half-decoded
+              # response.
               raise IOError, 'Unexpected end of stream while reading chunk header' if chunk_size.nil?
               break if chunk_size.zero? # End marker
 
               chunk_data = @socket.read(chunk_size)
+              # Same as above for the body: nil = peer closed, short
+              # bytes = partial read. Either way the message we built
+              # would be junk; raise so the wrapper classifies.
+              if chunk_data.nil? || chunk_data.bytesize < chunk_size
+                raise IOError, 'Unexpected end of stream while reading chunk body'
+              end
               message_data << chunk_data
             end
 
