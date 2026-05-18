@@ -7,92 +7,104 @@ on:
 
 jobs:
   testkit:
-    name: testkit (ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }})
+    name: testkit (${{ matrix.flavor }})
     runs-on: ubuntu-latest
-    # JRuby rows are continue-on-error: native JRuby flavor has no code
-    # yet (lib/jruby/ empty), and the MRI-on-JRuby include row below is
-    # exercised here for the first time.
-    continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
+    # JRuby-based rows are still incubating; surface results without
+    # blocking the merge — same pattern as testkit-stub.yml and
+    # testkit-tls.yml.
+    continue-on-error: ${{ matrix.base_image != 'ruby:4.0-slim' }}
+    # testkit cluster startup (3 Neo4j nodes for the 5.x configs)
+    # plus the test suite can comfortably hit 30-40 minutes. Cap so
+    # a hung job can't burn the full default 6-hour ceiling.
+    timeout-minutes: 60
 
     strategy:
       fail-fast: false
       matrix:
-        ruby:
-          - "4.0"
-          - "jruby-10.1.0.0"
-        force_mri: [false]
         include:
-          # MRI flavor on JRuby — NEO4J_DRIVER_FORCE_MRI=1 flips the
-          # Gemfile's `gemspec` directive to pin the MRI gemspec.
-          - ruby: "jruby-10.1.0.0"
-            force_mri: true
-
-    services:
-      neo4j:
-        image: neo4j:5.26.21-enterprise
-        env:
-          NEO4J_AUTH: neo4j/password
-          NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
-        ports:
-          - 7687:7687
-          - 7474:7474
-        options: >-
-          --health-cmd "cypher-shell -u neo4j -p password 'RETURN 1'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 20
-          --health-start-period 30s
+          - flavor: mri
+            base_image: ruby:4.0-slim
+            force_mri: ''
+          - flavor: jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: ''
+          - flavor: mri-on-jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: '1'
 
     env:
+      # See testkit-stub.yml for contract details — same wiring.
       TEST_DRIVER_NAME: ruby
-      TEST_NEO4J_HOST: localhost
-      TEST_NEO4J_USER: neo4j
-      TEST_NEO4J_PASS: password
-      # 2-segment form: testkit's test_agent_string compares the first
-      # two dot-segments of the server agent ("Neo4j/5.26.21" -> "Neo4j/5.26")
-      # against "Neo4j/" + this value. Patch number must be omitted.
-      TEST_NEO4J_VERSION: '5.26'
-      TESTKIT_PATH: ${{ github.workspace }}/../testkit
-      # Per-impl baseline: MRI and JRuby progress independently.
-      # The MRI-on-JRuby flavor uses the MRI baseline since it runs MRI code.
-      BASELINE: ${{ github.workspace }}/.github/testkit-baseline-${{ (startsWith(matrix.ruby, 'jruby') && !matrix.force_mri) && 'jruby' || 'mri' }}.txt
-      # Empty string when force_mri is false; '1' on the include row.
-      NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
+      TEST_DRIVER_REPO: ${{ github.workspace }}
+      TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE: ${{ matrix.base_image }}
+      TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
+      BASELINE: ${{ github.workspace }}/.github/testkit-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby }}
-          bundler-cache: true
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # Pin testkit so upstream changes can't make our baseline gate
-      # fail through no fault of ours. Bump intentionally when needed.
-      # Shallow-fetch just the pinned commit (no full history needed).
-      - name: Clone testkit
-        env:
-          TESTKIT_REF: a233c3f32c9e7db33d856345c4c98f487d15aabb
+      - name: Clone pinned testkit
         run: |
-          git init "$TESTKIT_PATH"
-          git -C "$TESTKIT_PATH" remote add origin https://github.com/neo4j-drivers/testkit.git
-          git -C "$TESTKIT_PATH" fetch --depth 1 origin "$TESTKIT_REF"
-          git -C "$TESTKIT_PATH" checkout FETCH_HEAD
+          REF=$(python3 -c "import json; print(json.load(open('testkit/testkit.json'))['testkit']['ref'])")
+          mkdir -p "$RUNNER_TEMP/testkit"
+          git -C "$RUNNER_TEMP/testkit" init
+          git -C "$RUNNER_TEMP/testkit" remote add origin https://github.com/neo4j-drivers/testkit.git
+          git -C "$RUNNER_TEMP/testkit" fetch --depth 1 origin "$REF"
+          git -C "$RUNNER_TEMP/testkit" checkout FETCH_HEAD
+          echo "TESTKIT_PATH=$RUNNER_TEMP/testkit" >> "$GITHUB_ENV"
 
       - name: Install testkit Python deps
-        run: pip install -Ur "$TESTKIT_PATH/requirements.txt"
+        run: pip install -Ur "$TESTKIT_PATH/requirements.txt" teamcity-messages
 
-      # bin/run-testkit returns the unittest exit code (non-zero on any
-      # failure). We have known failures, so that exit code isn't useful
-      # as a gate — the per-test baseline check below is the real gate.
-      - name: Run testkit
+      # Pre-pull every Neo4j image testkit may spin up. testkit's
+      # wait_for_port has a fixed budget per Neo4j start; pulling all
+      # 10 in parallel up front turns the wait into a pure startup
+      # wait. ~3-5 min upfront, paid once per job.
+      - name: Pre-pull Neo4j images
+        run: |
+          for img in 4.2 4.3 4.4 5.1 5.5 5.7 5.9 5.13 5.23 5.26; do
+            docker pull -q "neo4j:${img}-enterprise" &
+          done
+          wait
+          docker images --filter reference='neo4j' --format '  {{.Repository}}:{{.Tag}} {{.Size}}'
+
+      # Bump testkit's hardcoded 120s wait_for_port budget. Even with
+      # the image pre-pulled, Neo4j 4.2 enterprise startup on a cold
+      # GH runner regularly exceeds 120s (verified empirically — pull
+      # finished, container created, then 120s of polling before
+      # main.py crashed). 10 minutes covers worst-case startup
+      # comfortably without hiding genuinely stuck servers.
+      - name: Extend testkit wait_for_port timeout
+        run: |
+          sed -i 's/^    timeout = 120$/    timeout = 600/' \
+            "$TESTKIT_PATH/driver/wait_for_port.py"
+          grep "timeout = " "$TESTKIT_PATH/driver/wait_for_port.py"
+
+      # testkit-managed Neo4j across the full 10-config matrix it
+      # ships (4.2/4.3/4.4 single instance + 5.1/5.5/5.7/5.9/5.13/5.23/5.26
+      # clusters). Each config gets its own pass set in the run log
+      # surrounded by ">>> Start test suite: Integration tests <name>"
+      # markers; the postprocess action turns those into "<suite>::<test>"
+      # baseline entries so per-(config,test) regressions are explicit.
+      #
+      # Configs the driver can't negotiate the required Bolt version
+      # for are cheap-skipped by testkit's tests.neo4j.version_check.
+      # MRI's pure-Ruby Bolt proposes up to 5.0 today (see
+      # lib/mri/neo4j/driver/bolt/connection.rb#perform_handshake); the
+      # 5.1+ cluster configs auto-skip until LOGON support lands.
+      # JRuby's Java-driver path negotiates the full 5.x range and
+      # runs every config.
+      - name: Run testkit integration suite
         id: testkit
         continue-on-error: true
-        run: ./bin/run-testkit neo4j
+        run: |
+          set -o pipefail
+          cd "$TESTKIT_PATH"
+          python3 main.py --tests TESTKIT_TESTS 2>&1 | tee "$RUNNER_TEMP/run.log"
 
       - uses: ./.github/actions/testkit-postprocess
         id: postprocess
@@ -100,22 +112,20 @@ jobs:
         with:
           target_label: integration
           baseline_path: ${{ env.BASELINE }}
+          log_path: ${{ runner.temp }}/run.log
 
       - name: Upload run log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          # Suffix per-matrix-row so artifacts don't overwrite each other.
-          # actions/upload-artifact@v4 errors on duplicate names rather than
-          # silently merging, so distinct names are required.
-          name: testkit-run-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
+          name: testkit-run-log-${{ matrix.flavor }}
           path: ${{ steps.postprocess.outputs.log }}
           if-no-files-found: ignore
 
-      - name: Upload backend log
+      - name: Upload testkit artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: testkit-backend-log-${{ matrix.ruby }}${{ matrix.force_mri && '-mri' || '' }}
-          path: /tmp/testkit-run-*/backend.log
+          name: testkit-artifacts-${{ matrix.flavor }}
+          path: ${{ env.TESTKIT_PATH }}/artifacts/
           if-no-files-found: ignore

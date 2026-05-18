@@ -171,10 +171,13 @@ jobs:
               }
               return s
             }
+            function tag(s) { return suite ? suite "::" s : s }
             function emit_pass(s,    n, parts, i) {
               n = split(s, parts, / \.\.\. /)
-              for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) print canon(parts[i])
+              for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
             }
+            /^>>> Start test suite: /  { suite=$0; sub(/^>>> Start test suite: /, "", suite); next }
+            /^>>> End test suite: /    { suite=""; next }
             / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
             / \.\.\. FAIL$/    { pending=""; next }
             / \.\.\. ERROR$/   { pending=""; next }
