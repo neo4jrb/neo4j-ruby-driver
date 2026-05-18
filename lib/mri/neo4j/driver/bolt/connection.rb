@@ -85,19 +85,21 @@ module Neo4j
         def classify_failure(error) = error
 
         def send_message(message)
-          raise IOError, "Connection is closed" if closed?
+          with_wire_error_handling do
+            raise IOError, 'Connection is closed' if closed?
 
-          @packer.reset
-          @packer.pack_message(message)
-          data = @packer.bytes
+            @packer.reset
+            @packer.pack_message(message)
+            data = @packer.bytes
 
-          # Write chunk header (size as 16-bit big-endian) + data
-          write_chunk(data)
+            # Write chunk header (size as 16-bit big-endian) + data
+            write_chunk(data)
 
-          # End marker (0x00 0x00)
-          @socket.write([0x00, 0x00].pack('S>'))
+            # End marker (0x00 0x00)
+            @socket.write([0x00, 0x00].pack('S>'))
 
-          @response_queue << :pending
+            @response_queue << :pending
+          end
         end
 
         def send_all(*messages)
@@ -122,32 +124,39 @@ module Neo4j
         end
 
         def flush
-          @socket.flush
+          with_wire_error_handling { @socket.flush }
         end
 
         def fetch_response
-          # Read all chunks until we hit the end marker (0x00 0x00)
-          message_data = String.new(encoding: Encoding::BINARY)
+          with_wire_error_handling do
+            # Read all chunks until we hit the end marker (0x00 0x00)
+            message_data = String.new(encoding: Encoding::BINARY)
 
-          loop do
-            chunk_size = @socket.read(2)&.unpack1('S>')
-            break if chunk_size.nil? || chunk_size.zero? # End marker
+            loop do
+              chunk_size = @socket.read(2)&.unpack1('S>')
+              # Nil chunk size means clean EOF on a half-read header —
+              # treat as a broken connection so the wrapper turns it
+              # into a ServiceUnavailableException rather than us
+              # silently returning a half-decoded response.
+              raise IOError, 'Unexpected end of stream while reading chunk header' if chunk_size.nil?
+              break if chunk_size.zero? # End marker
 
-            chunk_data = @socket.read(chunk_size)
-            message_data << chunk_data
+              chunk_data = @socket.read(chunk_size)
+              message_data << chunk_data
+            end
+
+            # Parse the complete message
+            io = StringIO.new(message_data)
+            unpacker = PackStream::Unpacker.new(io)
+
+            # Register hydration handlers
+            register_hydration_handlers(unpacker)
+
+            response = unpacker.unpack
+
+            @response_queue.shift unless @response_queue.empty?
+            response
           end
-
-          # Parse the complete message
-          io = StringIO.new(message_data)
-          unpacker = PackStream::Unpacker.new(io)
-
-          # Register hydration handlers
-          register_hydration_handlers(unpacker)
-
-          response = unpacker.unpack
-
-          @response_queue.shift unless @response_queue.empty?
-          response
         end
 
         def fetch_all
@@ -177,6 +186,23 @@ module Neo4j
         end
 
         private
+
+        # Convert transport-level failures (broken socket, EOF on a
+        # partial read, etc.) into a ServiceUnavailableException so
+        # callers see a uniform Neo4jException — same shape as a clean
+        # disconnect during connect(). Server-side FAILUREs already
+        # raise specific Neo4jException subclasses and propagate
+        # untouched; non-IO bugs (ArgumentError from a malformed pack,
+        # etc.) also propagate untouched so they don't get misclassified
+        # as connection failures.
+        def with_wire_error_handling
+          yield
+        rescue Exceptions::Neo4jException
+          raise
+        rescue IOError, SystemCallError => e
+          raise Exceptions::ServiceUnavailableException,
+                "Connection to #{@address || @uri} broken: #{e.class}: #{e.message}"
+        end
 
         def discard_socket
           @socket&.close rescue nil
