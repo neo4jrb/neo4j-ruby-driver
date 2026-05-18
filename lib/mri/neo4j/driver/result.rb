@@ -191,9 +191,7 @@ module Neo4j
         # classifier so DatabaseUnavailable / NotALeader on a mid-stream
         # PULL still trigger deactivate / on_write_failure. The classify
         # returns the (possibly swapped) exception to raise.
-        error = msg.to_exception
-        error = @connection.classify_failure(error) if @connection.respond_to?(:classify_failure)
-        raise error
+        raise @connection.classify_failure(msg.to_exception)
       end
 
       def on_ignored(_msg)

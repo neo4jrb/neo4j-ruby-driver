@@ -75,6 +75,15 @@ module Neo4j
           @closed || @socket&.closed?
         end
 
+        # No-op classifier for the direct (bolt://) path — there's no
+        # routing table to feed back, no `on_write_failure`, no
+        # write-failure-to-SessionExpired swap. Routing::RoutedConnection
+        # overrides this with the real implementation. Defined here so
+        # session.rb / transaction.rb / Result#on_failure can call
+        # `connection.classify_failure(e)` unconditionally without
+        # `respond_to?` guards.
+        def classify_failure(error) = error
+
         def send_message(message)
           raise IOError, "Connection is closed" if closed?
 
