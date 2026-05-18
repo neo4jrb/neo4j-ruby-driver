@@ -18,19 +18,16 @@ module Neo4j
         @current_result = nil
 
         # Begin the transaction
-        # Same reject! pattern session.rb uses for RUN extras — drops
-        # keys whose values are nil or an empty collection so the
-        # serialised BEGIN map matches what testkit's stub scripts
-        # expect (e.g. `BEGIN {"db": "adb"}` not
-        # `BEGIN {"db": "adb", "tx_metadata": {}}`).
+        # Drop blank values so the serialised BEGIN map matches what
+        # testkit's stub scripts expect (e.g. `BEGIN {"db": "adb"}`,
+        # not `BEGIN {"db": "adb", "tx_metadata": {}}`).
         begin_extra = {
           bookmarks: bookmarks,
           db: options[:database],
           mode: options[:access_mode],
           tx_timeout: options[:timeout],
           tx_metadata: options[:metadata]
-        }
-        begin_extra.reject! { |_, v| v.nil? || (v.respond_to?(:empty?) && v.empty?) }
+        }.compact_blank!
 
         @connection.send_message(Bolt::Message.begin_transaction(begin_extra))
         @connection.flush
