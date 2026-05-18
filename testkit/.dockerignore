@@ -1,0 +1,6 @@
+# Build context is the testkit/ directory itself (not the project
+# root) so it's already tiny. CAs/ and CustomCAs/ are intentionally
+# NOT ignored — testkit populates them with TLS fixtures before
+# build and the Dockerfile's COPY needs them in the context.
+*.pyc
+__pycache__/

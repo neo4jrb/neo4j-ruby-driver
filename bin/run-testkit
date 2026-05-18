@@ -2,6 +2,17 @@
 #
 # Run testkit against the local Ruby backend and summarise results.
 #
+# This is the *fast local-dev path*: the backend runs on the host under
+# `bundle exec`, so iteration is sub-second and you can attach a debugger
+# / profiler / IRB to the backend process directly. It is no longer the
+# CI path — `.github/workflows/testkit-stub.yml` drives testkit through
+# `testkit/Dockerfile` + testkit's main.py instead (the standard contract
+# every official driver uses). Run that locally with:
+#
+#   docker build -t neo4j-ruby-driver:mri testkit/
+#   TEST_DRIVER_REPO=$PWD TEST_DRIVER_NAME=ruby \
+#     python3 ../testkit/main.py --tests STUB_TESTS
+#
 # Usage: bin/run-testkit [TEST_TARGET]
 #
 # TEST_TARGET defaults to "tests.neo4j" (the full integration suite).
