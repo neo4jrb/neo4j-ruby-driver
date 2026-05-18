@@ -14,8 +14,16 @@
 ARG BASE_IMAGE=ruby:3.4-slim
 FROM ${BASE_IMAGE}
 
+# Optional: bake NEO4J_DRIVER_FORCE_MRI=1 into the image so the
+# Gemfile picks the MRI gemspec even when running on JRuby. testkit
+# forwards env vars matching TESTKIT_DRIVER_BUILD_ARG_* as --build-arg,
+# so set TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI=1 in the
+# workflow row that wants the MRI-on-JRuby flavour.
+ARG NEO4J_DRIVER_FORCE_MRI=""
+
 ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=C.UTF-8
+    LANG=C.UTF-8 \
+    NEO4J_DRIVER_FORCE_MRI=$NEO4J_DRIVER_FORCE_MRI
 
 # - python3 is the entrypoint: testkit starts the container with
 #   `python3 /testkit/driver/bootstrap.py`, which then runs the phase

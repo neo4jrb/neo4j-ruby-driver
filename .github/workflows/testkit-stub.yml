@@ -9,21 +9,29 @@ jobs:
   testkit-stub:
     name: testkit-stub (${{ matrix.flavor }})
     runs-on: ubuntu-latest
-    # JRuby flavor is still incubating; let the matrix surface its result
-    # without blocking the merge.
-    continue-on-error: ${{ matrix.flavor == 'jruby' }}
+    # JRuby-based rows are still incubating; let the matrix surface
+    # their results without blocking the merge.
+    continue-on-error: ${{ matrix.base_image != 'ruby:3.4-slim' }}
 
     strategy:
       fail-fast: false
       matrix:
-        flavor:
-          - mri
-          - jruby
         include:
+          # Pure MRI: ruby:3.4-slim base, runs lib/mri/.
           - flavor: mri
             base_image: ruby:3.4-slim
+            force_mri: ''
+          # Native JRuby: jruby:10.1.0.0-jdk21 base, runs lib/jruby/.
           - flavor: jruby
             base_image: jruby:10.1.0.0-jdk21
+            force_mri: ''
+          # MRI-on-JRuby forward-compat: jruby image as the runtime but
+          # NEO4J_DRIVER_FORCE_MRI=1 flips the Gemfile to the MRI gemspec
+          # so we exercise lib/mri/ under JRuby. Uses the mri baseline
+          # because it runs MRI code.
+          - flavor: mri-on-jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: '1'
 
     env:
       # testkit.main.py contract: TEST_DRIVER_REPO points at the driver
@@ -32,19 +40,22 @@ jobs:
       # testkit/driver.py:_get_glue and :_ensure_image.
       TEST_DRIVER_NAME: ruby
       TEST_DRIVER_REPO: ${{ github.workspace }}
-      # Surfaces in the docker image tag (drivers-ruby:<branch>).
-      TEST_BRANCH: ${{ github.head_ref || github.ref_name || 'main' }}
       # Switch the driver image between MRI and JRuby via the BASE_IMAGE
       # build arg honoured by testkit/Dockerfile. testkit forwards env vars
       # prefixed with TESTKIT_DRIVER_BUILD_ARG_ as --build-arg.
       TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE: ${{ matrix.base_image }}
+      # MRI-on-JRuby row passes '1', the others pass '' (no-op). Baked
+      # into the image as ENV so Gemfile sees it at bundle/run time.
+      TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
       # Use the Rust boltstub baked into testkit's runner image
       # (testkit/runner_image/Dockerfile installs /usr/local/bin/boltstub).
       # tests/stub/shared.py reads this env var; when truthy it spawns the
       # binary on PATH instead of `python -m boltstub`. Authors quote a
       # 2-3× speedup on stub tests.
       TEST_RUSTY_STUB: 'true'
-      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ matrix.flavor }}.txt
+      # mri-on-jruby uses the MRI baseline because it runs MRI code
+      # (just under the JRuby runtime); the other two map directly.
+      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
 
     steps:
       - uses: actions/checkout@v4
