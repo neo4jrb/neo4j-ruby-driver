@@ -9,18 +9,19 @@ jobs:
   testkit-tls:
     name: testkit-tls (${{ matrix.flavor }})
     runs-on: ubuntu-latest
-    # JRuby-based rows are still incubating; surface their results
-    # without blocking the merge. MRI's pure-Ruby Bolt has no TLS
-    # implementation yet, so the row will surface 0 passes — that's
-    # the intended signal, not a failure to gate on.
-    continue-on-error: ${{ matrix.base_image != 'ruby:3.4-slim' || matrix.flavor == 'mri' }}
+    # Every row is informational right now: JRuby-based rows are still
+    # incubating, and MRI's pure-Ruby Bolt has no TLS implementation
+    # yet — so the row will surface 0 passes (intended signal, not a
+    # failure to gate on). Simplify back to a plain `true` rather than
+    # a matrix expression that's always true and reads as if it isn't.
+    continue-on-error: true
 
     strategy:
       fail-fast: false
       matrix:
         include:
           - flavor: mri
-            base_image: ruby:3.4-slim
+            base_image: ruby:4.0-slim
             force_mri: ''
           - flavor: jruby
             base_image: jruby:10.1.0.0-jdk21
