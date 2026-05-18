@@ -1,0 +1,7 @@
+# Tests currently expected to pass under tests/tls on mri.
+# CI fails if any of these stops passing (regression).
+# Empty: lib/mri/neo4j/driver/bolt/connection.rb uses a plain TCP
+# socket; TLS support requires wrapping in OpenSSL::SSL::SSLSocket
+# and is not implemented yet. Add lines as MRI TLS lands.
+
+test_driver_is_not_encrypted (tests.tls.test_unsecure_scheme.TestUnsecureScheme.test_driver_is_not_encrypted)

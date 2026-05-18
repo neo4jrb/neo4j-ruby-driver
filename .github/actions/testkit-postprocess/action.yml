@@ -172,7 +172,15 @@ runs:
       shell: bash
       run: |
         LOG="${{ steps.log.outputs.path }}"
-        grep -vE '^[[:space:]]*(#|$)' "${{ inputs.baseline_path }}" | sort -u > /tmp/baseline.txt
+        # `set -e -o pipefail` (GH Actions default) treats `grep -v` with
+        # zero matches as a pipeline failure. A baseline of only comments
+        # and blank lines (legitimate state when no tests pass yet, e.g.
+        # MRI's empty TLS baseline) would kill the whole gate before it
+        # got a chance to compare. `|| true` makes the empty-input case
+        # well-formed; the comm below still does the right thing with an
+        # empty baseline.txt.
+        { grep -vE '^[[:space:]]*(#|$)' "${{ inputs.baseline_path }}" || true; } \
+          | sort -u > /tmp/baseline.txt
         # Same warning-split awareness as Extract pass list, plus the
         # canon() normalisation so Python 3.11+ output (no .test_method
         # inside the parens) matches baselines recorded under older

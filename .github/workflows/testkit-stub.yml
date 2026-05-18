@@ -11,15 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     # JRuby-based rows are still incubating; let the matrix surface
     # their results without blocking the merge.
-    continue-on-error: ${{ matrix.base_image != 'ruby:3.4-slim' }}
+    continue-on-error: ${{ matrix.base_image != 'ruby:4.0-slim' }}
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Pure MRI: ruby:3.4-slim base, runs lib/mri/.
+          # Pure MRI: ruby:4.0-slim base, runs lib/mri/.
           - flavor: mri
-            base_image: ruby:3.4-slim
+            base_image: ruby:4.0-slim
             force_mri: ''
           # Native JRuby: jruby:10.1.0.0-jdk21 base, runs lib/jruby/.
           - flavor: jruby

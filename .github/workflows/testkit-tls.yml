@@ -1,0 +1,95 @@
+name: Testkit (TLS)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testkit-tls:
+    name: testkit-tls (${{ matrix.flavor }})
+    runs-on: ubuntu-latest
+    # Every row is informational right now: JRuby-based rows are still
+    # incubating, and MRI's pure-Ruby Bolt has no TLS implementation
+    # yet — so the row will surface 0 passes (intended signal, not a
+    # failure to gate on). Simplify back to a plain `true` rather than
+    # a matrix expression that's always true and reads as if it isn't.
+    continue-on-error: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: mri
+            base_image: ruby:4.0-slim
+            force_mri: ''
+          - flavor: jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: ''
+          - flavor: mri-on-jruby
+            base_image: jruby:10.1.0.0-jdk21
+            force_mri: '1'
+
+    env:
+      # See testkit-stub.yml for the contract details — same wiring,
+      # different `--tests` flag below.
+      TEST_DRIVER_NAME: ruby
+      TEST_DRIVER_REPO: ${{ github.workspace }}
+      TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE: ${{ matrix.base_image }}
+      TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
+      BASELINE: ${{ github.workspace }}/.github/testkit-tls-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clone pinned testkit
+        run: |
+          REF=$(python3 -c "import json; print(json.load(open('testkit/testkit.json'))['testkit']['ref'])")
+          mkdir -p "$RUNNER_TEMP/testkit"
+          git -C "$RUNNER_TEMP/testkit" init
+          git -C "$RUNNER_TEMP/testkit" remote add origin https://github.com/neo4j-drivers/testkit.git
+          git -C "$RUNNER_TEMP/testkit" fetch --depth 1 origin "$REF"
+          git -C "$RUNNER_TEMP/testkit" checkout FETCH_HEAD
+          echo "TESTKIT_PATH=$RUNNER_TEMP/testkit" >> "$GITHUB_ENV"
+
+      - name: Install testkit Python deps
+        run: pip install -Ur "$TESTKIT_PATH/requirements.txt" teamcity-messages
+
+      # testkit's TLS phase needs the TLS stub server image alongside
+      # the driver+runner containers; main.py builds it on demand from
+      # testkit/tlsserver/Dockerfile.
+      - name: Run testkit TLS suite
+        id: testkit
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cd "$TESTKIT_PATH"
+          python3 main.py --tests TLS_TESTS 2>&1 | tee "$RUNNER_TEMP/run.log"
+
+      - uses: ./.github/actions/testkit-postprocess
+        id: postprocess
+        if: always()
+        with:
+          target_label: tls
+          baseline_path: ${{ env.BASELINE }}
+          log_path: ${{ runner.temp }}/run.log
+
+      - name: Upload run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testkit-tls-run-log-${{ matrix.flavor }}
+          path: ${{ steps.postprocess.outputs.log }}
+          if-no-files-found: ignore
+
+      - name: Upload testkit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testkit-tls-artifacts-${{ matrix.flavor }}
+          path: ${{ env.TESTKIT_PATH }}/artifacts/
+          if-no-files-found: ignore

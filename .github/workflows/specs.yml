@@ -59,6 +59,15 @@ jobs:
       # Empty string when force_mri is false; '1' on the include row.
       # The Gemfile checks this and pins to the MRI gemspec when set.
       NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
+      # Serialise gem installs. setup-ruby's `bundler-cache: true` runs
+      # `bundle install --jobs 4` by default; on JRuby the parallel
+      # workers race on the jar-dependencies post_install hook for the
+      # path-source gem (the hook calls back into ruby-maven before
+      # ruby-maven has finished extracting deps.lst / polyglot.jar).
+      # No-op on MRI (no hook); a few seconds slower than parallel but
+      # correct everywhere — matches testkit/build.py for the same
+      # reason. Cf. PR #303 commit 670dec3 fix in testkit/build.py.
+      BUNDLE_JOBS: '1'
 
     steps:
       - uses: actions/checkout@v4

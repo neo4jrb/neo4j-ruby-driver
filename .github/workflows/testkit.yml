@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - "3.4"
+          - "4.0"
           - "jruby-10.1.0.0"
         force_mri: [false]
         include:
