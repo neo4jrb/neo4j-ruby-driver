@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'active_support/core_ext/enumerable'
-require 'active_support/core_ext/object/blank'
 require 'connection_pool'
 require 'neo4j-ruby-driver_loader'
 require 'set'
