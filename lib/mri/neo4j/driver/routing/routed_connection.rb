@@ -12,6 +12,8 @@ module Neo4j
       # callers is forwarded here; everything else is exposed via the
       # `inner` accessor for LoadBalancer's own release path.
       class RoutedConnection
+        extend Forwardable
+
         # Server-side error codes that indicate the connected node is no
         # longer the leader for the database we wrote to. Surface is
         # narrow on purpose — anything else (constraint violations,
@@ -38,11 +40,9 @@ module Neo4j
 
         # --- Pure forwards (can't raise classifiable errors) -----------
 
-        def address       = @inner.address
-        def protocol      = @inner.protocol
-        def closed?       = @inner.closed?
-        def close         = @inner.close
-        def pending_responses? = @inner.pending_responses?
+        def_delegators :@inner,
+                       :address, :server_agent, :server_version, :protocol,
+                       :closed?, :close, :pending_responses?
 
         # --- Error-classifying forwards --------------------------------
 
