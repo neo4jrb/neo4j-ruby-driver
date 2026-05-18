@@ -2,8 +2,6 @@
 
 require 'neo4j-ruby-driver_jars'
 require 'neo4j-ruby-driver_loader'
-require 'forwardable'
-require 'time'
 
 module Neo4j
   module Driver
