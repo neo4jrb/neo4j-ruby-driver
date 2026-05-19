@@ -22,8 +22,8 @@ module TestkitBackend
         # MRI only handshakes 4.4 today; everything above lives on JRuby.
         'Feature:Bolt:3.0'                                  => 'ja',
         'Feature:Bolt:4.1'                                  => 'ja',
-        'Feature:Bolt:4.2'                                  => 'ja',
-        'Feature:Bolt:4.3'                                  => 'ja',
+        'Feature:Bolt:4.2'                                  => 'jar',
+        'Feature:Bolt:4.3'                                  => 'jar',
         'Feature:Bolt:4.4'                                  => 'jar',
         'Feature:Bolt:5.0'                                  => 'ja',
         'Feature:Bolt:5.1'                                  => 'ja',

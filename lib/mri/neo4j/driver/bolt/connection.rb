@@ -22,6 +22,8 @@ module Neo4j
         BOLT_VERSION_5_1 = 0x00_00_01_05
         BOLT_VERSION_5_0 = 0x00_00_00_05
         BOLT_VERSION_4_4 = 0x00_00_04_04
+        BOLT_VERSION_4_3 = 0x00_00_03_04
+        BOLT_VERSION_4_2 = 0x00_00_02_04
 
         attr_reader :server_version, :server_agent, :protocol, :address
 
@@ -276,10 +278,14 @@ module Neo4j
           @socket.write(MAGIC_PREAMBLE)
 
           # Handshake v1 sends exactly 4 version proposals, highest priority
-          # first; unused slots are zero. We currently only handshake Bolt
-          # 4.4 — 5.x needs a `bolt_agent` map and 5.1+ moves auth to a
-          # separate LOGON. Tracked in TESTKIT.md backlog.
-          proposals = [BOLT_VERSION_4_4, 0, 0, 0]
+          # first; unused slots are zero. We propose the 4.x family — our
+          # Protocol::V4 handler covers all of them since the message
+          # format only diverged from 4.0 in additive ways (4.3 added
+          # ROUTE, 4.4 added imp_user/hints — we don't send those to
+          # servers that didn't negotiate the version anyway).
+          # 5.x needs a `bolt_agent` map and 5.1+ moves auth to a separate
+          # LOGON message — tracked separately.
+          proposals = [BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2, 0]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
