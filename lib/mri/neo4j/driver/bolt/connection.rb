@@ -287,14 +287,17 @@ module Neo4j
           @socket.write(MAGIC_PREAMBLE)
 
           # Handshake v1 sends exactly 4 version proposals, highest
-          # priority first; unused slots are zero. We propose the 4.x
-          # family — Protocol::V4 covers all of them since the message
-          # format diverged additively (4.3 added ROUTE, 4.4 added
-          # imp_user/hints). Version-gated message senders (currently
-          # only Connection#route, which is 4.3+) check @bolt_version
-          # explicitly. 5.x needs a `bolt_agent` map and 5.1+ moves
-          # auth into a separate LOGON message — tracked separately.
-          proposals = [BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2, 0]
+          # priority first; unused slots are zero. Bolt 5.0 still carries
+          # auth in HELLO (only 5.1+ split it into a separate LOGON
+          # message — we don't support that yet, so don't propose 5.1+
+          # either). Protocol::V5 inherits V4's HELLO builder; the only
+          # wire-format diff at 5.0 is element_id on Node / Relationship
+          # / Path, which the hydration handlers below already accept.
+          # The 4.x family is covered by Protocol::V4 — additive diffs
+          # only (4.3 added ROUTE, 4.4 added imp_user/hints). Version-
+          # gated senders (currently `Connection#route`, 4.3+) check
+          # @bolt_version explicitly.
+          proposals = [BOLT_VERSION_5_0, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
