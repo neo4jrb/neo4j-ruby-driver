@@ -59,12 +59,19 @@ module Neo4j
 
         fetch_size = effective_fetch_size
 
-        @connection.send_message(Bolt::Message.run(query, parameters))
-        @connection.send_message(Bolt::Message.pull(n: fetch_size))
-        @connection.flush
-
+        # send/flush are inside the begin block so a transport-level
+        # failure on the write (e.g. EPIPE when the peer has already
+        # closed — JRuby surfaces this immediately, where MRI tends to
+        # buffer and the failure shows up on fetch_response instead)
+        # still sets @failed and goes through classify_failure. Without
+        # this, session.close's subsequent rollback path takes the
+        # ROLLBACK-message branch (rather than rollback_via_reset) and
+        # re-fails on the dead connection.
         run_response =
           begin
+            @connection.send_message(Bolt::Message.run(query, parameters))
+            @connection.send_message(Bolt::Message.pull(n: fetch_size))
+            @connection.flush
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
             @failed = true
@@ -93,11 +100,12 @@ module Neo4j
           raise
         end
 
-        @connection.send_message(Bolt::Message.commit)
-        @connection.flush
-
+        # send/flush inside the begin block — see Transaction#run for
+        # the rationale on JRuby vs MRI socket-write timing.
         response =
           begin
+            @connection.send_message(Bolt::Message.commit)
+            @connection.flush
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
             @failed = true
@@ -133,6 +141,10 @@ module Neo4j
           @connection.send_message(Bolt::Message.rollback)
           @connection.flush
           @connection.fetch_response
+        rescue Exceptions::Neo4jException
+          # Rolling back on a broken connection is a no-op anyway —
+          # the server will discard the tx when the link dies.
+          # Swallow so session.close's rollback path stays clean.
         ensure
           @rolled_back = true
           @open = false
