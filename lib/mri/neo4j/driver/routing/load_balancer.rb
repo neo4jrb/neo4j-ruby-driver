@@ -50,6 +50,12 @@ module Neo4j
         # ServiceUnavailableException only when the role bucket has been
         # exhausted by deactivations.
         def acquire(access_mode: :write, database: nil, bookmarks: nil)
+          # Fast-fail with IllegalStateException for use-after-close.
+          # Otherwise the next routing fetch would propagate a generic
+          # Connection-refused ServiceUnavailableException, masking the
+          # actual bug in the caller's lifecycle.
+          raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
+
           access_mode = access_mode.to_sym
           ensure_routing_table_is_fresh(database, access_mode, bookmarks: bookmarks)
 
@@ -120,6 +126,7 @@ module Neo4j
 
         def close
           @refresh_lock.synchronize do
+            @closed = true
             @pools.each_value { |pool| pool.shutdown { |conn| conn.close rescue nil } }
             @pools.clear
             @routing_tables.clear

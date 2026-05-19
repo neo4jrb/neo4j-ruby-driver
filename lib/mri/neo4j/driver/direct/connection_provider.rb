@@ -22,6 +22,9 @@ module Neo4j
         end
 
         def acquire(access_mode: nil, database: nil, bookmarks: nil)
+          # See Routing::LoadBalancer#acquire for the rationale.
+          raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
+
           pool.pop(timeout: acquisition_timeout_seconds)
         rescue ::Timeout::Error
           raise Exceptions::ClientException,
@@ -56,6 +59,7 @@ module Neo4j
         end
 
         def close
+          @closed = true
           @pool&.shutdown { |conn| conn.close rescue nil }
         end
 
