@@ -349,6 +349,25 @@ module Neo4j
           @server_agent = fetch_response.assert_success!.metadata[:server]
         end
 
+        # Both 0x66 (legacy local-seconds) and 0x69 (UTC-seconds, Bolt
+        # 5.0+) end up resolving a named tz at a specific instant — the
+        # only difference is whether the caller already knows the UTC
+        # instant. Keep the zone-DB lookup + offset arithmetic in one
+        # place.
+        def hydrate_named_zone(instant, zone_name, local_seconds:)
+          if defined?(ActiveSupport::TimeZone)
+            tz = ActiveSupport::TimeZone[zone_name]
+            utc_instant = local_seconds ? tz.tzinfo.local_to_utc(instant) : instant
+            tz.at(utc_instant)
+          else
+            tz = TZInfo::Timezone.get(zone_name)
+            utc_instant = local_seconds ? tz.local_to_utc(instant) : instant
+            utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
+          end
+        rescue StandardError
+          instant
+        end
+
         def write_chunk(data)
           # Split data into chunks if necessary (max chunk size 65535)
           offset = 0
@@ -445,11 +464,20 @@ module Neo4j
           end
 
           # DateTime with offset - signature 0x46 → Ruby Time
-          # Server encodes LOCAL seconds (wall-clock time treated as UTC);
-          # subtract the offset to recover the true UTC instant before
-          # displaying in the given offset.
+          # (legacy local-seconds encoding, used on Bolt < 4.4 and on
+          # Bolt 4.4 without the `[patch_bolt]: utc` patch). Server
+          # encodes LOCAL seconds (wall-clock time treated as UTC);
+          # subtract the offset to recover the true UTC instant.
           unpacker.register_hydration_handler(0x46) do |fields|
             ::Time.at(fields[0] - fields[2], fields[1], :nanosecond).getlocal(fields[2])
+          end
+
+          # DateTime with offset (UTC seconds) - signature 0x49 → Ruby Time.
+          # Bolt 5.0+ uses UTC-encoded seconds by default; same payload
+          # as 0x46 except `fields[0]` is already the UTC instant, so no
+          # offset subtraction.
+          unpacker.register_hydration_handler(0x49) do |fields|
+            ::Time.at(fields[0], fields[1], :nanosecond).getlocal(fields[2])
           end
 
           # LocalDateTime - signature 0x64 → Types::LocalDateTime (preserve type for roundtrip)
@@ -459,25 +487,21 @@ module Neo4j
 
           # DateTimeZoneId - signature 0x66 (with timezone name) → Ruby Time
           # fields: [local_epoch_seconds, nanoseconds, timezone_name]
-          # Server encodes LOCAL seconds (wall-clock time treated as UTC), so
-          # we treat those seconds as a wall-clock in the target zone and
-          # convert to the actual UTC instant — using the zone's offset at
-          # that instant so DST is handled correctly in both summer and winter.
+          # Legacy LOCAL-seconds encoding. Treat as wall-clock in the
+          # target zone and convert to the actual UTC instant (using the
+          # zone's offset at that instant so DST is handled both in
+          # summer and winter).
           unpacker.register_hydration_handler(0x66) do |fields|
             wall_clock = ::Time.at(fields[0], fields[1], :nanosecond).utc
-            begin
-              if defined?(ActiveSupport::TimeZone)
-                tz = ActiveSupport::TimeZone[fields[2]]
-                utc_instant = tz.tzinfo.local_to_utc(wall_clock)
-                tz.at(utc_instant)
-              else
-                tz = TZInfo::Timezone.get(fields[2])
-                utc_instant = tz.local_to_utc(wall_clock)
-                utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
-              end
-            rescue StandardError
-              wall_clock
-            end
+            hydrate_named_zone(wall_clock, fields[2], local_seconds: true)
+          end
+
+          # DateTimeZoneId (UTC seconds) - signature 0x69. Bolt 5.0+
+          # encoding. fields[0] is the UTC instant directly; just
+          # display it in the named zone.
+          unpacker.register_hydration_handler(0x69) do |fields|
+            utc_instant = ::Time.at(fields[0], fields[1], :nanosecond).utc
+            hydrate_named_zone(utc_instant, fields[2], local_seconds: false)
           end
 
           # Duration - signature 0x45
