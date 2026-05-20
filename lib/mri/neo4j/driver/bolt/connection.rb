@@ -316,6 +316,12 @@ module Neo4j
           @server_version = agreed_version
           @bolt_version = BoltVersion.from_int(agreed_version)
 
+          # Bolt 5.0+ wants UTC-seconds datetime encoding on the wire
+          # (structures 0x49 / 0x69). The packer defaults to the legacy
+          # local-seconds 0x46 / 0x66 used by Bolt < 5.0; flip the flag
+          # when we negotiated 5.x or higher.
+          @packer.use_utc_datetime = @bolt_version >= BoltVersion.from_int(BOLT_VERSION_5_0)
+
           # Create version-specific protocol handler
           @protocol = ProtocolVersionHandler.for_version(self, agreed_version)
 
