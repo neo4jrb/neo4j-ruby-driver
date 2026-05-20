@@ -19,7 +19,9 @@ module TestkitBackend
     class GetFeatures < Request
       FEATURES = {
         # --- Bolt versions ---------------------------------------------------
-        # MRI only handshakes 4.4 today; everything above lives on JRuby.
+        # MRI proposes Bolt 4.2 / 4.3 / 4.4 in the handshake. 5.0+ live
+        # on JRuby only (LOGON / bolt_agent / patch_bolt not implemented
+        # in the pure-Ruby Bolt path yet).
         'Feature:Bolt:3.0'                                  => 'ja',
         'Feature:Bolt:4.1'                                  => 'ja',
         'Feature:Bolt:4.2'                                  => 'jar',
