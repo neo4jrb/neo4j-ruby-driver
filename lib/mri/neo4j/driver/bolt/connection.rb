@@ -22,6 +22,8 @@ module Neo4j
         BOLT_VERSION_5_1 = 0x00_00_01_05
         BOLT_VERSION_5_0 = 0x00_00_00_05
         BOLT_VERSION_4_4 = 0x00_00_04_04
+        BOLT_VERSION_4_3 = 0x00_00_03_04
+        BOLT_VERSION_4_2 = 0x00_00_02_04
 
         attr_reader :server_version, :server_agent, :protocol, :address
 
@@ -109,8 +111,17 @@ module Neo4j
 
         # Bolt 4.3+ ROUTE call. Returns the routing-table map from the
         # SUCCESS response (the `rt` field). Caller wraps it in
-        # Routing::RoutingTable.from_response.
+        # Routing::RoutingTable.from_response. Fail fast if the
+        # connection negotiated < 4.3 so a misconfigured neo4j:// URI
+        # against a 4.2 server surfaces a clear error rather than the
+        # server's protocol-error on an unknown message tag.
         def route(database: nil, bookmarks: [], imp_user: nil, routing_context: {})
+          unless @bolt_version >= BoltVersion.from_int(BOLT_VERSION_4_3)
+            raise Exceptions::ClientException,
+                  "Bolt #{@bolt_version} does not support ROUTE; routing requires 4.3+ — " \
+                  'use a bolt:// URI or upgrade the server'
+          end
+
           extra = { db: database, imp_user: imp_user }.compact
           send_message(Message.route(routing_context, bookmarks, extra))
           flush
@@ -275,11 +286,15 @@ module Neo4j
           # Send magic preamble
           @socket.write(MAGIC_PREAMBLE)
 
-          # Handshake v1 sends exactly 4 version proposals, highest priority
-          # first; unused slots are zero. We currently only handshake Bolt
-          # 4.4 — 5.x needs a `bolt_agent` map and 5.1+ moves auth to a
-          # separate LOGON. Tracked in TESTKIT.md backlog.
-          proposals = [BOLT_VERSION_4_4, 0, 0, 0]
+          # Handshake v1 sends exactly 4 version proposals, highest
+          # priority first; unused slots are zero. We propose the 4.x
+          # family — Protocol::V4 covers all of them since the message
+          # format diverged additively (4.3 added ROUTE, 4.4 added
+          # imp_user/hints). Version-gated message senders (currently
+          # only Connection#route, which is 4.3+) check @bolt_version
+          # explicitly. 5.x needs a `bolt_agent` map and 5.1+ moves
+          # auth into a separate LOGON message — tracked separately.
+          proposals = [BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2, 0]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
