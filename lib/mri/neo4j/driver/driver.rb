@@ -97,19 +97,19 @@ module Neo4j
       # (keys, materialised records, summary). Convenience for "I just
       # want results, don't make me build a session".
       #
-      # `config` mirrors what testkit's ExecuteQuery sends:
-      #   :database (str), :routing ('w' | 'r'), :impersonatedUser,
-      #   :bookmarkManagerId, :txMeta, :timeout, :authorizationToken.
+      # `config`: :database (str), :routing (RoutingControl::READ/WRITE),
+      #   :impersonatedUser, :bookmarkManagerId, :txMeta, :timeout,
+      #   :authorizationToken.
       # Honours :database and :routing today; ignores the rest until the
       # corresponding driver features land (impersonation, bookmark
       # manager, per-session auth, etc.).
       def execute_query(cypher, params = {}, config = {})
-        routing = (config[:routing] || config['routing'] || 'w').to_s
+        routing = config[:routing] || config['routing'] || RoutingControl::WRITE
         database = config[:database] || config['database']
 
         session_opts = {
           database: database,
-          default_access_mode: routing == 'r' ? AccessMode::READ : AccessMode::WRITE
+          default_access_mode: routing
         }.compact
 
         keys = nil
@@ -117,7 +117,7 @@ module Neo4j
         summary = nil
 
         session(session_opts) do |s|
-          method = routing == 'r' ? :execute_read : :execute_write
+          method = routing == RoutingControl::READ ? :execute_read : :execute_write
           s.send(method) do |tx|
             result = tx.run(cypher, **params)
             records = result.to_a

@@ -24,9 +24,6 @@ module Neo4j
           when 'encryption', 'hostname_verification'
             method = :"without_#{key}" unless value
             value = nil
-          when 'routing'
-            # QueryConfig (execute_query): 'r'/'w' -> RoutingControl.
-            value = value.to_s == 'r' ? org.neo4j.driver.RoutingControl::READ : org.neo4j.driver.RoutingControl::WRITE
           when 'timeout'
             value = java.time.Duration.ofMillis(timeout_to_milliseconds(value))
           when /time(out)?$/, 'routing_table_purge_delay'
