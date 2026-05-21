@@ -14,14 +14,26 @@ module TestkitBackend
 
       private
 
-      # bookmarkManagerId: absent -> driver default; -1 -> disabled
-      # (translated to `false`, which Ext::ConfigConverter maps to
-      # withBookmarkManager(null)); otherwise the id of a NewBookmarkManager.
+      # Translate testkit's QueryConfig (camelCase keys, 'r'/'w' routing,
+      # CypherValue tx metadata, ms timeout, bookmark-manager id) into the
+      # common Ruby execute_query config. Ext::ConfigConverter maps routing ->
+      # RoutingControl and the bookmark_manager sentinel.
       def query_config
-        return config unless config&.key?(:bookmarkManagerId)
+        {
+          routing: config[:routing],
+          database: config[:database],
+          impersonated_user: config[:impersonatedUser],
+          metadata: config[:txMeta] && decode(config[:txMeta]),
+          timeout: timeout_duration(config[:timeout]),
+          bookmark_manager: bookmark_manager
+        }.compact
+      end
 
+      # absent -> driver default; -1 -> disabled (`false`, mapped to
+      # withBookmarkManager(null)); otherwise the id of a NewBookmarkManager.
+      def bookmark_manager
         id = config[:bookmarkManagerId]
-        config.except(:bookmarkManagerId).merge(bookmark_manager: id == -1 ? false : fetch(id))
+        id == -1 ? false : fetch(id) unless id.nil?
       end
     end
   end
