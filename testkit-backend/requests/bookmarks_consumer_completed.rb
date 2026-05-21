@@ -1,12 +1,10 @@
 module TestkitBackend
   module Requests
-    # Frontend response to a backend->frontend
-    # BookmarksConsumerRequest. We never emit one. Stub for parity.
+    # Frontend reply to a backend->frontend BookmarksConsumerRequest, read
+    # inline by NewBookmarkManager#consume. Writes no response of its own —
+    # cf. ResolverResolutionCompleted.
     class BookmarksConsumerCompleted < Request
-      def process
-        named_entity('BackendError',
-                     msg: 'BookmarkManager callbacks are not implemented (driver does not advertise Feature:API:BookmarkManager)')
-      end
+      def process; end
     end
   end
 end

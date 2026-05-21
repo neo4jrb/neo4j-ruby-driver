@@ -46,6 +46,11 @@ module Neo4j
             value = ->(address) { java.util.LinkedHashSet.new(proc.call(address)) }
           when 'bookmarks'
             return [method, *value]
+          when 'bookmark_manager'
+            # `value` is a Java BookmarkManager, passed straight to the
+            # builder; `false` means "explicitly disable" -> with_bookmark_manager(nil).
+            # `return` skips the trailing `.compact` that would otherwise drop the nil arg.
+            return [method, (value unless value == false)]
           when 'trust_strategy'
             value = trust_strategy(**value)
           when 'revocation_strategy'

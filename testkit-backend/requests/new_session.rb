@@ -11,7 +11,8 @@ module TestkitBackend
           bookmarks: bookmarks&.map(&Neo4j::Driver::Bookmark.method(:from)),
           database: database,
           fetch_size: fetch_size,
-          impersonated_user: impersonated_user
+          impersonated_user: impersonated_user,
+          bookmark_manager: (fetch(bookmark_manager_id) if bookmark_manager_id)
         )
       end
     end
