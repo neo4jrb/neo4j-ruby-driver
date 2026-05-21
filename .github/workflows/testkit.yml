@@ -84,6 +84,35 @@ jobs:
             "$TESTKIT_PATH/driver/wait_for_port.py"
           grep "timeout = " "$TESTKIT_PATH/driver/wait_for_port.py"
 
+      # Diagnostic: confirm Neo4j 4.2 can start in this CI environment
+      # outside the testkit harness. Locally on amd64 emulation it boots
+      # in ~5s; in CI the harness times out at 600s with no neo4j logs
+      # written to the bind-mount, so we don't know if the server died
+      # silently, hit a network issue, or just took longer than 600s.
+      # This step runs it directly, polls 7687 for 120s, captures
+      # `docker logs` regardless of outcome. Remove once the harness
+      # failure is understood.
+      - name: Diagnose Neo4j 4.2 boot in isolation
+        run: |
+          set -x
+          docker run -d --name neo4j42-diag --rm \
+            -e NEO4J_AUTH=neo4j/password \
+            -e NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
+            -p 17687:7687 \
+            neo4j:4.2-enterprise
+          for i in $(seq 1 60); do
+            if (echo > /dev/tcp/127.0.0.1/17687) 2>/dev/null; then
+              echo "neo4j 4.2 bolt port open after ${i}*2s"
+              break
+            fi
+            sleep 2
+          done
+          echo "=== docker ps ==="
+          docker ps -a --filter name=neo4j42-diag
+          echo "=== docker logs (last 80 lines) ==="
+          docker logs --tail 80 neo4j42-diag 2>&1 || true
+          docker stop neo4j42-diag 2>/dev/null || true
+
       # testkit-managed Neo4j across the full 10-config matrix it
       # ships (4.2/4.3/4.4 single instance + 5.1/5.5/5.7/5.9/5.13/5.23/5.26
       # clusters). Each config gets its own pass set in the run log
