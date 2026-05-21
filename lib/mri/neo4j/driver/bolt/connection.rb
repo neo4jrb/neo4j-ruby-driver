@@ -25,6 +25,13 @@ module Neo4j
         BOLT_VERSION_4_3 = 0x00_00_03_04
         BOLT_VERSION_4_2 = 0x00_00_02_04
 
+        # Range proposal: [reserved=0, range=2, minor=2, major=5] means
+        # "major.minor down to major.(minor-range)" — i.e. one slot in
+        # the 4-slot handshake covers 5.0 through 5.2. We can't include
+        # 5.3+ in the range yet because 5.3+ HELLO requires a bolt_agent
+        # map (not implemented).
+        BOLT_VERSION_RANGE_5_0_5_2 = 0x00_02_02_05
+
         attr_reader :server_version, :server_agent, :protocol, :address
 
         def initialize(uri, auth, options = {})
@@ -287,17 +294,23 @@ module Neo4j
           @socket.write(MAGIC_PREAMBLE)
 
           # Handshake v1 sends exactly 4 version proposals, highest
-          # priority first; unused slots are zero. Bolt 5.0 still carries
-          # auth in HELLO (only 5.1+ split it into a separate LOGON
-          # message — we don't support that yet, so don't propose 5.1+
-          # either). Protocol::V5 inherits V4's HELLO builder; the only
-          # wire-format diff at 5.0 is element_id on Node / Relationship
-          # / Path, which the hydration handlers below already accept.
-          # The 4.x family is covered by Protocol::V4 — additive diffs
-          # only (4.3 added ROUTE, 4.4 added imp_user/hints). Version-
-          # gated senders (currently `Connection#route`, 4.3+) check
-          # @bolt_version explicitly.
-          proposals = [BOLT_VERSION_5_0, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
+          # priority first; unused slots are zero. Each slot is
+          # `[reserved=0, range, minor, major]` — the range byte lets
+          # one slot cover a contiguous span (range=N means
+          # major.minor down to major.(minor-N)), which is how we
+          # squeeze the 5.0 / 5.1 / 5.2 family into a single slot and
+          # still leave room for the 4.x family.
+          #
+          # Protocol::V5 overrides build_hello_message to drop auth on
+          # >=5.1 (LOGON carries it instead — see #perform_logon).
+          # 5.0 still falls through to V4's auth-in-HELLO behaviour.
+          # 5.3+ is blocked on the `bolt_agent` map in HELLO that
+          # those versions require.
+          # The 4.x family is covered by Protocol::V4 — additive
+          # diffs only (4.3 added ROUTE, 4.4 added imp_user/hints).
+          # Version-gated senders (currently `Connection#route`,
+          # 4.3+) check @bolt_version explicitly.
+          proposals = [BOLT_VERSION_RANGE_5_0_5_2, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
@@ -342,7 +355,9 @@ module Neo4j
           # direct bolt:// drivers); the protocol handler drops it from
           # the HELLO payload when nil. `user_agent` may be overridden by
           # the caller (testkit threads its configured agent through the
-          # driver options).
+          # driver options). On Bolt 5.1+ the HELLO carries no auth —
+          # @protocol.build_hello_message strips it and we send a
+          # separate LOGON below.
           hello_msg = @protocol.build_hello_message(
             user_agent: @options[:user_agent] || "neo4j-ruby-driver/#{Neo4j::Driver::VERSION}",
             auth: auth_hash,
@@ -353,6 +368,19 @@ module Neo4j
           flush
 
           @server_agent = fetch_response.assert_success!.metadata[:server]
+
+          perform_logon(auth_hash) if @protocol.supports_re_auth?
+        end
+
+        # Bolt 5.1+: HELLO doesn't authenticate any more, a separate
+        # LOGON does. Pipelining the two is allowed; we keep them serial
+        # for clarity. AuthenticationException out of LOGON looks the
+        # same as it did out of HELLO on 5.0/4.x — Bolt::Failure's
+        # code→exception table already maps Security.Unauthorized.
+        def perform_logon(auth_hash)
+          send_message(Message.logon(auth_hash))
+          flush
+          fetch_response.assert_success!
         end
 
         # Both 0x66 (legacy local-seconds) and 0x69 (UTC-seconds, Bolt
