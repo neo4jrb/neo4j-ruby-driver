@@ -87,11 +87,33 @@ module Neo4j
           !@metadata[:profile].nil?
         end
 
+        # Bolt 5.5+ servers report query info via `statuses` (GQL status
+        # objects) rather than the legacy `notifications` list. Statuses
+        # without a `neo4j_code` are pure-GQL info (e.g. "successful
+        # completion") and have no legacy-notification equivalent, so we
+        # drop them; the rest are reshaped to look like `notifications`.
         def notifications
-          (@metadata[:notifications] || []).map { |n| Notification.new(n) }
+          (@metadata[:notifications] || statuses_as_notifications)
+            .map { |n| Notification.new(n) }
         end
 
         private
+
+        def statuses_as_notifications
+          (@metadata[:statuses] || []).filter_map do |s|
+            next unless s[:neo4j_code]
+
+            dr = s[:diagnostic_record] || {}
+            {
+              code: s[:neo4j_code],
+              title: s[:title],
+              description: s[:description],
+              severity: dr[:_severity],
+              category: dr[:_classification],
+              position: dr[:_position]
+            }.compact
+          end
+        end
 
         # Internal-only accessor. NOT part of the public API — Java's
         # ResultSummary doesn't expose the raw wire metadata either. The
