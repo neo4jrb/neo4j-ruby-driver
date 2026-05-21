@@ -20,9 +20,9 @@ module TestkitBackend
       FEATURES = {
         # --- Bolt versions ---------------------------------------------------
         # MRI proposes a Bolt 5.0–5.6 range plus 4.4 / 4.3 / 4.2 in
-        # the handshake. 5.7+ still lives on JRuby only — they add
-        # notifications-config fields to HELLO that the pure-Ruby
-        # Bolt path doesn't build yet.
+        # the handshake. Support for 5.7+ still lives on JRuby only —
+        # those versions add notifications-config fields to HELLO that
+        # the pure-Ruby Bolt path doesn't build yet.
         'Feature:Bolt:3.0'                                  => 'ja',
         'Feature:Bolt:4.1'                                  => 'ja',
         'Feature:Bolt:4.2'                                  => 'jar',
