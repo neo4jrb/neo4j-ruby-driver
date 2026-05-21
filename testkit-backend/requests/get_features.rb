@@ -19,9 +19,9 @@ module TestkitBackend
     class GetFeatures < Request
       FEATURES = {
         # --- Bolt versions ---------------------------------------------------
-        # MRI proposes a Bolt 5.0–5.2 range plus 4.4 / 4.3 / 4.2 in
-        # the handshake. 5.3+ still live on JRuby only — they need the
-        # bolt_agent map in HELLO (5.3+ requirement) that the pure-Ruby
+        # MRI proposes a Bolt 5.0–5.6 range plus 4.4 / 4.3 / 4.2 in
+        # the handshake. 5.7+ still lives on JRuby only — they add
+        # notifications-config fields to HELLO that the pure-Ruby
         # Bolt path doesn't build yet.
         'Feature:Bolt:3.0'                                  => 'ja',
         'Feature:Bolt:4.1'                                  => 'ja',
@@ -31,10 +31,10 @@ module TestkitBackend
         'Feature:Bolt:5.0'                                  => 'jar',
         'Feature:Bolt:5.1'                                  => 'jar',
         'Feature:Bolt:5.2'                                  => 'jar',
-        'Feature:Bolt:5.3'                                  => 'ja',
-        'Feature:Bolt:5.4'                                  => 'ja',
-        'Feature:Bolt:5.5'                                  => 'ja',
-        'Feature:Bolt:5.6'                                  => 'ja',
+        'Feature:Bolt:5.3'                                  => 'jar',
+        'Feature:Bolt:5.4'                                  => 'jar',
+        'Feature:Bolt:5.5'                                  => 'jar',
+        'Feature:Bolt:5.6'                                  => 'jar',
         'Feature:Bolt:5.7'                                  => 'ja',
         'Feature:Bolt:5.8'                                  => 'ja',
         'Feature:Bolt:6.0'                                  => 'ja',
