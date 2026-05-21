@@ -287,14 +287,17 @@ module Neo4j
           @socket.write(MAGIC_PREAMBLE)
 
           # Handshake v1 sends exactly 4 version proposals, highest
-          # priority first; unused slots are zero. We propose the 4.x
-          # family — Protocol::V4 covers all of them since the message
-          # format diverged additively (4.3 added ROUTE, 4.4 added
-          # imp_user/hints). Version-gated message senders (currently
-          # only Connection#route, which is 4.3+) check @bolt_version
-          # explicitly. 5.x needs a `bolt_agent` map and 5.1+ moves
-          # auth into a separate LOGON message — tracked separately.
-          proposals = [BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2, 0]
+          # priority first; unused slots are zero. Bolt 5.0 still carries
+          # auth in HELLO (only 5.1+ split it into a separate LOGON
+          # message — we don't support that yet, so don't propose 5.1+
+          # either). Protocol::V5 inherits V4's HELLO builder; the only
+          # wire-format diff at 5.0 is element_id on Node / Relationship
+          # / Path, which the hydration handlers below already accept.
+          # The 4.x family is covered by Protocol::V4 — additive diffs
+          # only (4.3 added ROUTE, 4.4 added imp_user/hints). Version-
+          # gated senders (currently `Connection#route`, 4.3+) check
+          # @bolt_version explicitly.
+          proposals = [BOLT_VERSION_5_0, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
@@ -312,6 +315,12 @@ module Neo4j
 
           @server_version = agreed_version
           @bolt_version = BoltVersion.from_int(agreed_version)
+
+          # Bolt 5.0+ wants UTC-seconds datetime encoding on the wire
+          # (structures 0x49 / 0x69). The packer defaults to the legacy
+          # local-seconds 0x46 / 0x66 used by Bolt < 5.0; flip the flag
+          # when we negotiated 5.x or higher.
+          @packer.use_utc_datetime = @bolt_version >= BoltVersion.from_int(BOLT_VERSION_5_0)
 
           # Create version-specific protocol handler
           @protocol = ProtocolVersionHandler.for_version(self, agreed_version)
@@ -344,6 +353,25 @@ module Neo4j
           flush
 
           @server_agent = fetch_response.assert_success!.metadata[:server]
+        end
+
+        # Both 0x66 (legacy local-seconds) and 0x69 (UTC-seconds, Bolt
+        # 5.0+) end up resolving a named tz at a specific instant — the
+        # only difference is whether the caller already knows the UTC
+        # instant. Keep the zone-DB lookup + offset arithmetic in one
+        # place.
+        def hydrate_named_zone(instant, zone_name, local_seconds:)
+          if defined?(ActiveSupport::TimeZone)
+            tz = ActiveSupport::TimeZone[zone_name]
+            utc_instant = local_seconds ? tz.tzinfo.local_to_utc(instant) : instant
+            tz.at(utc_instant)
+          else
+            tz = TZInfo::Timezone.get(zone_name)
+            utc_instant = local_seconds ? tz.local_to_utc(instant) : instant
+            utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
+          end
+        rescue StandardError
+          instant
         end
 
         def write_chunk(data)
@@ -442,11 +470,20 @@ module Neo4j
           end
 
           # DateTime with offset - signature 0x46 → Ruby Time
-          # Server encodes LOCAL seconds (wall-clock time treated as UTC);
-          # subtract the offset to recover the true UTC instant before
-          # displaying in the given offset.
+          # (legacy local-seconds encoding, used on Bolt < 4.4 and on
+          # Bolt 4.4 without the `[patch_bolt]: utc` patch). Server
+          # encodes LOCAL seconds (wall-clock time treated as UTC);
+          # subtract the offset to recover the true UTC instant.
           unpacker.register_hydration_handler(0x46) do |fields|
             ::Time.at(fields[0] - fields[2], fields[1], :nanosecond).getlocal(fields[2])
+          end
+
+          # DateTime with offset (UTC seconds) - signature 0x49 → Ruby Time.
+          # Bolt 5.0+ uses UTC-encoded seconds by default; same payload
+          # as 0x46 except `fields[0]` is already the UTC instant, so no
+          # offset subtraction.
+          unpacker.register_hydration_handler(0x49) do |fields|
+            ::Time.at(fields[0], fields[1], :nanosecond).getlocal(fields[2])
           end
 
           # LocalDateTime - signature 0x64 → Types::LocalDateTime (preserve type for roundtrip)
@@ -456,25 +493,21 @@ module Neo4j
 
           # DateTimeZoneId - signature 0x66 (with timezone name) → Ruby Time
           # fields: [local_epoch_seconds, nanoseconds, timezone_name]
-          # Server encodes LOCAL seconds (wall-clock time treated as UTC), so
-          # we treat those seconds as a wall-clock in the target zone and
-          # convert to the actual UTC instant — using the zone's offset at
-          # that instant so DST is handled correctly in both summer and winter.
+          # Legacy LOCAL-seconds encoding. Treat as wall-clock in the
+          # target zone and convert to the actual UTC instant (using the
+          # zone's offset at that instant so DST is handled both in
+          # summer and winter).
           unpacker.register_hydration_handler(0x66) do |fields|
             wall_clock = ::Time.at(fields[0], fields[1], :nanosecond).utc
-            begin
-              if defined?(ActiveSupport::TimeZone)
-                tz = ActiveSupport::TimeZone[fields[2]]
-                utc_instant = tz.tzinfo.local_to_utc(wall_clock)
-                tz.at(utc_instant)
-              else
-                tz = TZInfo::Timezone.get(fields[2])
-                utc_instant = tz.local_to_utc(wall_clock)
-                utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
-              end
-            rescue StandardError
-              wall_clock
-            end
+            hydrate_named_zone(wall_clock, fields[2], local_seconds: true)
+          end
+
+          # DateTimeZoneId (UTC seconds) - signature 0x69. Bolt 5.0+
+          # encoding. fields[0] is the UTC instant directly; just
+          # display it in the named zone.
+          unpacker.register_hydration_handler(0x69) do |fields|
+            utc_instant = ::Time.at(fields[0], fields[1], :nanosecond).utc
+            hydrate_named_zone(utc_instant, fields[2], local_seconds: false)
           end
 
           # Duration - signature 0x45

@@ -8,8 +8,15 @@ module Neo4j
       class Packer
         include Markers
 
+        # When true, datetimes are packed as the UTC-seconds Bolt 5.0+
+        # structures (0x49 / 0x69) instead of the legacy local-seconds
+        # variants (0x46 / 0x66). Connection sets this after a
+        # successful handshake negotiates Bolt 5.0+; ignored on 4.x.
+        attr_accessor :use_utc_datetime
+
         def initialize
           @buffer = String.new(encoding: Encoding::BINARY)
+          @use_utc_datetime = false
         end
 
         def pack(value)
@@ -218,20 +225,28 @@ module Neo4j
 
           tz_offset = value.utc_offset
           nanoseconds = value.nsec
-          # Both 0x46 and 0x66 use LOCAL seconds encoding (wall-clock time
-          # treated as if it were UTC); see the matching hydration handlers.
-          epoch_seconds = value.to_i + tz_offset
+          # Bolt 5.0+ (and 4.4-with-patch_bolt:utc) want true UTC
+          # seconds in 0x49 / 0x69; the legacy 0x46 / 0x66 carry LOCAL
+          # seconds (wall-clock treated as if it were UTC). See the
+          # matching hydration handlers in Bolt::Connection.
+          if @use_utc_datetime
+            epoch_seconds = value.to_i
+            offset_sig, zone_sig = 0x49, 0x69
+          else
+            epoch_seconds = value.to_i + tz_offset
+            offset_sig, zone_sig = 0x46, 0x66
+          end
           zone_name = named_zone_for(value)
 
           if zone_name
-            # ZonedDateTime: signature 0x66, fields [seconds, nanos, tz_name]
-            @buffer << [TINY_STRUCT | 3, 0x66].pack('CC')
+            # ZonedDateTime: fields [seconds, nanos, tz_name]
+            @buffer << [TINY_STRUCT | 3, zone_sig].pack('CC')
             pack_integer(epoch_seconds)
             pack_integer(nanoseconds)
             pack_string(zone_name)
           else
-            # DateTime with offset: signature 0x46, fields [seconds, nanos, tz_offset]
-            @buffer << [TINY_STRUCT | 3, 0x46].pack('CC')
+            # DateTime with offset: fields [seconds, nanos, tz_offset]
+            @buffer << [TINY_STRUCT | 3, offset_sig].pack('CC')
             pack_integer(epoch_seconds)
             pack_integer(nanoseconds)
             pack_integer(tz_offset)
