@@ -5,6 +5,8 @@ module Neo4j
     module Bolt
       # Represents a Bolt protocol version
       class BoltVersion
+        include Comparable
+
         attr_reader :major, :minor
 
         def initialize(major, minor = 0)
@@ -20,16 +22,10 @@ module Neo4j
           "#{@major}.#{@minor}"
         end
 
-        def >=(other)
-          to_i >= other.to_i
-        end
-
-        def <=(other)
-          to_i <= other.to_i
-        end
-
-        def ==(other)
-          to_i == other.to_i
+        # Comparable wires the rest (<, >, <=, >=, ==, between?, clamp)
+        # off this one method.
+        def <=>(other)
+          to_i <=> other.to_i
         end
 
         # Known Bolt versions

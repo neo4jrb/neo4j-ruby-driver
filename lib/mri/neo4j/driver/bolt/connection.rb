@@ -25,6 +25,13 @@ module Neo4j
         BOLT_VERSION_4_3 = 0x00_00_03_04
         BOLT_VERSION_4_2 = 0x00_00_02_04
 
+        # Range proposal: [reserved=0, range=2, minor=2, major=5] means
+        # "major.minor down to major.(minor-range)" — i.e. one slot in
+        # the 4-slot handshake covers 5.0 through 5.2. We can't include
+        # 5.3+ in the range yet because 5.3+ HELLO requires a bolt_agent
+        # map (not implemented).
+        BOLT_VERSION_RANGE_5_0_5_2 = 0x00_02_02_05
+
         attr_reader :server_version, :server_agent, :protocol, :address
 
         def initialize(uri, auth, options = {})
@@ -297,7 +304,11 @@ module Neo4j
           # only (4.3 added ROUTE, 4.4 added imp_user/hints). Version-
           # gated senders (currently `Connection#route`, 4.3+) check
           # @bolt_version explicitly.
-          proposals = [BOLT_VERSION_5_0, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
+          # First slot is a range covering 5.0–5.2 — the handshake
+          # accepts ranges per slot, so one entry covers three versions
+          # and leaves room for the 4.x family. Server picks any version
+          # it speaks within the range. 5.3+ is blocked on bolt_agent.
+          proposals = [BOLT_VERSION_RANGE_5_0_5_2, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
@@ -342,7 +353,9 @@ module Neo4j
           # direct bolt:// drivers); the protocol handler drops it from
           # the HELLO payload when nil. `user_agent` may be overridden by
           # the caller (testkit threads its configured agent through the
-          # driver options).
+          # driver options). On Bolt 5.1+ the HELLO carries no auth —
+          # @protocol.build_hello_message strips it and we send a
+          # separate LOGON below.
           hello_msg = @protocol.build_hello_message(
             user_agent: @options[:user_agent] || "neo4j-ruby-driver/#{Neo4j::Driver::VERSION}",
             auth: auth_hash,
@@ -353,6 +366,19 @@ module Neo4j
           flush
 
           @server_agent = fetch_response.assert_success!.metadata[:server]
+
+          perform_logon(auth_hash) if @protocol.supports_re_auth?
+        end
+
+        # Bolt 5.1+: HELLO doesn't authenticate any more, a separate
+        # LOGON does. Pipelining the two is allowed; we keep them serial
+        # for clarity. AuthenticationException out of LOGON looks the
+        # same as it did out of HELLO on 5.0/4.x — Bolt::Failure's
+        # code→exception table already maps Security.Unauthorized.
+        def perform_logon(auth_hash)
+          send_message(Message.logon(auth_hash))
+          flush
+          fetch_response.assert_success!
         end
 
         # Both 0x66 (legacy local-seconds) and 0x69 (UTC-seconds, Bolt
