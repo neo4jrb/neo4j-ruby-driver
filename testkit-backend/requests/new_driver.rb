@@ -18,6 +18,7 @@ module TestkitBackend
           max_connection_pool_size: max_connection_pool_size,
           connection_acquisition_timeout: timeout_duration(connection_acquisition_timeout_ms),
           encryption: encrypted,
+          telemetry_disabled: telemetry_disabled,
           trust_strategy: trust_strategy(trusted_certificates),
           notification_config: {
             minimum_severity: notifications_min_severity, disabled_categories: notifications_disabled_categories }
