@@ -11,11 +11,18 @@ module Neo4j
       module BookmarkManagers
         def default_manager(initial_bookmarks: nil, bookmarks_supplier: nil, bookmarks_consumer: nil)
           builder = Neo4j::Driver::BookmarkManagerConfig.builder
-          builder = builder.with_initial_bookmarks(java.util.HashSet.new(initial_bookmarks)) if initial_bookmarks
-          builder = builder.with_bookmarks_supplier(bookmarks_supplier) if bookmarks_supplier
-          builder = builder.with_bookmarks_consumer(bookmarks_consumer) if bookmarks_consumer
+          builder = builder.with_initial_bookmarks(to_java_set(initial_bookmarks)) if initial_bookmarks
+          # Wrap the callbacks so callers stay on the common API (Ruby Set of
+          # Bookmark): convert the supplier's return to a java.util.Set, and the
+          # java.util.Set handed to the consumer back to a Ruby Set.
+          builder = builder.with_bookmarks_supplier(-> { to_java_set(bookmarks_supplier.call) }) if bookmarks_supplier
+          builder = builder.with_bookmarks_consumer(->(bookmarks) { bookmarks_consumer.call(Set.new(bookmarks)) }) if bookmarks_consumer
           super(builder.build)
         end
+
+        private
+
+        def to_java_set(bookmarks) = java.util.HashSet.new(bookmarks.to_a)
       end
     end
   end

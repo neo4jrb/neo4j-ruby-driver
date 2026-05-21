@@ -29,7 +29,7 @@ module TestkitBackend
         @command_processor.process_response(
           named_entity('BookmarksSupplierRequest', id: bookmark_manager_id, bookmark_manager_id: bookmark_manager_id))
         bookmarks = @command_processor.process(blocking: true).bookmarks || []
-        java.util.HashSet.new(bookmarks.map(&Neo4j::Driver::Bookmark.method(:from)))
+        bookmarks.map(&Neo4j::Driver::Bookmark.method(:from))
       end
 
       def consume(bookmark_manager_id, bookmarks)

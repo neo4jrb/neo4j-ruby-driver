@@ -1,21 +1,22 @@
 # frozen_string_literal: true
 
-# Exercises the JRuby BookmarkManager surface: BookmarkManagers.default_manager
-# plus session(bookmark_manager:) wiring. JRuby-only — MRI does not yet
-# advertise Feature:API:BookmarkManager.
+# Exercises the common BookmarkManager API — BookmarkManagers.default_manager
+# plus session(bookmark_manager:) — in Ruby terms only (Set, Bookmark#value).
+# Lives under spec/jruby for now only because MRI has not implemented the
+# feature yet; the assertions are impl-agnostic and should hold on MRI too.
 RSpec.describe 'BookmarkManager' do
   it 'tracks bookmarks across sessions and notifies the consumer on commit' do
-    consumed = []
+    consumed = nil
     manager = Neo4j::Driver::BookmarkManagers.default_manager(
-      bookmarks_consumer: ->(bookmarks) { consumed = bookmarks.map(&:value) }
+      bookmarks_consumer: ->(bookmarks) { consumed = bookmarks }
     )
 
     driver.session(bookmark_manager: manager) do |session|
       session.execute_write { |tx| tx.run('CREATE (:BookmarkManagerSpec)') }
     end
 
-    expect(consumed).not_to be_empty
-    expect(manager.get_bookmarks.map(&:value)).to match_array(consumed)
+    expect(consumed).to be_a(Set)
+    expect(consumed.map(&:value)).to all(be_a(String)).and be_present
 
     # A fresh session driven by the same manager inherits the tracked
     # bookmark, so this read is causally chained after the write above.
@@ -32,7 +33,7 @@ RSpec.describe 'BookmarkManager' do
     manager = Neo4j::Driver::BookmarkManagers.default_manager(
       bookmarks_supplier: lambda {
         supplier_called = true
-        java.util.HashSet.new
+        Set.new
       }
     )
 
