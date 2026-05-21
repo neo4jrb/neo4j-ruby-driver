@@ -20,14 +20,16 @@ module TestkitBackend
       # 'r'/'w' to AccessMode. Ext::ConfigConverter passes the RoutingControl
       # straight through and maps the bookmark_manager sentinel.
       def query_config
-        {
+        cfg = {
           routing: routing_control,
           database: config[:database],
           impersonated_user: config[:impersonatedUser],
           metadata: config[:txMeta] && decode(config[:txMeta]),
-          timeout: timeout_duration(config[:timeout]),
-          bookmark_manager: bookmark_manager
+          timeout: timeout_duration(config[:timeout])
         }.compact
+        # bookmarkManagerId absent -> driver default (omit the key); -1 ->
+        # disabled (nil -> withBookmarkManager(null)); otherwise a NewBookmarkManager.
+        config.key?(:bookmarkManagerId) ? cfg.merge(bookmark_manager: bookmark_manager) : cfg
       end
 
       def routing_control
@@ -37,11 +39,9 @@ module TestkitBackend
         end
       end
 
-      # absent -> driver default; -1 -> disabled (`false`, mapped to
-      # withBookmarkManager(null)); otherwise the id of a NewBookmarkManager.
       def bookmark_manager
         id = config[:bookmarkManagerId]
-        id == -1 ? false : fetch(id) unless id.nil?
+        fetch(id) unless id == -1
       end
     end
   end
