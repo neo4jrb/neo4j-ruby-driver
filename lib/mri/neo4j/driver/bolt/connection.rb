@@ -25,12 +25,12 @@ module Neo4j
         BOLT_VERSION_4_3 = 0x00_00_03_04
         BOLT_VERSION_4_2 = 0x00_00_02_04
 
-        # Range proposal: [reserved=0, range=2, minor=2, major=5] means
-        # "major.minor down to major.(minor-range)" — i.e. one slot in
-        # the 4-slot handshake covers 5.0 through 5.2. We can't include
-        # 5.3+ in the range yet because 5.3+ HELLO requires a bolt_agent
-        # map (not implemented).
-        BOLT_VERSION_RANGE_5_0_5_2 = 0x00_02_02_05
+        # Range proposal: [reserved=0, range=N, minor, major] means
+        # "major.minor down to major.(minor-N)" — one slot covers a
+        # contiguous span. 5.0–5.6 is the highest contiguous span we
+        # currently speak: 5.7+ adds notifications-config fields to
+        # HELLO that we don't build yet, so they're left out.
+        BOLT_VERSION_RANGE_5_0_5_6 = 0x00_06_06_05
 
         attr_reader :server_version, :server_agent, :protocol, :address
 
@@ -297,20 +297,21 @@ module Neo4j
           # priority first; unused slots are zero. Each slot is
           # `[reserved=0, range, minor, major]` — the range byte lets
           # one slot cover a contiguous span (range=N means
-          # major.minor down to major.(minor-N)), which is how we
-          # squeeze the 5.0 / 5.1 / 5.2 family into a single slot and
-          # still leave room for the 4.x family.
+          # major.minor down to major.(minor-N)), which is how the
+          # 5.0–5.6 family fits in one slot and still leaves room for
+          # the 4.x family.
           #
-          # Protocol::V5 overrides build_hello_message to drop auth on
-          # >=5.1 (LOGON carries it instead — see #perform_logon).
-          # 5.0 still falls through to V4's auth-in-HELLO behaviour.
-          # 5.3+ is blocked on the `bolt_agent` map in HELLO that
-          # those versions require.
+          # Protocol::V5 covers 5.0–5.6:
+          #   - 5.0: V4's HELLO format (auth in HELLO).
+          #   - 5.1+: HELLO drops auth, LOGON follows (perform_logon).
+          #   - 5.3+: HELLO gains a `bolt_agent` map.
+          # 5.7+ is left out because it adds notifications-config to
+          # HELLO that we don't build yet.
           # The 4.x family is covered by Protocol::V4 — additive
           # diffs only (4.3 added ROUTE, 4.4 added imp_user/hints).
           # Version-gated senders (currently `Connection#route`,
           # 4.3+) check @bolt_version explicitly.
-          proposals = [BOLT_VERSION_RANGE_5_0_5_2, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
+          proposals = [BOLT_VERSION_RANGE_5_0_5_6, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
