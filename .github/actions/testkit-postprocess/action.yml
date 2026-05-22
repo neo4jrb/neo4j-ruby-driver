@@ -258,6 +258,15 @@ runs:
         REGRESSED=$( { echo "$MISSING"; echo "$FAILED"; } | awk 'NF' | sort -u )
         NEW=$(comm -13 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
 
+        # Echo gate stats to stdout so the job log is self-explanatory
+        # (step summary is in a different tab and easy to miss).
+        echo "baseline entries:  $(wc -l < /tmp/baseline.txt | tr -d ' ')"
+        echo "current passes:    $(wc -l < '${{ steps.pass.outputs.path }}' | tr -d ' ')"
+        echo "current failures:  $(wc -l < /tmp/current-fail.txt | tr -d ' ')"
+        echo "MISSING (baseline minus passes):    $({ echo "$MISSING" | awk 'NF'; } | wc -l | tr -d ' ')"
+        echo "FAILED  (baseline AND failures):    $({ echo "$FAILED"  | awk 'NF'; } | wc -l | tr -d ' ')"
+        echo "NEW     (passes minus baseline):    $({ echo "$NEW"     | awk 'NF'; } | wc -l | tr -d ' ')"
+
         {
           echo ""
           if [ -n "$NEW" ]; then
