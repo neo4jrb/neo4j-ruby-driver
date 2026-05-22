@@ -42,6 +42,13 @@ module Neo4j
           # datetime flag (0x49 / 0x69 vs legacy 0x46 / 0x66).
           def configure_packer(_packer); end
 
+          # Hook for per-version unpacker customisation — re-registering
+          # handlers for messages whose shape changed at this version
+          # (V5_7 FAILURE) or adding handlers for new struct types
+          # (V6_0 VECTOR / UNSUPPORTED). Called after Connection
+          # registers the common ones, so an override here wins.
+          def customize_hydration(_unpacker); end
+
           def supports_re_auth? = false
           def supports_multiple_databases? = false
           def supports_notification_filtering? = false

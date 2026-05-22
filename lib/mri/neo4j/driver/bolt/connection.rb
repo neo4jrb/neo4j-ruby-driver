@@ -5,19 +5,7 @@ module Neo4j
     module Bolt
       # Handles a single Bolt protocol connection over TCP
       class Connection
-        MAGIC_PREAMBLE = "\x60\x60\xB0\x17".b
         DEFAULT_PORT = 7687
-
-        # Handshake-v1 slot encoding is a 4-byte big-endian:
-        # [reserved=0, range=N, minor, major]. range=N lets one slot
-        # cover `major.minor` down to `major.(minor-N)`, so a single
-        # slot can stand in for a contiguous family. All four slots
-        # are filled below; 5.7+ negotiation arrives via
-        # HandshakeManifestV1 in the next slice.
-        BOLT_VERSION_RANGE_5_0_5_6 = 0x00_06_06_05
-        BOLT_VERSION_4_4 = 0x00_00_04_04
-        BOLT_VERSION_4_3 = 0x00_00_03_04
-        BOLT_VERSION_4_2 = 0x00_00_02_04
 
         attr_reader :server_version, :server_agent, :protocol, :address
 
@@ -277,29 +265,7 @@ module Neo4j
         end
 
         def perform_handshake
-          @socket.write(MAGIC_PREAMBLE)
-
-          # Handshake v1: four 4-byte slots, highest preference first;
-          # unused slots are zero. See BOLT_VERSION_* up top for the
-          # slot encoding. Each negotiated version has a matching
-          # Protocol::V5_X (or Protocol::V4) class — ProtocolVersionHandler
-          # dispatches.
-          proposals = [BOLT_VERSION_RANGE_5_0_5_6, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
-          proposals.each { |v| @socket.write([v].pack('L>')) }
-
-          @socket.flush
-
-          # Read agreed version
-          version_bytes = @socket.read(4)
-          if version_bytes.nil? || version_bytes.bytesize < 4
-            raise Exceptions::ServiceUnavailableException, 'Server closed the connection during handshake'
-          end
-
-          agreed_version = version_bytes.unpack1('L>')
-          if agreed_version.zero?
-            raise Exceptions::ServiceUnavailableException, 'Server does not support any of the proposed Bolt versions'
-          end
-
+          agreed_version = Handshake.new(@socket).negotiate
           @server_version = agreed_version
           @bolt_version = BoltVersion.from_int(agreed_version)
           @protocol = ProtocolVersionHandler.for_version(self, agreed_version)
@@ -436,6 +402,12 @@ module Neo4j
 
           # Add temporal type handlers
           register_temporal_handlers(unpacker)
+
+          # Let the negotiated protocol re-register / add handlers for
+          # version-specific message shapes (V5_7 FAILURE, V6_0
+          # VECTOR / UNSUPPORTED). Re-registration wins, so this must
+          # run last.
+          @protocol&.customize_hydration(unpacker)
         end
 
         def register_temporal_handlers(unpacker)

@@ -29,7 +29,7 @@ module Neo4j
           # (mirroring Java's BoltProtocolVxY). Zeitwerk's default
           # camelize would collapse `v5_0` to `V50`, so map each one
           # explicitly. Keep this in sync with lib/mri/neo4j/driver/bolt/protocol/.
-          %w[5_0 5_1 5_2 5_3 5_4 5_5 5_6].each do |v|
+          %w[5_0 5_1 5_2 5_3 5_4 5_5 5_6 5_7 5_8 6_0].each do |v|
             loader.inflector.inflect("v#{v}" => "V#{v}")
           end
           loader.push_dir(shared_root)
