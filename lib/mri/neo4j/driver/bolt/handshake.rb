@@ -66,14 +66,20 @@ module Neo4j
         # Run the handshake to completion. Returns the negotiated
         # version as a 32-bit int in the wire's slot encoding
         # ([reserved, range=0, minor, major]).
+        # Sanity cap on the manifest's range-count varint. The varint
+        # itself is bounded to 63 usable bits but a server (malicious
+        # or buggy) could still ask us to allocate billions of slots.
+        # 256 is comfortably above the realistic upper bound (Java
+        # currently advertises ~5 ranges) and well below anything
+        # that'd hurt to allocate.
+        MAX_MANIFEST_RANGES = 256
+
         def negotiate
           @socket.write(MAGIC_PREAMBLE)
           SLOTS.each { |slot| @socket.write([slot].pack('L>')) }
           @socket.flush
 
-          server_reply = read_int32
-          raise Exceptions::ServiceUnavailableException,
-                'Server closed the connection during handshake' if server_reply.nil?
+          server_reply = read_int32!('Server closed the connection during handshake')
           raise Exceptions::ServiceUnavailableException,
                 'Server does not support any of the proposed Bolt versions' if server_reply.zero?
 
@@ -86,7 +92,13 @@ module Neo4j
         # and capabilities, pick the highest version we know, write
         # back our choice + an empty-capabilities varlong.
         def negotiate_manifest
-          ranges = read_varint.times.map { read_int32 }
+          count = read_varint
+          if count > MAX_MANIFEST_RANGES
+            raise Exceptions::ServiceUnavailableException,
+                  "Server's manifest range count #{count} exceeds the #{MAX_MANIFEST_RANGES} cap"
+          end
+
+          ranges = Array.new(count) { read_int32!('Connection closed mid-manifest while reading version ranges') }
           read_varlong # server capabilities — consume but ignore (no caps requested)
 
           chosen = pick_version(ranges)
@@ -130,6 +142,14 @@ module Neo4j
         def read_int32
           bytes = @socket.read(4)
           bytes && bytes.bytesize == 4 ? bytes.unpack1('L>') : nil
+        end
+
+        # Same as read_int32 but raises a ServiceUnavailableException
+        # on short read instead of returning nil. Use this whenever a
+        # nil result would propagate into bitmasks / arithmetic and
+        # crash with a less helpful TypeError downstream.
+        def read_int32!(message)
+          read_int32 || raise(Exceptions::ServiceUnavailableException, message)
         end
 
         # LEB128 unsigned varint / varlong. 7 data bits per byte, MSB

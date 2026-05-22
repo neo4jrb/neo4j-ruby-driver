@@ -17,6 +17,7 @@ module Neo4j
         # not here.
         class V5_7 < V5_6
           def customize_hydration(unpacker)
+            super
             unpacker.register_hydration_handler(Message::FAILURE) do |fields|
               meta = fields[0] || {}
               meta = meta.merge(code: meta[:neo4j_code]) if meta[:neo4j_code]
