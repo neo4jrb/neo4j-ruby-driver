@@ -57,6 +57,11 @@ jobs:
       # testkit authors. Matches testkit-stub.yml. (No effect on
       # INTEGRATION/TLS phases which don't use the bolt stub server.)
       TEST_RUSTY_STUB: 'true'
+      # Without this, testkit's run_fail_wrapper short-circuits on the
+      # first failing suite or first config with failing tests, so the
+      # full matrix never actually runs. The point of this workflow is
+      # the full pass — keep going past failures.
+      TEST_RUN_ALL_TESTS: 'true'
 
     steps:
       - uses: actions/checkout@v4
