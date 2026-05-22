@@ -2,6 +2,7 @@
 
 require 'connection_pool'
 require 'neo4j-ruby-driver_loader'
+require 'openssl'
 require 'set'
 require 'socket'
 require 'stringio'

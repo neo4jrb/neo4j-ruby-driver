@@ -43,9 +43,13 @@ module TestkitBackend
         'Feature:Bolt:Patch:UTC'                            => 'ja',
 
         # --- TLS -------------------------------------------------------------
-        'Feature:TLS:1.1'                                   => 'a',  # works on Java; not yet on Ruby
-        'Feature:TLS:1.2'                                   => 'ja',
-        'Feature:TLS:1.3'                                   => 'a',  # works on Java; not yet on Ruby
+        # 1.2 minimum is enforced in Bolt::TlsConfig#ssl_context. 1.1
+        # is server-deprecated; we don't advertise it on either flavour.
+        # 1.3 works on Java and via OpenSSL on MRI when the underlying
+        # libssl supports it (Ruby 3.4 on Linux/macOS does).
+        'Feature:TLS:1.1'                                   => 'a',  # server-deprecated
+        'Feature:TLS:1.2'                                   => 'jar',
+        'Feature:TLS:1.3'                                   => 'jar',
 
         # --- Authentication --------------------------------------------------
         'Feature:Auth:Bearer'                               => 'jar',
@@ -73,9 +77,9 @@ module TestkitBackend
         'Feature:API:RetryableExceptions'                   => '',
         'Feature:API:Session:AuthConfig'                    => 'a',
         'Feature:API:Session:NotificationsConfig'           => 'a',
-        'Feature:API:SSLClientCertificate'                  => 'a',
-        'Feature:API:SSLConfig'                             => 'ja',
-        'Feature:API:SSLSchemes'                            => 'ja',
+        'Feature:API:SSLClientCertificate'                  => 'a', # mTLS client cert not yet wired on Ruby
+        'Feature:API:SSLConfig'                             => 'jar',
+        'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'a',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'a',  # most pass on Java; subtest gating still missing on Ruby
