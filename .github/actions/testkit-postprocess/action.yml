@@ -137,8 +137,13 @@ runs:
             for (i = 1; i < last_idx; i++)
               if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
           }
-          /^>>> Start test suite: /  { suite=$0; sub(/^>>> Start test suite: /, "", suite); next }
-          /^>>> End test suite: /    { suite=""; next }
+          # Match the marker anywhere on the line — testkit's print
+          # order sometimes glues it onto the tail of a preceding
+          # subprocess line (no trailing newline on the prior write,
+          # e.g. the docker run command list for a cluster's second
+          # core). Take everything after the marker as the suite name.
+          match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
+          match($0, />>> End test suite: /)   { suite = ""; next }
           / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
           / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); emit_pre_pass($0); pending=""; next }
           / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); emit_pre_pass($0); pending=""; next }
@@ -229,8 +234,9 @@ runs:
           # baseline file is in "<suite>::<test_id>" form, so the fail
           # set must use the same form for `comm` to intersect.
           function tag(s) { return suite ? suite "::" s : s }
-          /^>>> Start test suite: /  { suite=$0; sub(/^>>> Start test suite: /, "", suite); next }
-          /^>>> End test suite: /    { suite=""; next }
+          # See Extract pass list comment above — same reason.
+          match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
+          match($0, />>> End test suite: /)   { suite = ""; next }
           / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print tag(canon(last_paren_segment($0))); pending=""; next }
           / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print tag(canon(last_paren_segment($0))); pending=""; next }
           / \.\.\. ok$/      { pending=""; next }
