@@ -47,6 +47,23 @@ COPY CAs/ /usr/local/share/ca-certificates/
 COPY CustomCAs/ /usr/local/share/custom-ca-certificates/
 RUN update-ca-certificates 2>/dev/null || true
 
+# update-ca-certificates only touches the system trust store
+# (/etc/ssl/certs/...). The JDK ships its own truststore at
+# $JAVA_HOME/lib/security/cacerts — `javax.net.ssl` reads that, not
+# the system one. On the JRuby image (which is the only base here
+# that has keytool), import each test CA into the JDK truststore too
+# so the JRuby driver trusts the +s test fixtures.
+RUN if command -v keytool >/dev/null 2>&1 && [ -n "$JAVA_HOME" ]; then \
+        for cert in /usr/local/share/ca-certificates/*.crt; do \
+            [ -e "$cert" ] || break; \
+            alias="testkit-$(basename "$cert" .crt)"; \
+            keytool -import -noprompt -trustcacerts \
+                -file "$cert" -alias "$alias" \
+                -keystore "$JAVA_HOME/lib/security/cacerts" \
+                -storepass changeit >/dev/null; \
+        done; \
+    fi
+
 # The driver source is mounted at /driver at run time, so the image
 # itself is intentionally source-free. build.py runs `bundle install`
 # from that mount on first phase entry; testkit caches the resulting

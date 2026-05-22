@@ -51,14 +51,13 @@ module TestkitBackend
         # testkit-tls test_1_1 case then correctly asserts "connection
         # to a 1.1-only fixture must fail", which it does.
         #
-        # 1.3 works under MRI's OpenSSL and Java's javax.net.ssl, but
-        # the JRuby testkit docker image fails the TLS-1.3-only test
-        # fixture (libssl/JDK combo in the container); leaving 'j' off
-        # keeps the JRuby baseline asserting "should fail" — which it
-        # does.
+        # 1.3 works under MRI's OpenSSL and Java's javax.net.ssl. The
+        # JRuby docker image needs the test CAs imported into the JDK
+        # truststore (Dockerfile's keytool loop) — without that the
+        # +s scheme tests fail because system-trust ≠ Java-trust.
         'Feature:TLS:1.1'                                   => 'a',
         'Feature:TLS:1.2'                                   => 'jar',
-        'Feature:TLS:1.3'                                   => 'ar',
+        'Feature:TLS:1.3'                                   => 'jar',
 
         # --- Authentication --------------------------------------------------
         'Feature:Auth:Bearer'                               => 'jar',
