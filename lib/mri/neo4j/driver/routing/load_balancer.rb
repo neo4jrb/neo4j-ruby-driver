@@ -378,7 +378,11 @@ module Neo4j
         end
 
         def open_connection(address)
-          uri = "bolt://#{address}"
+          # Preserve the encryption suffix: neo4j+s → bolt+s,
+          # neo4j+ssc → bolt+ssc, neo4j → bolt. Otherwise routing
+          # connections to a TLS cluster would open plaintext and the
+          # server would reject the non-TLS first record.
+          uri = "#{@uri.scheme.sub('neo4j', 'bolt')}://#{address}"
           # routing_context goes into the HELLO map so the cluster can
           # apply the configured policy / region (the same routing
           # context is sent to readers/writers too; non-router servers
