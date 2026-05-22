@@ -8,29 +8,19 @@ module Neo4j
         MAGIC_PREAMBLE = "\x60\x60\xB0\x17".b
         DEFAULT_PORT = 7687
 
-        # Bolt protocol versions. Wire format is a 4-byte big-endian:
-        # [reserved=0, range=0, minor, major]. So version 5.7 packs as
-        # 0x00_00_07_05 (minor=7, major=5). Don't be fooled by 4.4 — that
-        # one is a palindrome.
-        BOLT_VERSION_6_0 = 0x00_00_00_06
-        BOLT_VERSION_5_7 = 0x00_00_07_05
-        BOLT_VERSION_5_6 = 0x00_00_06_05
-        BOLT_VERSION_5_5 = 0x00_00_05_05
-        BOLT_VERSION_5_4 = 0x00_00_04_05
-        BOLT_VERSION_5_3 = 0x00_00_03_05
-        BOLT_VERSION_5_2 = 0x00_00_02_05
-        BOLT_VERSION_5_1 = 0x00_00_01_05
-        BOLT_VERSION_5_0 = 0x00_00_00_05
+        # Handshake-v1 slot encoding is a 4-byte big-endian:
+        # [reserved=0, range=N, minor, major]. range=N lets one slot
+        # cover `major.minor` down to `major.(minor-N)`, so a single
+        # slot can stand in for a contiguous family.
+        #
+        # We propose 5.0–5.6 (one slot), 4.4, 4.3 — exhausting the
+        # four slots. 4.2 falls off the list (it never had ROUTE or
+        # any feature an MRI test relies on, and 5.7+ negotiation
+        # arrives via HandshakeManifestV1 in the next slice).
+        BOLT_VERSION_RANGE_5_0_5_6 = 0x00_06_06_05
         BOLT_VERSION_4_4 = 0x00_00_04_04
         BOLT_VERSION_4_3 = 0x00_00_03_04
         BOLT_VERSION_4_2 = 0x00_00_02_04
-
-        # Range proposal: [reserved=0, range=N, minor, major] means
-        # "major.minor down to major.(minor-N)" — one slot covers a
-        # contiguous span. 5.0–5.6 is the highest contiguous span we
-        # currently speak: 5.7+ adds notifications-config fields to
-        # HELLO that we don't build yet, so they're left out.
-        BOLT_VERSION_RANGE_5_0_5_6 = 0x00_06_06_05
 
         attr_reader :server_version, :server_agent, :protocol, :address
 
@@ -123,7 +113,7 @@ module Neo4j
         # against a 4.2 server surfaces a clear error rather than the
         # server's protocol-error on an unknown message tag.
         def route(database: nil, bookmarks: [], imp_user: nil, routing_context: {})
-          unless @bolt_version >= BoltVersion.from_int(BOLT_VERSION_4_3)
+          unless @bolt_version >= BoltVersion::V4_3
             raise Exceptions::ClientException,
                   "Bolt #{@bolt_version} does not support ROUTE; routing requires 4.3+ — " \
                   'use a bolt:// URI or upgrade the server'
@@ -290,27 +280,13 @@ module Neo4j
         end
 
         def perform_handshake
-          # Send magic preamble
           @socket.write(MAGIC_PREAMBLE)
 
-          # Handshake v1 sends exactly 4 version proposals, highest
-          # priority first; unused slots are zero. Each slot is
-          # `[reserved=0, range, minor, major]` — the range byte lets
-          # one slot cover a contiguous span (range=N means
-          # major.minor down to major.(minor-N)), which is how the
-          # 5.0–5.6 family fits in one slot and still leaves room for
-          # the 4.x family.
-          #
-          # Protocol::V5 covers 5.0–5.6:
-          #   - 5.0: V4's HELLO format (auth in HELLO).
-          #   - 5.1+: HELLO drops auth, LOGON follows (perform_logon).
-          #   - 5.3+: HELLO gains a `bolt_agent` map.
-          # 5.7+ is left out because it adds notifications-config to
-          # HELLO that we don't build yet.
-          # The 4.x family is covered by Protocol::V4 — additive
-          # diffs only (4.3 added ROUTE, 4.4 added imp_user/hints).
-          # Version-gated senders (currently `Connection#route`,
-          # 4.3+) check @bolt_version explicitly.
+          # Handshake v1: four 4-byte slots, highest preference first;
+          # unused slots are zero. See BOLT_VERSION_* up top for the
+          # slot encoding. Each negotiated version has a matching
+          # Protocol::V5_X (or Protocol::V4) class — ProtocolVersionHandler
+          # dispatches.
           proposals = [BOLT_VERSION_RANGE_5_0_5_6, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
@@ -329,17 +305,9 @@ module Neo4j
 
           @server_version = agreed_version
           @bolt_version = BoltVersion.from_int(agreed_version)
-
-          # Bolt 5.0+ wants UTC-seconds datetime encoding on the wire
-          # (structures 0x49 / 0x69). The packer defaults to the legacy
-          # local-seconds 0x46 / 0x66 used by Bolt < 5.0; flip the flag
-          # when we negotiated 5.x or higher.
-          @packer.use_utc_datetime = @bolt_version >= BoltVersion.from_int(BOLT_VERSION_5_0)
-
-          # Create version-specific protocol handler
           @protocol = ProtocolVersionHandler.for_version(self, agreed_version)
+          @protocol.configure_packer(@packer)
 
-          # Debug logging
           puts "Negotiated Bolt version: #{@bolt_version} (0x#{agreed_version.to_s(16)})" if ENV['DEBUG']
         end
 
@@ -370,18 +338,9 @@ module Neo4j
 
           @server_agent = fetch_response.assert_success!.metadata[:server]
 
-          perform_logon(auth_hash) if @protocol.supports_re_auth?
-        end
-
-        # Bolt 5.1+: HELLO doesn't authenticate any more, a separate
-        # LOGON does. Pipelining the two is allowed; we keep them serial
-        # for clarity. AuthenticationException out of LOGON looks the
-        # same as it did out of HELLO on 5.0/4.x — Bolt::Failure's
-        # code→exception table already maps Security.Unauthorized.
-        def perform_logon(auth_hash)
-          send_message(Message.logon(auth_hash))
-          flush
-          fetch_response.assert_success!
+          # On 5.1+ a LOGON follows HELLO (perform_post_hello sends it).
+          # On 5.0/4.x this is a no-op because auth went in the HELLO map.
+          @protocol.perform_post_hello(auth_hash)
         end
 
         # Both 0x66 (legacy local-seconds) and 0x69 (UTC-seconds, Bolt
