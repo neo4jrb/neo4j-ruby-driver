@@ -74,6 +74,13 @@ module Neo4j
             PackStream::Structure.new(GOODBYE, [])
           end
 
+          # LOGON (Bolt 5.1+). Carries the auth fields that 5.0 used to
+          # send inside HELLO. The server's success here marks the
+          # connection authenticated and READY.
+          def logon(auth)
+            PackStream::Structure.new(LOGON, [auth || {}])
+          end
+
           # ROUTE (Bolt 4.3+) — fetch the cluster's routing table.
           #   routing_context  : map (typically built from the URI query string)
           #   bookmarks        : list of bookmarks (or nil for Bolt 4.3 compat)

@@ -22,6 +22,15 @@ module Neo4j
         BOLT_VERSION_5_1 = 0x00_00_01_05
         BOLT_VERSION_5_0 = 0x00_00_00_05
         BOLT_VERSION_4_4 = 0x00_00_04_04
+        BOLT_VERSION_4_3 = 0x00_00_03_04
+        BOLT_VERSION_4_2 = 0x00_00_02_04
+
+        # Range proposal: [reserved=0, range=2, minor=2, major=5] means
+        # "major.minor down to major.(minor-range)" — i.e. one slot in
+        # the 4-slot handshake covers 5.0 through 5.2. We can't include
+        # 5.3+ in the range yet because 5.3+ HELLO requires a bolt_agent
+        # map (not implemented).
+        BOLT_VERSION_RANGE_5_0_5_2 = 0x00_02_02_05
 
         attr_reader :server_version, :server_agent, :protocol, :address
 
@@ -85,19 +94,21 @@ module Neo4j
         def classify_failure(error) = error
 
         def send_message(message)
-          raise IOError, "Connection is closed" if closed?
+          with_wire_error_handling do
+            raise IOError, 'Connection is closed' if closed?
 
-          @packer.reset
-          @packer.pack_message(message)
-          data = @packer.bytes
+            @packer.reset
+            @packer.pack_message(message)
+            data = @packer.bytes
 
-          # Write chunk header (size as 16-bit big-endian) + data
-          write_chunk(data)
+            # Write chunk header (size as 16-bit big-endian) + data
+            write_chunk(data)
 
-          # End marker (0x00 0x00)
-          @socket.write([0x00, 0x00].pack('S>'))
+            # End marker (0x00 0x00)
+            @socket.write([0x00, 0x00].pack('S>'))
 
-          @response_queue << :pending
+            @response_queue << :pending
+          end
         end
 
         def send_all(*messages)
@@ -107,8 +118,17 @@ module Neo4j
 
         # Bolt 4.3+ ROUTE call. Returns the routing-table map from the
         # SUCCESS response (the `rt` field). Caller wraps it in
-        # Routing::RoutingTable.from_response.
+        # Routing::RoutingTable.from_response. Fail fast if the
+        # connection negotiated < 4.3 so a misconfigured neo4j:// URI
+        # against a 4.2 server surfaces a clear error rather than the
+        # server's protocol-error on an unknown message tag.
         def route(database: nil, bookmarks: [], imp_user: nil, routing_context: {})
+          unless @bolt_version >= BoltVersion.from_int(BOLT_VERSION_4_3)
+            raise Exceptions::ClientException,
+                  "Bolt #{@bolt_version} does not support ROUTE; routing requires 4.3+ — " \
+                  'use a bolt:// URI or upgrade the server'
+          end
+
           extra = { db: database, imp_user: imp_user }.compact
           send_message(Message.route(routing_context, bookmarks, extra))
           flush
@@ -122,32 +142,45 @@ module Neo4j
         end
 
         def flush
-          @socket.flush
+          with_wire_error_handling { @socket.flush }
         end
 
         def fetch_response
-          # Read all chunks until we hit the end marker (0x00 0x00)
-          message_data = String.new(encoding: Encoding::BINARY)
+          with_wire_error_handling do
+            # Read all chunks until we hit the end marker (0x00 0x00)
+            message_data = String.new(encoding: Encoding::BINARY)
 
-          loop do
-            chunk_size = @socket.read(2)&.unpack1('S>')
-            break if chunk_size.nil? || chunk_size.zero? # End marker
+            loop do
+              chunk_size = @socket.read(2)&.unpack1('S>')
+              # Clean EOF on a half-read header — surface as IOError
+              # so the wrapper turns it into a ServiceUnavailable
+              # rather than us silently returning a half-decoded
+              # response.
+              raise IOError, 'Unexpected end of stream while reading chunk header' if chunk_size.nil?
+              break if chunk_size.zero? # End marker
 
-            chunk_data = @socket.read(chunk_size)
-            message_data << chunk_data
+              chunk_data = @socket.read(chunk_size)
+              # Same as above for the body: nil = peer closed, short
+              # bytes = partial read. Either way the message we built
+              # would be junk; raise so the wrapper classifies.
+              if chunk_data.nil? || chunk_data.bytesize < chunk_size
+                raise IOError, 'Unexpected end of stream while reading chunk body'
+              end
+              message_data << chunk_data
+            end
+
+            # Parse the complete message
+            io = StringIO.new(message_data)
+            unpacker = PackStream::Unpacker.new(io)
+
+            # Register hydration handlers
+            register_hydration_handlers(unpacker)
+
+            response = unpacker.unpack
+
+            @response_queue.shift unless @response_queue.empty?
+            response
           end
-
-          # Parse the complete message
-          io = StringIO.new(message_data)
-          unpacker = PackStream::Unpacker.new(io)
-
-          # Register hydration handlers
-          register_hydration_handlers(unpacker)
-
-          response = unpacker.unpack
-
-          @response_queue.shift unless @response_queue.empty?
-          response
         end
 
         def fetch_all
@@ -177,6 +210,23 @@ module Neo4j
         end
 
         private
+
+        # Convert transport-level failures (broken socket, EOF on a
+        # partial read, etc.) into a ServiceUnavailableException so
+        # callers see a uniform Neo4jException — same shape as a clean
+        # disconnect during connect(). Server-side FAILUREs already
+        # raise specific Neo4jException subclasses and propagate
+        # untouched; non-IO bugs (ArgumentError from a malformed pack,
+        # etc.) also propagate untouched so they don't get misclassified
+        # as connection failures.
+        def with_wire_error_handling
+          yield
+        rescue Exceptions::Neo4jException
+          raise
+        rescue IOError, SystemCallError => e
+          raise Exceptions::ServiceUnavailableException,
+                "Connection to #{@address || @uri} broken: #{e.class}: #{e.message}"
+        end
 
         def discard_socket
           @socket&.close rescue nil
@@ -243,11 +293,24 @@ module Neo4j
           # Send magic preamble
           @socket.write(MAGIC_PREAMBLE)
 
-          # Handshake v1 sends exactly 4 version proposals, highest priority
-          # first; unused slots are zero. We currently only handshake Bolt
-          # 4.4 — 5.x needs a `bolt_agent` map and 5.1+ moves auth to a
-          # separate LOGON. Tracked in TESTKIT.md backlog.
-          proposals = [BOLT_VERSION_4_4, 0, 0, 0]
+          # Handshake v1 sends exactly 4 version proposals, highest
+          # priority first; unused slots are zero. Each slot is
+          # `[reserved=0, range, minor, major]` — the range byte lets
+          # one slot cover a contiguous span (range=N means
+          # major.minor down to major.(minor-N)), which is how we
+          # squeeze the 5.0 / 5.1 / 5.2 family into a single slot and
+          # still leave room for the 4.x family.
+          #
+          # Protocol::V5 overrides build_hello_message to drop auth on
+          # >=5.1 (LOGON carries it instead — see #perform_logon).
+          # 5.0 still falls through to V4's auth-in-HELLO behaviour.
+          # 5.3+ is blocked on the `bolt_agent` map in HELLO that
+          # those versions require.
+          # The 4.x family is covered by Protocol::V4 — additive
+          # diffs only (4.3 added ROUTE, 4.4 added imp_user/hints).
+          # Version-gated senders (currently `Connection#route`,
+          # 4.3+) check @bolt_version explicitly.
+          proposals = [BOLT_VERSION_RANGE_5_0_5_2, BOLT_VERSION_4_4, BOLT_VERSION_4_3, BOLT_VERSION_4_2]
           proposals.each { |v| @socket.write([v].pack('L>')) }
 
           @socket.flush
@@ -265,6 +328,12 @@ module Neo4j
 
           @server_version = agreed_version
           @bolt_version = BoltVersion.from_int(agreed_version)
+
+          # Bolt 5.0+ wants UTC-seconds datetime encoding on the wire
+          # (structures 0x49 / 0x69). The packer defaults to the legacy
+          # local-seconds 0x46 / 0x66 used by Bolt < 5.0; flip the flag
+          # when we negotiated 5.x or higher.
+          @packer.use_utc_datetime = @bolt_version >= BoltVersion.from_int(BOLT_VERSION_5_0)
 
           # Create version-specific protocol handler
           @protocol = ProtocolVersionHandler.for_version(self, agreed_version)
@@ -286,7 +355,9 @@ module Neo4j
           # direct bolt:// drivers); the protocol handler drops it from
           # the HELLO payload when nil. `user_agent` may be overridden by
           # the caller (testkit threads its configured agent through the
-          # driver options).
+          # driver options). On Bolt 5.1+ the HELLO carries no auth —
+          # @protocol.build_hello_message strips it and we send a
+          # separate LOGON below.
           hello_msg = @protocol.build_hello_message(
             user_agent: @options[:user_agent] || "neo4j-ruby-driver/#{Neo4j::Driver::VERSION}",
             auth: auth_hash,
@@ -297,6 +368,38 @@ module Neo4j
           flush
 
           @server_agent = fetch_response.assert_success!.metadata[:server]
+
+          perform_logon(auth_hash) if @protocol.supports_re_auth?
+        end
+
+        # Bolt 5.1+: HELLO doesn't authenticate any more, a separate
+        # LOGON does. Pipelining the two is allowed; we keep them serial
+        # for clarity. AuthenticationException out of LOGON looks the
+        # same as it did out of HELLO on 5.0/4.x — Bolt::Failure's
+        # code→exception table already maps Security.Unauthorized.
+        def perform_logon(auth_hash)
+          send_message(Message.logon(auth_hash))
+          flush
+          fetch_response.assert_success!
+        end
+
+        # Both 0x66 (legacy local-seconds) and 0x69 (UTC-seconds, Bolt
+        # 5.0+) end up resolving a named tz at a specific instant — the
+        # only difference is whether the caller already knows the UTC
+        # instant. Keep the zone-DB lookup + offset arithmetic in one
+        # place.
+        def hydrate_named_zone(instant, zone_name, local_seconds:)
+          if defined?(ActiveSupport::TimeZone)
+            tz = ActiveSupport::TimeZone[zone_name]
+            utc_instant = local_seconds ? tz.tzinfo.local_to_utc(instant) : instant
+            tz.at(utc_instant)
+          else
+            tz = TZInfo::Timezone.get(zone_name)
+            utc_instant = local_seconds ? tz.local_to_utc(instant) : instant
+            utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
+          end
+        rescue StandardError
+          instant
         end
 
         def write_chunk(data)
@@ -395,11 +498,20 @@ module Neo4j
           end
 
           # DateTime with offset - signature 0x46 → Ruby Time
-          # Server encodes LOCAL seconds (wall-clock time treated as UTC);
-          # subtract the offset to recover the true UTC instant before
-          # displaying in the given offset.
+          # (legacy local-seconds encoding, used on Bolt < 4.4 and on
+          # Bolt 4.4 without the `[patch_bolt]: utc` patch). Server
+          # encodes LOCAL seconds (wall-clock time treated as UTC);
+          # subtract the offset to recover the true UTC instant.
           unpacker.register_hydration_handler(0x46) do |fields|
             ::Time.at(fields[0] - fields[2], fields[1], :nanosecond).getlocal(fields[2])
+          end
+
+          # DateTime with offset (UTC seconds) - signature 0x49 → Ruby Time.
+          # Bolt 5.0+ uses UTC-encoded seconds by default; same payload
+          # as 0x46 except `fields[0]` is already the UTC instant, so no
+          # offset subtraction.
+          unpacker.register_hydration_handler(0x49) do |fields|
+            ::Time.at(fields[0], fields[1], :nanosecond).getlocal(fields[2])
           end
 
           # LocalDateTime - signature 0x64 → Types::LocalDateTime (preserve type for roundtrip)
@@ -409,25 +521,21 @@ module Neo4j
 
           # DateTimeZoneId - signature 0x66 (with timezone name) → Ruby Time
           # fields: [local_epoch_seconds, nanoseconds, timezone_name]
-          # Server encodes LOCAL seconds (wall-clock time treated as UTC), so
-          # we treat those seconds as a wall-clock in the target zone and
-          # convert to the actual UTC instant — using the zone's offset at
-          # that instant so DST is handled correctly in both summer and winter.
+          # Legacy LOCAL-seconds encoding. Treat as wall-clock in the
+          # target zone and convert to the actual UTC instant (using the
+          # zone's offset at that instant so DST is handled both in
+          # summer and winter).
           unpacker.register_hydration_handler(0x66) do |fields|
             wall_clock = ::Time.at(fields[0], fields[1], :nanosecond).utc
-            begin
-              if defined?(ActiveSupport::TimeZone)
-                tz = ActiveSupport::TimeZone[fields[2]]
-                utc_instant = tz.tzinfo.local_to_utc(wall_clock)
-                tz.at(utc_instant)
-              else
-                tz = TZInfo::Timezone.get(fields[2])
-                utc_instant = tz.local_to_utc(wall_clock)
-                utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
-              end
-            rescue StandardError
-              wall_clock
-            end
+            hydrate_named_zone(wall_clock, fields[2], local_seconds: true)
+          end
+
+          # DateTimeZoneId (UTC seconds) - signature 0x69. Bolt 5.0+
+          # encoding. fields[0] is the UTC instant directly; just
+          # display it in the named zone.
+          unpacker.register_hydration_handler(0x69) do |fields|
+            utc_instant = ::Time.at(fields[0], fields[1], :nanosecond).utc
+            hydrate_named_zone(utc_instant, fields[2], local_seconds: false)
           end
 
           # Duration - signature 0x45
