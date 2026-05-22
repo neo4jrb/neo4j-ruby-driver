@@ -14,9 +14,10 @@
 
 When in doubt, check the Java driver - it's the most comprehensive reference implementation.
 
-Pure Ruby implementation of the Neo4j Bolt protocol (no JRuby dependency).
-When in doubt about driver semantics, the Java driver is the reference:
-https://github.com/neo4j/neo4j-java-driver
+Two implementations behind one public API: the **MRI** impl is a pure-Ruby
+implementation of the Neo4j Bolt protocol (no Java dependency); the **JRuby**
+impl wraps the official Java driver. When in doubt about driver semantics, the
+Java driver is the reference: https://github.com/neo4j/neo4j-java-driver
 
 See `DEVELOPMENT.md` for dev-loop commands and `DECISIONS.md` for the
 dated log of architectural choices.
@@ -37,7 +38,10 @@ lib/mri/neo4j/driver/             MRI implementation
   transaction.rb                  Explicit transactions
   result.rb                       Streaming result
   record.rb / summary.rb
-lib/jruby/neo4j/driver/           JRuby implementation (currently empty)
+lib/jruby/neo4j/driver/           JRuby implementation: thin wrapper over the
+                                  Java driver (org.neo4j.driver jars). `ext/`
+                                  mixins are prepended onto the Java classes
+                                  for Ruby<->Java type/exception conversion.
 ```
 
 ## API conventions

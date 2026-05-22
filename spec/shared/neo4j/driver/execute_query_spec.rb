@@ -94,6 +94,19 @@ RSpec.describe Neo4j::Driver do
       end
     end
 
+    context 'when routing with RoutingControl' do
+      it 'reads with RoutingControl::READ' do
+        result = driver.execute_query('RETURN 1 AS n', nil, { routing: Neo4j::Driver::RoutingControl::READ })
+        expect(result.records.first[:n]).to eq 1
+      end
+
+      it 'writes with RoutingControl::WRITE' do
+        expect {
+          driver.execute_query('CREATE (:RoutingControlSpec)', nil, { routing: Neo4j::Driver::RoutingControl::WRITE })
+        }.not_to raise_error
+      end
+    end
+
     context 'when working with query summaries' do
       it 'accepts UNWIND query without parameters' do
         expect {

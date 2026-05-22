@@ -14,7 +14,11 @@ module Neo4j
         end
 
         def apply_to(builder, **hash)
-          hash.compact.reduce(builder) { |object, (key, value)| object.send(*config_method(key, value)) }
+          # nil means "unset" (dropped) for every key except :bookmark_manager,
+          # where nil is meaningful — it disables the manager via
+          # with_bookmark_manager(null), distinct from leaving it at the default.
+          hash.reject { |key, value| value.nil? && key != :bookmark_manager }
+              .reduce(builder) { |object, (key, value)| object.send(*config_method(key, value)) }
         end
 
         def config_method(key, value)
@@ -46,6 +50,10 @@ module Neo4j
             value = ->(address) { java.util.LinkedHashSet.new(proc.call(address)) }
           when 'bookmarks'
             return [method, *value]
+          when 'bookmark_manager'
+            # A BookmarkManager sets it; nil disables it (with_bookmark_manager(null)).
+            # `return` skips the trailing `.compact` so a nil arg survives to the builder.
+            return [method, value]
           when 'trust_strategy'
             value = trust_strategy(**value)
           when 'revocation_strategy'
