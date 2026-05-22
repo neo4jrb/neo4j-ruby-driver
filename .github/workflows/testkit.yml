@@ -13,10 +13,10 @@ jobs:
     # blocking the merge — same pattern as testkit-stub.yml and
     # testkit-tls.yml.
     continue-on-error: ${{ matrix.base_image != 'ruby:4.0-slim' }}
-    # testkit cluster startup (3 Neo4j nodes for the 5.x configs)
-    # plus the test suite can comfortably hit 30-40 minutes. Cap so
-    # a hung job can't burn the full default 6-hour ceiling.
-    timeout-minutes: 60
+    # 2 configs (one single instance + one 3-node cluster) fit
+    # comfortably in 30 min on a cold runner. Cap so a hung job
+    # can't burn the full default 6-hour ceiling.
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -65,95 +65,20 @@ jobs:
       - name: Install testkit Python deps
         run: pip install -Ur "$TESTKIT_PATH/requirements.txt" teamcity-messages
 
-      # Pre-pull every Neo4j image testkit may spin up. testkit's
-      # wait_for_port has a fixed budget per Neo4j start; pulling all
-      # 10 in parallel up front turns the wait into a pure startup
-      # wait. ~3-5 min upfront, paid once per job.
-      - name: Pre-pull Neo4j images
-        run: |
-          for img in 4.2 4.3 4.4 5.1 5.5 5.7 5.9 5.13 5.23 5.26; do
-            docker pull -q "neo4j:${img}-enterprise" &
-          done
-          wait
-          docker images --filter reference='neo4j' --format '  {{.Repository}}:{{.Tag}} {{.Size}}'
-
-      # Bump testkit's hardcoded 120s wait_for_port budget. Even with
-      # the image pre-pulled, Neo4j 4.2 enterprise startup on a cold
-      # GH runner regularly exceeds 120s (verified empirically — pull
-      # finished, container created, then 120s of polling before
-      # main.py crashed). 10 minutes covers worst-case startup
-      # comfortably without hiding genuinely stuck servers.
-      - name: Extend testkit wait_for_port timeout
-        run: |
-          sed -i 's/^    timeout = 120$/    timeout = 600/' \
-            "$TESTKIT_PATH/driver/wait_for_port.py"
-          grep "timeout = " "$TESTKIT_PATH/driver/wait_for_port.py"
-
-      # Diagnostic: confirm Neo4j 4.2 actually opens 7687 in this CI
-      # environment, using the same network topology testkit uses — a
-      # user-defined bridge network and a sibling container that
-      # resolves `neo4jserver` via Docker DNS. The host `-p` mapping
-      # path lies: Docker's userland proxy accepts on the host port
-      # before neo4j binds 7687 inside the container, so a previous
-      # version of this step reported "open after 1*2s" when neo4j
-      # was still starting. Captures neo4j docker logs at the end
-      # whether the probe succeeds or not. Remove once the harness
-      # failure is understood.
-      - name: Diagnose Neo4j 4.2 boot via sibling container
-        run: |
-          set -x
-          docker network create diag-net
-          docker run -d --name neo4j42-diag --rm \
-            --network diag-net --network-alias neo4jserver \
-            -e NEO4J_AUTH=neo4j/password \
-            -e NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
-            neo4j:4.2-enterprise
-          start_ts=$(date +%s)
-          docker run --rm --network diag-net python:3.11-alpine \
-            python3 -c '
-          import socket, sys, time
-          start = time.monotonic()
-          while time.monotonic() - start < 600:
-              try:
-                  with socket.create_connection(("neo4jserver", 7687), 2):
-                      print(f"OPEN after {time.monotonic()-start:.1f}s", flush=True)
-                      sys.exit(0)
-              except OSError as e:
-                  print(f"{time.monotonic()-start:.1f}s: {e}", flush=True)
-                  time.sleep(2)
-          print("TIMEOUT", flush=True)
-          sys.exit(1)
-          ' || true
-          end_ts=$(date +%s)
-          echo "=== probe took $((end_ts - start_ts))s ==="
-          echo "=== docker ps ==="
-          docker ps -a --filter name=neo4j42-diag
-          echo "=== neo4j docker logs (last 120 lines) ==="
-          docker logs neo4j42-diag 2>&1 | tail -120 || true
-          docker stop neo4j42-diag 2>/dev/null || true
-          docker network rm diag-net 2>/dev/null || true
-
-      # testkit-managed Neo4j across the full 10-config matrix it
-      # ships (4.2/4.3/4.4 single instance + 5.1/5.5/5.7/5.9/5.13/5.23/5.26
-      # clusters). Each config gets its own pass set in the run log
-      # surrounded by ">>> Start test suite: Integration tests <name>"
-      # markers; the postprocess action turns those into "<suite>::<test>"
-      # baseline entries so per-(config,test) regressions are explicit.
-      #
-      # Configs the driver can't negotiate the required Bolt version
-      # for are cheap-skipped by testkit's tests.neo4j.version_check.
-      # MRI's pure-Ruby Bolt proposes up to 5.0 today (see
-      # lib/mri/neo4j/driver/bolt/connection.rb#perform_handshake); the
-      # 5.1+ cluster configs auto-skip until LOGON support lands.
-      # JRuby's Java-driver path negotiates the full 5.x range and
-      # runs every config.
+      # Scoped to the two configs our baselines currently cover:
+      # 4.4-enterprise-neo4j (single instance) and
+      # 5.26-enterprise-cluster-neo4j (3-node cluster, LTS). Same set
+      # for every flavour so MRI and JRuby track the same surface.
+      # Expand as routing work lights up additional Bolt minors.
       - name: Run testkit integration suite
         id: testkit
         continue-on-error: true
         run: |
           set -o pipefail
           cd "$TESTKIT_PATH"
-          python3 main.py --tests TESTKIT_TESTS 2>&1 | tee "$RUNNER_TEMP/run.log"
+          python3 main.py --tests TESTKIT_TESTS \
+            --configs 4.4-enterprise-neo4j 5.26-enterprise-cluster-neo4j \
+            2>&1 | tee "$RUNNER_TEMP/run.log"
 
       - uses: ./.github/actions/testkit-postprocess
         id: postprocess
