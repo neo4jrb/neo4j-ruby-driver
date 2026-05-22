@@ -19,10 +19,11 @@ module TestkitBackend
     class GetFeatures < Request
       FEATURES = {
         # --- Bolt versions ---------------------------------------------------
-        # MRI proposes a Bolt 5.0–5.6 range plus 4.4 / 4.3 / 4.2 in
-        # the handshake. Support for 5.7+ still lives on JRuby only —
-        # those versions add notifications-config fields to HELLO that
-        # the pure-Ruby Bolt path doesn't build yet.
+        # MRI's handshake proposes a manifest sentinel in slot 1, then
+        # legacy 5.0–5.8 / 4.2–4.4 / 3.0 ranges in slots 2–4. A
+        # manifest-aware server (5.7+) replies with the sentinel and
+        # we negotiate via HandshakeManifestV1; older servers ignore
+        # the sentinel and pick from the legacy slots.
         'Feature:Bolt:3.0'                                  => 'ja',
         'Feature:Bolt:4.1'                                  => 'ja',
         'Feature:Bolt:4.2'                                  => 'jar',
@@ -35,10 +36,10 @@ module TestkitBackend
         'Feature:Bolt:5.4'                                  => 'jar',
         'Feature:Bolt:5.5'                                  => 'jar',
         'Feature:Bolt:5.6'                                  => 'jar',
-        'Feature:Bolt:5.7'                                  => 'ja',
-        'Feature:Bolt:5.8'                                  => 'ja',
-        'Feature:Bolt:6.0'                                  => 'ja',
-        'Feature:Bolt:HandshakeManifestV1'                  => 'ja',
+        'Feature:Bolt:5.7'                                  => 'jar',
+        'Feature:Bolt:5.8'                                  => 'jar',
+        'Feature:Bolt:6.0'                                  => 'jar',
+        'Feature:Bolt:HandshakeManifestV1'                  => 'jar',
         'Feature:Bolt:Patch:UTC'                            => 'ja',
 
         # --- TLS -------------------------------------------------------------

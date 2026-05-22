@@ -18,6 +18,15 @@ module Neo4j
           (@major << 8) | @minor
         end
 
+        # Wire encoding used by the Bolt handshake: 4 bytes
+        # big-endian, [reserved=0, range=0, minor, major]. So 5.7 is
+        # 0x00_00_07_05. NOT the same byte order as #to_i (which keeps
+        # major in the high byte so Comparable stays sane across major
+        # bumps).
+        def to_wire
+          (@minor << 8) | @major
+        end
+
         def to_s
           "#{@major}.#{@minor}"
         end
@@ -43,6 +52,7 @@ module Neo4j
         V5_5 = new(5, 5)
         V5_6 = new(5, 6)
         V5_7 = new(5, 7)
+        V5_8 = new(5, 8)
         V6_0 = new(6, 0)
 
         # Server agreement is a 32-bit big-endian: [reserved, 0, minor, major].
