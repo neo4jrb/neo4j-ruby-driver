@@ -11,12 +11,9 @@ module Neo4j
         # Handshake-v1 slot encoding is a 4-byte big-endian:
         # [reserved=0, range=N, minor, major]. range=N lets one slot
         # cover `major.minor` down to `major.(minor-N)`, so a single
-        # slot can stand in for a contiguous family.
-        #
-        # We propose 5.0–5.6 (one slot), 4.4, 4.3 — exhausting the
-        # four slots. 4.2 falls off the list (it never had ROUTE or
-        # any feature an MRI test relies on, and 5.7+ negotiation
-        # arrives via HandshakeManifestV1 in the next slice).
+        # slot can stand in for a contiguous family. All four slots
+        # are filled below; 5.7+ negotiation arrives via
+        # HandshakeManifestV1 in the next slice.
         BOLT_VERSION_RANGE_5_0_5_6 = 0x00_06_06_05
         BOLT_VERSION_4_4 = 0x00_00_04_04
         BOLT_VERSION_4_3 = 0x00_00_03_04
