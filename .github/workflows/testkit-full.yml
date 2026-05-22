@@ -122,11 +122,12 @@ jobs:
             echo "| Suite | Pass | Fail | Error | Skip |"
             echo "|---|---:|---:|---:|---:|"
             awk '
-              # Match the marker anywhere on the line — testkit's print
+              # Match the marker anywhere on the line — the testkit print
               # order sometimes glues it onto the tail of a preceding
               # subprocess line (no trailing newline on the prior write,
-              # e.g. the docker run command list for a cluster's second
+              # e.g. the docker run command list for a second cluster
               # core). Take everything after the marker as the suite name.
+              # (No apostrophes — the awk is in a bash single-quoted string.)
               match($0, />>> Start test suite: /) {
                 in_suite = 1
                 suite = substr($0, RSTART + RLENGTH)

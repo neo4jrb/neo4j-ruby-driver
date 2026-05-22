@@ -137,11 +137,12 @@ runs:
             for (i = 1; i < last_idx; i++)
               if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
           }
-          # Match the marker anywhere on the line — testkit's print
+          # Match the marker anywhere on the line — the testkit print
           # order sometimes glues it onto the tail of a preceding
           # subprocess line (no trailing newline on the prior write,
-          # e.g. the docker run command list for a cluster's second
+          # e.g. the docker run command list for a second cluster
           # core). Take everything after the marker as the suite name.
+          # (No apostrophes here — see line ~112 above for why.)
           match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
           match($0, />>> End test suite: /)   { suite = ""; next }
           / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
