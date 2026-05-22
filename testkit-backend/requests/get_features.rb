@@ -43,13 +43,20 @@ module TestkitBackend
         'Feature:Bolt:Patch:UTC'                            => 'ja',
 
         # --- TLS -------------------------------------------------------------
-        # 1.2 minimum is enforced in Bolt::TlsConfig#ssl_context.
-        # 1.1 is server-deprecated; we don't advertise it on either flavour.
-        # 1.3 works under MRI's OpenSSL and Java's javax.net.ssl, but the
-        # JRuby testkit docker image fails the TLS-1.3-only test fixture
-        # (libssl/JDK combo in the container); leaving 'j' off keeps the
-        # JRuby baseline asserting "should fail" — which it does.
-        'Feature:TLS:1.1'                                   => 'a',  # server-deprecated
+        # Bolt::TlsConfig pins the client to a min of TLS 1.2 — so
+        # even if a server offered 1.1 we'd refuse to negotiate it.
+        # That's the same posture modern Neo4j servers take (TLS 1.1
+        # is deprecated by RFC 8996 and rejected by Aura / 5.x by
+        # default), so we don't advertise 1.1 on either flavour. The
+        # testkit-tls test_1_1 case then correctly asserts "connection
+        # to a 1.1-only fixture must fail", which it does.
+        #
+        # 1.3 works under MRI's OpenSSL and Java's javax.net.ssl, but
+        # the JRuby testkit docker image fails the TLS-1.3-only test
+        # fixture (libssl/JDK combo in the container); leaving 'j' off
+        # keeps the JRuby baseline asserting "should fail" — which it
+        # does.
+        'Feature:TLS:1.1'                                   => 'a',
         'Feature:TLS:1.2'                                   => 'jar',
         'Feature:TLS:1.3'                                   => 'ar',
 
