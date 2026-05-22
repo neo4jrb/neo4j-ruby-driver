@@ -235,7 +235,10 @@ runs:
           if [ -n "$NEW" ]; then
             echo "### ✅ New passing tests (not yet in baseline)"
             echo ""
-            echo "Run \`bin/refresh-testkit-baseline ${{ inputs.target_label == 'stub' && 'stub' || 'neo4j' }}\` locally and commit to fold these in."
+            # target_label is the workflow label ('stub' / 'integration' / 'tls').
+            # bin/refresh-testkit-baseline's arg names are ('stub' / 'neo4j' / 'tls')
+            # — same word everywhere except 'integration' maps to 'neo4j'.
+            echo "Run \`bin/refresh-testkit-baseline ${{ inputs.target_label == 'integration' && 'neo4j' || inputs.target_label }}\` locally and commit to fold these in."
             echo '```'
             echo "$NEW"
             echo '```'
