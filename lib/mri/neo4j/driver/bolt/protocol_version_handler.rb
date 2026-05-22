@@ -3,24 +3,30 @@
 module Neo4j
   module Driver
     module Bolt
-      # Factory for creating version-specific protocol handlers
+      # Factory for the per-minor protocol handler matching the
+      # negotiated wire version. Lookup is exact (`major.minor`)
+      # because the Bolt handshake only ever returns a version the
+      # server actually supports — so we don't need fuzzy matching.
       class ProtocolVersionHandler
+        HANDLERS = {
+          BoltVersion::V5_6.to_i => Protocol::V5_6,
+          BoltVersion::V5_5.to_i => Protocol::V5_5,
+          BoltVersion::V5_4.to_i => Protocol::V5_4,
+          BoltVersion::V5_3.to_i => Protocol::V5_3,
+          BoltVersion::V5_2.to_i => Protocol::V5_2,
+          BoltVersion::V5_1.to_i => Protocol::V5_1,
+          BoltVersion::V5_0.to_i => Protocol::V5_0,
+          BoltVersion::V4_4.to_i => Protocol::V4,
+          BoltVersion::V4_3.to_i => Protocol::V4,
+          BoltVersion::V4_2.to_i => Protocol::V4
+        }.freeze
+
         def self.for_version(connection, version_int)
           version = BoltVersion.from_int(version_int)
-
-          case version.major
-          when 3
-            # Bolt 3.x not fully supported yet, treat as 4.x
-            Protocol::V4.new(connection, version)
-          when 4
-            Protocol::V4.new(connection, version)
-          when 5
-            Protocol::V5.new(connection, version)
-          when 6
-            Protocol::V6.new(connection, version)
-          else
-            raise "Unsupported Bolt protocol version: #{version}"
-          end
+          klass = HANDLERS[version.to_i] ||
+                  raise(Exceptions::ServiceUnavailableException,
+                        "Unsupported Bolt protocol version: #{version}")
+          klass.new(connection, version)
         end
       end
     end
