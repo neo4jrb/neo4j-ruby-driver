@@ -18,7 +18,10 @@ module Neo4j
       # peer verification off (:all_certificates) implicitly turns off
       # hostname check too, which is why +ssc exists.
       class TlsConfig
-        ENCRYPTED_SCHEMES = %w[bolt+s bolt+ssc neo4j+s neo4j+ssc].freeze
+        # +s / +ssc are scheme-level encryption opt-in (mirrors
+        # Driver::ENCRYPTED_SCHEMES). +ssc additionally implies
+        # trust-all — the whole point of the "self-signed" suffix.
+        ENCRYPTED_SCHEMES = Driver::ENCRYPTED_SCHEMES
         TRUST_ALL_SCHEMES = %w[bolt+ssc neo4j+ssc].freeze
 
         def initialize(uri:, options:)
@@ -54,12 +57,26 @@ module Neo4j
             ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
           when :custom_certificates
             ctx.verify_mode = OpenSSL::SSL::VERIFY_PEER
-            store = OpenSSL::X509::Store.new
-            cert_files.each { |path| store.add_file(path) }
-            ctx.cert_store = store
+            ctx.cert_store = custom_cert_store
           else # :system_certificates
             ctx.verify_mode = OpenSSL::SSL::VERIFY_PEER
             ctx.cert_store = OpenSSL::X509::Store.new.tap(&:set_default_paths)
+          end
+        end
+
+        # Custom-trust mode without any `cert_files` paths would produce
+        # a VERIFY_PEER context with an empty store — every connection
+        # would fail with an opaque OpenSSL error. Catch this at config
+        # time with a clear message instead.
+        def custom_cert_store
+          paths = cert_files
+          if paths.empty?
+            raise ArgumentError,
+                  'trust_strategy :trust_custom_certificates requires at least one path in :cert_files'
+          end
+
+          paths.each_with_object(OpenSSL::X509::Store.new) do |path, store|
+            store.add_file(path)
           end
         end
 

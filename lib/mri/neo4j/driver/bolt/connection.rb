@@ -263,7 +263,7 @@ module Neo4j
             tcp_socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_SNDTIMEO, timeval)
           end
 
-          @socket = wrap_with_tls(tcp_socket, bare_host)
+          @socket = wrap_with_tls(tcp_socket, bare_host, port)
         end
 
         # When the URI uses a +s/+ssc scheme (or :encryption is set
@@ -272,7 +272,7 @@ module Neo4j
         # certificate refused, hostname mismatch, server doesn't speak
         # TLS — turn into Neo4j-shaped exceptions so the caller doesn't
         # have to know whether the wire is encrypted.
-        def wrap_with_tls(tcp_socket, hostname)
+        def wrap_with_tls(tcp_socket, hostname, port)
           tls = TlsConfig.new(uri: @uri, options: @options)
           ctx = tls.ssl_context
           return tcp_socket unless ctx
@@ -286,11 +286,11 @@ module Neo4j
         rescue OpenSSL::SSL::SSLError => e
           tcp_socket.close rescue nil
           raise Exceptions::SecurityException,
-                "TLS handshake to #{format_address(hostname, @uri.port || DEFAULT_PORT)} failed: #{e.message}"
+                "TLS handshake to #{format_address(hostname, port)} failed: #{e.message}"
         rescue SystemCallError, IOError => e
           tcp_socket.close rescue nil
           raise Exceptions::ServiceUnavailableException,
-                "Connection lost during TLS handshake to #{format_address(hostname, @uri.port || DEFAULT_PORT)}: #{e.message}"
+                "Connection lost during TLS handshake to #{format_address(hostname, port)}: #{e.message}"
         end
 
         def perform_handshake
