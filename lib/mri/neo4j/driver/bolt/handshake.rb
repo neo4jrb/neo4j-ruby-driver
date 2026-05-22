@@ -28,14 +28,17 @@ module Neo4j
         MANIFEST_SENTINEL = 0x00_00_01_FF
 
         # Range encoding: [reserved=0, range=N, minor, major]. Each
-        # slot covers `major.minor` down to `major.(minor-N)`. The
-        # current slate spans 5.0 through 5.8 in one slot, plus the
-        # legacy 4.x range so older servers still match.
+        # slot covers `major.minor` down to `major.(minor-N)`. We
+        # advertise 5.0–5.8 (slot 2) and 4.2–4.4 (slot 3). Slot 4 is
+        # unused (zero). We don't advertise Bolt 3.0: PULL_ALL /
+        # DISCARD_ALL / no-multi-DB / no-routing aren't wired and a
+        # crash on dispatch is worse than refusing the handshake
+        # outright; 3.0-only servers (Neo4j 3.4 / 3.5) are EOL.
         SLOTS = [
           MANIFEST_SENTINEL,
           0x00_08_08_05,  # 5.0–5.8
           0x00_02_04_04,  # 4.2–4.4
-          0x00_00_00_03   # 3.0
+          0x00_00_00_00   # unused
         ].freeze
 
         # Versions we'd accept from a manifest, highest-preference first.
