@@ -793,6 +793,66 @@ RSpec.describe 'Session' do
     expect(work.invoked).to eq suppressed_errors + 1
   end
 
+  # --- Ported from neo4j-java-driver SessionIT.java ---
+
+  it 'Allow To Consume Records Slowly And Close Session' do
+    skip 'Ruby driver does not surface the pending stream error on session.close (Java does)'
+    session = driver.session
+    result = session.run('UNWIND range(10000, 0, -1) AS x RETURN 10 / x')
+    10.times do
+      expect(result).to have_next
+      expect(result.next).to be_present
+      sleep(0.05)
+    end
+    expect { session.close }.to raise_error(Neo4j::Driver::Exceptions::ClientException, /by zero|arithmetic/i)
+  end
+
+  it 'allows database name', version: '>=4' do
+    driver.session(database: 'neo4j') do |session|
+      expect(session.run('RETURN 1').single[0]).to eq 1
+    end
+  end
+
+  it 'allows database name using explicit transaction', version: '>=4' do
+    driver.session(database: 'neo4j') do |session|
+      session.begin_transaction do |tx|
+        expect(tx.run('RETURN 1').single[0]).to eq 1
+      end
+    end
+  end
+
+  it 'allows database name using execute_read', version: '>=4' do
+    driver.session(database: 'neo4j') do |session|
+      expect(session.execute_read { |tx| tx.run('RETURN 1').single[0] }).to eq 1
+    end
+  end
+
+  it 'errors using session.run when database is absent', version: '>=4' do
+    session = driver.session(database: 'foo')
+    expect { session.run('RETURN 1').consume }
+      .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Database does not exist.*foo/)
+  ensure
+    session&.close
+  end
+
+  it 'errors using explicit transaction when database is absent', version: '>=4' do
+    session = driver.session(database: 'foo')
+    expect do
+      tx = session.begin_transaction
+      tx.run('RETURN 1').consume
+    end.to raise_error(Neo4j::Driver::Exceptions::ClientException, /Database does not exist.*foo/)
+  ensure
+    session&.close
+  end
+
+  it 'errors using execute_read when database is absent', version: '>=4' do
+    session = driver.session(database: 'foo')
+    expect { session.execute_read { |tx| tx.run('RETURN 1').consume } }
+      .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Database does not exist.*foo/)
+  ensure
+    session&.close
+  end
+
   def test_commit_read_without_success(method_name)
     session = driver.session
     expectEmptyBookmark(session.last_bookmarks)
