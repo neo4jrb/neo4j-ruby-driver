@@ -100,6 +100,19 @@ runs:
             }
             return s
           }
+          # Every result line is prefixed with the active testkit suite
+          # name ("<suite>::<test_id>") so multi-config integration runs
+          # can distinguish "passed under config A, failed under config B"
+          # in the baseline file. Suite names come from the testkit
+          # markers ("Stub tests", "TLS tests",
+          # "Integration tests 4.4-enterprise-neo4j", …). Single-config
+          # workflows look slightly noisier but the format is uniform.
+          # No-suite lines (rare; should not occur in practice) drop the
+          # "::" prefix.
+          # No apostrophes in this comment block — the whole awk script
+          # is in a bash single-quoted string and an embedded apostrophe
+          # closes the string prematurely.
+          function tag(s) { return suite ? suite "::" s : s }
           # When unittest emits multiple tests on one line (output buffer
           # race: "test_a (id1) ... test_b (id2) ... ok"), the trailing
           # result belongs to the LAST segment; the others completed
@@ -112,7 +125,7 @@ runs:
           function emit_pass(s,    n, parts, i) {
             n = split(s, parts, / \.\.\. /)
             for (i = 1; i <= n; i++)
-              if (parts[i] ~ /\)$/) print canon(parts[i])
+              if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
           }
           # For inline FAIL/ERROR/skipped: only the LAST test-header
           # segment is the failure / skip; merged earlier headers still
@@ -122,8 +135,16 @@ runs:
             last_idx = 0
             for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) last_idx = i
             for (i = 1; i < last_idx; i++)
-              if (parts[i] ~ /\)$/) print canon(parts[i])
+              if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
           }
+          # Match the marker anywhere on the line — the testkit print
+          # order sometimes glues it onto the tail of a preceding
+          # subprocess line (no trailing newline on the prior write,
+          # e.g. the docker run command list for a second cluster
+          # core). Take everything after the marker as the suite name.
+          # (No apostrophes here — see line ~112 above for why.)
+          match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
+          match($0, />>> End test suite: /)   { suite = ""; next }
           / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
           / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); emit_pre_pass($0); pending=""; next }
           / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); emit_pre_pass($0); pending=""; next }
@@ -210,15 +231,22 @@ runs:
             for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) last = parts[i]
             return last
           }
-          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print canon(last_paren_segment($0)); pending=""; next }
-          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print canon(last_paren_segment($0)); pending=""; next }
+          # Suite-name prefix — matches Extract pass list above. The
+          # baseline file is in "<suite>::<test_id>" form, so the fail
+          # set must use the same form for `comm` to intersect.
+          function tag(s) { return suite ? suite "::" s : s }
+          # See Extract pass list comment above — same reason.
+          match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
+          match($0, />>> End test suite: /)   { suite = ""; next }
+          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print tag(canon(last_paren_segment($0))); pending=""; next }
+          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print tag(canon(last_paren_segment($0))); pending=""; next }
           / \.\.\. ok$/      { pending=""; next }
           / \.\.\. skipped/  { pending=""; next }
           # Warning-split line: keep WHOLE line as pending so we can
           # recover the right header on the eventual bare result.
           / \.\.\. /         { pending=$0; next }
-          /^FAIL$/           { if (pending) { print canon(last_paren_segment(pending)); pending="" } }
-          /^ERROR$/          { if (pending) { print canon(last_paren_segment(pending)); pending="" } }
+          /^FAIL$/           { if (pending) { print tag(canon(last_paren_segment(pending))); pending="" } }
+          /^ERROR$/          { if (pending) { print tag(canon(last_paren_segment(pending))); pending="" } }
           /^ok$/             { pending="" }
         ' "$LOG" | sort -u > /tmp/current-fail.txt
 
@@ -229,6 +257,15 @@ runs:
         # through `$(...)` under `set -e`, killing the script silently.
         REGRESSED=$( { echo "$MISSING"; echo "$FAILED"; } | awk 'NF' | sort -u )
         NEW=$(comm -13 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
+
+        # Echo gate stats to stdout so the job log is self-explanatory
+        # (step summary is in a different tab and easy to miss).
+        echo "baseline entries:  $(wc -l < /tmp/baseline.txt | tr -d ' ')"
+        echo "current passes:    $(wc -l < '${{ steps.pass.outputs.path }}' | tr -d ' ')"
+        echo "current failures:  $(wc -l < /tmp/current-fail.txt | tr -d ' ')"
+        echo "MISSING (baseline minus passes):    $({ echo "$MISSING" | awk 'NF'; } | wc -l | tr -d ' ')"
+        echo "FAILED  (baseline AND failures):    $({ echo "$FAILED"  | awk 'NF'; } | wc -l | tr -d ' ')"
+        echo "NEW     (passes minus baseline):    $({ echo "$NEW"     | awk 'NF'; } | wc -l | tr -d ' ')"
 
         {
           echo ""

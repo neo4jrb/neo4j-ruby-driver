@@ -57,6 +57,11 @@ jobs:
       # testkit authors. Matches testkit-stub.yml. (No effect on
       # INTEGRATION/TLS phases which don't use the bolt stub server.)
       TEST_RUSTY_STUB: 'true'
+      # Without this, testkit's run_fail_wrapper short-circuits on the
+      # first failing suite or first config with failing tests, so the
+      # full matrix never actually runs. The point of this workflow is
+      # the full pass — keep going past failures.
+      TEST_RUN_ALL_TESTS: 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -117,14 +122,19 @@ jobs:
             echo "| Suite | Pass | Fail | Error | Skip |"
             echo "|---|---:|---:|---:|---:|"
             awk '
-              /^>>> Start test suite: / {
+              # Match the marker anywhere on the line — the testkit print
+              # order sometimes glues it onto the tail of a preceding
+              # subprocess line (no trailing newline on the prior write,
+              # e.g. the docker run command list for a second cluster
+              # core). Take everything after the marker as the suite name.
+              # (No apostrophes — the awk is in a bash single-quoted string.)
+              match($0, />>> Start test suite: /) {
                 in_suite = 1
-                suite = $0
-                sub(/^>>> Start test suite: /, "", suite)
+                suite = substr($0, RSTART + RLENGTH)
                 p = f = e = s = 0
                 next
               }
-              /^>>> End test suite: / {
+              match($0, />>> End test suite: /) {
                 if (in_suite) {
                   printf "| %s | %d | %d | %d | %d |\n", suite, p, f, e, s
                   in_suite = 0
@@ -171,10 +181,14 @@ jobs:
               }
               return s
             }
+            function tag(s) { return suite ? suite "::" s : s }
             function emit_pass(s,    n, parts, i) {
               n = split(s, parts, / \.\.\. /)
-              for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) print canon(parts[i])
+              for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
             }
+            # See per-suite summary above — match anywhere, not just at line start.
+            match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
+            match($0, />>> End test suite: /)   { suite = ""; next }
             / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
             / \.\.\. FAIL$/    { pending=""; next }
             / \.\.\. ERROR$/   { pending=""; next }
