@@ -2,8 +2,6 @@
 # CI fails if any of these stops passing (regression).
 # Add lines as we fix more; remove with reason in commit msg.
 # Sorted alphabetically. Refresh with bin/refresh-testkit-baseline neo4j (running on jruby).
-# Tests known to fail in CI for env reasons live in
-# .github/testkit-baseline-exclude-jruby.txt and are skipped here.
 
 Integration tests 4.4-enterprise-neo4j::test_address (tests.neo4j.test_summary.TestSummary.test_address)
 Integration tests 4.4-enterprise-neo4j::test_agent_string (tests.neo4j.test_summary.TestSummary.test_agent_string)
