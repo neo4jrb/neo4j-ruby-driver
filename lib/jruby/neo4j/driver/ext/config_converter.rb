@@ -48,7 +48,13 @@ module Neo4j
             # flaky.
             proc = value
             value = ->(address) { java.util.LinkedHashSet.new(proc.call(address)) }
-          when 'bookmarks'
+          when 'bookmarks_supplier'
+            proc = value
+            value = ->() { java.util.HashSet.new(proc.call) }
+          when 'bookmarks_consumer'
+            proc = value
+            value = ->(bookmarks) { proc.call(Set.new(bookmarks)) }
+          when /^(initial_)?bookmarks$/
             return [method, *value]
           when 'bookmark_manager'
             # A BookmarkManager sets it; nil disables it (with_bookmark_manager(null)).
