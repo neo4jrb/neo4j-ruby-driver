@@ -59,8 +59,13 @@ fi
   echo "# CI fails if any of these stops passing (regression)."
   echo "# Add lines as we fix more; remove with reason in commit msg."
   echo "# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline $TARGET (running on $IMPL)."
-  echo "# Tests known to fail in CI for env reasons live in"
-  echo "# $EXCLUDE and are skipped here."
+  # Mention the exclude file only when it exists. TLS has none today,
+  # so emitting "Tests known to fail in CI live in <nonexistent file>"
+  # would just confuse readers.
+  if [ -f "$EXCLUDE" ]; then
+    echo "# Tests known to fail in CI for env reasons live in"
+    echo "# $EXCLUDE and are skipped here."
+  fi
   echo ""
   # Use the same extraction the CI gate runs (canon for Python version
   # drift; ")"-suffix filter to skip unittest-docstring headers like
@@ -84,11 +89,22 @@ fi
       }
       return s
     }
+    # Suite-name prefix — matches the postprocess action so the
+    # baseline file format is consistent across producer and consumer.
+    # Entries look like "<suite>::<test_id>".
+    function tag(s) { return suite ? suite "::" s : s }
     function emit_pass(s,    n, parts, i) {
       n = split(s, parts, / \.\.\. /)
       for (i = 1; i <= n; i++)
-        if (parts[i] ~ /\)$/) print canon(parts[i])
+        if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
     }
+    # Match the marker anywhere on the line — the testkit print order
+    # sometimes glues it onto the tail of a preceding subprocess line
+    # (no trailing newline on the prior write). Take everything after
+    # the marker as the suite name. (No apostrophes — the awk is in a
+    # bash single-quoted string.)
+    match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
+    match($0, />>> End test suite: /)   { suite = ""; next }
     / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
     / \.\.\. FAIL$/    { pending=""; next }
     / \.\.\. ERROR$/   { pending=""; next }
