@@ -98,18 +98,20 @@ module Neo4j
       # want results, don't make me build a session".
       #
       # `config`: :database (str), :routing (RoutingControl::READ/WRITE),
-      #   :impersonatedUser, :bookmarkManagerId, :txMeta, :timeout,
-      #   :authorizationToken.
-      # Honours :database and :routing today; ignores the rest until the
-      # corresponding driver features land (impersonation, bookmark
-      # manager, per-session auth, etc.).
+      #   :impersonatedUser, :bookmark_manager (BookmarkManager),
+      #   :txMeta, :timeout, :authorizationToken.
+      # Honours :database / :routing / :bookmark_manager; ignores the
+      # rest until the corresponding driver features land
+      # (impersonation, per-session auth, etc.).
       def execute_query(cypher, params = {}, config = {})
         routing = config[:routing] || config['routing'] || RoutingControl::WRITE
         database = config[:database] || config['database']
+        bookmark_manager = config[:bookmark_manager] || config['bookmark_manager']
 
         session_opts = {
           database: database,
-          default_access_mode: routing
+          default_access_mode: routing,
+          bookmark_manager: bookmark_manager
         }.compact
 
         keys = nil
