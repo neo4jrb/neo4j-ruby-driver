@@ -1,4 +1,0 @@
-# Tests known to fail in CI under tests/stub on JRuby for environment
-# reasons. Excluded from `bin/refresh-testkit-baseline` output so they
-# don't accidentally land in the baseline.
-# Empty until JRuby flavor exposes any.

@@ -21,14 +21,13 @@ esac
 IMPL=$(ruby -e 'print RUBY_PLATFORM == "java" ? "jruby" : "mri"')
 
 case "$TARGET" in
-  neo4j) OUT=.github/testkit-baseline-${IMPL}.txt;      EXCLUDE=.github/testkit-baseline-exclude-${IMPL}.txt ;;
-  stub)  OUT=.github/testkit-stub-baseline-${IMPL}.txt; EXCLUDE=.github/testkit-stub-baseline-exclude-${IMPL}.txt ;;
-  tls)   OUT=.github/testkit-tls-baseline-${IMPL}.txt;  EXCLUDE=.github/testkit-tls-baseline-exclude-${IMPL}.txt ;;
+  neo4j) OUT=.github/testkit-baseline-${IMPL}.txt ;;
+  stub)  OUT=.github/testkit-stub-baseline-${IMPL}.txt ;;
+  tls)   OUT=.github/testkit-tls-baseline-${IMPL}.txt ;;
 esac
 
 OUTPUT_TMP=$(mktemp)
-EXCLUDE_TMP=$(mktemp)
-trap 'rm -f "$OUTPUT_TMP" "$EXCLUDE_TMP"' EXIT
+trap 'rm -f "$OUTPUT_TMP"' EXIT
 
 USE_LATEST="${USE_LATEST_RUN:-0}"
 if [ "$USE_LATEST" = "1" ]; then
@@ -46,26 +45,11 @@ test -n "$LOG" && test -f "$LOG" || {
   exit 1
 }
 
-# Build the cleaned exclusion list (one test id per line, no comments).
-# `grep -v` exits 1 when the exclude file is all comments — tolerate that.
-if [ -f "$EXCLUDE" ]; then
-  { grep -vE '^(#|$)' "$EXCLUDE" || true; } | sort -u > "$EXCLUDE_TMP"
-else
-  : > "$EXCLUDE_TMP"
-fi
-
 {
   echo "# Tests currently expected to pass under tests/$TARGET on $IMPL."
   echo "# CI fails if any of these stops passing (regression)."
   echo "# Add lines as we fix more; remove with reason in commit msg."
   echo "# Sorted alphabetically. Refresh with bin/refresh-testkit-baseline $TARGET (running on $IMPL)."
-  # Mention the exclude file only when it exists. TLS has none today,
-  # so emitting "Tests known to fail in CI live in <nonexistent file>"
-  # would just confuse readers.
-  if [ -f "$EXCLUDE" ]; then
-    echo "# Tests known to fail in CI for env reasons live in"
-    echo "# $EXCLUDE and are skipped here."
-  fi
   echo ""
   # Use the same extraction the CI gate runs (canon for Python version
   # drift; ")"-suffix filter to skip unittest-docstring headers like
@@ -114,8 +98,7 @@ fi
     /^FAIL$/           { pending="" }
     /^ERROR$/          { pending="" }
   ' "$LOG" \
-    | sort -u \
-    | comm -23 - "$EXCLUDE_TMP"
+    | sort -u
 } > "$OUT"
 
 echo
