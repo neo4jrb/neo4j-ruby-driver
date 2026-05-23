@@ -249,19 +249,48 @@ module Neo4j
         def open_socket(host, port)
           timeout = @options[:connection_timeout]
           bare_host = strip_brackets(host)
-          @socket = timeout ? Socket.tcp(bare_host, port, connect_timeout: timeout) : TCPSocket.new(bare_host, port)
+          tcp_socket = timeout ? Socket.tcp(bare_host, port, connect_timeout: timeout) : TCPSocket.new(bare_host, port)
         rescue SystemCallError, SocketError => e
           raise Exceptions::ServiceUnavailableException,
                 "Unable to connect to #{format_address(host, port)}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
         else
           @address = format_address(host, port)
-          @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
+          tcp_socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
 
           if timeout
             timeval = [timeout, 0].pack('l_2')
-            @socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_RCVTIMEO, timeval)
-            @socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_SNDTIMEO, timeval)
+            tcp_socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_RCVTIMEO, timeval)
+            tcp_socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_SNDTIMEO, timeval)
           end
+
+          @socket = wrap_with_tls(tcp_socket, bare_host, port)
+        end
+
+        # When the URI uses a +s/+ssc scheme (or :encryption is set
+        # explicitly), wrap the TCP socket in an OpenSSL::SSL::SSLSocket
+        # before returning. Errors during the TLS handshake — peer
+        # certificate refused, hostname mismatch, server doesn't speak
+        # TLS — turn into Neo4j-shaped exceptions so the caller doesn't
+        # have to know whether the wire is encrypted.
+        def wrap_with_tls(tcp_socket, hostname, port)
+          tls = TlsConfig.new(uri: @uri, options: @options)
+          ctx = tls.ssl_context
+          return tcp_socket unless ctx
+
+          ssl = OpenSSL::SSL::SSLSocket.new(tcp_socket, ctx)
+          ssl.sync_close = true
+          ssl.hostname = hostname # SNI
+          ssl.connect
+          ssl.post_connection_check(hostname) if tls.verify_hostname?
+          ssl
+        rescue OpenSSL::SSL::SSLError => e
+          tcp_socket.close rescue nil
+          raise Exceptions::SecurityException,
+                "TLS handshake to #{format_address(hostname, port)} failed: #{e.message}"
+        rescue SystemCallError, IOError => e
+          tcp_socket.close rescue nil
+          raise Exceptions::ServiceUnavailableException,
+                "Connection lost during TLS handshake to #{format_address(hostname, port)}: #{e.message}"
         end
 
         def perform_handshake

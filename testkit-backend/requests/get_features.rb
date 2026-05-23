@@ -43,9 +43,21 @@ module TestkitBackend
         'Feature:Bolt:Patch:UTC'                            => 'ja',
 
         # --- TLS -------------------------------------------------------------
-        'Feature:TLS:1.1'                                   => 'a',  # works on Java; not yet on Ruby
-        'Feature:TLS:1.2'                                   => 'ja',
-        'Feature:TLS:1.3'                                   => 'a',  # works on Java; not yet on Ruby
+        # Bolt::TlsConfig pins the client to a min of TLS 1.2 — so
+        # even if a server offered 1.1 we'd refuse to negotiate it.
+        # That's the same posture modern Neo4j servers take (TLS 1.1
+        # is deprecated by RFC 8996 and rejected by Aura / 5.x by
+        # default), so we don't advertise 1.1 on either flavour. The
+        # testkit-tls test_1_1 case then correctly asserts "connection
+        # to a 1.1-only fixture must fail", which it does.
+        #
+        # 1.3 works under MRI's OpenSSL and Java's javax.net.ssl. The
+        # JRuby docker image needs the test CAs imported into the JDK
+        # truststore (Dockerfile's keytool loop) — without that the
+        # +s scheme tests fail because system-trust ≠ Java-trust.
+        'Feature:TLS:1.1'                                   => 'a',
+        'Feature:TLS:1.2'                                   => 'jar',
+        'Feature:TLS:1.3'                                   => 'jar',
 
         # --- Authentication --------------------------------------------------
         'Feature:Auth:Bearer'                               => 'jar',
@@ -73,9 +85,9 @@ module TestkitBackend
         'Feature:API:RetryableExceptions'                   => '',
         'Feature:API:Session:AuthConfig'                    => 'a',
         'Feature:API:Session:NotificationsConfig'           => 'a',
-        'Feature:API:SSLClientCertificate'                  => 'a',
-        'Feature:API:SSLConfig'                             => 'ja',
-        'Feature:API:SSLSchemes'                            => 'ja',
+        'Feature:API:SSLClientCertificate'                  => 'a', # mTLS client cert not yet wired on Ruby
+        'Feature:API:SSLConfig'                             => 'jar',
+        'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'a',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'a',  # most pass on Java; subtest gating still missing on Ruby
