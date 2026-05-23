@@ -70,7 +70,7 @@ module Neo4j
 
             pool = pool_for(address)
             begin
-              inner = pool.pop(timeout: acquisition_timeout_seconds)
+              inner = pool.pop
               return RoutedConnection.new(self, inner, address, access_mode, database)
             rescue Exceptions::ServiceUnavailableException => e
               # Server is unreachable (open_connection raised inside the
@@ -78,12 +78,6 @@ module Neo4j
               # and tear down its pool; loop and try another address.
               last_error = e
               deactivate(address)
-            rescue ::Timeout::Error
-              # Pool exhaustion at max_pool_size, not a server failure.
-              # Mirrors Direct::ConnectionProvider#acquire so the user
-              # sees the same actionable error regardless of scheme.
-              raise Exceptions::ClientException,
-                    "Unable to acquire connection from the pool within configured maximum time of #{format_acquisition_timeout}"
             end
           end
         end
@@ -285,7 +279,7 @@ module Neo4j
             # (router unreachable). If that escaped the method,
             # update_routing_table's iteration over remaining routers
             # would stop on the first unreachable one.
-            conn = pool.pop(timeout: acquisition_timeout_seconds)
+            conn = pool.pop
             rt = conn.route(database: database, bookmarks: Array(bookmarks), routing_context: @routing_context)
             new_table = RoutingTable.from_response(symbolize(rt), database)
 
@@ -371,9 +365,11 @@ module Neo4j
 
         def pool_for(address)
           @refresh_lock.synchronize do
-            @pools[address] ||= ConnectionPool::TimedStack.new(size: max_pool_size) do
-              open_connection(address)
-            end
+            @pools[address] ||= Bolt::Pool.new(
+              size: max_pool_size,
+              options: @options,
+              connect_factory: -> { open_connection(address) }
+            )
           end
         end
 
@@ -403,13 +399,6 @@ module Neo4j
           @options[:max_connection_pool_size] || Driver::DEFAULT_MAX_POOL_SIZE
         end
 
-        def acquisition_timeout_seconds
-          @options[:connection_acquisition_timeout] || Driver::DEFAULT_ACQUISITION_TIMEOUT
-        end
-
-        def format_acquisition_timeout
-          "#{(acquisition_timeout_seconds * 1000).to_i}ms"
-        end
       end
     end
   end

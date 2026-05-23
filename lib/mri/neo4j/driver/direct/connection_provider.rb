@@ -25,10 +25,7 @@ module Neo4j
           # See Routing::LoadBalancer#acquire for the rationale.
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
-          pool.pop(timeout: acquisition_timeout_seconds)
-        rescue ::Timeout::Error
-          raise Exceptions::ClientException,
-                "Unable to acquire connection from the pool within configured maximum time of #{format_acquisition_timeout}"
+          pool.pop
         end
 
         def release(connection)
@@ -65,26 +62,22 @@ module Neo4j
 
         private
 
-        # TimedStack is connection_pool's underlying primitive. Unlike
-        # ConnectionPool#checkout it does NOT cache per-thread, which is what
-        # we need: each Session in the same thread must hold its own
-        # connection (they can't share a server-side transaction state).
+        # Bolt::Pool wraps connection_pool's TimedStack primitive
+        # and adds the lifetime / liveness / acquisition-timeout gates
+        # (see Bolt::Pool docstring). TimedStack is used because, unlike
+        # ConnectionPool#checkout, it does NOT cache per-thread — each
+        # Session in the same thread must hold its own connection
+        # (they can't share server-side transaction state).
         def pool
-          @pool ||= ConnectionPool::TimedStack.new(size: max_pool_size) do
-            Bolt::Connection.new(@uri, @auth, @options).connect
-          end
+          @pool ||= Bolt::Pool.new(
+            size: max_pool_size,
+            options: @options,
+            connect_factory: -> { Bolt::Connection.new(@uri, @auth, @options).connect }
+          )
         end
 
         def max_pool_size
           @options[:max_connection_pool_size] || Driver::DEFAULT_MAX_POOL_SIZE
-        end
-
-        def acquisition_timeout_seconds
-          @options[:connection_acquisition_timeout]&.to_f || Driver::DEFAULT_ACQUISITION_TIMEOUT
-        end
-
-        def format_acquisition_timeout
-          "#{(acquisition_timeout_seconds * 1000).to_i}ms"
         end
       end
     end

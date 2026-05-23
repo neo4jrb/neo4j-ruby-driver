@@ -68,7 +68,7 @@ module TestkitBackend
 
         # --- Public API surface ----------------------------------------------
         'Feature:API:BookmarkManager'                       => 'ja',
-        'Feature:API:ConnectionAcquisitionTimeout'          => 'ja',
+        'Feature:API:ConnectionAcquisitionTimeout'          => 'jar',
         'Feature:API:Driver.ExecuteQuery'                   => 'ja',
         'Feature:API:Driver:GetServerInfo'                  => '',
         'Feature:API:Driver.IsEncrypted'                    => 'jar',
@@ -76,8 +76,8 @@ module TestkitBackend
         'Feature:API:Driver.VerifyAuthentication'           => 'ja',
         'Feature:API:Driver.VerifyConnectivity'             => 'jr',
         'Feature:API:Driver.SupportsSessionAuth'            => 'ja',
-        'Feature:API:Driver:MaxConnectionLifetime'          => 'a',
-        'Feature:API:Liveness.Check'                        => 'ja',
+        'Feature:API:Driver:MaxConnectionLifetime'          => 'ar',
+        'Feature:API:Liveness.Check'                        => 'jar',
         'Feature:API:Result.List'                           => 'jar',
         'Feature:API:Result.Peek'                           => 'jar',
         'Feature:API:Result.Single'                         => 'jar',
