@@ -8,6 +8,12 @@ module Neo4j
         DEFAULT_PORT = 7687
 
         attr_reader :server_version, :server_agent, :protocol, :address
+        # idle_since: stamp the pool sets when it pushes a connection
+        # back. Bolt::Pool reads it on pop to decide whether to run a
+        # liveness probe (idle longer than the configured threshold).
+        # created_at: when the TCP/Bolt handshake finished, so the
+        # pool can evict connections older than max_connection_lifetime.
+        attr_accessor :idle_since, :created_at
 
         def initialize(uri, auth, options = {})
           @uri = URI(uri)
@@ -21,6 +27,8 @@ module Neo4j
           @protocol = nil
           @server_agent = nil
           @closed = false
+          @created_at = nil
+          @idle_since = nil
         end
 
         def connect
@@ -30,6 +38,7 @@ module Neo4j
               open_socket(host, port)
               perform_handshake
               perform_hello
+              @created_at = current_monotonic
               return self
             rescue Exceptions::AuthenticationException
               # Auth is the same regardless of which address we hit — fail fast.
@@ -41,6 +50,37 @@ module Neo4j
           end
 
           raise last_error || Exceptions::ServiceUnavailableException.new('No addresses to connect to')
+        end
+
+        # Lightweight RESET-based liveness probe. Used by Bolt::Pool
+        # when an idle connection has been parked longer than the
+        # configured liveness threshold and we want to confirm it's
+        # still usable before handing it to a session. Any wire error
+        # OR a non-SUCCESS RESET response → return false; the pool
+        # discards and creates a fresh one.
+        # NOT reset! — that swallows errors so the original failure
+        # surfaces on the next user-driven call; here we want the
+        # probe itself to report the outcome. assert_success! is
+        # needed because fetch_response returns Message::Failure /
+        # Message::Ignored objects without raising — a "soft" RESET
+        # failure would otherwise leave the connection in the pool.
+        def alive?
+          return false if closed?
+
+          send_message(Message.reset)
+          flush
+          fetch_response.assert_success! while !@response_queue.empty?
+          true
+        rescue StandardError
+          discard_socket
+          @closed = true
+          false
+        end
+
+        # Monotonic seconds — immune to wall-clock jumps, which is
+        # what every age / idle calculation here needs.
+        def current_monotonic
+          Process.clock_gettime(Process::CLOCK_MONOTONIC)
         end
 
         def close
