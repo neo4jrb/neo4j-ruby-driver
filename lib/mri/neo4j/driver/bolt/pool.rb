@@ -32,7 +32,6 @@ module Neo4j
         # hooks for "decide whether to hand out the popped item".
         def initialize(size:, options:, connect_factory:)
           @options = options
-          @factory = connect_factory
           @stack = ConnectionPool::TimedStack.new(size: size, &connect_factory)
         end
 
@@ -97,12 +96,15 @@ module Neo4j
           conn
         end
 
-        # Replacement-on-acquire close: the slot is freed by TimedStack
-        # because we're about to pop the next one (which triggers the
-        # factory on an empty stack); calling decrement_created here
-        # would over-free.
+        # Replacement-on-acquire close: TimedStack already counted
+        # this connection as "created" (whether it came from the stack
+        # or the factory), so we must decrement_created to free the
+        # slot — otherwise a saturated pool that keeps producing
+        # unusable connections deadlocks: the next pop sees @created
+        # == size, has nothing on the stack, and blocks until timeout.
         def discard_on_pop(conn)
           close_quietly(conn)
+          @stack.decrement_created
         end
 
         def close_quietly(conn)

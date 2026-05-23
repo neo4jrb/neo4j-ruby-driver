@@ -56,16 +56,20 @@ module Neo4j
         # when an idle connection has been parked longer than the
         # configured liveness threshold and we want to confirm it's
         # still usable before handing it to a session. Any wire error
-        # → return false; the pool will discard and create a fresh one.
+        # OR a non-SUCCESS RESET response → return false; the pool
+        # discards and creates a fresh one.
         # NOT reset! — that swallows errors so the original failure
         # surfaces on the next user-driven call; here we want the
-        # probe itself to report the outcome.
+        # probe itself to report the outcome. assert_success! is
+        # needed because fetch_response returns Message::Failure /
+        # Message::Ignored objects without raising — a "soft" RESET
+        # failure would otherwise leave the connection in the pool.
         def alive?
           return false if closed?
 
           send_message(Message.reset)
           flush
-          fetch_response while !@response_queue.empty?
+          fetch_response.assert_success! while !@response_queue.empty?
           true
         rescue StandardError
           discard_socket

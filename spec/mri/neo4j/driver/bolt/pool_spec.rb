@@ -59,7 +59,8 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       conn.created_at = monotonic
       pool = build_pool([conn], connection_liveness_check_timeout: 0.001)
       pool.push(conn)
-      sleep 0.01
+      conn.idle_since = monotonic - 1 # force "past the threshold" deterministically
+
       expect(pool.pop.idle_since).to be_nil
     end
 
@@ -80,10 +81,9 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       pool = build_pool([conn], connection_liveness_check_timeout: 0.001)
 
       pool.push(conn)
-      sleep 0.01
-      result = pool.pop
+      conn.idle_since = monotonic - 1
 
-      expect(result).to be(conn)
+      expect(pool.pop).to be(conn)
       expect(conn.alive_calls).to eq(1)
     end
 
@@ -98,7 +98,7 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       pool = build_pool([fresh], connection_liveness_check_timeout: 0.001)
 
       pool.push(dead)
-      sleep 0.01
+      dead.idle_since = monotonic - 1
 
       expect(pool.pop).to be(fresh)
       expect(dead.close_calls).to eq(1)
