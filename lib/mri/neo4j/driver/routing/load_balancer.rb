@@ -354,12 +354,11 @@ module Neo4j
         # Close a checked-out connection without putting it back. Used
         # when the connection is in a known-bad state (server FAILED,
         # write-failure on a NotALeader, etc.) so we don't poison the
-        # pool. `decrement_created` frees the slot in TimedStack so the
+        # pool. Bolt::Pool#discard closes and frees the slot so the
         # next pop can lazily build a fresh one.
         def discard(address, conn)
-          conn.close rescue nil
           @refresh_lock.synchronize do
-            @pools[address]&.decrement_created
+            @pools[address]&.discard(conn)
           end
         end
 

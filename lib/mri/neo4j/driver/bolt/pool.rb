@@ -47,7 +47,7 @@ module Neo4j
             conn = @stack.pop(timeout: timeout)
             return prepare(conn) if usable?(conn)
 
-            discard(conn)
+            discard_on_pop(conn)
             # Loop with whatever budget remains. A flapping server
             # would otherwise burn the whole pool in one acquire.
           end
@@ -61,6 +61,17 @@ module Neo4j
 
           connection.idle_since = current_monotonic
           @stack.push(connection)
+        end
+
+        # Close a checked-out connection without putting it back.
+        # Mirrors Java's pool-discard: used when the connection is in
+        # a known-bad state (server FAILED, write-failure on a
+        # NotALeader, etc.) so we don't poison the pool. Frees the
+        # TimedStack slot so the next pop can lazily build a fresh
+        # one.
+        def discard(connection)
+          close_quietly(connection)
+          @stack.decrement_created
         end
 
         def shutdown(&block)
@@ -86,11 +97,19 @@ module Neo4j
           conn
         end
 
-        def discard(conn)
+        # Replacement-on-acquire close: the slot is freed by TimedStack
+        # because we're about to pop the next one (which triggers the
+        # factory on an empty stack); calling decrement_created here
+        # would over-free.
+        def discard_on_pop(conn)
+          close_quietly(conn)
+        end
+
+        def close_quietly(conn)
           conn&.close
         rescue StandardError
-          # Caller already has a fresh connection coming from the
-          # factory; a failure during close is noise.
+          # Caller already has a fresh connection coming. A failure
+          # during close is noise.
         end
 
         def expired?(conn)

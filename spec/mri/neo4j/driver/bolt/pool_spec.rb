@@ -130,6 +130,27 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
     end
   end
 
+  describe '#discard' do
+    it 'closes the connection and frees the slot so a fresh one can be created' do
+      bad = connection_class.new
+      bad.created_at = monotonic
+      fresh = connection_class.new
+      fresh.created_at = monotonic
+      # size: 1 makes the slot accounting observable — without
+      # decrement_created the second pop would block / time out.
+      pool = described_class.new(
+        size: 1,
+        options: { connection_acquisition_timeout: 0.5 },
+        connect_factory: [bad, fresh].each.method(:next)
+      )
+      pool.pop # `bad` is now the checked-out one
+      pool.discard(bad)
+
+      expect(pool.pop).to be(fresh)
+      expect(bad.close_calls).to eq(1)
+    end
+  end
+
   describe '#push' do
     it 'stamps idle_since with monotonic time' do
       conn = connection_class.new
