@@ -288,9 +288,20 @@ runs:
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 
+        # Fail the gate on EITHER situation — both need the same
+        # action (refresh the baseline so it folds in new passes or
+        # reflects the genuine regression), so a single red state
+        # forces attention. Green means the baseline matches exactly.
         if [ -n "$REGRESSED" ]; then
           echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) regressed"
           echo "$REGRESSED" | sed 's/^/::error::regressed: /'
           exit 1
         fi
-        echo "All baseline tests still pass for every parameter set."
+        if [ -n "$NEW" ]; then
+          refresh_target="${{ inputs.target_label }}"
+          [ "$refresh_target" = "integration" ] && refresh_target="neo4j"
+          echo "::error::$(echo "$NEW" | wc -l | tr -d ' ') new passing tests not in baseline — run bin/refresh-testkit-baseline ${refresh_target} to fold them in"
+          echo "$NEW" | sed 's/^/::error::new-pass: /'
+          exit 1
+        fi
+        echo "Baseline matches current pass set exactly."

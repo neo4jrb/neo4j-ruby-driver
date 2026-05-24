@@ -28,6 +28,31 @@ RSpec.describe 'BookmarkManager' do
     expect(count).to eq 1
   end
 
+  it 'seeds the manager with initial_bookmarks' do
+    # Produce a real bookmark from a vanilla session, then hand it to a
+    # second manager as initial_bookmarks. The consumer should still
+    # observe the bookmark set after a write that follows.
+    bookmark =
+      driver.session do |session|
+        session.execute_write { |tx| tx.run('CREATE (:BookmarkManagerSpec)') }
+        session.last_bookmarks.first
+      end
+    expect(bookmark).not_to be_nil
+
+    consumed = nil
+    manager = Neo4j::Driver::BookmarkManagers.default_manager(
+      initial_bookmarks: Set[bookmark],
+      bookmarks_consumer: ->(bookmarks) { consumed = bookmarks }
+    )
+
+    driver.session(bookmark_manager: manager) do |session|
+      session.execute_write { |tx| tx.run('CREATE (:BookmarkManagerSpec)') }
+    end
+
+    expect(consumed).to be_a(Set)
+    expect(consumed.map(&:value)).to all(be_a(String)).and be_present
+  end
+
   it 'consults the registered supplier when a session opens' do
     supplier_called = false
     manager = Neo4j::Driver::BookmarkManagers.default_manager(

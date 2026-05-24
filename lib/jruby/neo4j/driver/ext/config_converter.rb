@@ -47,9 +47,17 @@ module Neo4j
             # (which expect probes in the resolver-returned order) become
             # flaky.
             proc = value
-            value = ->(address) { java.util.LinkedHashSet.new(proc.call(address)) }
+            value = ->(address) { to_java_set(proc.call(address), java.util.LinkedHashSet) }
+          when 'bookmarks_supplier'
+            proc = value
+            value = ->() { to_java_set(proc.call) }
+          when 'bookmarks_consumer'
+            proc = value
+            value = ->(bookmarks) { proc.call(Set.new(bookmarks)) }
           when 'bookmarks'
             return [method, *value]
+          when 'initial_bookmarks'
+            value = to_java_set(value)
           when 'bookmark_manager'
             # A BookmarkManager sets it; nil disables it (with_bookmark_manager(null)).
             # `return` skips the trailing `.compact` so a nil arg survives to the builder.
@@ -89,12 +97,14 @@ module Neo4j
             value_of(org.neo4j.driver.internal.InternalNotificationSeverity, minimum_severity).or_else(nil),
             disabled_categories
               &.map { |value| value_of(org.neo4j.driver.NotificationClassification, value) }
-              &.then(&java.util.HashSet.method(:new)))
+              &.then(&method(:to_java_set)))
         end
 
         def value_of(klass, value)
           klass.value_of(value&.to_s&.upcase)
         end
+
+        def to_java_set(enumerable, class_name = java.util.HashSet) = class_name.new(enumerable.to_a)
       end
     end
   end
