@@ -31,11 +31,7 @@ RSpec.describe 'BookmarkManager' do
   it 'seeds the manager with initial_bookmarks' do
     # Produce a real bookmark from a vanilla session, then hand it to a
     # second manager as initial_bookmarks. The consumer should still
-    # observe the bookmark set after a write that follows. This exercises
-    # the `initial_bookmarks` → java.util.Set conversion path that
-    # testkit's stub bookmark_manager tests use; without it the splat in
-    # config_converter would feed a single Bookmark where a Set is
-    # required and JRuby would fail to coerce.
+    # observe the bookmark set after a write that follows.
     bookmark =
       driver.session do |session|
         session.execute_write { |tx| tx.run('CREATE (:BookmarkManagerSpec)') }
