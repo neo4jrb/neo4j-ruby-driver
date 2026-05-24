@@ -85,7 +85,6 @@ jobs:
         if: always()
         with:
           target_label: integration
-          flavor: ${{ matrix.flavor }}
           baseline_path: ${{ env.BASELINE }}
           log_path: ${{ runner.temp }}/run.log
 

@@ -20,13 +20,6 @@ inputs:
       `bin/run-testkit`, which writes under `/tmp/testkit-run-*`.
     required: false
     default: ''
-  flavor:
-    description: >
-      Driver flavour (mri, jruby, mri-on-jruby). Appended to the
-      baseline-refresh check name so the three matrix rows don't
-      collide on the same check.
-    required: false
-    default: ''
 
 outputs:
   log:
@@ -196,7 +189,6 @@ runs:
     #   occurrence passed). That second case catches "3 of 4 params
     #   ok + 1 FAIL" which the dedup'd pass set would otherwise hide.
     - name: Regression gate (baseline diff)
-      id: gate
       if: always()
       shell: bash
       run: |
@@ -296,72 +288,20 @@ runs:
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 
-        # Stash NEW count for the separate "baseline-refresh" check
-        # below — that step needs to fire even when this one exits 1
-        # on regressions.
-        NEW_COUNT=$(echo "$NEW" | awk 'NF' | wc -l | tr -d ' ')
-        echo "new_count=$NEW_COUNT" >> "$GITHUB_OUTPUT"
-
+        # Fail the gate on EITHER situation — both need the same
+        # action (refresh the baseline so it folds in new passes or
+        # reflects the genuine regression), so a single red state
+        # forces attention. Green means the baseline matches exactly.
         if [ -n "$REGRESSED" ]; then
           echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) regressed"
           echo "$REGRESSED" | sed 's/^/::error::regressed: /'
           exit 1
         fi
-        echo "All baseline tests still pass for every parameter set."
-
-    # Override the matrix job's own check_run conclusion to `neutral`
-    # (grey dash) when the gate passed but there are new passing tests
-    # not yet in the baseline — a soft "refresh me" signal visible on
-    # the PR conversation tab without adding a separate check entry.
-    #
-    # Three-state semantics on the existing check:
-    #   ✗ red    — regressions (gate exited 1)
-    #   ⊝ grey   — clean + new passes outside baseline (this step)
-    #   ✓ green  — clean + no new passes (natural job success)
-    #
-    # Skipped when the gate failed (red wins) and when flavor is empty
-    # (we can't find the right job without it).
-    #
-    # API-created check_runs cannot be force-grouped under a specific
-    # workflow (the Checks API has no check_suite_id field on POST and
-    # auto-assigns to one suite per (app, sha)). PATCHing our OWN job's
-    # check_run sidesteps that — the existing check stays in its
-    # correct workflow group.
-    - name: Override conclusion to neutral when baseline has new passes
-      if: success() && inputs.flavor != ''
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        NEW_COUNT: ${{ steps.gate.outputs.new_count }}
-        TARGET_LABEL: ${{ inputs.target_label }}
-        FLAVOR: ${{ inputs.flavor }}
-      run: |
-        if [ "${NEW_COUNT:-0}" -le 0 ]; then
-          echo "no new passes; leaving check_run conclusion at success"
-          exit 0
+        if [ -n "$NEW" ]; then
+          refresh_target="${{ inputs.target_label }}"
+          [ "$refresh_target" = "integration" ] && refresh_target="neo4j"
+          echo "::error::$(echo "$NEW" | wc -l | tr -d ' ') new passing tests not in baseline — run bin/refresh-testkit-baseline ${refresh_target} to fold them in"
+          echo "$NEW" | sed 's/^/::error::new-pass: /'
+          exit 1
         fi
-
-        refresh_target="${TARGET_LABEL}"
-        [ "$refresh_target" = "integration" ] && refresh_target="neo4j"
-
-        # ${GITHUB_JOB} is the job key (testkit / testkit-stub /
-        # testkit-tls); combined with flavor it matches the matrix
-        # row's display name (testkit (mri-on-jruby), …).
-        job_name="${GITHUB_JOB} (${FLAVOR})"
-        check_run_url=$(gh api \
-          "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" \
-          --jq ".jobs[] | select(.name == \"${job_name}\") | .check_run_url" \
-          | head -1)
-
-        if [ -z "$check_run_url" ]; then
-          echo "::warning::could not find check_run for job ${job_name}; skipping conclusion override"
-          exit 0
-        fi
-
-        check_run_path="${check_run_url#https://api.github.com/}"
-        gh api "$check_run_path" -X PATCH \
-          -F conclusion=neutral \
-          -F output[title]="${NEW_COUNT} new passing tests not in baseline" \
-          -F output[summary]="Run \`bin/refresh-testkit-baseline ${refresh_target}\` to fold them in." \
-          >/dev/null
-        echo "set ${job_name} check_run conclusion to neutral (${NEW_COUNT} new passes)"
+        echo "Baseline matches current pass set exactly."

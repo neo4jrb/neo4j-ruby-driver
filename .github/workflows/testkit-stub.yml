@@ -105,7 +105,6 @@ jobs:
         if: always()
         with:
           target_label: stub
-          flavor: ${{ matrix.flavor }}
           baseline_path: ${{ env.BASELINE }}
           log_path: ${{ runner.temp }}/run.log
 
