@@ -293,4 +293,10 @@ runs:
           echo "$REGRESSED" | sed 's/^/::error::regressed: /'
           exit 1
         fi
+        if [ -n "$NEW" ]; then
+          # Soft signal: the check stays green (no regressions), but
+          # the PR's check list surfaces "⚠ N" next to the check name
+          # so the author notices a baseline refresh is due.
+          echo "::warning::$(echo "$NEW" | wc -l | tr -d ' ') new passing tests not in baseline — run bin/refresh-testkit-baseline ${{ inputs.target_label == 'stub' && 'stub' || 'neo4j' }} to fold them in"
+        fi
         echo "All baseline tests still pass for every parameter set."
