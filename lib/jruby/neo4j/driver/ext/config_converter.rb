@@ -54,8 +54,10 @@ module Neo4j
           when 'bookmarks_consumer'
             proc = value
             value = ->(bookmarks) { proc.call(Set.new(bookmarks)) }
-          when /^(initial_)?bookmarks$/
+          when 'bookmarks'
             return [method, *value]
+          when 'initial_bookmarks'
+            value = java.util.HashSet.new(value.to_a)
           when 'bookmark_manager'
             # A BookmarkManager sets it; nil disables it (with_bookmark_manager(null)).
             # `return` skips the trailing `.compact` so a nil arg survives to the builder.
