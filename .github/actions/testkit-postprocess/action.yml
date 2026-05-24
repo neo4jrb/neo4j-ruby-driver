@@ -20,6 +20,13 @@ inputs:
       `bin/run-testkit`, which writes under `/tmp/testkit-run-*`.
     required: false
     default: ''
+  flavor:
+    description: >
+      Driver flavour (mri, jruby, mri-on-jruby). Appended to the
+      baseline-refresh check name so the three matrix rows don't
+      collide on the same check.
+    required: false
+    default: ''
 
 outputs:
   log:
@@ -189,6 +196,7 @@ runs:
     #   occurrence passed). That second case catches "3 of 4 params
     #   ok + 1 FAIL" which the dedup'd pass set would otherwise hide.
     - name: Regression gate (baseline diff)
+      id: gate
       if: always()
       shell: bash
       run: |
@@ -288,15 +296,54 @@ runs:
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 
+        # Stash NEW count for the separate "baseline-refresh" check
+        # below — that step needs to fire even when this one exits 1
+        # on regressions.
+        NEW_COUNT=$(echo "$NEW" | awk 'NF' | wc -l | tr -d ' ')
+        echo "new_count=$NEW_COUNT" >> "$GITHUB_OUTPUT"
+
         if [ -n "$REGRESSED" ]; then
           echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) regressed"
           echo "$REGRESSED" | sed 's/^/::error::regressed: /'
           exit 1
         fi
-        if [ -n "$NEW" ]; then
-          # Soft signal: the check stays green (no regressions), but
-          # the PR's check list surfaces "⚠ N" next to the check name
-          # so the author notices a baseline refresh is due.
-          echo "::warning::$(echo "$NEW" | wc -l | tr -d ' ') new passing tests not in baseline — run bin/refresh-testkit-baseline ${{ inputs.target_label == 'stub' && 'stub' || 'neo4j' }} to fold them in"
-        fi
         echo "All baseline tests still pass for every parameter set."
+
+    # Distinct PR-level check showing whether the baseline is fresh.
+    # neutral (grey dash) when there are new passes that aren't yet in
+    # the baseline; success (green check) when the baseline matches
+    # exactly. Skipped when the gate failed (the regression already
+    # turns the main check red). The matrix-flavour suffix keeps the
+    # three rows from sharing a single check_run.
+    - name: Publish baseline-freshness check
+      if: success()
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        NEW_COUNT: ${{ steps.gate.outputs.new_count }}
+        TARGET_LABEL: ${{ inputs.target_label }}
+        FLAVOR: ${{ inputs.flavor }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      run: |
+        suffix="${FLAVOR:+ ($FLAVOR)}"
+        name="${TARGET_LABEL} baseline${suffix}"
+        refresh_target="${TARGET_LABEL}"
+        [ "$refresh_target" = "integration" ] && refresh_target="neo4j"
+        if [ "${NEW_COUNT:-0}" -gt 0 ]; then
+          conclusion=neutral
+          title="${NEW_COUNT} new passing tests not in baseline"
+          summary="Run \`bin/refresh-testkit-baseline ${refresh_target}\` to fold them in."
+        else
+          conclusion=success
+          title="Baseline up to date"
+          summary="No new passing tests outside the baseline."
+        fi
+        gh api "repos/${GITHUB_REPOSITORY}/check-runs" \
+          -X POST \
+          -F name="$name" \
+          -F head_sha="$HEAD_SHA" \
+          -F status=completed \
+          -F conclusion="$conclusion" \
+          -F output[title]="$title" \
+          -F output[summary]="$summary" \
+          >/dev/null
