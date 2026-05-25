@@ -5,14 +5,14 @@ RSpec.describe Neo4j::Driver::Internal::DefaultBookmarkManager do
 
   def bm(string) = Neo4j::Driver::Bookmark.from(string)
 
-  describe '#get_bookmarks' do
+  describe '#bookmarks' do
     it 'returns an empty set by default' do
-      expect(described_class.new.get_bookmarks).to eq(Set.new)
+      expect(described_class.new.bookmarks).to eq(Set.new)
     end
 
     it 'returns the seeded initial_bookmarks' do
       manager = described_class.new(initial_bookmarks: %w[bm:1 bm:2])
-      expect(manager.get_bookmarks.map(&:value)).to contain_exactly('bm:1', 'bm:2')
+      expect(manager.bookmarks.map(&:value)).to contain_exactly('bm:1', 'bm:2')
     end
 
     it 'folds in bookmarks from the supplier on every call' do
@@ -22,15 +22,15 @@ RSpec.describe Neo4j::Driver::Internal::DefaultBookmarkManager do
         bookmarks_supplier: -> { external }
       )
 
-      expect(manager.get_bookmarks.map(&:value)).to contain_exactly('bm:internal', 'bm:external')
+      expect(manager.bookmarks.map(&:value)).to contain_exactly('bm:internal', 'bm:external')
 
       external << 'bm:external-2'
-      expect(manager.get_bookmarks.map(&:value)).to contain_exactly('bm:internal', 'bm:external', 'bm:external-2')
+      expect(manager.bookmarks.map(&:value)).to contain_exactly('bm:internal', 'bm:external', 'bm:external-2')
     end
 
     it 'returns Bookmark instances, not raw strings, when seeded with strings' do
       manager = described_class.new(initial_bookmarks: ['bm:1'])
-      expect(manager.get_bookmarks.first).to be_a(Neo4j::Driver::Bookmark)
+      expect(manager.bookmarks.first).to be_a(Neo4j::Driver::Bookmark)
     end
   end
 
@@ -40,7 +40,7 @@ RSpec.describe Neo4j::Driver::Internal::DefaultBookmarkManager do
 
       manager.update_bookmarks(%w[bm:1 bm:2], ['bm:4'])
 
-      expect(manager.get_bookmarks.map(&:value)).to contain_exactly('bm:3', 'bm:4')
+      expect(manager.bookmarks.map(&:value)).to contain_exactly('bm:3', 'bm:4')
     end
 
     it 'is a no-op for previous entries the manager never had (set-difference)' do
@@ -48,7 +48,7 @@ RSpec.describe Neo4j::Driver::Internal::DefaultBookmarkManager do
 
       manager.update_bookmarks(['bm:never-had'], ['bm:new'])
 
-      expect(manager.get_bookmarks.map(&:value)).to contain_exactly('bm:keep', 'bm:new')
+      expect(manager.bookmarks.map(&:value)).to contain_exactly('bm:keep', 'bm:new')
     end
 
     it 'fires the consumer with the post-update snapshot' do
@@ -67,7 +67,7 @@ RSpec.describe Neo4j::Driver::Internal::DefaultBookmarkManager do
     it 'accepts Bookmark instances or raw strings interchangeably on either side' do
       manager = described_class.new(initial_bookmarks: ['bm:1'])
       manager.update_bookmarks([bm('bm:1')], [bm('bm:2')])
-      expect(manager.get_bookmarks.map(&:value)).to eq(['bm:2'])
+      expect(manager.bookmarks.map(&:value)).to eq(['bm:2'])
     end
   end
 
@@ -77,8 +77,10 @@ RSpec.describe Neo4j::Driver::Internal::DefaultBookmarkManager do
       threads = 8.times.map do |i|
         Thread.new { 50.times { |j| manager.update_bookmarks([], ["bm:#{i}-#{j}"]) } }
       end
-      threads.each(&:join)
-      expect(manager.get_bookmarks.size).to eq(8 * 50)
+      # &:value (not &:join) re-raises any in-thread exception here so a
+      # concurrency bug fails the example instead of silently dropping.
+      threads.each(&:value)
+      expect(manager.bookmarks.size).to eq(8 * 50)
     end
   end
 end

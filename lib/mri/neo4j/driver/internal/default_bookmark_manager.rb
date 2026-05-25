@@ -3,43 +3,43 @@
 module Neo4j
   module Driver
     module Internal
-      # Thread-safe in-memory BookmarkManager — the implementation
-      # returned by `BookmarkManagers.default_manager`. Internal
-      # because callers code against the `BookmarkManager` public
-      # contract and shouldn't depend on this class name.
+      # Thread-safe in-memory implementation behind
+      # `BookmarkManagers.default_manager`. Internal because callers
+      # code against the duck type (`bookmarks` + `update_bookmarks`)
+      # and shouldn't depend on this class name.
       #
-      # `bookmarks_supplier` runs on every `get_bookmarks` call so
-      # external state (e.g. bookmarks persisted by another node in
-      # a cluster of app servers) is folded into what we send on
-      # BEGIN. `bookmarks_consumer` runs on every successful
-      # `update_bookmarks` so external listeners can react.
-      class DefaultBookmarkManager < BookmarkManager
+      # `bookmarks_supplier` runs on every `bookmarks` call so external
+      # state (e.g. bookmarks persisted by another node in a cluster of
+      # app servers) is folded into what we send on BEGIN.
+      # `bookmarks_consumer` runs on every successful `update_bookmarks`
+      # so external listeners can react.
+      class DefaultBookmarkManager
         def initialize(initial_bookmarks: nil, bookmarks_supplier: nil, bookmarks_consumer: nil)
-          @bookmarks = Set.new(Array(initial_bookmarks).map(&Bookmark.method(:from)))
+          @bookmarks = normalise(initial_bookmarks)
           @supplier = bookmarks_supplier
           @consumer = bookmarks_consumer
           @lock = Mutex.new
         end
 
-        def get_bookmarks
+        def bookmarks
           snapshot = @lock.synchronize { @bookmarks.dup }
-          snapshot |= Set.new(Array(@supplier.call).map(&Bookmark.method(:from))) if @supplier
+          snapshot |= normalise(@supplier.call) if @supplier
           snapshot
         end
 
         # Java's BookmarkManagerImpl semantics: drop everything in
-        # `previous_bookmarks` (set-difference is a no-op for entries
-        # we don't have, so it's safe for callers to pass the full
-        # "what I sent on BEGIN" snapshot — including the session's
-        # own bookmarks), then add the new ones from the commit
+        # `previous` (set-difference is a no-op for entries we don't
+        # have, so callers can pass the full "what I sent on BEGIN"
+        # snapshot — including the session's own bookmarks — without
+        # special-casing), then add the new ones from the commit
         # response. Consumer sees the post-update set.
-        def update_bookmarks(previous_bookmarks, new_bookmarks)
-          previous = normalise(previous_bookmarks)
-          new = normalise(new_bookmarks)
+        def update_bookmarks(previous, new)
+          prev_set = normalise(previous)
+          new_set = normalise(new)
           updated_snapshot = nil
           @lock.synchronize do
-            @bookmarks -= previous
-            @bookmarks |= new
+            @bookmarks -= prev_set
+            @bookmarks |= new_set
             updated_snapshot = @bookmarks.dup
           end
           @consumer&.call(updated_snapshot)

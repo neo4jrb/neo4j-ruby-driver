@@ -220,9 +220,12 @@ module Neo4j
       # Folds in the BookmarkManager's bookmarks too (when configured)
       # so cross-session causal consistency works. Records the merged
       # set on @bookmarks_used_on_begin so update_bookmarks can pass
-      # it as `previous_bookmarks` to the manager.
+      # it as `previous` to the manager. A custom manager can return
+      # plain strings rather than Bookmark instances, so coerce
+      # everything via Bookmark.from before reading .value.
       def current_bookmarks_for_extra
-        merged = @last_bookmarks | (@bookmark_manager&.get_bookmarks || Set.new)
+        from_manager = Array(@bookmark_manager&.bookmarks).map(&Bookmark.method(:from))
+        merged = @last_bookmarks | from_manager
         @bookmarks_used_on_begin = merged
         bookmarks = merged.to_a.map(&:value)
         bookmarks unless bookmarks.empty?
