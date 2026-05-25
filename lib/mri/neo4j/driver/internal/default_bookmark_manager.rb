@@ -15,14 +15,14 @@ module Neo4j
       # so external listeners can react.
       class DefaultBookmarkManager
         def initialize(initial_bookmarks: nil, bookmarks_supplier: nil, bookmarks_consumer: nil)
-          @bookmarks = normalise(initial_bookmarks)
+          @bookmarks = normalize(initial_bookmarks)
           @supplier = bookmarks_supplier
           @consumer = bookmarks_consumer
           @lock = Mutex.new
         end
 
         def bookmarks
-          @lock.synchronize { @bookmarks.dup } | normalise(@supplier&.call)
+          @lock.synchronize { @bookmarks.dup } | normalize(@supplier&.call)
         end
 
         # Java's BookmarkManagerImpl semantics: drop everything in
@@ -32,8 +32,8 @@ module Neo4j
         # special-casing), then add the new ones from the commit
         # response. Consumer sees the post-update set.
         def update_bookmarks(previous, new)
-          prev_set = normalise(previous)
-          new_set = normalise(new)
+          prev_set = normalize(previous)
+          new_set = normalize(new)
           updated_snapshot = nil
           @lock.synchronize do
             @bookmarks -= prev_set
@@ -45,7 +45,7 @@ module Neo4j
 
         private
 
-        def normalise(bookmarks)
+        def normalize(bookmarks)
           Set.new(Array(bookmarks).map(&Bookmark.method(:from)))
         end
       end
