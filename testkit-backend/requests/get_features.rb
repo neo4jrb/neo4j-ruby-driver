@@ -67,7 +67,7 @@ module TestkitBackend
         'AuthorizationExpiredTreatment'                     => 'ja',
 
         # --- Public API surface ----------------------------------------------
-        'Feature:API:BookmarkManager'                       => 'ja',
+        'Feature:API:BookmarkManager'                       => 'jar',
         'Feature:API:ConnectionAcquisitionTimeout'          => 'jar',
         'Feature:API:Driver.ExecuteQuery'                   => 'ja',
         'Feature:API:Driver:GetServerInfo'                  => '',

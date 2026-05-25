@@ -97,19 +97,23 @@ module Neo4j
       # (keys, materialised records, summary). Convenience for "I just
       # want results, don't make me build a session".
       #
-      # `config`: :database (str), :routing (RoutingControl::READ/WRITE),
-      #   :impersonatedUser, :bookmarkManagerId, :txMeta, :timeout,
-      #   :authorizationToken.
-      # Honours :database and :routing today; ignores the rest until the
-      # corresponding driver features land (impersonation, bookmark
-      # manager, per-session auth, etc.).
+      # `config` keys (Ruby snake_case throughout):
+      #   :database            — string, the database to target.
+      #   :routing             — RoutingControl::READ / ::WRITE.
+      #   :bookmark_manager    — BookmarkManager for cross-session
+      #                          causal consistency.
+      #   :impersonated_user   — accepted but not yet honoured.
+      #   :metadata, :timeout  — accepted but not yet honoured.
+      #   :authorization_token — accepted but not yet honoured.
       def execute_query(cypher, params = {}, config = {})
         routing = config[:routing] || config['routing'] || RoutingControl::WRITE
         database = config[:database] || config['database']
+        bookmark_manager = config[:bookmark_manager] || config['bookmark_manager']
 
         session_opts = {
           database: database,
-          default_access_mode: routing
+          default_access_mode: routing,
+          bookmark_manager: bookmark_manager
         }.compact
 
         keys = nil
