@@ -22,9 +22,7 @@ module Neo4j
         end
 
         def bookmarks
-          snapshot = @lock.synchronize { @bookmarks.dup }
-          snapshot |= normalise(@supplier.call) if @supplier
-          snapshot
+          @lock.synchronize { @bookmarks.dup } | normalise(@supplier&.call)
         end
 
         # Java's BookmarkManagerImpl semantics: drop everything in
