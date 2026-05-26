@@ -4,13 +4,12 @@ RSpec.describe Neo4j::Driver do
 
   describe '#execute_query', version: '>=5' do
     context 'when querying the database' do
-      it 'accepts query with default auth_token, config hash and parameters' do
+      it 'accepts query with params hash and config hash' do
         expect {
           driver.execute_query(
             'MATCH (p:Person {age: $age}) RETURN p.name AS name',
-            nil,
-            { database: 'neo4j' },
-            age: 42
+            { age: 42 },
+            { database: 'neo4j' }
           )
         }.not_to raise_error
       end
@@ -70,13 +69,12 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'when using query configuration' do
-      it 'accepts nil auth_token with config hash and parameters' do
+      it 'accepts params hash and config hash together' do
         expect {
           driver.execute_query(
             'MATCH (p:Person) RETURN p.name',
-            nil,
-            { database: 'neo4j' },
-            age: 42
+            { age: 42 },
+            { database: 'neo4j' }
           )
         }.not_to raise_error
       end
@@ -145,14 +143,12 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'parameter handling' do
-      it 'handles mixed positional and keyword arguments correctly' do
+      it 'handles params hash and config hash together' do
         expect {
           driver.execute_query(
             'MATCH (p:Person {age: $age, name: $name}) RETURN p',
-            nil,
-            { database: 'neo4j' },
-            age: 42,
-            name: 'Alice'
+            { age: 42, name: 'Alice' },
+            { database: 'neo4j' }
           )
         }.not_to raise_error
       end
