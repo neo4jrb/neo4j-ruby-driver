@@ -17,13 +17,20 @@ module Neo4j
         @open = true
         @last_bookmarks = Set.new
         @current_result = nil
+        @bookmark_manager = options[:bookmark_manager]
+        # The bookmark snapshot we sent on the most recent BEGIN — used
+        # as `previous_bookmarks` when forwarding to the manager so it
+        # set-difference-drops what it knew before. Computed at BEGIN
+        # time (not update time) because the manager may have grown
+        # between the two via another session.
+        @bookmarks_used_on_begin = nil
 
         # Initialize with provided bookmarks if any
         if options[:bookmarks]
           initial_bookmarks = options[:bookmarks]
           initial_bookmarks = [initial_bookmarks] unless initial_bookmarks.is_a?(Enumerable)
           initial_bookmarks.each do |bookmark|
-            @last_bookmarks << (bookmark.is_a?(Bookmark) ? bookmark : Bookmark.new(bookmark))
+            @last_bookmarks << (bookmark.is_a?(Bookmark) ? bookmark : Bookmark.from(bookmark))
           end
         end
       end
@@ -189,7 +196,13 @@ module Neo4j
       def update_bookmarks(bookmarks)
         # Replace bookmarks (don't accumulate) — matches Java driver behavior.
         # Each committed transaction generates a new bookmark that replaces the previous one.
-        @last_bookmarks = Set.new(Array(bookmarks).map(&Bookmark.method(:new)))
+        new_set = Set.new(Array(bookmarks).map(&Bookmark.method(:from)))
+        # Forward to the BookmarkManager (if configured) so cross-session
+        # causal consistency works. Pass the bookmarks we *sent* in BEGIN
+        # as `previous` — Java's manager uses set-difference, so passing
+        # the session's own bookmarks alongside the manager's is safe.
+        @bookmark_manager&.update_bookmarks(@bookmarks_used_on_begin || @last_bookmarks, new_set)
+        @last_bookmarks = new_set
       end
 
       private
@@ -207,8 +220,18 @@ module Neo4j
       # for the wire. Returns nil when empty so the BEGIN/RUN extras
       # hash's `reject!` strips the key entirely (testkit's stub
       # scripts strictly compare against omission).
+      #
+      # Folds in the BookmarkManager's bookmarks too (when configured)
+      # so cross-session causal consistency works. Records the merged
+      # set on @bookmarks_used_on_begin so update_bookmarks can pass
+      # it as `previous` to the manager. A custom manager can return
+      # plain strings rather than Bookmark instances, so coerce
+      # everything via Bookmark.from before reading .value.
       def current_bookmarks_for_extra
-        bookmarks = @last_bookmarks.to_a.map(&:value)
+        from_manager = Array(@bookmark_manager&.bookmarks).map(&Bookmark.method(:from))
+        merged = @last_bookmarks | from_manager
+        @bookmarks_used_on_begin = merged
+        bookmarks = merged.to_a.map(&:value)
         bookmarks unless bookmarks.empty?
       end
 

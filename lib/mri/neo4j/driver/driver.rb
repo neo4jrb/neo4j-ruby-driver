@@ -120,6 +120,7 @@ module Neo4j
       def execute_query(cypher, auth_token = nil, config = {}, **params)
         routing = config[:routing] || config['routing'] || RoutingControl::WRITE
         database = config[:database] || config['database']
+        bookmark_manager = config[:bookmark_manager] || config['bookmark_manager']
 
         session_opts = {
           database: database,
