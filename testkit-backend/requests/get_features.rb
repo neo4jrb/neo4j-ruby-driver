@@ -95,7 +95,7 @@ module TestkitBackend
         'Feature:API:Type.Vector'                           => '',
 
         # --- Other features --------------------------------------------------
-        'Feature:Impersonation'                             => 'ja',
+        'Feature:Impersonation'                             => 'jar',
         'Feature:IdempotentRetries'                         => '',
 
         # --- Optimizations ---------------------------------------------------

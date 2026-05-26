@@ -49,11 +49,15 @@ module Neo4j
         # `bookmarks` is the current bookmark snapshot so server-side
         # causal consistency works across auto-commit runs without an
         # explicit transaction.
+        # `imp_user` (Bolt 4.4+) makes the server run the query as if
+        # the named user had issued it — auth as the session's user,
+        # authz as the impersonated one.
         run_extra = {
           db: @options[:database],
           mode: (session_access_mode == :read ? 'r' : nil),
           tx_timeout: timeout_to_milliseconds(timeout),
           tx_metadata:,
+          imp_user: @options[:impersonated_user],
           bookmarks: current_bookmarks_for_extra
         }
         run_extra.reject!(&Internal::Extras::BLANK)
