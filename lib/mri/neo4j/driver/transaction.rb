@@ -26,8 +26,7 @@ module Neo4j
           db: options[:database],
           mode: options[:access_mode],
           tx_timeout: options[:timeout],
-          tx_metadata: options[:metadata],
-          imp_user: options[:impersonated_user]
+          tx_metadata: options[:metadata]
         }
         begin_extra.reject!(&Internal::Extras::BLANK)
 
