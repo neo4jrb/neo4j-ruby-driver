@@ -192,4 +192,44 @@ RSpec.describe 'Parameters' do
     received_value = session.run('RETURN $value', value: stream).single[0]
     expect(received_value).to eq [1, 2, 3, 4, 5, 42]
   end
+
+  # --- Ported from neo4j-java-driver ParametersIT.java ---
+
+  it 'sends and receives a long string round-trip' do
+    long_string = 'x' * 65_536
+    expect(session.run('RETURN $value', value: long_string).single[0]).to eq long_string
+  end
+
+  it 'sends and receives a long list of integers round-trip' do
+    longs = Array.new(65_536) { rand(0..2**31 - 1) }
+    expect(session.run('RETURN $value', value: longs).single[0]).to eq longs
+  end
+
+  it 'sends and receives a long byte array round-trip' do
+    bytes = (Array.new(65_536) { rand(0..255).chr }.join).b
+    expect(session.run('RETURN $value', value: bytes).single[0]).to eq bytes
+  end
+
+  it 'rejects a Node as a parameter' do
+    node = session.run('CREATE (n:X) RETURN n').single[0]
+    expect { session.run('RETURN $a', a: node).consume }
+      .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Unable to convert.*Node/i)
+  end
+
+  it 'rejects a Relationship as a parameter' do
+    rel = session.run('CREATE (a:A)-[r:R]->(b:B) RETURN r').single[0]
+    expect { session.run('RETURN $a', a: rel).consume }
+      .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Unable to convert.*Relationship/i)
+  end
+
+  it 'rejects a Path as a parameter' do
+    path = session.run('CREATE p=(a:A)-[:R]->(b:B) RETURN p').single[0]
+    expect { session.run('RETURN $a', a: path).consume }
+      .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Unable to convert.*Path/i)
+  end
+
+  it 'rejects an arbitrary object as a parameter with a helpful error' do
+    expect { session.run('anything', k: Object.new).consume }
+      .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Unable to convert.*to Neo4j Value/)
+  end
 end
