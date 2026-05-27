@@ -795,7 +795,7 @@ RSpec.describe 'Session' do
 
   # --- Ported from neo4j-java-driver SessionIT.java ---
 
-  it 'Allow To Consume Records Slowly And Close Session' do
+  it 'allows consuming records slowly and closing the session' do
     skip 'Ruby driver does not surface the pending stream error on session.close (Java does)'
     session = driver.session
     result = session.run('UNWIND range(10000, 0, -1) AS x RETURN 10 / x')
@@ -830,7 +830,10 @@ RSpec.describe 'Session' do
   it 'errors using session.run when database is absent', version: '>=4' do
     session = driver.session(database: 'foo')
     expect { session.run('RETURN 1').consume }
-      .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Database does not exist.*foo/)
+      .to raise_error(Neo4j::Driver::Exceptions::ClientException) do |e|
+        expect(e.code).to eq 'Neo.ClientError.Database.DatabaseNotFound'
+        expect(e.message).to match(/Database does not exist.*foo/)
+      end
   ensure
     session&.close
   end
@@ -840,7 +843,10 @@ RSpec.describe 'Session' do
     expect do
       tx = session.begin_transaction
       tx.run('RETURN 1').consume
-    end.to raise_error(Neo4j::Driver::Exceptions::ClientException, /Database does not exist.*foo/)
+    end.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |e|
+      expect(e.code).to eq 'Neo.ClientError.Database.DatabaseNotFound'
+      expect(e.message).to match(/Database does not exist.*foo/)
+    end
   ensure
     session&.close
   end
@@ -848,7 +854,10 @@ RSpec.describe 'Session' do
   it 'errors using execute_read when database is absent', version: '>=4' do
     session = driver.session(database: 'foo')
     expect { session.execute_read { |tx| tx.run('RETURN 1').consume } }
-      .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Database does not exist.*foo/)
+      .to raise_error(Neo4j::Driver::Exceptions::ClientException) do |e|
+        expect(e.code).to eq 'Neo.ClientError.Database.DatabaseNotFound'
+        expect(e.message).to match(/Database does not exist.*foo/)
+      end
   ensure
     session&.close
   end
