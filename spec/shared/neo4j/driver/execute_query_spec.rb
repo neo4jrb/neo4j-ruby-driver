@@ -79,14 +79,14 @@ RSpec.describe Neo4j::Driver do
         }.not_to raise_error
       end
 
-      it 'accepts auth_token with keyword parameters' do
+      it 'accepts an auth_token in config alongside a params hash' do
         auth_token = Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password)
 
         expect {
           driver.execute_query(
             'MATCH (p:Person) RETURN p.name',
-            auth_token,
-            age: 42
+            { age: 42 },
+            auth_token: auth_token
           )
         }.not_to raise_error
       end
@@ -94,13 +94,13 @@ RSpec.describe Neo4j::Driver do
 
     context 'when routing with RoutingControl' do
       it 'reads with RoutingControl::READ' do
-        result = driver.execute_query('RETURN 1 AS n', nil, { routing: Neo4j::Driver::RoutingControl::READ })
+        result = driver.execute_query('RETURN 1 AS n', {}, { routing: Neo4j::Driver::RoutingControl::READ })
         expect(result.records.first[:n]).to eq 1
       end
 
       it 'writes with RoutingControl::WRITE' do
         expect {
-          driver.execute_query('CREATE (:RoutingControlSpec)', nil, { routing: Neo4j::Driver::RoutingControl::WRITE })
+          driver.execute_query('CREATE (:RoutingControlSpec)', {}, { routing: Neo4j::Driver::RoutingControl::WRITE })
         }.not_to raise_error
       end
     end

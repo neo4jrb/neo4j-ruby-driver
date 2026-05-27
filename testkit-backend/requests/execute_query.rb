@@ -16,10 +16,11 @@ module TestkitBackend
 
       # Translate testkit's QueryConfig (camelCase keys, 'r'/'w' routing,
       # CypherValue tx metadata, ms timeout, bookmark-manager id) into
-      # the common Ruby execute_query kwargs — mirroring how NewSession
-      # maps 'r'/'w' to AccessMode. auth_token sits alongside the rest
-      # in config (driver-side: MRI ignores it for now, JRuby pulls it
-      # back out before handing to Java's QueryConfig builder).
+      # the common Ruby execute_query config hash (3rd positional arg
+      # to driver.execute_query) — mirroring how NewSession maps 'r'/'w'
+      # to AccessMode. auth_token sits alongside the rest in config
+      # (driver-side: MRI ignores it for now, JRuby pulls it back out
+      # before handing to Java's QueryConfig builder).
       def query_config
         cfg = {
           routing: routing_control,
