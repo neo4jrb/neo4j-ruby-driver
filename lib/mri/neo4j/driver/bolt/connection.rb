@@ -156,8 +156,18 @@ module Neo4j
           raise
         end
 
+        # Defer wire errors from flush until fetch_response runs. The
+        # server may have queued a final FAILURE response before
+        # closing — under JRuby's eager EPIPE, raising here would
+        # swallow it (the test_should_error_on_database_shutdown_using_tx_run
+        # stub regression). All flush call sites pair with a
+        # fetch_response, so a peer-gone scenario with nothing buffered
+        # still surfaces as ServiceUnavailableException — just from the
+        # read side rather than the write side.
         def flush
-          with_wire_error_handling { @socket.flush }
+          @socket.flush
+        rescue IOError, SystemCallError
+          # nothing — see method comment
         end
 
         def fetch_response

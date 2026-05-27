@@ -60,13 +60,13 @@ module Neo4j
         fetch_size = effective_fetch_size
 
         # send/flush are inside the begin block so a transport-level
-        # failure on the write (e.g. EPIPE when the peer has already
-        # closed — JRuby surfaces this immediately, where MRI tends to
-        # buffer and the failure shows up on fetch_response instead)
-        # still sets @failed and goes through classify_failure. Without
-        # this, session.close's subsequent rollback path takes the
-        # ROLLBACK-message branch (rather than rollback_via_reset) and
-        # re-fails on the dead connection.
+        # failure surfacing on fetch_response (now the single source —
+        # Connection#flush silently defers wire errors so a buffered
+        # server response is read before any peer-closed write error
+        # is raised) still sets @failed and goes through
+        # classify_failure. Without this, session.close's subsequent
+        # rollback path takes the ROLLBACK-message branch (rather than
+        # rollback_via_reset) and re-fails on the dead connection.
         run_response =
           begin
             @connection.send_message(Bolt::Message.run(query, parameters))
