@@ -97,29 +97,54 @@ module Neo4j
       # (keys, materialised records, summary). Convenience for "I just
       # want results, don't make me build a session".
       #
-      # `config`: :database (str), :routing (RoutingControl::READ/WRITE),
-      #   :impersonatedUser, :bookmarkManagerId, :txMeta, :timeout,
-      #   :authorizationToken.
-      # Honours :database and :routing today; ignores the rest until the
-      # corresponding driver features land (impersonation, bookmark
-      # manager, per-session auth, etc.).
+      # Signature: `(query, params = {}, config = {})`. Same shape
+      # Session#run uses.
+      #
+      # `config` keys (snake_case):
+      #   :database            — string, the database to target.
+      #   :routing             — RoutingControl::READ / ::WRITE.
+      #   :bookmark_manager    — BookmarkManager for cross-session
+      #                          causal consistency. Pass `nil`
+      #                          explicitly to disable; omit to use
+      #                          the driver default.
+      #   :impersonated_user   — server runs the query as if this user
+      #                          had issued it (Bolt 4.4+, requires
+      #                          impersonator privileges).
+      #   :metadata            — map echoed back in summary; used by
+      #                          query-log / monitoring tooling.
+      #   :timeout             — seconds (or ActiveSupport::Duration);
+      #                          server-side transaction timeout.
+      #   :auth_token          — accepted but not yet honoured —
+      #                          per-call auth is its own slice
+      #                          (Bolt 5.1+ LOGOFF/LOGON).
       def execute_query(cypher, params = {}, config = {})
-        routing = config[:routing] || config['routing'] || RoutingControl::WRITE
-        database = config[:database] || config['database']
-        bookmark_manager = config[:bookmark_manager] || config['bookmark_manager']
+        routing = config[:routing] || RoutingControl::WRITE
 
+        # `bookmark_manager: nil` is meaningful (explicitly disables the
+        # manager) and differs from omitting the key, so it's added
+        # conditionally rather than via .compact. `:database` /
+        # `:impersonated_user` keep .compact semantics (nil == omitted).
         session_opts = {
-          database: database,
-          default_access_mode: routing
+          database: config[:database],
+          default_access_mode: routing,
+          impersonated_user: config[:impersonated_user]
+        }.compact
+        session_opts[:bookmark_manager] = config[:bookmark_manager] if config.key?(:bookmark_manager)
+
+        # Forwarded to the managed-tx call below — the BEGIN extras
+        # honour metadata/timeout per-tx, not session-wide.
+        tx_kwargs = {
+          metadata: config[:metadata],
+          timeout: config[:timeout]
         }.compact
 
         keys = nil
         records = nil
         summary = nil
 
-        session(session_opts) do |s|
+        session(**session_opts) do |s|
           method = routing == RoutingControl::READ ? :execute_read : :execute_write
-          s.send(method) do |tx|
+          s.send(method, **tx_kwargs) do |tx|
             result = tx.run(cypher, **params)
             records = result.to_a
             keys = result.keys

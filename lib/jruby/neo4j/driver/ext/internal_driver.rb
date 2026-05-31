@@ -11,7 +11,11 @@ module Neo4j
 
         auto_closeable :session
 
-        def execute_query(query, auth_token = nil, config = {}, **parameters)
+        # See lib/mri/.../driver.rb. auth_token is part of `config` in the
+        # published surface, but Java's builder takes it as a separate
+        # setter — pull it out before handing the rest to QueryConfig.
+        def execute_query(query, parameters = {}, config = {})
+          auth_token = config.delete(:auth_token)
           check do
             executable_query(query)
               .with_auth_token(auth_token)

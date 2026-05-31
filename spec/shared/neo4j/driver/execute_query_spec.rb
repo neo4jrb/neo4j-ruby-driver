@@ -4,13 +4,12 @@ RSpec.describe Neo4j::Driver do
 
   describe '#execute_query', version: '>=5' do
     context 'when querying the database' do
-      it 'accepts query with default auth_token, config hash and parameters' do
+      it 'accepts query with params hash and config hash' do
         expect {
           driver.execute_query(
             'MATCH (p:Person {age: $age}) RETURN p.name AS name',
-            nil,
-            { database: 'neo4j' },
-            age: 42
+            { age: 42 },
+            { database: 'neo4j' }
           )
         }.not_to raise_error
       end
@@ -70,25 +69,24 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'when using query configuration' do
-      it 'accepts nil auth_token with config hash and parameters' do
+      it 'accepts params hash and config hash together' do
         expect {
           driver.execute_query(
             'MATCH (p:Person) RETURN p.name',
-            nil,
-            { database: 'neo4j' },
-            age: 42
+            { age: 42 },
+            { database: 'neo4j' }
           )
         }.not_to raise_error
       end
 
-      it 'accepts auth_token with keyword parameters' do
+      it 'accepts an auth_token in config alongside a params hash' do
         auth_token = Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password)
 
         expect {
           driver.execute_query(
             'MATCH (p:Person) RETURN p.name',
-            auth_token,
-            age: 42
+            { age: 42 },
+            auth_token: auth_token
           )
         }.not_to raise_error
       end
@@ -96,13 +94,13 @@ RSpec.describe Neo4j::Driver do
 
     context 'when routing with RoutingControl' do
       it 'reads with RoutingControl::READ' do
-        result = driver.execute_query('RETURN 1 AS n', nil, { routing: Neo4j::Driver::RoutingControl::READ })
+        result = driver.execute_query('RETURN 1 AS n', {}, { routing: Neo4j::Driver::RoutingControl::READ })
         expect(result.records.first[:n]).to eq 1
       end
 
       it 'writes with RoutingControl::WRITE' do
         expect {
-          driver.execute_query('CREATE (:RoutingControlSpec)', nil, { routing: Neo4j::Driver::RoutingControl::WRITE })
+          driver.execute_query('CREATE (:RoutingControlSpec)', {}, { routing: Neo4j::Driver::RoutingControl::WRITE })
         }.not_to raise_error
       end
     end
@@ -145,14 +143,12 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'parameter handling' do
-      it 'handles mixed positional and keyword arguments correctly' do
+      it 'handles params hash and config hash together' do
         expect {
           driver.execute_query(
             'MATCH (p:Person {age: $age, name: $name}) RETURN p',
-            nil,
-            { database: 'neo4j' },
-            age: 42,
-            name: 'Alice'
+            { age: 42, name: 'Alice' },
+            { database: 'neo4j' }
           )
         }.not_to raise_error
       end
