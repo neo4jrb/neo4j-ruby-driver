@@ -60,12 +60,14 @@ module Neo4j
         fetch_size = effective_fetch_size
 
         # send/flush are inside the begin block so a transport-level
-        # failure surfacing on fetch_response (now the single source —
-        # Connection#flush silently defers wire errors so a buffered
-        # server response is read before any peer-closed write error
-        # is raised) still sets @failed and goes through
-        # classify_failure. Without this, session.close's subsequent
-        # rollback path takes the ROLLBACK-message branch (rather than
+        # failure surfacing on fetch_response still sets @failed and
+        # goes through classify_failure. Connection#send_message and
+        # #flush both defer peer-closed errors so a buffered server
+        # FAILURE is read before fetch_response can raise its own
+        # EOF-driven ServiceUnavailableException — JRuby surfaces
+        # EPIPE eagerly, MRI tends to defer it naturally. Without
+        # this rescue placement, session.close's subsequent rollback
+        # path takes the ROLLBACK-message branch (rather than
         # rollback_via_reset) and re-fails on the dead connection.
         run_response =
           begin

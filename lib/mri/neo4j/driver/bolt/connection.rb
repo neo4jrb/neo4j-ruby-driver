@@ -108,10 +108,17 @@ module Neo4j
         # `respond_to?` guards.
         def classify_failure(error) = error
 
+        # Defer peer-closed errors from the write path for the same
+        # reason as #flush: a server FAILURE buffered before the peer
+        # closed should be readable via the subsequent fetch_response.
+        # The actually-broken case still surfaces — fetch_response will
+        # hit EOF and raise ServiceUnavailableException through
+        # with_wire_error_handling. We push :pending unconditionally so
+        # the caller's fetch_response always runs.
         def send_message(message)
-          with_wire_error_handling do
-            raise IOError, 'Connection is closed' if closed?
+          raise IOError, 'Connection is closed' if closed?
 
+          begin
             @packer.reset
             @packer.pack_message(message)
             data = @packer.bytes
@@ -121,9 +128,11 @@ module Neo4j
 
             # End marker (0x00 0x00)
             @socket.write([0x00, 0x00].pack('S>'))
-
-            @response_queue << :pending
+          rescue Errno::EPIPE, Errno::ECONNRESET
+            # peer-closed — see method comment
           end
+
+          @response_queue << :pending
         end
 
         def send_all(*messages)
@@ -156,18 +165,28 @@ module Neo4j
           raise
         end
 
-        # Defer wire errors from flush until fetch_response runs. The
-        # server may have queued a final FAILURE response before
-        # closing — under JRuby's eager EPIPE, raising here would
-        # swallow it (the test_should_error_on_database_shutdown_using_tx_run
-        # stub regression). All flush call sites pair with a
-        # fetch_response, so a peer-gone scenario with nothing buffered
-        # still surfaces as ServiceUnavailableException — just from the
-        # read side rather than the write side.
+        # Defer peer-closed errors from flush so a buffered server
+        # response (e.g. a final FAILURE) gets read before we raise.
+        # Under JRuby the peer-closed state surfaces eagerly on the
+        # very next write/flush; raising here would swallow the
+        # FAILURE bytes already in the receive buffer — the
+        # test_should_error_on_database_shutdown_using_tx_run stub
+        # regression. Every normal request/response cycle pairs flush
+        # with a fetch_response (Transaction#run/commit/rollback,
+        # Result streaming, Connection#route), so a peer-gone state
+        # with nothing buffered still surfaces as
+        # ServiceUnavailableException — just from the read side.
+        # Connection#close also calls flush but discards exceptions
+        # itself (`flush rescue nil`), so it does not need the pair.
+        # Non-peer-closed wire errors (e.g. a timed-out write on a
+        # socket that has SO_SNDTIMEO set, or EBADF on a
+        # closed-out-from-under-us fd) are NOT silenced — they fall
+        # through and propagate. We do not set SO_SNDTIMEO and the fd
+        # is owned by us, so these are improbable in practice.
         def flush
           @socket.flush
-        rescue IOError, SystemCallError
-          # nothing — see method comment
+        rescue Errno::EPIPE, Errno::ECONNRESET
+          # peer-closed — see method comment
         end
 
         def fetch_response
