@@ -55,7 +55,7 @@ module TestkitBackend
         # JRuby docker image needs the test CAs imported into the JDK
         # truststore (Dockerfile's keytool loop) — without that the
         # +s scheme tests fail because system-trust ≠ Java-trust.
-        'Feature:TLS:1.1'                                   => 'ja',
+        'Feature:TLS:1.1'                                   => 'a',
         'Feature:TLS:1.2'                                   => 'jar',
         'Feature:TLS:1.3'                                   => 'jar',
 
