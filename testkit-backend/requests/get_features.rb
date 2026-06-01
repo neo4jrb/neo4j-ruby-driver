@@ -55,7 +55,7 @@ module TestkitBackend
         # JRuby docker image needs the test CAs imported into the JDK
         # truststore (Dockerfile's keytool loop) — without that the
         # +s scheme tests fail because system-trust ≠ Java-trust.
-        'Feature:TLS:1.1'                                   => 'a',
+        'Feature:TLS:1.1'                                   => 'ja',
         'Feature:TLS:1.2'                                   => 'jar',
         'Feature:TLS:1.3'                                   => 'jar',
 
@@ -63,7 +63,7 @@ module TestkitBackend
         'Feature:Auth:Bearer'                               => 'jar',
         'Feature:Auth:Custom'                               => 'jar',
         'Feature:Auth:Kerberos'                             => 'jar',
-        'Feature:Auth:Managed'                              => 'a',
+        'Feature:Auth:Managed'                              => 'ja',
         'AuthorizationExpiredTreatment'                     => 'ja',
 
         # --- Public API surface ----------------------------------------------
@@ -76,22 +76,22 @@ module TestkitBackend
         'Feature:API:Driver.VerifyAuthentication'           => 'ja',
         'Feature:API:Driver.VerifyConnectivity'             => 'jr',
         'Feature:API:Driver.SupportsSessionAuth'            => 'ja',
-        'Feature:API:Driver:MaxConnectionLifetime'          => 'ar',
+        'Feature:API:Driver:MaxConnectionLifetime'          => 'jar',
         'Feature:API:Liveness.Check'                        => 'jar',
         'Feature:API:Result.List'                           => 'jar',
         'Feature:API:Result.Peek'                           => 'jar',
         'Feature:API:Result.Single'                         => 'jar',
         'Feature:API:Result.SingleOptional'                 => '',
         'Feature:API:RetryableExceptions'                   => '',
-        'Feature:API:Session:AuthConfig'                    => 'a',
-        'Feature:API:Session:NotificationsConfig'           => 'a',
-        'Feature:API:SSLClientCertificate'                  => 'a', # mTLS client cert not yet wired on Ruby
+        'Feature:API:Session:AuthConfig'                    => 'ja',
+        'Feature:API:Session:NotificationsConfig'           => 'ja',
+        'Feature:API:SSLClientCertificate'                  => 'ja', # mTLS client cert not yet wired on Ruby
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
-        'Feature:API:Summary:GqlStatusObjects'              => 'a',
+        'Feature:API:Summary:GqlStatusObjects'              => 'ja',
         'Feature:API:Type.Spatial'                          => '',
-        'Feature:API:Type.Temporal'                         => 'a',  # most pass on Java; subtest gating still missing on Ruby
-        'Feature:API:Type.UnsupportedType'                  => 'a',
+        'Feature:API:Type.Temporal'                         => 'ja',  # most pass on Java; subtest gating still missing on Ruby
+        'Feature:API:Type.UnsupportedType'                  => 'ja',
         'Feature:API:Type.Vector'                           => '',
 
         # --- Other features --------------------------------------------------
@@ -99,11 +99,11 @@ module TestkitBackend
         'Feature:IdempotentRetries'                         => '',
 
         # --- Optimizations ---------------------------------------------------
-        'Optimization:AuthPipelining'                       => 'a',
+        'Optimization:AuthPipelining'                       => 'ja',
         'Optimization:ConnectionReuse'                      => '',  # disabled in Java too
         'Optimization:EagerTransactionBegin'                => 'ja',
-        'Optimization:ExecuteQueryPipelining'               => 'a',
-        'Optimization:HomeDatabaseCache'                    => 'a',
+        'Optimization:ExecuteQueryPipelining'               => 'ja',
+        'Optimization:HomeDatabaseCache'                    => 'ja',
         'Optimization:ImplicitDefaultArguments'             => 'ja',
         'Optimization:MinimalBookmarksSet'                  => '',
         'Optimization:MinimalResets'                        => '',  # disabled in Java too
@@ -111,7 +111,7 @@ module TestkitBackend
         'Optimization:ResultListFetchAll'                   => 'ja',
 
         # --- Backend / detail ------------------------------------------------
-        'Backend:MockTime'                                  => 'a',
+        'Backend:MockTime'                                  => 'ja',
         # MRI: routes through driver.session_factory.connection_provider
         # .routing_table_registry.routing_table_handler(db).routing_table —
         # mirrors Java's internal API on top of Routing::LoadBalancer.
