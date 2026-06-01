@@ -16,6 +16,7 @@ module Neo4j
 
       def initialize(uri, auth, options = {})
         @uri = URI(uri)
+        @auth = auth
         @options = options
         @closed = false
         @connection_provider = build_connection_provider(@uri, auth)
@@ -156,27 +157,40 @@ module Neo4j
       end
 
       # Verify that the supplied auth token would succeed against the
-      # server, without disturbing the existing connection state.
-      #
-      # NOT YET IMPLEMENTED: needs a "test-only" connection probe that
-      # runs HELLO/LOGON with the supplied token, classifies the outcome,
-      # and reports back. See VerifyAuthentication in the testkit-backend
-      # for the expected response shape.
-      def verify_authentication(_auth_token)
-        raise NotImplementedError,
-              'Driver#verify_authentication: HELLO/LOGON probe not yet implemented'
+      # server, without disturbing the existing connection state. Opens
+      # a one-shot connection with the supplied token (or the driver's
+      # default when nil), discards it after HELLO/LOGON. Returns true
+      # on SUCCESS, false on AuthenticationException; transport / other
+      # exceptions propagate so the caller can distinguish "credentials
+      # rejected" from "server unreachable".
+      # Requires Bolt 5.1+ (re-auth support). Older protocols can still
+      # use this — they just authenticate inside HELLO instead of via a
+      # separate LOGON — but mixing per-call auth across sessions on
+      # the same physical connection wants 5.1's split semantics.
+      def verify_authentication(auth_token = nil)
+        probe = Bolt::Connection.new(@uri, auth_token || @auth, @options)
+        probe.connect
+        true
+      rescue Exceptions::AuthenticationException, Exceptions::SecurityException
+        false
+      ensure
+        probe&.close
       end
 
       # Server-level info (address, agent, protocol version) for the
-      # current driver — useful for tests that want the negotiated
-      # version without running a query.
-      #
-      # NOT YET IMPLEMENTED: a clean port acquires any connection,
-      # reads .address / .protocol.agent / .protocol.version_string,
-      # releases, and returns a struct.
+      # current driver — useful for health checks / observability that
+      # want the negotiated version without running a query. HELLO
+      # already populated everything we need, so this is a connect-
+      # release with no extra wire traffic.
       def server_info
-        raise NotImplementedError,
-              'Driver#server_info: not yet exposed (probe-and-return needed)'
+        connection = @connection_provider.acquire(access_mode: :read)
+        Summary::ServerInfo.new(
+          address: connection.address,
+          agent: connection.server_agent,
+          protocol_version: connection.protocol&.version&.to_s
+        )
+      ensure
+        @connection_provider.release(connection) if connection
       end
 
       # Per-server-address pool metrics: how many connections currently
