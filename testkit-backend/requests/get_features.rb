@@ -90,7 +90,7 @@ module TestkitBackend
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'ja',
         'Feature:API:Type.Spatial'                          => '',
-        'Feature:API:Type.Temporal'                         => 'ja',  # most pass on Java; subtest gating still missing on Ruby
+        'Feature:API:Type.Temporal'                         => 'a',  # most pass on Java; subtest gating still missing on Ruby
         'Feature:API:Type.UnsupportedType'                  => 'ja',
         'Feature:API:Type.Vector'                           => '',
 
