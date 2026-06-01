@@ -88,10 +88,10 @@ module TestkitBackend
         'Feature:API:SSLClientCertificate'                  => 'a', # mTLS client cert not yet wired on Ruby
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
-        'Feature:API:Summary:GqlStatusObjects'              => 'a',
+        'Feature:API:Summary:GqlStatusObjects'              => 'ja',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'a',  # most pass on Java; subtest gating still missing on Ruby
-        'Feature:API:Type.UnsupportedType'                  => 'a',
+        'Feature:API:Type.UnsupportedType'                  => 'ja',
         'Feature:API:Type.Vector'                           => '',
 
         # --- Other features --------------------------------------------------
@@ -99,11 +99,11 @@ module TestkitBackend
         'Feature:IdempotentRetries'                         => '',
 
         # --- Optimizations ---------------------------------------------------
-        'Optimization:AuthPipelining'                       => 'a',
+        'Optimization:AuthPipelining'                       => 'ja',
         'Optimization:ConnectionReuse'                      => '',  # disabled in Java too
         'Optimization:EagerTransactionBegin'                => 'ja',
-        'Optimization:ExecuteQueryPipelining'               => 'a',
-        'Optimization:HomeDatabaseCache'                    => 'a',
+        'Optimization:ExecuteQueryPipelining'               => 'ja',
+        'Optimization:HomeDatabaseCache'                    => 'ja',
         'Optimization:ImplicitDefaultArguments'             => 'ja',
         'Optimization:MinimalBookmarksSet'                  => '',
         'Optimization:MinimalResets'                        => '',  # disabled in Java too
