@@ -63,7 +63,7 @@ module TestkitBackend
         'Feature:Auth:Bearer'                               => 'jar',
         'Feature:Auth:Custom'                               => 'jar',
         'Feature:Auth:Kerberos'                             => 'jar',
-        'Feature:Auth:Managed'                              => 'ja',
+        'Feature:Auth:Managed'                              => 'a',
         'AuthorizationExpiredTreatment'                     => 'ja',
 
         # --- Public API surface ----------------------------------------------
@@ -76,16 +76,16 @@ module TestkitBackend
         'Feature:API:Driver.VerifyAuthentication'           => 'ja',
         'Feature:API:Driver.VerifyConnectivity'             => 'jr',
         'Feature:API:Driver.SupportsSessionAuth'            => 'ja',
-        'Feature:API:Driver:MaxConnectionLifetime'          => 'jar',
+        'Feature:API:Driver:MaxConnectionLifetime'          => 'ar',
         'Feature:API:Liveness.Check'                        => 'jar',
         'Feature:API:Result.List'                           => 'jar',
         'Feature:API:Result.Peek'                           => 'jar',
         'Feature:API:Result.Single'                         => 'jar',
         'Feature:API:Result.SingleOptional'                 => '',
         'Feature:API:RetryableExceptions'                   => '',
-        'Feature:API:Session:AuthConfig'                    => 'ja',
-        'Feature:API:Session:NotificationsConfig'           => 'ja',
-        'Feature:API:SSLClientCertificate'                  => 'ja', # mTLS client cert not yet wired on Ruby
+        'Feature:API:Session:AuthConfig'                    => 'a',
+        'Feature:API:Session:NotificationsConfig'           => 'a',
+        'Feature:API:SSLClientCertificate'                  => 'a', # mTLS client cert not yet wired on Ruby
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'ja',
@@ -111,7 +111,7 @@ module TestkitBackend
         'Optimization:ResultListFetchAll'                   => 'ja',
 
         # --- Backend / detail ------------------------------------------------
-        'Backend:MockTime'                                  => 'ja',
+        'Backend:MockTime'                                  => 'a',
         # MRI: routes through driver.session_factory.connection_provider
         # .routing_table_registry.routing_table_handler(db).routing_table —
         # mirrors Java's internal API on top of Routing::LoadBalancer.
