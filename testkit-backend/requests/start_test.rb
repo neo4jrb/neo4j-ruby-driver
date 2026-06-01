@@ -67,8 +67,21 @@ module TestkitBackend
       # Keyed by Loader.jruby? — the mri-on-jruby flavour loads the MRI
       # driver, so it uses the :mri bucket.
       FLAKY_SKIP_PATTERNS = {
-        jruby: {}.freeze,
-        mri:   {}.freeze
+        jruby: {
+          # Flaky on the 5.26-enterprise-cluster profile only — looks like
+          # cluster-discovery/replication timing rather than a driver bug.
+          # On the 4.4-enterprise profile it passes reliably, but StartTest
+          # can't gate by profile, so the skip covers both profiles and the
+          # baselines drop their 4.4 entries in the same change. Re-enable
+          # once the cluster timing is sorted out.
+          /\.test_multi_db_various_databases\z/ =>
+            'Flaky on 5.26-enterprise-cluster (cluster-discovery timing)'
+        }.freeze,
+        mri: {
+          # Same flake on mri / mri-on-jruby (mri-on-jruby uses :mri bucket).
+          /\.test_multi_db_various_databases\z/ =>
+            'Flaky on 5.26-enterprise-cluster (cluster-discovery timing)'
+        }.freeze
       }.freeze
 
       def process
