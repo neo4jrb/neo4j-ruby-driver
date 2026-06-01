@@ -130,6 +130,7 @@ Integration tests 5.26-enterprise-cluster-neo4j::test_long_string (tests.neo4j.t
 Integration tests 5.26-enterprise-cluster-neo4j::test_meta_data (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_meta_data)
 Integration tests 5.26-enterprise-cluster-neo4j::test_multi_db (tests.neo4j.test_direct_driver.TestDirectDriver.test_multi_db)
 Integration tests 5.26-enterprise-cluster-neo4j::test_multi_db_non_existing (tests.neo4j.test_direct_driver.TestDirectDriver.test_multi_db_non_existing)
+Integration tests 5.26-enterprise-cluster-neo4j::test_multi_db_various_databases (tests.neo4j.test_direct_driver.TestDirectDriver.test_multi_db_various_databases)
 Integration tests 5.26-enterprise-cluster-neo4j::test_no_bookmark_after_rollback (tests.neo4j.test_bookmarks.TestBookmarks.test_no_bookmark_after_rollback)
 Integration tests 5.26-enterprise-cluster-neo4j::test_no_plan_info (tests.neo4j.test_summary.TestSummary.test_no_plan_info)
 Integration tests 5.26-enterprise-cluster-neo4j::test_parallel_queries (tests.neo4j.test_tx_run.TestTxRun.test_parallel_queries)
