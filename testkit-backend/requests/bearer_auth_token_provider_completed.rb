@@ -1,11 +1,9 @@
 module TestkitBackend
   module Requests
-    # See AuthTokenManagerGetAuthCompleted.
+    # Frontend reply to a backend->frontend BearerAuthTokenProviderRequest,
+    # read inline by NewBearerAuthTokenManager#supply. Writes no response.
     class BearerAuthTokenProviderCompleted < Request
-      def process
-        named_entity('BackendError',
-                     msg: 'BearerAuthTokenProvider callbacks are not implemented (driver does not advertise Feature:Auth:Managed)')
-      end
+      def process; end
     end
   end
 end

@@ -26,8 +26,18 @@ module Neo4j
         end
 
         def session(**session_config)
-          java_method(:session, [org.neo4j.driver.SessionConfig])
-            .call(to_java_config(Neo4j::Driver::SessionConfig, **session_config))
+          # auth_token is a per-session override (Feature:API:Session:AuthConfig);
+          # Java exposes it via Driver.session(Class<T>, SessionConfig, AuthToken).
+          auth_token = session_config.delete(:auth_token)
+          java_session_config = to_java_config(Neo4j::Driver::SessionConfig, **session_config)
+          if auth_token
+            java_method(:session,
+                        [java.lang.Class, org.neo4j.driver.SessionConfig, org.neo4j.driver.AuthToken])
+              .call(org.neo4j.driver.Session.java_class, java_session_config, auth_token)
+          else
+            java_method(:session, [org.neo4j.driver.SessionConfig])
+              .call(java_session_config)
+          end
         end
 
         def async_session(**session_config)

@@ -1,11 +1,9 @@
 module TestkitBackend
   module Requests
-    # See AuthTokenManagerGetAuthCompleted.
+    # Frontend reply to a backend->frontend BasicAuthTokenProviderRequest,
+    # read inline by NewBasicAuthTokenManager#supply. Writes no response.
     class BasicAuthTokenProviderCompleted < Request
-      def process
-        named_entity('BackendError',
-                     msg: 'BasicAuthTokenProvider callbacks are not implemented (driver does not advertise Feature:Auth:Managed)')
-      end
+      def process; end
     end
   end
 end

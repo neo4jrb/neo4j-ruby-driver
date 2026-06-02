@@ -6,7 +6,10 @@ module TestkitBackend
       end
 
       def to_object
-        auth_token = Request.object_from(authorization_token)
+        # testkit's NewDriver asserts that exactly one of authToken /
+        # authTokenManagerId is set — the cached manager (custom / basic
+        # / bearer) takes the AuthToken slot when present.
+        auth = auth_token_manager_id ? fetch(auth_token_manager_id) : Request.object_from(authorization_token)
         config = {
           user_agent: user_agent,
           connection_timeout: timeout_duration(connection_timeout_ms),
@@ -25,9 +28,9 @@ module TestkitBackend
         }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         if domain_name_resolver_registered
-          Neo4j::Driver::GraphDatabase.internal_driver(uri, auth_token, **config, &method(:domain_name_resolver))
+          Neo4j::Driver::GraphDatabase.internal_driver(uri, auth, **config, &method(:domain_name_resolver))
         else
-          Neo4j::Driver::GraphDatabase.driver(uri, auth_token, **config)
+          Neo4j::Driver::GraphDatabase.driver(uri, auth, **config)
         end
       end
 
