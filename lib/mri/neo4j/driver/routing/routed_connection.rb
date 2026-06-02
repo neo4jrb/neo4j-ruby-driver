@@ -51,7 +51,8 @@ module Neo4j
                        :closed?, :close, :pending_responses?,
                        :send_message, :send_all, :flush,
                        :fetch_response, :fetch_all,
-                       :reset!, :route
+                       :reset!, :route,
+                       :auth, :driver_auth, :authenticate
 
         # Run a caught exception through the routing classifier:
         # - ServiceUnavailableException → deactivate(address); mark

@@ -17,6 +17,11 @@ module Neo4j
 
         def initialize(uri, auth, options = {})
           @uri = URI(uri)
+          # The driver's stored auth — the identity HELLO/LOGON
+          # authenticated as on connect, and what Session restores via
+          # authenticate(driver_auth) when no per-session :auth was
+          # given but a previous lessee had switched identity.
+          @driver_auth = auth
           @auth = auth
           @options = options
           @socket = nil
@@ -97,6 +102,34 @@ module Neo4j
 
         def closed?
           @closed || @socket&.closed?
+        end
+
+        # Current auth identity (set by HELLO/LOGON, updated by
+        # `authenticate`) and the driver's stored identity (set once at
+        # construction). Sessions read driver_auth as the "no per-
+        # session :auth was given" default — calling
+        # authenticate(driver_auth) on every acquire makes the pool's
+        # auth-bleed problem disappear without needing connection-pin
+        # bookkeeping.
+        attr_reader :auth, :driver_auth
+
+        # Bolt 5.1+ re-auth: LOGOFF then LOGON with `new_auth`. Used by
+        # Session when it has its own `:auth` and the pooled connection
+        # is currently authenticated as somebody else. No-op when the
+        # connection already holds the target identity.
+        def authenticate(new_auth)
+          return if @auth == new_auth
+          unless @protocol&.supports_re_auth?
+            raise Exceptions::UnsupportedFeatureException,
+                  "Per-session auth requires Bolt 5.1+; negotiated #{@bolt_version}"
+          end
+
+          send_message(Message.logoff)
+          send_message(Message.logon(new_auth || {}))
+          flush
+          fetch_response.assert_success!
+          fetch_response.assert_success!
+          @auth = new_auth
         end
 
         # No-op classifier for the direct (bolt://) path — there's no
