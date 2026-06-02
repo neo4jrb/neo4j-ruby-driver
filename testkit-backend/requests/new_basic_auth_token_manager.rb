@@ -12,7 +12,7 @@ module TestkitBackend
 
       def to_object
         manager = nil
-        manager = Neo4j::Driver::AuthTokenManagers.basic(supplier: -> { supply(manager.object_id) })
+        manager = Neo4j::Driver::AuthTokenManagers.basic(-> { supply(manager.object_id) })
       end
 
       private
