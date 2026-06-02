@@ -10,26 +10,25 @@ module Neo4j
 
         auto_closeable :driver
 
-        def driver(uri, auth = Neo4j::Driver::AuthTokens.none, **config)
+        def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, auth_token_manager: nil, **config)
           check do
             java_config = to_java_config(Neo4j::Driver::Config, **config)
-            manager = to_java_auth_manager(auth)
-            if manager
+            if auth_token_manager
               java_method(:driver, [java.lang.String, org.neo4j.driver.AuthTokenManager, org.neo4j.driver.Config])
-                .call(uri.to_s, manager, java_config)
+                .call(uri.to_s, to_java_auth_manager(auth_token_manager), java_config)
             else
               java_method(:driver, [java.lang.String, org.neo4j.driver.AuthToken, org.neo4j.driver.Config])
-                .call(uri.to_s, auth, java_config)
+                .call(uri.to_s, auth_token, java_config)
             end
           end
         end
 
-        def internal_driver(uri, auth = Neo4j::Driver::AuthTokens.none, **config, &domain_name_resolver)
+        def internal_driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, auth_token_manager: nil, **config, &domain_name_resolver)
           check do
             java_uri = java.net.URI.create(uri.to_s)
             java_config = to_java_config(Neo4j::Driver::Config, **config)
-            manager = to_java_auth_manager(auth) ||
-                      org.neo4j.driver.internal.security.StaticAuthTokenManager.new(auth)
+            manager = auth_token_manager ? to_java_auth_manager(auth_token_manager) :
+                      org.neo4j.driver.internal.security.StaticAuthTokenManager.new(auth_token)
             Internal::DriverFactory
               .new(&domain_name_resolver)
               .new_instance(java_uri, manager,
@@ -40,21 +39,16 @@ module Neo4j
 
         private
 
-        # `auth` may be:
-        # (a) a Java AuthTokenManager — `.basic` / `.bearer` factories
-        #     return one of these directly (Java's
-        #     `ExpirationBasedAuthTokenManager`); pass through.
-        # (b) a duck-typed Ruby manager responding to `get_token` —
-        #     `Neo4j::Driver::AuthTokenManager` or any client class
-        #     that follows the protocol — wrap in the JRuby-only
-        #     adapter that bridges to Java's interface.
-        # (c) anything else — treated as an `AuthToken`; caller takes
-        #     the AuthToken path.
-        def to_java_auth_manager(auth)
-          return auth if auth.is_a?(Java::OrgNeo4jDriver::AuthTokenManager)
-          return Internal::AuthTokenManagerAdapter.new(auth) if auth.respond_to?(:get_token)
-
-          nil
+        # `auth_token_manager` may be a Java AuthTokenManager
+        # (`AuthTokenManagers.basic / .bearer` return one of these
+        # directly — Java's `ExpirationBasedAuthTokenManager`) — pass
+        # through. Or a duck-typed Ruby manager
+        # (`Neo4j::Driver::AuthTokenManager` or any client class
+        # responding to `get_token`) — wrap in the JRuby-only adapter
+        # that bridges to Java's interface.
+        def to_java_auth_manager(manager)
+          manager.is_a?(Java::OrgNeo4jDriver::AuthTokenManager) ? manager :
+            Internal::AuthTokenManagerAdapter.new(manager)
         end
       end
     end
