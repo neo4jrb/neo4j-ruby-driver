@@ -16,6 +16,7 @@ module Neo4j
         # so we wrap the user's sync return in a pre-completed future.
         class AuthTokenManagerAdapter
           include Java::OrgNeo4jDriver::AuthTokenManager
+          include ExceptionMapper
 
           def initialize(manager)
             @manager = manager
@@ -25,8 +26,12 @@ module Neo4j
             java.util.concurrent.CompletableFuture.completed_future(@manager.get_token)
           end
 
+          # The Java driver hands us a Java SecurityException (or a
+          # subclass: TokenExpired, Authentication, AuthorizationExpired).
+          # Map it to its Ruby counterpart so the manager only ever sees
+          # `Neo4j::Driver::Exceptions::*`, never a Java type.
           def handle_security_exception(token, exception)
-            @manager.handle_security_exception(token, exception)
+            @manager.handle_security_exception(token, mapped_exception(exception))
           end
         end
       end
