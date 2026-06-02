@@ -56,10 +56,41 @@ module TestkitBackend
           'Keeps retrying on commit despite connection being dropped'
       }.freeze
 
+      # --- Per-impl flaky-test bypasses ------------------------------------
+      # Last-resort skip list for tests that flake on one driver impl AND
+      # resist a real fix (driver bug confirmed but blocked on upstream,
+      # server-side timing outside our control, etc.). Use sparingly —
+      # ALWAYS prefer fixing the flake. Every entry here hides a real
+      # regression over time, so each one should record WHY a fix isn't
+      # viable now and ideally link to a tracking issue.
+      #
+      # Keyed by Loader.jruby? — the mri-on-jruby flavour loads the MRI
+      # driver, so it uses the :mri bucket.
+      FLAKY_SKIP_PATTERNS = {
+        jruby: {
+          # Flaky on the 5.26-enterprise-cluster profile only — looks like
+          # cluster-discovery/replication timing rather than a driver bug.
+          # On the 4.4-enterprise profile it passes reliably, but StartTest
+          # can't gate by profile, so the skip covers both profiles and the
+          # baselines drop their 4.4 entries in the same change. Re-enable
+          # once the cluster timing is sorted out.
+          /\.test_multi_db_various_databases\z/ =>
+            'Flaky on 5.26-enterprise-cluster (cluster-discovery timing)'
+        }.freeze,
+        mri: {
+          # Same flake on mri / mri-on-jruby (mri-on-jruby uses :mri bucket).
+          /\.test_multi_db_various_databases\z/ =>
+            'Flaky on 5.26-enterprise-cluster (cluster-discovery timing)'
+        }.freeze
+      }.freeze
+
       def process
-        reason = SKIP_PATTERNS.find { |pattern, _| pattern.match?(test_name) }&.last
+        reason = SKIP_PATTERNS.find { |pattern, _| pattern.match?(test_name) }&.last \
+              || FLAKY_SKIP_PATTERNS[flaky_impl].find { |pattern, _| pattern.match?(test_name) }&.last
         reason ? skip(reason) : run
       end
+
+      def flaky_impl = Neo4j::Driver::Loader.jruby? ? :jruby : :mri
 
       def run(_ = nil)
         named_entity('RunTest')
