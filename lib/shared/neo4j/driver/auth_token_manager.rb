@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+
 
 module Neo4j
   module Driver
@@ -17,7 +17,7 @@ module Neo4j
     # subclass and override the methods directly; no inheritance is
     # required, the protocol is duck-typed.
     class AuthTokenManager
-      def initialize(get_token:, handle_security_exception:)
+      def initialize(get_token, handle_security_exception)
         @get_token = get_token
         @handle_security_exception = handle_security_exception
       end

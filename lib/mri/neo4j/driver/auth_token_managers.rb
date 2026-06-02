@@ -19,11 +19,11 @@ module Neo4j
     module AuthTokenManagers
       class << self
         def basic(supplier)
-          AuthTokenManager.new(get_token: supplier, handle_security_exception: ->(_, _) { false })
+          AuthTokenManager.new(supplier, ->(_, _) { false })
         end
 
         def bearer(supplier)
-          AuthTokenManager.new(get_token: supplier, handle_security_exception: ->(_, _) { false })
+          AuthTokenManager.new(supplier, ->(_, _) { false })
         end
       end
     end
