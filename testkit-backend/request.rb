@@ -26,14 +26,20 @@ module TestkitBackend
       Neo4j::Driver::Exceptions::NoSuchRecordException, Neo4j::Driver::Exceptions::UntrustedServerException,
       ArgumentError => e
       puts e
-      puts e.backtrace_locations
+      puts trace_for(e)
       driver_error(e)
     rescue TestkitBackend::Requests::RollbackException => e
       named_entity('FrontendError', msg: "")
     rescue StandardError => e
       puts e.inspect
-      puts e.backtrace_locations
+      puts trace_for(e)
       named_entity('BackendError', msg: e.message)
+    end
+
+    # Java exceptions raised on JRuby don't expose Ruby's backtrace_locations;
+    # fall back to backtrace (which JRuby maps from the Java stack trace).
+    def trace_for(e)
+      e.respond_to?(:backtrace_locations) ? e.backtrace_locations : e.backtrace
     end
 
     def process
