@@ -1,4 +1,4 @@
-
+# frozen_string_literal: true
 
 module Neo4j
   module Driver
@@ -7,17 +7,18 @@ module Neo4j
     #   get_token                                   -> AuthToken
     #   handle_security_exception(token, exception) -> Boolean
     #
-    # is a manager. Pass an instance to `GraphDatabase.driver` in
-    # place of an `AuthToken` and the driver will call back into it
-    # when it needs a fresh token or when the server rejects the
+    # is a manager. Pass an instance to `GraphDatabase.driver` via the
+    # `:auth_token_manager` kw arg and the driver will call back into
+    # it when it needs a fresh token or when the server rejects the
     # current one.
     #
     # This concrete class is the Proc-based shortcut — supply two
     # callables and you're done. Clients that need richer behaviour
-    # subclass and override the methods directly; no inheritance is
-    # required, the protocol is duck-typed.
+    # subclass and override the methods; the JRuby flavour's class
+    # additionally implements `org.neo4j.driver.AuthTokenManager`, so
+    # subclasses automatically satisfy the Java interface there.
     class AuthTokenManager
-      def initialize(get_token, handle_security_exception)
+      def initialize(get_token:, handle_security_exception:)
         @get_token = get_token
         @handle_security_exception = handle_security_exception
       end

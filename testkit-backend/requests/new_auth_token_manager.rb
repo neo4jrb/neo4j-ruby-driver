@@ -12,8 +12,8 @@ module TestkitBackend
       def to_object
         manager = nil
         manager = Neo4j::Driver::AuthTokenManager.new(
-          -> { get_token(manager.object_id) },
-          ->(token, exc) { handle_security_exception(manager.object_id, token, exc) }
+          get_token: -> { get_token(manager.object_id) },
+          handle_security_exception: ->(token, exc) { handle_security_exception(manager.object_id, token, exc) }
         )
       end
 
