@@ -16,7 +16,6 @@ module Neo4j
 
       def initialize(uri, auth, options = {})
         @uri = URI(uri)
-        @auth = auth
         @options = options
         @closed = false
         @connection_provider = build_connection_provider(@uri, auth)
@@ -158,39 +157,24 @@ module Neo4j
 
       # Verify that the supplied auth token would succeed against the
       # server, without disturbing the existing connection state. Opens
-      # a one-shot connection with the supplied token (or the driver's
-      # default when nil), discards it after HELLO/LOGON. Returns true
-      # on SUCCESS, false on AuthenticationException; transport / other
-      # exceptions propagate so the caller can distinguish "credentials
-      # rejected" from "server unreachable".
-      # Requires Bolt 5.1+ (re-auth support). Older protocols can still
-      # use this — they just authenticate inside HELLO instead of via a
-      # separate LOGON — but mixing per-call auth across sessions on
-      # the same physical connection wants 5.1's split semantics.
-      def verify_authentication(auth_token = nil)
-        probe = Bolt::Connection.new(@uri, auth_token || @auth, @options)
+      # a one-shot connection with the token, discards it after
+      # HELLO/LOGON. Returns true on SUCCESS, false on
+      # AuthenticationException. Any other exception (transport
+      # failure, TLS rejection, server unreachable, …) propagates so
+      # the caller can distinguish "credentials rejected" from
+      # "couldn't even ask".
+      #
+      # Mirrors Java's `Driver.verifyAuthentication(AuthToken)`
+      # signature — the token is required; pass AuthTokens.none if
+      # you want the unauthenticated probe.
+      def verify_authentication(auth_token)
+        probe = Bolt::Connection.new(@uri, auth_token, @options)
         probe.connect
         true
-      rescue Exceptions::AuthenticationException, Exceptions::SecurityException
+      rescue Exceptions::AuthenticationException
         false
       ensure
         probe&.close
-      end
-
-      # Server-level info (address, agent, protocol version) for the
-      # current driver — useful for health checks / observability that
-      # want the negotiated version without running a query. HELLO
-      # already populated everything we need, so this is a connect-
-      # release with no extra wire traffic.
-      def server_info
-        connection = @connection_provider.acquire(access_mode: :read)
-        Summary::ServerInfo.new(
-          address: connection.address,
-          agent: connection.server_agent,
-          protocol_version: connection.protocol&.version&.to_s
-        )
-      ensure
-        @connection_provider.release(connection) if connection
       end
 
       # Per-server-address pool metrics: how many connections currently

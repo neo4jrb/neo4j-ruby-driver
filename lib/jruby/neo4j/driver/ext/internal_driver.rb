@@ -43,25 +43,12 @@ module Neo4j
           check { super }
         end
 
-        def verify_authentication(auth_token = nil)
-          check { super(auth_token) }
+        def verify_authentication(auth_token)
+          check { super }
         end
 
         def supports_session_auth?
           check { supports_session_auth }
-        end
-
-        # Mirrors MRI's Driver#server_info — returns a Summary::ServerInfo
-        # struct populated from the negotiated connection (no extra
-        # wire traffic). Java doesn't expose `serverInfo()` on the
-        # Driver interface (it's on ResultSummary), so we synthesise it
-        # by running a trivial query and lifting the ServerInfo from
-        # its summary. One round-trip; happens at most when callers
-        # ask.
-        def server_info
-          session do |s|
-            s.run('RETURN 1').consume.server
-          end
         end
       end
     end

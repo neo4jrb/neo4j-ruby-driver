@@ -70,7 +70,7 @@ module TestkitBackend
         'Feature:API:BookmarkManager'                       => 'jar',
         'Feature:API:ConnectionAcquisitionTimeout'          => 'jar',
         'Feature:API:Driver.ExecuteQuery'                   => 'ja',
-        'Feature:API:Driver:GetServerInfo'                  => 'jar',
+        'Feature:API:Driver:GetServerInfo'                  => '',
         'Feature:API:Driver.IsEncrypted'                    => 'jar',
         'Feature:API:Driver:NotificationsConfig'            => 'ja',
         'Feature:API:Driver.VerifyAuthentication'           => 'jar',
