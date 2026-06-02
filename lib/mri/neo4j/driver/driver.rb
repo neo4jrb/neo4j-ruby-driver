@@ -156,27 +156,25 @@ module Neo4j
       end
 
       # Verify that the supplied auth token would succeed against the
-      # server, without disturbing the existing connection state.
+      # server, without disturbing the existing connection state. Opens
+      # a one-shot connection with the token, discards it after
+      # HELLO/LOGON. Returns true on SUCCESS, false on
+      # AuthenticationException. Any other exception (transport
+      # failure, TLS rejection, server unreachable, …) propagates so
+      # the caller can distinguish "credentials rejected" from
+      # "couldn't even ask".
       #
-      # NOT YET IMPLEMENTED: needs a "test-only" connection probe that
-      # runs HELLO/LOGON with the supplied token, classifies the outcome,
-      # and reports back. See VerifyAuthentication in the testkit-backend
-      # for the expected response shape.
-      def verify_authentication(_auth_token)
-        raise NotImplementedError,
-              'Driver#verify_authentication: HELLO/LOGON probe not yet implemented'
-      end
-
-      # Server-level info (address, agent, protocol version) for the
-      # current driver — useful for tests that want the negotiated
-      # version without running a query.
-      #
-      # NOT YET IMPLEMENTED: a clean port acquires any connection,
-      # reads .address / .protocol.agent / .protocol.version_string,
-      # releases, and returns a struct.
-      def server_info
-        raise NotImplementedError,
-              'Driver#server_info: not yet exposed (probe-and-return needed)'
+      # Mirrors Java's `Driver.verifyAuthentication(AuthToken)`
+      # signature — the token is required; pass AuthTokens.none if
+      # you want the unauthenticated probe.
+      def verify_authentication(auth_token)
+        probe = Bolt::Connection.new(@uri, auth_token, @options)
+        probe.connect
+        true
+      rescue Exceptions::AuthenticationException
+        false
+      ensure
+        probe&.close
       end
 
       # Per-server-address pool metrics: how many connections currently

@@ -106,6 +106,8 @@ Stub tests::test_negative_timeout (tests.stub.session_run_parameters.test_sessio
 Stub tests::test_nested (tests.stub.iteration.test_iteration_session_run.TestIterationSessionRun.test_nested)
 Stub tests::test_nested_gql_error (tests.stub.errors.test_errors.TestError5x7.test_nested_gql_error)
 Stub tests::test_no_discard_on_session_close_finished_result (tests.stub.session_run.test_session_run.TestSessionRun.test_no_discard_on_session_close_finished_result)
+Stub tests::test_no_retry_with_static_token (tests.stub.authorization.token_expired_retry.test_token_expired_retry.TestTokenExpiredRetryV5x0.test_no_retry_with_static_token)
+Stub tests::test_no_retry_with_static_token (tests.stub.authorization.token_expired_retry.test_token_expired_retry.TestTokenExpiredRetryV5x1.test_no_retry_with_static_token)
 Stub tests::test_no_summary (tests.stub.summary.test_summary.TestSummaryCounters.test_no_summary)
 Stub tests::test_no_summary (tests.stub.summary.test_summary.TestSummaryCountersDiscard.test_no_summary)
 Stub tests::test_no_times (tests.stub.summary.test_summary.TestSummaryBasicInfo.test_no_times)
