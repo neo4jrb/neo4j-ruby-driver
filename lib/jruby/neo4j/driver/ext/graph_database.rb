@@ -44,10 +44,10 @@ module Neo4j
         # (a) a Java AuthTokenManager — `.basic` / `.bearer` factories
         #     return one of these directly (Java's
         #     `ExpirationBasedAuthTokenManager`); pass through.
-        # (b) a duck-typed Ruby manager responding to `get_token` (our
-        #     `Internal::AuthTokenManagers::Custom`, or any client
-        #     class that follows the protocol) — wrap in the
-        #     JRuby-only adapter that bridges to Java's interface.
+        # (b) a duck-typed Ruby manager responding to `get_token` —
+        #     `Neo4j::Driver::AuthTokenManager` or any client class
+        #     that follows the protocol — wrap in the JRuby-only
+        #     adapter that bridges to Java's interface.
         # (c) anything else — treated as an `AuthToken`; caller takes
         #     the AuthToken path.
         def to_java_auth_manager(auth)
