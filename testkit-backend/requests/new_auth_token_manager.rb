@@ -33,16 +33,12 @@ module TestkitBackend
         @command_processor.process(blocking: true).handled
       end
 
-      # Reverse of AuthorizationToken#to_object — Java AuthToken back to
-      # the testkit named_entity shape via InternalAuthToken#toMap.
+      # Reverse of AuthorizationToken#to_object — AuthToken back to
+      # the testkit named_entity shape. `AuthToken#to_h` is impl-
+      # agnostic (MRI returns its Hash directly, JRuby's ext does the
+      # conversion).
       def serialize_auth_token(token)
-        map = token.to_map
-        named_entity('AuthorizationToken',
-                     scheme: map['scheme']&.as_string,
-                     principal: map['principal']&.as_string,
-                     credentials: map['credentials']&.as_string,
-                     realm: map['realm']&.as_string,
-                     parameters: map['parameters']&.as_map)
+        named_entity('AuthorizationToken', **token.to_h)
       end
     end
   end

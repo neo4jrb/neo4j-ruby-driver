@@ -18,13 +18,18 @@ module TestkitBackend
 
       private
 
+      # `expires_in_ms` is relative to "now" on the wire; nil means
+      # "no expiration", which we encode as the max long timestamp the
+      # driver's bearer factory recognises as "never refresh".
+      NEVER_EXPIRES = (1 << 63) - 1
+
       def supply(manager_id)
         @command_processor.process_response(
           named_entity('BearerAuthTokenProviderRequest', id: manager_id, bearer_auth_token_manager_id: manager_id))
         body = @command_processor.process(blocking: true).auth[:data]
         token = Request.object_from(body[:auth])
         expires_in_ms = body[:expiresInMs]
-        expiration = expires_in_ms ? java.lang.System.current_time_millis + expires_in_ms : java.lang.Long::MAX_VALUE
+        expiration = expires_in_ms ? Time.now.to_i * 1000 + expires_in_ms : NEVER_EXPIRES
         token.expiring_at(expiration)
       end
     end
