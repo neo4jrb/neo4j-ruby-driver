@@ -40,6 +40,7 @@ module Neo4j
 end
 
 Java::OrgNeo4jDriver::AuthTokens.singleton_class.prepend Neo4j::Driver::Ext::AuthTokens
+Java::OrgNeo4jDriverInternalSecurity::InternalAuthToken.include Neo4j::Driver::Ext::AuthToken
 Java::OrgNeo4jDriver::BookmarkManagers.singleton_class.prepend Neo4j::Driver::Ext::BookmarkManagers
 Java::OrgNeo4jDriver::GraphDatabase.singleton_class.prepend Neo4j::Driver::Ext::GraphDatabase
 Java::OrgNeo4jDriver::Query.prepend Neo4j::Driver::Ext::Query
@@ -64,3 +65,4 @@ Java::OrgNeo4jDriverInternalSummary::InternalNotification.prepend Neo4j::Driver:
 Java::OrgNeo4jDriverInternalSummary::InternalPlan.prepend Neo4j::Driver::Ext::Internal::Summary::InternalPlan
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
+Java::JavaUtil::Map.include Neo4j::Driver::Ext::PlainMapConverter

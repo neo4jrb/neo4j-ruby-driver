@@ -63,7 +63,7 @@ module TestkitBackend
         'Feature:Auth:Bearer'                               => 'jar',
         'Feature:Auth:Custom'                               => 'jar',
         'Feature:Auth:Kerberos'                             => 'jar',
-        'Feature:Auth:Managed'                              => 'a',
+        'Feature:Auth:Managed'                              => 'ja',
         'AuthorizationExpiredTreatment'                     => 'ja',
 
         # --- Public API surface ----------------------------------------------
@@ -83,7 +83,7 @@ module TestkitBackend
         'Feature:API:Result.Single'                         => 'jar',
         'Feature:API:Result.SingleOptional'                 => '',
         'Feature:API:RetryableExceptions'                   => '',
-        'Feature:API:Session:AuthConfig'                    => 'a',
+        'Feature:API:Session:AuthConfig'                    => 'ja',
         'Feature:API:Session:NotificationsConfig'           => 'a',
         'Feature:API:SSLClientCertificate'                  => 'a', # mTLS client cert not yet wired on Ruby
         'Feature:API:SSLConfig'                             => 'jar',

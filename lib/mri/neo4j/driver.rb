@@ -11,5 +11,6 @@ require 'tzinfo'
 module Neo4j
   module Driver
     Loader.load(:mri)
+    AuthTokenManager = Internal::InternalAuthTokenManager
   end
 end

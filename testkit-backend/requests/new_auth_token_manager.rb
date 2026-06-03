@@ -1,16 +1,44 @@
 module TestkitBackend
   module Requests
-    # Stub: the Ruby driver doesn't advertise Feature:Auth:Managed, so
-    # testkit shouldn't drive these. We still register the request so
-    # an out-of-order call surfaces as a clean BackendError rather
-    # than "uninitialized constant Requests::NewAuthTokenManager".
+    # Custom AuthTokenManager: testkit-driven token supplier *and*
+    # security-exception handler. Both callbacks are relayed to the
+    # frontend with the same blocking-read pattern NewBookmarkManager
+    # uses for its supplier / consumer.
     class NewAuthTokenManager < Request
       def process
         reference('AuthTokenManager')
       end
 
       def to_object
-        Object.new
+        manager = nil
+        manager = Neo4j::Driver::AuthTokenManager.new(
+          get_token: -> { get_token(manager.object_id) },
+          handle_security_exception: ->(token, exc) { handle_security_exception(manager.object_id, token, exc) }
+        )
+      end
+
+      private
+
+      def get_token(manager_id)
+        @command_processor.process_response(
+          named_entity('AuthTokenManagerGetAuthRequest', id: manager_id, auth_token_manager_id: manager_id))
+        Request.object_from(@command_processor.process(blocking: true).auth)
+      end
+
+      def handle_security_exception(manager_id, token, exception)
+        @command_processor.process_response(
+          named_entity('AuthTokenManagerHandleSecurityExceptionRequest',
+                       id: manager_id, auth_token_manager_id: manager_id,
+                       auth: serialize_auth_token(token), error_code: exception.code))
+        @command_processor.process(blocking: true).handled
+      end
+
+      # Reverse of AuthorizationToken#to_object — AuthToken back to
+      # the testkit named_entity shape. `AuthToken#to_h` is impl-
+      # agnostic (MRI returns its Hash directly, JRuby's ext does the
+      # conversion).
+      def serialize_auth_token(token)
+        named_entity('AuthorizationToken', **token.to_h)
       end
     end
   end

@@ -1,14 +1,11 @@
 module TestkitBackend
   module Requests
-    # Frontend response to a backend->frontend
-    # AuthTokenManagerGetAuthRequest. The Ruby driver never emits that
-    # request (no managed-auth path), so testkit shouldn't send the
-    # completion. Stub for parity with the Java backend.
+    # Frontend reply to a backend->frontend AuthTokenManagerGetAuthRequest,
+    # read inline by NewAuthTokenManager#get_token (it pulls `.auth` off
+    # this message). Writes no response of its own —
+    # cf. BookmarksSupplierCompleted.
     class AuthTokenManagerGetAuthCompleted < Request
-      def process
-        named_entity('BackendError',
-                     msg: 'AuthTokenManager callbacks are not implemented (driver does not advertise Feature:Auth:Managed)')
-      end
+      def process; end
     end
   end
 end

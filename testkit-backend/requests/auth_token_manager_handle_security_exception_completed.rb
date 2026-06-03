@@ -1,11 +1,11 @@
 module TestkitBackend
   module Requests
-    # See AuthTokenManagerGetAuthCompleted.
+    # Frontend reply to a backend->frontend
+    # AuthTokenManagerHandleSecurityExceptionRequest, read inline by
+    # NewAuthTokenManager#handle_security_exception (it pulls `.handled`
+    # off this message). Writes no response of its own.
     class AuthTokenManagerHandleSecurityExceptionCompleted < Request
-      def process
-        named_entity('BackendError',
-                     msg: 'AuthTokenManager callbacks are not implemented (driver does not advertise Feature:Auth:Managed)')
-      end
+      def process; end
     end
   end
 end

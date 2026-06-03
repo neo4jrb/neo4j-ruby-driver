@@ -12,7 +12,8 @@ module TestkitBackend
           database: database,
           fetch_size: fetch_size,
           impersonated_user: impersonated_user,
-          bookmark_manager: (fetch(bookmark_manager_id) if bookmark_manager_id)
+          bookmark_manager: (fetch(bookmark_manager_id) if bookmark_manager_id),
+          auth_token: (Request.object_from(auth_token) if auth_token)
         )
       end
     end

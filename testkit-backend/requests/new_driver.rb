@@ -6,7 +6,14 @@ module TestkitBackend
       end
 
       def to_object
-        auth_token = Request.object_from(authorization_token)
+        # testkit's NewDriver asserts that exactly one of authToken /
+        # authTokenManagerId is set. The driver method takes `auth_token`
+        # positionally (default AuthTokens.none) and `auth_token_manager:`
+        # as a kw arg; the manager wins when present, the token is the
+        # fallback. When neither is supplied — pass nothing positionally
+        # so the method's own default takes over.
+        auth_token_args = authorization_token ? [Request.object_from(authorization_token)] : []
+        auth_token_manager = auth_token_manager_id && fetch(auth_token_manager_id)
         config = {
           user_agent: user_agent,
           connection_timeout: timeout_duration(connection_timeout_ms),
@@ -25,9 +32,9 @@ module TestkitBackend
         }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         if domain_name_resolver_registered
-          Neo4j::Driver::GraphDatabase.internal_driver(uri, auth_token, **config, &method(:domain_name_resolver))
+          Neo4j::Driver::GraphDatabase.internal_driver(uri, *auth_token_args, auth_token_manager:, **config, &method(:domain_name_resolver))
         else
-          Neo4j::Driver::GraphDatabase.driver(uri, auth_token, **config)
+          Neo4j::Driver::GraphDatabase.driver(uri, *auth_token_args, auth_token_manager:, **config)
         end
       end
 
