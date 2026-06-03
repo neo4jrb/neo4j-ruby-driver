@@ -15,21 +15,14 @@ module Neo4j
     # `getToken`; our sync Proc gets wrapped in a pre-completed future.
     # The `handleSecurityException` callback receives a Java exception
     # which we map to its Ruby counterpart before handing to the user.
-    class AuthTokenManager
+    class AuthTokenManager < Internal::InternalAuthTokenManager
       include Java::OrgNeo4jDriver::AuthTokenManager
       include Ext::ExceptionMapper
 
-      def initialize(get_token:, handle_security_exception:)
-        @get_token = get_token
-        @handle_security_exception = handle_security_exception
-      end
-
-      def get_token
-        java.util.concurrent.CompletableFuture.completed_future(@get_token.call)
-      end
+      def get_token = java.util.concurrent.CompletableFuture.completed_future(super)
 
       def handle_security_exception(token, exception)
-        @handle_security_exception.call(token, mapped_exception(exception))
+        super(token, mapped_exception(exception))
       end
     end
   end

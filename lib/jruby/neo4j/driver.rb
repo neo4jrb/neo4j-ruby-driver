@@ -65,3 +65,4 @@ Java::OrgNeo4jDriverInternalSummary::InternalNotification.prepend Neo4j::Driver:
 Java::OrgNeo4jDriverInternalSummary::InternalPlan.prepend Neo4j::Driver::Ext::Internal::Summary::InternalPlan
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
+Java::JavaUtil::Map.include Neo4j::Driver::Ext::PlainMapConverter

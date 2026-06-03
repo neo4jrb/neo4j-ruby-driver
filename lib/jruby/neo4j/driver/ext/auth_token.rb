@@ -10,16 +10,7 @@ module Neo4j
       # consume an AuthToken without poking at Java's `toMap` /
       # `Value#asString`.
       module AuthToken
-        def to_h
-          map = to_map
-          {
-            scheme: map['scheme']&.as_string,
-            principal: map['principal']&.as_string,
-            credentials: map['credentials']&.as_string,
-            realm: map['realm']&.as_string,
-            parameters: map['parameters']&.as_map
-          }.compact
-        end
+        def to_h = to_map.as_ruby_object
       end
     end
   end
