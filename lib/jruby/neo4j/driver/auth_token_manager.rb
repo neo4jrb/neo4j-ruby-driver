@@ -3,12 +3,13 @@
 module Neo4j
   module Driver
     # JRuby flavour of the auth-token manager. Same Proc-based public
-    # surface as the MRI sibling, but the class implements
-    # `org.neo4j.driver.AuthTokenManager` directly so it slots into the
-    # Java driver without an adapter shim. Subclasses inherit the
-    # interface implementation, so a user-written
-    # `class MyManager < Neo4j::Driver::AuthTokenManager` works on
-    # both impls.
+    # surface as the MRI sibling, but the class `include`s
+    # `org.neo4j.driver.AuthTokenManager` in its body — JRuby only
+    # generates the Java-side proxy at class-definition time, so a
+    # retroactive include (via prepend or class_eval) doesn't produce
+    # a usable interface impl. Subclasses inherit the interface, so a
+    # user-written `class MyManager < Neo4j::Driver::AuthTokenManager`
+    # slots into the Java driver the same as on MRI.
     #
     # The Java interface asks for `CompletionStage<AuthToken>` from
     # `getToken`; our sync Proc gets wrapped in a pre-completed future.

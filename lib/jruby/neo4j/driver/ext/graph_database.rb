@@ -13,13 +13,10 @@ module Neo4j
         def driver(uri, auth_token = Neo4j::Driver::AuthTokens.none, auth_token_manager: nil, **config)
           check do
             java_config = to_java_config(Neo4j::Driver::Config, **config)
-            if auth_token_manager
-              java_method(:driver, [java.lang.String, org.neo4j.driver.AuthTokenManager, org.neo4j.driver.Config])
-                .call(uri.to_s, auth_token_manager, java_config)
-            else
-              java_method(:driver, [java.lang.String, org.neo4j.driver.AuthToken, org.neo4j.driver.Config])
-                .call(uri.to_s, auth_token, java_config)
-            end
+            auth_class = auth_token_manager ? org.neo4j.driver.AuthTokenManager : org.neo4j.driver.AuthToken
+            auth = auth_token_manager || auth_token
+            java_method(:driver, [java.lang.String, auth_class, org.neo4j.driver.Config])
+              .call(uri.to_s, auth, java_config)
           end
         end
 
