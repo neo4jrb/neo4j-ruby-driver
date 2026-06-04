@@ -1,10 +1,11 @@
 module TestkitBackend
   module Requests
-    # Stub; see FakeTimeInstall.
+    # Advance the driver's fake clock by `increment_ms` milliseconds.
+    # See FakeTimeInstall.
     class FakeTimeTick < Request
       def process
-        named_entity('BackendError',
-                     msg: 'FakeTime is not implemented (driver does not advertise Backend:MockTime)')
+        Neo4j::Driver::Internal::Clock.tick(increment_ms)
+        named_entity('FakeTimeAck')
       end
     end
   end

@@ -1,11 +1,16 @@
 module TestkitBackend
   module Requests
-    # Stub: the Ruby driver doesn't advertise Backend:MockTime, so
-    # testkit shouldn't drive these — but register for parity.
+    # Freeze the driver's internal clock at zero — subsequent
+    # `FakeTimeTick` requests advance it. Used by Backend:MockTime
+    # tests to deterministically exercise time-sensitive paths
+    # (bearer-token expiry, connection idle / max-lifetime, retry
+    # backoff). The driver seam (`Internal::Clock`) is per-impl;
+    # on MRI it raises until that flavour wires its own mockable
+    # clock.
     class FakeTimeInstall < Request
       def process
-        named_entity('BackendError',
-                     msg: 'FakeTime is not implemented (driver does not advertise Backend:MockTime)')
+        Neo4j::Driver::Internal::Clock.install
+        named_entity('FakeTimeAck')
       end
     end
   end

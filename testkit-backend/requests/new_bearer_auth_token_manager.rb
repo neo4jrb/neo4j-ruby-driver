@@ -20,7 +20,10 @@ module TestkitBackend
 
       # `expires_in_ms` is relative to "now" on the wire; nil means
       # "no expiration", which we encode as the max long timestamp the
-      # driver's bearer factory recognises as "never refresh".
+      # driver's bearer factory recognises as "never refresh". "Now"
+      # is read through the driver's clock seam (`Internal::Clock`)
+      # so FakeTime-installed tests get the mocked epoch, matching
+      # what the bearer manager itself sees inside the driver.
       NEVER_EXPIRES = (1 << 63) - 1
 
       def supply(manager_id)
@@ -29,7 +32,7 @@ module TestkitBackend
         body = @command_processor.process(blocking: true).auth[:data]
         token = Request.object_from(body[:auth])
         expires_in_ms = body[:expiresInMs]
-        expiration = expires_in_ms ? Time.now.to_i * 1000 + expires_in_ms : NEVER_EXPIRES
+        expiration = expires_in_ms ? Neo4j::Driver::Internal::Clock.millis + expires_in_ms : NEVER_EXPIRES
         token.expiring_at(expiration)
       end
     end

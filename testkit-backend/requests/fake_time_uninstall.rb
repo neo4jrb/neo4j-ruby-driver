@@ -1,10 +1,10 @@
 module TestkitBackend
   module Requests
-    # Stub; see FakeTimeInstall.
+    # Return the driver's clock to system time. See FakeTimeInstall.
     class FakeTimeUninstall < Request
       def process
-        named_entity('BackendError',
-                     msg: 'FakeTime is not implemented (driver does not advertise Backend:MockTime)')
+        Neo4j::Driver::Internal::Clock.uninstall
+        named_entity('FakeTimeAck')
       end
     end
   end
