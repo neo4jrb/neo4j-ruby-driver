@@ -18,7 +18,7 @@ module Neo4j
       # subclass and override the methods; the JRuby flavour's class
       # additionally implements `org.neo4j.driver.AuthTokenManager`, so
       # subclasses there automatically slot into the Java driver.
-      class AuthTokenManager
+      class InternalAuthTokenManager
         def initialize(get_token:, handle_security_exception:)
           @get_token = get_token
           @handle_security_exception = handle_security_exception

@@ -11,7 +11,7 @@ module Neo4j
         # duck-typed `Neo4j::Driver::AuthTokenManager` so the protocol
         # — `get_token` / `handle_security_exception` — matches
         # everything else MRI consumes.
-        class StaticAuthTokenManager < Internal::AuthTokenManager
+        class StaticAuthTokenManager < InternalAuthTokenManager
           def initialize(token)
             super(
               get_token: -> { token },
