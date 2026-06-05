@@ -1,11 +1,12 @@
 module TestkitBackend
   module Requests
-    # Bearer-token manager — Java's AuthTokenManagers.bearer wraps a
-    # Supplier<AuthTokenAndExpiration> that retries on TokenExpired or
-    # Authentication exceptions. The supplier closure relays to the
-    # frontend; the completed reply carries both a fresh
-    # AuthorizationToken and an `expiresInMs` lifetime (nil means
-    # never-expiring → Long::MAX_VALUE).
+    # Bearer-token manager — same retry semantics as Java's
+    # `AuthTokenManagers.bearer` (retries on TokenExpired or
+    # Authentication, expiration tracked) via the pure-Ruby
+    # `ExpirationBasedAuthTokenManager`. The frontend sends an
+    # `expiresInMs` lifetime relative to "now"; we translate to an
+    # absolute deadline using the driver's `Internal::Clock` seam so
+    # FakeTime-installed tests get the mocked epoch.
     class NewBearerAuthTokenManager < Request
       def process
         reference('BearerAuthTokenManager')
@@ -13,15 +14,17 @@ module TestkitBackend
 
       def to_object
         manager = nil
-        manager = Neo4j::Driver::AuthTokenManagers.bearer(-> { supply(manager.object_id) })
+        manager = Internal::ExpirationBasedAuthTokenManager.new(
+          supplier: -> { supply(manager.object_id) },
+          retryable_exceptions: [
+            Neo4j::Driver::Exceptions::AuthenticationException,
+            Neo4j::Driver::Exceptions::TokenExpiredException
+          ],
+          clock: Internal::TestkitClock::INSTANCE
+        )
       end
 
       private
-
-      # `expires_in_ms` is relative to "now" on the wire; nil means
-      # "no expiration", which we encode as the max long timestamp the
-      # driver's bearer factory recognises as "never refresh".
-      NEVER_EXPIRES = (1 << 63) - 1
 
       def supply(manager_id)
         @command_processor.process_response(
@@ -29,8 +32,8 @@ module TestkitBackend
         body = @command_processor.process(blocking: true).auth[:data]
         token = Request.object_from(body[:auth])
         expires_in_ms = body[:expiresInMs]
-        expiration = expires_in_ms ? Time.now.to_i * 1000 + expires_in_ms : NEVER_EXPIRES
-        token.expiring_at(expiration)
+        expires_at_ms = expires_in_ms && Internal::TestkitClock::INSTANCE.now_millis + expires_in_ms
+        { auth_token: token, expires_at_ms: expires_at_ms }
       end
     end
   end

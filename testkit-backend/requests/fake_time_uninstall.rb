@@ -1,10 +1,10 @@
 module TestkitBackend
   module Requests
-    # Stub; see FakeTimeInstall.
+    # Return the testkit clock to system time. See FakeTimeInstall.
     class FakeTimeUninstall < Request
       def process
-        named_entity('BackendError',
-                     msg: 'FakeTime is not implemented (driver does not advertise Backend:MockTime)')
+        Internal::TestkitClock::INSTANCE.uninstall
+        named_entity('FakeTimeAck')
       end
     end
   end

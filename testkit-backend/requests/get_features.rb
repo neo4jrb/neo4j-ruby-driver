@@ -111,7 +111,7 @@ module TestkitBackend
         'Optimization:ResultListFetchAll'                   => 'ja',
 
         # --- Backend / detail ------------------------------------------------
-        'Backend:MockTime'                                  => 'a',
+        'Backend:MockTime'                                  => 'ja',
         # MRI: routes through driver.session_factory.connection_provider
         # .routing_table_registry.routing_table_handler(db).routing_table —
         # mirrors Java's internal API on top of Routing::LoadBalancer.

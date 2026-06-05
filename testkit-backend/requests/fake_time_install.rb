@@ -1,11 +1,15 @@
 module TestkitBackend
   module Requests
-    # Stub: the Ruby driver doesn't advertise Backend:MockTime, so
-    # testkit shouldn't drive these — but register for parity.
+    # Freeze the testkit clock at zero — subsequent `FakeTimeTick`
+    # requests advance it. The clock is consulted by the driver's
+    # pool / retry / liveness internals via the `DriverFactory`'s
+    # `createClock` override (testkit's `Internal::DriverFactory`
+    # returns the same `TestkitClock` singleton), and by testkit's
+    # `ExpirationBasedAuthTokenManager` for bearer-token expiry.
     class FakeTimeInstall < Request
       def process
-        named_entity('BackendError',
-                     msg: 'FakeTime is not implemented (driver does not advertise Backend:MockTime)')
+        Internal::TestkitClock::INSTANCE.install
+        named_entity('FakeTimeAck')
       end
     end
   end
