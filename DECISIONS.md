@@ -100,3 +100,31 @@ the `it` implicit block parameter in pipeline-style code (e.g.
 to Ruby 3.4 in lockstep. Two version bumps in three days is fine
 while we're pre-1.0; once the API stabilises we'll be more
 conservative about minimum-Ruby moves.
+
+## 2026-06-05 — Connection-pool metrics deferred (shaded-jar ABI clash)
+
+`get_connection_pool_metrics` (testkit) / `Driver#metrics` stays
+unimplemented. The gem bundles the **shaded** `neo4j-java-driver-all`
+uber jar (relocates bolt-connection → `…internal.shaded.bolt.connection`).
+The `neo4j-java-driver-observation-metrics` module is built against the
+**unshaded** driver, so its `boltExchange(…, org.neo4j.bolt.connection
+.BoltProtocolVersion, …)` doesn't satisfy the all-jar's
+`DriverObservationProvider.boltExchange(…, internal.shaded…
+BoltProtocolVersion, …)` → `AbstractMethodError` on the first query.
+The two jars cannot interoperate. Java sidesteps this: its testkit-backend
+depends on the unshaded modular `neo4j-java-driver` + observation-metrics,
+while the shaded `-all` (Maven module `bundle`) is a prod convenience
+fat-jar that is *also* metrics-incompatible. We ship one jar for both
+prod and testkit, and the ext layer is hardwired to shaded class names.
+
+Skipped because it unlocks only 5 near-duplicate stub tests
+(`test_should_drop_connections_failing_liveness_check` ×
+v3/v4x2/v4x3/v4x4/v5x0, gated on Feature:API:Liveness.Check) at the cost
+of migrating the whole JRuby ext off the shaded jar.
+
+When the MRI metrics path is built (MRI's `Driver#pool_metrics` currently
+raises NotImplementedError), keep the testkit handler shape compatible
+with a *hypothetical unshaded JRuby build* too: consume a duck-typed
+metrics object (`connection_pool_metrics` → items responding to
+`id`/`in_use`/`idle`), and match the requested address by parsing `id`
+as `"host:port-…"`, mirroring Java's `GetConnectionPoolMetrics`.
