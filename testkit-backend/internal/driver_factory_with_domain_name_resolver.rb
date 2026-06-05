@@ -22,12 +22,12 @@ module TestkitBackend
         @resolver_proc = resolver_proc
       end
 
-      # NOTE: JRuby only honours Ruby overrides of `protected` Java
-      # methods when the Ruby method name matches the Java method
-      # exactly — snake_case auto-mapping isn't applied for inbound
-      # dispatch from Java. Both hooks here are protected on
-      # `org.neo4j.driver.internal.DriverFactory`, so the names stay
-      # camelCase.
+      # NOTE: Java can only call a Ruby method by the name it knows
+      # (the camelCase one). JRuby's snake_case auto-mapping is for
+      # the other direction — Ruby callers reaching into Java. So
+      # any Ruby method that exists to be invoked back from Java
+      # (here, `DriverFactory`'s `getDomainNameResolver` and
+      # `createClock` hooks) must keep its camelCase name.
       def getDomainNameResolver
         to_domain_name_resolver(@resolver_proc) || super
       end
