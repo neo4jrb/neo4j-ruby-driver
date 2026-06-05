@@ -19,7 +19,8 @@ module TestkitBackend
           retryable_exceptions: [
             Neo4j::Driver::Exceptions::AuthenticationException,
             Neo4j::Driver::Exceptions::TokenExpiredException
-          ]
+          ],
+          clock: Internal::TestkitClock::INSTANCE
         )
       end
 
@@ -31,7 +32,7 @@ module TestkitBackend
         body = @command_processor.process(blocking: true).auth[:data]
         token = Request.object_from(body[:auth])
         expires_in_ms = body[:expiresInMs]
-        expires_at_ms = expires_in_ms && Neo4j::Driver::Internal::Clock.now_millis + expires_in_ms
+        expires_at_ms = expires_in_ms && Internal::TestkitClock::INSTANCE.now_millis + expires_in_ms
         { auth_token: token, expires_at_ms: expires_at_ms }
       end
     end

@@ -14,7 +14,8 @@ module TestkitBackend
         manager = nil
         manager = Internal::ExpirationBasedAuthTokenManager.new(
           supplier: -> { { auth_token: supply(manager.object_id) } },
-          retryable_exceptions: [Neo4j::Driver::Exceptions::AuthenticationException]
+          retryable_exceptions: [Neo4j::Driver::Exceptions::AuthenticationException],
+          clock: Internal::TestkitClock::INSTANCE
         )
       end
 

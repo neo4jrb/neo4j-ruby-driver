@@ -7,13 +7,10 @@ module TestkitBackend
 
       def to_object
         # testkit's NewDriver asserts that exactly one of authToken /
-        # authTokenManagerId is set. The driver method takes `auth_token`
-        # positionally (default AuthTokens.none) and `auth_token_manager:`
-        # as a kw arg; the manager wins when present, the token is the
-        # fallback. When neither is supplied — pass nothing positionally
-        # so the method's own default takes over.
-        auth_token_args = authorization_token ? [Request.object_from(authorization_token)] : []
-        auth_token_manager = auth_token_manager_id && fetch(auth_token_manager_id)
+        # authTokenManagerId is set.
+        auth_or_manager = auth_token_manager_id ? fetch(auth_token_manager_id) :
+                          authorization_token   ? Request.object_from(authorization_token) :
+                          Neo4j::Driver::AuthTokens.none
         config = {
           user_agent: user_agent,
           connection_timeout: timeout_duration(connection_timeout_ms),
@@ -31,13 +28,12 @@ module TestkitBackend
             minimum_severity: notifications_min_severity, disabled_categories: notifications_disabled_categories }
         }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
-        # Always route through `internal_driver` so the JRuby flavour
-        # picks up its `Internal::DriverFactory` subclass — that's
-        # what wires `TestkitClock` into the pool / retry / liveness
-        # paths for Backend:MockTime. (MRI's `internal_driver` is a
-        # thin alias for `driver` so the same call works there.)
+        # Build via testkit's own DriverFactory subclass so the
+        # `getDomainNameResolver` / `createClock` hooks point at our
+        # Ruby resolver proc / TestkitClock — no Java refs on this
+        # side, the production-side base class handles the conversion.
         resolver = method(:domain_name_resolver) if domain_name_resolver_registered
-        Neo4j::Driver::GraphDatabase.internal_driver(uri, *auth_token_args, auth_token_manager:, **config, &resolver)
+        Internal::DriverFactory.new(resolver).new_instance(uri, auth_or_manager, config)
       end
 
       private

@@ -20,9 +20,10 @@ module TestkitBackend
     class ExpirationBasedAuthTokenManager < Neo4j::Driver::AuthTokenManager
       NEVER_EXPIRES = (1 << 63) - 1
 
-      def initialize(supplier:, retryable_exceptions:)
+      def initialize(supplier:, retryable_exceptions:, clock:)
         @supplier = supplier
         @retryable_exceptions = retryable_exceptions
+        @clock = clock
         @token = nil
         @expires_at_ms = 0
         @lock = Mutex.new
@@ -36,7 +37,7 @@ module TestkitBackend
 
       def provide_token
         @lock.synchronize do
-          if @token.nil? || Neo4j::Driver::Internal::Clock.now_millis >= @expires_at_ms
+          if @token.nil? || @clock.now_millis >= @expires_at_ms
             entry = @supplier.call
             @token = entry[:auth_token]
             @expires_at_ms = entry[:expires_at_ms] || NEVER_EXPIRES
