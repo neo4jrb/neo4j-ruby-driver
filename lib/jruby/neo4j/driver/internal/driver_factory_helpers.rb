@@ -2,22 +2,25 @@
 
 module Neo4j
   module Driver
-    module Ext
+    module Internal
       # Ruby-side helpers prepended onto Java's
-      # `org.neo4j.driver.internal.DriverFactory`. The two `to_*`
-      # methods let further Ruby subclasses (testkit-backend's
-      # `DriverFactoryWithDomainNameResolver`) override the
+      # `org.neo4j.driver.internal.DriverFactory` (the same one
+      # `Neo4j::Driver::Internal::DriverFactory` is aliased to). Lets
+      # further Ruby subclasses — testkit-backend's
+      # `DriverFactoryWithDomainNameResolver` — override the
       # `protected` `getDomainNameResolver` / `createClock` seams
       # without naming any Java type: testkit hands its Ruby Proc /
       # `TestkitClock` to the converter and gets back something the
       # Java driver consumes (a `DomainNameResolver` SAM /
-      # `java.time.Clock`). `new_instance` is a Ruby-friendly
-      # wrapper over Java's 4-arg `newInstance` — takes a Ruby Hash
-      # config, fills in the nil `ClientCertificateManager`, and
-      # `super`s into the Java method.
-      module DriverFactory
-        include ConfigConverter
-        include ExceptionCheckable
+      # `java.time.Clock`).
+      #
+      # `new_instance` is a Ruby-friendly wrapper over Java's 4-arg
+      # `newInstance` — takes a Ruby Hash config, fills in the nil
+      # `ClientCertificateManager`, and `super`s into the Java
+      # method.
+      module DriverFactoryHelpers
+        include Ext::ConfigConverter
+        include Ext::ExceptionCheckable
 
         def to_domain_name_resolver(resolver_proc)
           return nil unless resolver_proc
@@ -32,7 +35,7 @@ module Neo4j
         end
 
         def to_clock(clock)
-          Internal::ClockAdapter.new(clock)
+          Ext::Internal::ClockAdapter.new(clock)
         end
 
         def new_instance(uri, auth_token_manager, config = {})
