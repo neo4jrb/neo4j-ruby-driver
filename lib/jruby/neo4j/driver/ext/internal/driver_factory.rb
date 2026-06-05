@@ -22,11 +22,11 @@ module Neo4j
             @domain_name_resolver || super
           end
 
-          # Override the package-private clock seam. TestkitClock acts
-          # as the system clock unless `Internal::Clock.install` has
-          # been called, so production behaviour is unchanged.
+          # Route Java's clock seam through the impl-agnostic
+          # `Internal::Clock` so the pool / retry / liveness clocks
+          # follow whatever the seam reports (default: system time).
           def createClock
-            TestkitClock::INSTANCE
+            ClockAdapter::INSTANCE
           end
         end
       end

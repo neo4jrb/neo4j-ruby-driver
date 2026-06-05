@@ -1,10 +1,10 @@
 module TestkitBackend
   module Requests
-    # Basic password-rotation manager — Java's AuthTokenManagers.basic
-    # wraps a Supplier<AuthToken> that only retries on
-    # AuthenticationException. The supplier closure relays to the
-    # frontend with the same blocking-read pattern NewAuthTokenManager
-    # uses.
+    # Basic password-rotation manager — owns the same retry semantics
+    # as Java's `AuthTokenManagers.basic` (retry only on
+    # `AuthenticationException`, never expires) via the pure-Ruby
+    # `ExpirationBasedAuthTokenManager` so testkit drives the same
+    # implementation on MRI and JRuby.
     class NewBasicAuthTokenManager < Request
       def process
         reference('BasicAuthTokenManager')
@@ -12,7 +12,10 @@ module TestkitBackend
 
       def to_object
         manager = nil
-        manager = Neo4j::Driver::AuthTokenManagers.basic(-> { supply(manager.object_id) })
+        manager = Internal::ExpirationBasedAuthTokenManager.new(
+          supplier: -> { { auth_token: supply(manager.object_id) } },
+          retryable_exceptions: [Neo4j::Driver::Exceptions::AuthenticationException]
+        )
       end
 
       private

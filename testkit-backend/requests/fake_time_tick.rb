@@ -4,7 +4,7 @@ module TestkitBackend
     # See FakeTimeInstall.
     class FakeTimeTick < Request
       def process
-        Neo4j::Driver::Internal::Clock.tick(increment_ms)
+        Internal::TestkitClock::INSTANCE.tick(increment_ms)
         named_entity('FakeTimeAck')
       end
     end

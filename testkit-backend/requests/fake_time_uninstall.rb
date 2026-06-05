@@ -3,7 +3,8 @@ module TestkitBackend
     # Return the driver's clock to system time. See FakeTimeInstall.
     class FakeTimeUninstall < Request
       def process
-        Neo4j::Driver::Internal::Clock.uninstall
+        Internal::TestkitClock::INSTANCE.uninstall
+        Neo4j::Driver::Internal::Clock.reset
         named_entity('FakeTimeAck')
       end
     end
