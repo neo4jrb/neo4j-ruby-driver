@@ -20,6 +20,7 @@ module Neo4j
 
     module Internal
       java_import org.neo4j.driver.internal.shaded.bolt.connection.DatabaseName
+      DriverFactory = Java::OrgNeo4jDriverInternal::DriverFactory
       StaticAuthTokenManager = Java::OrgNeo4jDriverInternalSecurity::StaticAuthTokenManager
     end
 
@@ -43,6 +44,7 @@ end
 Java::OrgNeo4jDriver::AuthTokens.singleton_class.prepend Neo4j::Driver::Ext::AuthTokens
 Java::OrgNeo4jDriverInternalSecurity::InternalAuthToken.include Neo4j::Driver::Ext::AuthToken
 Java::OrgNeo4jDriver::BookmarkManagers.singleton_class.prepend Neo4j::Driver::Ext::BookmarkManagers
+Java::OrgNeo4jDriverInternal::DriverFactory.prepend Neo4j::Driver::Ext::DriverFactory
 Java::OrgNeo4jDriver::GraphDatabase.singleton_class.prepend Neo4j::Driver::Ext::GraphDatabase
 Java::OrgNeo4jDriver::Query.prepend Neo4j::Driver::Ext::Query
 Java::OrgNeo4jDriverInternal::EagerResultValue.prepend Neo4j::Driver::Ext::Internal::EagerResultValue
