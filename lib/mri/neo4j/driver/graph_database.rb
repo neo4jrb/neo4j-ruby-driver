@@ -9,8 +9,8 @@ module Neo4j
     # `DriverFactory#newInstance(...)`.
     module GraphDatabase
       class << self
-        def driver(uri, auth_token = nil, **config, &block)
-          mgr = Internal::Security::StaticAuthTokenManager.new(auth_token || AuthTokens.none)
+        def driver(uri, auth_token = nil, auth_token_manager: nil, **config, &block)
+          mgr = auth_token_manager || Internal::Security::StaticAuthTokenManager.new(auth_token || AuthTokens.none)
           driver = Internal::DriverFactory.new.new_instance(uri, mgr, config)
 
           if block_given?
