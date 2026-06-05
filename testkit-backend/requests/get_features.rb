@@ -76,7 +76,7 @@ module TestkitBackend
         'Feature:API:Driver.VerifyAuthentication'           => 'jar',
         'Feature:API:Driver.VerifyConnectivity'             => 'jr',
         'Feature:API:Driver.SupportsSessionAuth'            => 'jar',
-        'Feature:API:Driver:MaxConnectionLifetime'          => 'ar',
+        'Feature:API:Driver:MaxConnectionLifetime'          => 'jar',
         'Feature:API:Liveness.Check'                        => 'jar',
         'Feature:API:Result.List'                           => 'jar',
         'Feature:API:Result.Peek'                           => 'jar',
