@@ -191,7 +191,7 @@ RSpec.describe 'Transaction' do
 
   # --- Ported from neo4j-java-driver TransactionIT.java ---
 
-  it 'allows run + rollback + close (rollback discards)' do
+  it 'allows run rollback and close' do
     session.begin_transaction do |tx|
       tx.run('CREATE (n:FirstNode)')
       tx.run('CREATE (n:SecondNode)')
@@ -200,7 +200,7 @@ RSpec.describe 'Transaction' do
     expect(session.run('MATCH (n) RETURN count(n)').single['count(n)']).to eq 0
   end
 
-  it 'allows run + close (close discards)' do
+  it 'allows run close and close' do
     session.begin_transaction do |tx|
       tx.run('CREATE (n:FirstNode)')
       tx.run('CREATE (n:SecondNode)')
@@ -215,7 +215,7 @@ RSpec.describe 'Transaction' do
     expect(tx).not_to be_open
   end
 
-  it 'raises when committing a committed tx' do
+  it 'fails to commit after commit' do
     tx = session.begin_transaction
     tx.run('CREATE (:MyLabel)')
     tx.commit
@@ -223,7 +223,7 @@ RSpec.describe 'Transaction' do
       .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Can't commit.*committed/)
   end
 
-  it 'raises when committing a rolled-back tx' do
+  it 'fails to commit after rolled back' do
     tx = session.begin_transaction
     tx.run('CREATE (:MyLabel)')
     tx.rollback
@@ -231,7 +231,7 @@ RSpec.describe 'Transaction' do
       .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Can't commit.*rolled back/)
   end
 
-  it 'raises on commit after a query in the same tx failed' do
+  it 'fails to commit after failure' do
     tx = session.begin_transaction
     xs = tx.run('UNWIND [1,2,3] AS x CREATE (:Node) RETURN x').to_a.map { |r| r[0] }
     expect(xs).to eq [1, 2, 3]
@@ -241,21 +241,21 @@ RSpec.describe 'Transaction' do
       .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Transaction can't be committed.*rolled back/)
   end
 
-  it 'raises when running a query after the tx is closed' do
+  it 'fails to run query after tx is closed' do
     tx = session.begin_transaction
     tx.close
     expect { tx.run('RETURN 1') }
       .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Cannot run more queries.*rolled back/)
   end
 
-  it 'raises when running a query after the tx is committed' do
+  it 'fails to run query after tx is committed' do
     tx = session.begin_transaction
     tx.commit
     expect { tx.run('RETURN 1') }
       .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Cannot run more queries.*committed/)
   end
 
-  it 'raises when running a query after the tx is rolled back' do
+  it 'fails to run query after tx is rolled back' do
     tx = session.begin_transaction
     tx.rollback
     expect { tx.run('RETURN 1') }
