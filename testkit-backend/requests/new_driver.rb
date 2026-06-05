@@ -31,11 +31,13 @@ module TestkitBackend
             minimum_severity: notifications_min_severity, disabled_categories: notifications_disabled_categories }
         }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
-        if domain_name_resolver_registered
-          Neo4j::Driver::GraphDatabase.internal_driver(uri, *auth_token_args, auth_token_manager:, **config, &method(:domain_name_resolver))
-        else
-          Neo4j::Driver::GraphDatabase.driver(uri, *auth_token_args, auth_token_manager:, **config)
-        end
+        # Always route through `internal_driver` so the JRuby flavour
+        # picks up its `Internal::DriverFactory` subclass — that's
+        # what wires `TestkitClock` into the pool / retry / liveness
+        # paths for Backend:MockTime. (MRI's `internal_driver` is a
+        # thin alias for `driver` so the same call works there.)
+        resolver = method(:domain_name_resolver) if domain_name_resolver_registered
+        Neo4j::Driver::GraphDatabase.internal_driver(uri, *auth_token_args, auth_token_manager:, **config, &resolver)
       end
 
       private
