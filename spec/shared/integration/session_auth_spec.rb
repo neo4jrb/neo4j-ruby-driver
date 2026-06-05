@@ -22,11 +22,9 @@ RSpec.describe 'Per-session auth', version: '>=5.1' do
 
   it "doesn't poison the pool — subsequent default sessions still work" do
     bad = Neo4j::Driver::AuthTokens.basic(neo4j_user, 'definitely-not-the-password')
-    begin
+    expect do
       driver.session(auth_token: bad) { |s| s.run('RETURN 1').consume }
-    rescue Neo4j::Driver::Exceptions::AuthenticationException
-      # expected
-    end
+    end.to raise_error(Neo4j::Driver::Exceptions::AuthenticationException)
 
     expect(driver.session { |s| s.run('RETURN 42 AS n').single[:n] }).to eq(42)
   end

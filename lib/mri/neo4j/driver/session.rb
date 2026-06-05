@@ -214,16 +214,29 @@ module Neo4j
           bookmarks: current_bookmarks_for_extra
         )
         # Per-session auth (Bolt 5.1+): ensure the pooled connection
-        # holds the right identity. Sessions opened with `:auth_token`
-        # use that token (matches Java's SessionConfig.withAuthToken
-        # so the JRuby ConfigConverter delegates via with_auth_token
-        # without special-casing); default sessions use the
-        # connection's stored driver_auth (so a connection previously
-        # borrowed by a per-session-auth session re-authenticates
-        # back here). authenticate is a no-op when the target
-        # identity already matches, so the hot path is cheap.
-        target = @options.key?(:auth_token) ? @options[:auth_token] : connection.driver_auth
-        connection.authenticate(target)
+        # holds the right identity. A non-nil `:auth_token` pins this
+        # session to that identity (matches Java's
+        # SessionConfig.withAuthToken so the JRuby ConfigConverter
+        # delegates via with_auth_token without special-casing); a
+        # nil or absent key uses the connection's stored driver_auth
+        # (so a connection previously borrowed by a per-session-auth
+        # session re-authenticates back here). authenticate is a
+        # no-op when the target identity already matches, so the hot
+        # path — including default sessions on Bolt 4.4 connections —
+        # never reaches the protocol re-auth check.
+        #
+        # rescue on top because LOGOFF/LOGON happens BEFORE the
+        # session's first wire op — if it raises, the run/begin_tx
+        # callers' rescue blocks never see this connection, so the
+        # pool slot would leak. Release back to the provider on any
+        # exception so repeated bad-creds attempts don't exhaust
+        # the pool.
+        begin
+          connection.authenticate(@options[:auth_token] || connection.driver_auth)
+        rescue StandardError
+          @connection_provider.release(connection)
+          raise
+        end
         connection
       end
 
