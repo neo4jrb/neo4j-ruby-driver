@@ -7,10 +7,17 @@ module TestkitBackend
 
       def to_object
         # testkit's NewDriver asserts that exactly one of authToken /
-        # authTokenManagerId is set.
-        auth_or_manager = auth_token_manager_id ? fetch(auth_token_manager_id) :
-                          authorization_token   ? Request.object_from(authorization_token) :
-                          Neo4j::Driver::AuthTokens.none
+        # authTokenManagerId is set. Either way the factory always
+        # gets an AuthTokenManager — bare tokens get wrapped in a
+        # static manager here, same as Java's testkit-backend.
+        auth_token_manager = if auth_token_manager_id
+                               fetch(auth_token_manager_id)
+                             else
+                               token = authorization_token ?
+                                         Request.object_from(authorization_token) :
+                                         Neo4j::Driver::AuthTokens.none
+                               Internal::StaticAuthTokenManager.new(token)
+                             end
         config = {
           user_agent: user_agent,
           connection_timeout: timeout_duration(connection_timeout_ms),
@@ -33,7 +40,7 @@ module TestkitBackend
         # Ruby resolver proc / TestkitClock — no Java refs on this
         # side, the production-side base class handles the conversion.
         resolver = method(:domain_name_resolver) if domain_name_resolver_registered
-        Internal::DriverFactory.new(resolver).new_instance(uri, auth_or_manager, config)
+        Internal::DriverFactory.new(resolver).new_instance(uri, auth_token_manager, config)
       end
 
       private

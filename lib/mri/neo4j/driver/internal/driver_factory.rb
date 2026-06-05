@@ -26,11 +26,13 @@ module Neo4j
           nil
         end
 
-        def new_instance(uri, auth_or_manager, config = {})
+        def new_instance(uri, auth_token_manager, config = {})
           # MRI's `GraphDatabase.driver` takes an `AuthToken`; managed
-          # auth is JRuby-only for now, so testkit never passes a
-          # manager here on MRI.
-          GraphDatabase.driver(uri, auth_or_manager, **config)
+          # auth (Feature:Auth:Managed) is JRuby-only for now, so
+          # testkit only ever hands us static managers here. Pull the
+          # token straight out — the manager's retry semantics are
+          # irrelevant on MRI until that path lands.
+          GraphDatabase.driver(uri, auth_token_manager.get_token, **config)
         end
       end
     end
