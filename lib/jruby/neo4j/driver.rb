@@ -20,6 +20,7 @@ module Neo4j
 
     module Internal
       java_import org.neo4j.driver.internal.shaded.bolt.connection.DatabaseName
+      StaticAuthTokenManager = Java::OrgNeo4jDriverInternalSecurity::StaticAuthTokenManager
     end
 
     module Net
