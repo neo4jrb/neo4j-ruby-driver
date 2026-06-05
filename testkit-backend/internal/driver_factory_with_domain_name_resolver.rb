@@ -22,11 +22,17 @@ module TestkitBackend
         @resolver_proc = resolver_proc
       end
 
-      def get_domain_name_resolver
+      # NOTE: JRuby only honours Ruby overrides of `protected` Java
+      # methods when the Ruby method name matches the Java method
+      # exactly — snake_case auto-mapping isn't applied for inbound
+      # dispatch from Java. Both hooks here are protected on
+      # `org.neo4j.driver.internal.DriverFactory`, so the names stay
+      # camelCase.
+      def getDomainNameResolver
         to_domain_name_resolver(@resolver_proc) || super
       end
 
-      def create_clock
+      def createClock
         to_clock(TestkitClock::INSTANCE)
       end
     end
