@@ -21,7 +21,10 @@ module Neo4j
     module Internal
       java_import org.neo4j.driver.internal.shaded.bolt.connection.DatabaseName
       java_import org.neo4j.driver.internal.DriverFactory
-      java_import org.neo4j.driver.internal.security.StaticAuthTokenManager
+
+      module Security
+        java_import org.neo4j.driver.internal.security.StaticAuthTokenManager
+      end
     end
 
     module Net

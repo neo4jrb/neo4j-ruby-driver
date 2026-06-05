@@ -10,7 +10,7 @@ module Neo4j
     module GraphDatabase
       class << self
         def driver(uri, auth_token = nil, **config, &block)
-          mgr = Internal::StaticAuthTokenManager.new(auth_token || AuthTokens.none)
+          mgr = Internal::Security::StaticAuthTokenManager.new(auth_token || AuthTokens.none)
           driver = Internal::DriverFactory.new.new_instance(uri, mgr, config)
 
           if block_given?

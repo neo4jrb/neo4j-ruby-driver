@@ -16,7 +16,7 @@ module TestkitBackend
                                token = authorization_token ?
                                          Request.object_from(authorization_token) :
                                          Neo4j::Driver::AuthTokens.none
-                               Neo4j::Driver::Internal::StaticAuthTokenManager.new(token)
+                               Neo4j::Driver::Internal::Security::StaticAuthTokenManager.new(token)
                              end
         config = {
           user_agent: user_agent,
