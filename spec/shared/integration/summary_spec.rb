@@ -123,7 +123,7 @@ RSpec.describe 'Summary' do
 
   # Ported from neo4j-java-driver SummaryIT.shouldGetSystemUpdates
   # (multi-database + admin command -> needs Neo4j 4+ enterprise).
-  it 'reports system updates separately from graph updates', version: '>=4' do
+  it 'gets system updates', version: '>=4' do
     driver.session(database: 'system') do |session|
       session.run('DROP USER foo IF EXISTS').consume
       counters = session.run("CREATE USER foo SET PASSWORD 'Testing0'").consume.counters
