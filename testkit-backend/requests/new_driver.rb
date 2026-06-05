@@ -40,7 +40,7 @@ module TestkitBackend
         # Ruby resolver proc / TestkitClock — no Java refs on this
         # side, the production-side base class handles the conversion.
         resolver = method(:domain_name_resolver) if domain_name_resolver_registered
-        Internal::DriverFactory.new(resolver).new_instance(uri, auth_token_manager, config)
+        Internal::DriverFactoryWithDomainNameResolver.new(resolver).new_instance(uri, auth_token_manager, config)
       end
 
       private

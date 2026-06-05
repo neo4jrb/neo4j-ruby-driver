@@ -16,7 +16,7 @@ module TestkitBackend
     #
     # Built by `NewDriver`; passed the optional resolver proc from
     # testkit when `domainNameResolverRegistered` is set.
-    class DriverFactory < Neo4j::Driver::Internal::DriverFactory
+    class DriverFactoryWithDomainNameResolver < Neo4j::Driver::Internal::DriverFactory
       def initialize(resolver_proc = nil)
         super()
         @resolver_proc = resolver_proc
