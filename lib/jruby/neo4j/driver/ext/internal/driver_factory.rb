@@ -39,7 +39,7 @@ module Neo4j
             ClockAdapter.new(clock)
           end
 
-          def new_instance(uri, auth_token_manager, config = {}, client_certificate_manager: nil)
+          def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
             check do
               super(java.net.URI.create(uri.to_s),
                     auth_token_manager,

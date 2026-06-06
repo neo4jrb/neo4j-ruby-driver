@@ -42,7 +42,7 @@ module TestkitBackend
         # side, the production-side base class handles the conversion.
         resolver = method(:domain_name_resolver) if domain_name_resolver_registered
         Internal::DriverFactoryWithDomainNameResolver.new(resolver)
-                .new_instance(uri, auth_token_manager, config, client_certificate_manager: client_certificate_manager)
+                .new_instance(uri, auth_token_manager, client_certificate_manager: client_certificate_manager, **config)
       end
 
       private
