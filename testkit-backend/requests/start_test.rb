@@ -103,7 +103,7 @@ module TestkitBackend
           # NOTE: temporary unblock, not a true fix. We're the ONLY driver
           # skipping these — the right resolution is to make MRI's failed
           # plaintext-to-TLS teardown deterministic so the test runs like
-          # everywhere else. Tracking: TODO(open issue).
+          # everywhere else. Tracking: #350.
           %r{\.TestUnsecureScheme\.test_secure_server} =>
             'Plaintext-to-TLS-server result diverges across CRuby/JRuby OpenSSL on the MRI driver'
         }.freeze
