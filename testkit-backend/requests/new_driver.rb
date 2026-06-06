@@ -41,10 +41,34 @@ module TestkitBackend
         # Ruby resolver proc / TestkitClock — no Java refs on this
         # side, the production-side base class handles the conversion.
         resolver = method(:domain_name_resolver) if domain_name_resolver_registered
-        Internal::DriverFactoryWithDomainNameResolver.new(resolver).new_instance(uri, auth_token_manager, config)
+        Internal::DriverFactoryWithDomainNameResolver.new(resolver)
+                .new_instance(uri, auth_token_manager, config, client_certificate_manager: client_certificate_manager)
       end
 
       private
+
+      # Mutual-TLS client certificate (JRuby only — Feature:API:SSLClient-
+      # Certificate). testkit sends exactly one of `clientCertificate` (a
+      # static cert, wrapped in a rotating manager like Java's backend) or
+      # `clientCertificateProviderId` (a managed provider created earlier by
+      # NewClientCertificateProvider). nil on MRI, where neither is ever set.
+      def client_certificate_manager
+        if client_certificate_provider_id
+          fetch(client_certificate_provider_id)
+        elsif client_certificate
+          Neo4j::Driver::ClientCertificateManagers.rotating(to_client_certificate(client_certificate))
+        end
+      end
+
+      def to_client_certificate(cert)
+        cert_file = java.io.File.new(cert[:certfile])
+        key_file = java.io.File.new(cert[:keyfile])
+        if cert[:password]
+          Neo4j::Driver::ClientCertificates.of(cert_file, key_file, cert[:password])
+        else
+          Neo4j::Driver::ClientCertificates.of(cert_file, key_file)
+        end
+      end
 
       def domain_name_resolver(name)
         @command_processor.process_response(named_entity('DomainNameResolutionRequired', id: object_id, name: name))
