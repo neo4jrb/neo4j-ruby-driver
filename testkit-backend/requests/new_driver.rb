@@ -56,7 +56,9 @@ module TestkitBackend
         if client_certificate_provider_id
           fetch(client_certificate_provider_id)
         elsif client_certificate
-          Neo4j::Driver::ClientCertificateManagers.rotating(to_client_certificate(client_certificate))
+          # The wire shape nests the fields under `data` (Java reads
+          # ClientCertificate#getData()), so unwrap before building.
+          Neo4j::Driver::ClientCertificateManagers.rotating(to_client_certificate(client_certificate[:data]))
         end
       end
 

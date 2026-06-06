@@ -28,7 +28,8 @@ module TestkitBackend
         completed = @command_processor.process(blocking: true)
         return unless completed.has_update
 
-        cert = completed.client_certificate
+        # The wire shape nests the cert fields under `data`.
+        cert = completed.client_certificate[:data]
         cert_file = java.io.File.new(cert[:certfile])
         key_file = java.io.File.new(cert[:keyfile])
         if cert[:password]
