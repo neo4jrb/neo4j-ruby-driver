@@ -85,7 +85,13 @@ module TestkitBackend
         mri: {
           # Same flake on mri / mri-on-jruby (mri-on-jruby uses :mri bucket).
           /\.test_multi_db_various_databases\z/ =>
-            'Flaky on 5.26-enterprise-cluster (cluster-discovery timing)'
+            'Flaky on 5.26-enterprise-cluster (cluster-discovery timing)',
+          # Plaintext connect to a TLS-only server resolves differently
+          # across the CRuby vs JRuby OpenSSL stacks, so it flips between
+          # mri and mri-on-jruby (which share the :mri baseline). Native
+          # JRuby (Java TLS) passes it reliably and keeps it in its baseline.
+          /\.test_secure_server_explicitly_disabled_encryption\z/ =>
+            'Plaintext-to-TLS-server result diverges across CRuby/JRuby OpenSSL on the MRI driver'
         }.freeze
       }.freeze
 
