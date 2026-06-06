@@ -66,22 +66,43 @@ jobs:
       - name: Install testkit Python deps
         run: pip install -Ur "$TESTKIT_PATH/requirements.txt" teamcity-messages
 
-      # Run every config testkit spins up without TeamCity/AWS creds
-      # (no --configs): 4.2/4.3/4.4 enterprise single instances +
-      # 5.1/5.5/5.7/5.9/5.13/5.23/5.26 enterprise 3-node clusters.
-      # (The 2026.dev / nightly configs need TEST_IN_TEAMCITY + an ECR
-      # URL, so they're inert here.) Configs whose required Bolt
-      # version the driver can't negotiate are cheap-skipped by
-      # testkit's tests.neo4j.version_check; the per-test baseline gate
-      # (suite-prefixed entries) keeps each (config, test) regression
-      # explicit.
+      # Run every config that actually boots in CI: 4.4 enterprise
+      # single instance + 5.1/5.5/5.7/5.9/5.13/5.23/5.26 enterprise
+      # 3-node clusters.
+      #
+      # 4.2 and 4.3 are deliberately excluded. Neo4j 4.2/4.3 enterprise
+      # never opens bolt 7687 within testkit's wait_for_port window on
+      # a GH runner (boots in ~5s locally, but the driver-container ->
+      # neo4jserver:7687 probe never succeeds in CI — root cause still
+      # open). testkit calls poll_host_and_port_until_available
+      # directly in main(), OUTSIDE its run_fail_wrapper, so an
+      # un-bootable config raises CalledProcessError and crashes the
+      # whole run before any other config executes — even with
+      # TEST_RUN_ALL_TESTS=true. Listing the bootable configs sidesteps
+      # that. (The 2026.dev / nightly configs need TEST_IN_TEAMCITY +
+      # an ECR URL, so they're inert regardless.)
+      #
+      # Configs whose required Bolt version the driver can't negotiate
+      # are still cheap-skipped by tests.neo4j.version_check; the
+      # per-test baseline gate (suite-prefixed entries) keeps each
+      # (config, test) regression explicit.
       - name: Run testkit integration suite
         id: testkit
         continue-on-error: true
         run: |
           set -o pipefail
           cd "$TESTKIT_PATH"
-          python3 main.py --tests TESTKIT_TESTS 2>&1 | tee "$RUNNER_TEMP/run.log"
+          python3 main.py --tests TESTKIT_TESTS \
+            --configs \
+              4.4-enterprise-neo4j \
+              5.1-enterprise-cluster-neo4j \
+              5.5-enterprise-cluster-neo4j \
+              5.7-enterprise-cluster-neo4j \
+              5.9-enterprise-cluster-neo4j \
+              5.13-enterprise-cluster-neo4j \
+              5.23-enterprise-cluster-neo4j \
+              5.26-enterprise-cluster-neo4j \
+            2>&1 | tee "$RUNNER_TEMP/run.log"
 
       - uses: ./.github/actions/testkit-postprocess
         id: postprocess
