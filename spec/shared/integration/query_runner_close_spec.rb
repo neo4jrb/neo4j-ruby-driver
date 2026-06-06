@@ -1,62 +1,59 @@
 # frozen_string_literal: true
 
-# Ported from neo4j-java-driver QueryRunnerCloseIT.java.
+# Ported from neo4j-java-driver QueryRunnerCloseIT.java (sync tests).
 #
 # After a Result is consumed or its session is closed:
 #   - record-access methods (has_next?, next, to_a, single, peek, each)
 #     must raise ResultConsumedException;
-#   - non-record methods (consume, keys) keep working idempotently.
-#
-# session_spec already has minimal 'Does Not Allow Accessing Records'
-# coverage that exercises only to_a; this spec adds the full surface.
+#   - non-record methods (consume, keys) keep working idempotently —
+#     consume returns the same summary, keys stay available.
 RSpec.describe 'Result access after consume / session close' do
-  describe 'after consume' do
-    it 'raises ResultConsumedException for every record-access method' do
-      driver.session do |session|
-        result = session.run('UNWIND [1,2] AS a RETURN a')
-        result.consume
+  def record_access_methods(result)
+    [-> { result.has_next? }, -> { result.next }, -> { result.to_a },
+     -> { result.single }, -> { result.peek }, -> { result.each {} }]
+  end
 
-        expect { result.has_next? }.to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
-        expect { result.next       }.to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
-        expect { result.to_a       }.to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
-        expect { result.single     }.to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
-        expect { result.peek       }.to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
-        expect { result.each {}    }.to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
-      end
-    end
+  it 'errors to access records after consume' do
+    driver.session do |session|
+      result = session.run('UNWIND [1,2] AS a RETURN a')
+      result.consume
 
-    it 'still allows consume and keys (idempotent / cached)' do
-      driver.session do |session|
-        result = session.run('UNWIND [1,2] AS a RETURN a')
-        keys = result.keys
-        summary = result.consume
-
-        # A second consume returns the same summary; keys remain available.
-        expect(result.consume).to eq summary
-        expect(result.keys).to eq keys
+      record_access_methods(result).each do |access|
+        expect(&access).to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
       end
     end
   end
 
-  describe 'after session close' do
-    it 'raises ResultConsumedException on record-access methods' do
-      session = driver.session
-      result = session.run('UNWIND [1,2] AS a RETURN a')
-      session.close
+  it 'errors to access records after close' do
+    session = driver.session
+    result = session.run('UNWIND [1,2] AS a RETURN a')
+    session.close
 
-      expect { result.has_next? }.to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
-      expect { result.to_a      }.to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
+    record_access_methods(result).each do |access|
+      expect(&access).to raise_error(Neo4j::Driver::Exceptions::ResultConsumedException)
     end
+  end
 
-    it 'still allows summary and keys' do
-      session = driver.session
+  it 'allows consume and keys after consume' do
+    driver.session do |session|
       result = session.run('UNWIND [1,2] AS a RETURN a')
       keys = result.keys
       summary = result.consume
-      session.close
 
+      # consume returns the same summary; keys remain available.
       expect(result.consume).to eq summary
       expect(result.keys).to eq keys
     end
+  end
+
+  it 'allows summary and keys after close' do
+    session = driver.session
+    result = session.run('UNWIND [1,2] AS a RETURN a')
+    keys = result.keys
+    summary = result.consume # consume yields the summary
+    session.close
+
+    expect(result.consume).to eq summary
+    expect(result.keys).to eq keys
   end
 end

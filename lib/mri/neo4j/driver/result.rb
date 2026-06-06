@@ -36,6 +36,7 @@ module Neo4j
       attr_reader :connection, :keys
 
       def has_next?
+        raise Exceptions::ResultConsumedException if @discarded
         return true if @records.any?
         return false if @consumed
         return true if @peeked_record
