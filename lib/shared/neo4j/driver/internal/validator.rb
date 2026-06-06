@@ -19,6 +19,16 @@ module Neo4j
           obj
         end
 
+        # Matches Java's driver-side query-text validation (the JRuby
+        # flavour gets this for free from the Java driver). A Query
+        # object carries its own text, so only bare strings are checked.
+        def self.require_query_text!(query)
+          raise ArgumentError, 'Cypher query text should not be null' if query.nil?
+          raise ArgumentError, 'Cypher query text should not be an empty string' if query.is_a?(String) && query.strip.empty?
+
+          query
+        end
+
         def self.require_non_nil_credentials!(username, password)
           require_non_nil! username, "Username"
           require_non_nil! password, "Password"
