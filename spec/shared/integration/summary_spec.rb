@@ -120,4 +120,21 @@ RSpec.describe 'Summary' do
       expect(summary.notifications).to be_empty
     end
   end
+
+  # Ported from neo4j-java-driver SummaryIT.shouldGetSystemUpdates
+  # (multi-database + admin command -> needs Neo4j 4+ enterprise).
+  it 'gets system updates', version: '>=4' do
+    driver.session(database: 'system') do |session|
+      # Java relies on a pristine system DB; our global cleaner only wipes
+      # the default graph, so drop any leftover `foo` up front to keep the
+      # test re-runnable. No `ensure` — Java has no finally, and the block
+      # already closes the session like its try-with-resources.
+      session.run('DROP USER foo IF EXISTS').consume
+      result = session.run("CREATE USER foo SET PASSWORD 'Testing0'")
+      # Faithful to Java: consume the same result twice (consume is
+      # idempotent / cached) rather than collapsing to one call.
+      expect(result.consume.counters.contains_updates?).to be false
+      expect(result.consume.counters.contains_system_updates?).to be true
+    end
+  end
 end
