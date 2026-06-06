@@ -58,7 +58,19 @@ module TestkitBackend
         # rather than play timing roulette with the disconnect-during-
         # commit detection.
         /\Astub\.retry\.test_retry(?:_clustering)?\.TestRetry(?:Clustering)?\.test_disconnect_on_commit\z/ =>
-          'Keeps retrying on commit despite connection being dropped'
+          'Keeps retrying on commit despite connection being dropped',
+
+        # testkit hard-skips this for go / java (see
+        # tests/neo4j/test_direct_driver.py — `if get_driver_name() in
+        # ["go", "java"]`, "Does not call resolver for direct connections").
+        # It uses a `bolt://*` direct connection with a `*` wildcard host:
+        # the JRuby/Java driver rejects `*` at URI parse time and never
+        # calls the resolver for a direct connection; the MRI direct path
+        # errors too. The custom resolver itself stays covered by the
+        # neo4j:// routing tests (test_should_use_resolver_during_redisc…).
+        # Skip on all flavours with the same reasoning as java/go.
+        /\.TestDirectDriver\.test_custom_resolver\z/ =>
+          'Direct-connection custom resolver (bolt://*): testkit skips it for go/java; the resolver is covered by the neo4j:// routing tests'
       }.freeze
 
       # --- Per-impl flaky-test bypasses ------------------------------------
