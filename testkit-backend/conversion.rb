@@ -19,15 +19,20 @@ module TestkitBackend
           when Date
             named_entity('CypherDate', **map_of(object, :year, :month, :day))
           when Neo4j::Driver::Types::OffsetTime
-            named_entity('CypherTime', hour: object.hour, minute: object.min, second: object.sec, nanosecond: object.nsec, 'utc_offset_s' => object.utc_offset)
+            named_entity('CypherTime', hour: object.hour, minute: object.minute, second: object.second, nanosecond: object.nanosecond, 'utc_offset_s' => object.tz_offset_seconds)
           when Neo4j::Driver::Types::LocalTime
-            named_entity('CypherTime', hour: object.hour, minute: object.min, second: object.sec, nanosecond: object.nsec)
+            named_entity('CypherTime', hour: object.hour, minute: object.minute, second: object.second, nanosecond: object.nanosecond)
           when Neo4j::Driver::Types::LocalDateTime
-            named_entity('CypherDateTime',  **map_of(object, :year, :month, :day, :hour), minute: object.min, second: object.sec, nanosecond: object.nsec)
+            # epoch_seconds encodes the wall clock as if it were UTC, so read
+            # the components back in UTC; nanoseconds are stored exactly.
+            t = object.to_time.utc
+            named_entity('CypherDateTime', year: t.year, month: t.month, day: t.day, hour: t.hour,
+                         minute: t.min, second: t.sec, nanosecond: object.nanoseconds)
+          when Neo4j::Driver::Types::Duration
+            named_entity('CypherDuration', months: object.months, days: object.days,
+                         seconds: object.seconds, nanoseconds: object.nanoseconds)
           when Time
             named_entity('CypherDateTime', **map_of(object, :year, :month, :day, :hour), minute: object.min, second: object.sec, nanosecond: object.nsec, 'utc_offset_s' => object.utc_offset, 'timezone_id' => object.try(:time_zone)&.name)
-          when ActiveSupport::Duration
-            named_entity('CypherDuration', **%i[months days seconds nanoseconds].zip(Neo4j::Driver::Internal::DurationNormalizer.normalize(object)).to_h)
           when Symbol
             to_testkit(object.to_s)
           when Neo4j::Driver::Types::Path
