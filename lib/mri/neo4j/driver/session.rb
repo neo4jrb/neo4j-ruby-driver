@@ -224,19 +224,7 @@ module Neo4j
         # no-op when the target identity already matches, so the hot
         # path — including default sessions on Bolt 4.4 connections —
         # never reaches the protocol re-auth check.
-        #
-        # rescue on top because LOGOFF/LOGON happens BEFORE the
-        # session's first wire op — if it raises, the run/begin_tx
-        # callers' rescue blocks never see this connection, so the
-        # pool slot would leak. Release back to the provider on any
-        # exception so repeated bad-creds attempts don't exhaust
-        # the pool.
-        begin
-          connection.authenticate(@options[:auth_token] || connection.driver_auth)
-        rescue StandardError
-          @connection_provider.release(connection)
-          raise
-        end
+        connection.authenticate(@options[:auth_token] || connection.driver_auth)
         connection
       end
 
