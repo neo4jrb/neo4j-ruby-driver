@@ -25,7 +25,8 @@ module TestkitBackend
         # we negotiate via HandshakeManifestV1; older servers ignore
         # the sentinel and pick from the legacy slots.
         'Feature:Bolt:3.0'                                  => 'ja',
-        'Feature:Bolt:4.1'                                  => 'ja',
+        # No Feature:Bolt:4.1 — the Java driver's matrix jumps 3.0 -> 4.2
+        # (GetFeatures.java COMMON/SYNC sets), so we don't carry it either.
         'Feature:Bolt:4.2'                                  => 'jar',
         'Feature:Bolt:4.3'                                  => 'jar',
         'Feature:Bolt:4.4'                                  => 'jar',
