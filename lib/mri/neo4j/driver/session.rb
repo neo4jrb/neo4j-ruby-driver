@@ -208,11 +208,24 @@ module Neo4j
       private
 
       def acquire_connection(access_mode)
-        @connection_provider.acquire(
+        connection = @connection_provider.acquire(
           access_mode: access_mode,
           database: @options[:database],
           bookmarks: current_bookmarks_for_extra
         )
+        # Per-session auth (Bolt 5.1+): ensure the pooled connection
+        # holds the right identity. A non-nil `:auth_token` pins this
+        # session to that identity (matches Java's
+        # SessionConfig.withAuthToken so the JRuby ConfigConverter
+        # delegates via with_auth_token without special-casing); a
+        # nil or absent key uses the connection's stored driver_auth
+        # (so a connection previously borrowed by a per-session-auth
+        # session re-authenticates back here). authenticate is a
+        # no-op when the target identity already matches, so the hot
+        # path — including default sessions on Bolt 4.4 connections —
+        # never reaches the protocol re-auth check.
+        connection.authenticate(@options[:auth_token] || connection.driver_auth)
+        connection
       end
 
 

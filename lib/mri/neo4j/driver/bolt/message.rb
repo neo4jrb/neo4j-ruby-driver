@@ -81,6 +81,15 @@ module Neo4j
             PackStream::Structure.new(LOGON, [auth || {}])
           end
 
+          # LOGOFF (Bolt 5.1+). De-authenticates the connection; the
+          # next LOGON re-authenticates with a possibly-different
+          # token. Used by per-session auth (`driver.session(auth: …)`)
+          # to switch identity on a pooled connection without tearing
+          # it down.
+          def logoff
+            PackStream::Structure.new(LOGOFF, [])
+          end
+
           # ROUTE (Bolt 4.3+) — fetch the cluster's routing table.
           #   routing_context  : map (typically built from the URI query string)
           #   bookmarks        : list of bookmarks (or nil for Bolt 4.3 compat)
