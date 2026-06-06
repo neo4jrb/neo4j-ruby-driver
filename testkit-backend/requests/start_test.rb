@@ -90,7 +90,12 @@ module TestkitBackend
           # across the CRuby vs JRuby OpenSSL stacks, so it flips between
           # mri and mri-on-jruby (which share the :mri baseline). Native
           # JRuby (Java TLS) passes it reliably and keeps it in its baseline.
-          /\.test_secure_server_explicitly_disabled_encryption\z/ =>
+          # Not viable to "fix": the divergence is inherent to the two
+          # OpenSSL implementations' handling of a plaintext socket against
+          # a TLS listener (CRuby raises on read; JRuby's stack reports the
+          # closed connection), not a driver bug — there's nothing to align
+          # without forcing one VM's TLS behaviour onto the other.
+          /\.TestUnsecureScheme\.test_secure_server_explicitly_disabled_encryption\z/ =>
             'Plaintext-to-TLS-server result diverges across CRuby/JRuby OpenSSL on the MRI driver'
         }.freeze
       }.freeze
