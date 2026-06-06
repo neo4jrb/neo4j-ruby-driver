@@ -13,10 +13,11 @@ jobs:
     # blocking the merge — same pattern as testkit-stub.yml and
     # testkit-tls.yml.
     continue-on-error: ${{ matrix.base_image != 'ruby:4.0-slim' }}
-    # 2 configs (one single instance + one 3-node cluster) fit
-    # comfortably in 30 min on a cold runner. Cap so a hung job
-    # can't burn the full default 6-hour ceiling.
-    timeout-minutes: 30
+    # The full testkit config matrix (3 single instances + 7 3-node
+    # clusters) spends most of its wall-clock on per-config Neo4j
+    # startup. Cap generously so a hung job can't burn the full
+    # default 6-hour ceiling, but allow the cluster boots to finish.
+    timeout-minutes: 90
 
     strategy:
       fail-fast: false
@@ -65,20 +66,22 @@ jobs:
       - name: Install testkit Python deps
         run: pip install -Ur "$TESTKIT_PATH/requirements.txt" teamcity-messages
 
-      # Scoped to the two configs our baselines currently cover:
-      # 4.4-enterprise-neo4j (single instance) and
-      # 5.26-enterprise-cluster-neo4j (3-node cluster, LTS). Same set
-      # for every flavour so MRI and JRuby track the same surface.
-      # Expand as routing work lights up additional Bolt minors.
+      # Run every config testkit spins up without TeamCity/AWS creds
+      # (no --configs): 4.2/4.3/4.4 enterprise single instances +
+      # 5.1/5.5/5.7/5.9/5.13/5.23/5.26 enterprise 3-node clusters.
+      # (The 2026.dev / nightly configs need TEST_IN_TEAMCITY + an ECR
+      # URL, so they're inert here.) Configs whose required Bolt
+      # version the driver can't negotiate are cheap-skipped by
+      # testkit's tests.neo4j.version_check; the per-test baseline gate
+      # (suite-prefixed entries) keeps each (config, test) regression
+      # explicit.
       - name: Run testkit integration suite
         id: testkit
         continue-on-error: true
         run: |
           set -o pipefail
           cd "$TESTKIT_PATH"
-          python3 main.py --tests TESTKIT_TESTS \
-            --configs 4.4-enterprise-neo4j 5.26-enterprise-cluster-neo4j \
-            2>&1 | tee "$RUNNER_TEMP/run.log"
+          python3 main.py --tests TESTKIT_TESTS 2>&1 | tee "$RUNNER_TEMP/run.log"
 
       - uses: ./.github/actions/testkit-postprocess
         id: postprocess
