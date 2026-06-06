@@ -340,6 +340,8 @@ Stub tests::test_supports_bolt6x0 (tests.stub.versions.test_versions.TestProtoco
 Stub tests::test_supports_bolt_4x2 (tests.stub.versions.test_versions.TestProtocolVersions.test_supports_bolt_4x2)
 Stub tests::test_supports_bolt_4x3 (tests.stub.versions.test_versions.TestProtocolVersions.test_supports_bolt_4x3)
 Stub tests::test_supports_manifest_v1 (tests.stub.versions.test_versions.TestProtocolVersions.test_supports_manifest_v1)
+Stub tests::test_supports_session_auth (tests.stub.authorization.test_user_switching.TestUserSwitchingV5x0.test_supports_session_auth)
+Stub tests::test_supports_session_auth (tests.stub.authorization.test_user_switching.TestUserSwitchingV5x1.test_supports_session_auth)
 Stub tests::test_times (tests.stub.summary.test_summary.TestSummaryBasicInfo.test_times)
 Stub tests::test_tx_func_result_list_pulls_all_records_at_once (tests.stub.iteration.test_result_list.TestResultList.test_tx_func_result_list_pulls_all_records_at_once)
 Stub tests::test_tx_func_result_list_pulls_all_records_at_once_next_before_list (tests.stub.iteration.test_result_list.TestResultList.test_tx_func_result_list_pulls_all_records_at_once_next_before_list)
