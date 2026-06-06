@@ -27,6 +27,11 @@ module TestkitBackend
         /\.test_partial_summary_contains_updates\z/ =>
           'Does not contain updates because value is zero',
         /\.test_supports_multi_db\z/ => 'Database is None',
+        # The driver validates query text client-side and rejects empty
+        # strings (matching Java/JS, which testkit also skips here); this
+        # test expects the empty query to be sent to the server.
+        /\.test_empty_query\z/ =>
+          'Driver rejects empty query strings client-side (like Java/JS)',
         /\.TestAuthenticationSchemes[^.]+\.test_custom_scheme_empty\z/ =>
           'This test needs updating to implement expected behaviour',
         /\.TestOptimizations\.test_uses_implicit_default_arguments(?:_multi_query(?:_nested)?)?\z/ =>
