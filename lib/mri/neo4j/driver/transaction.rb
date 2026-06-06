@@ -54,7 +54,12 @@ module Neo4j
 
       def run(query, **parameters)
         raise Exceptions::ClientException, 'Cannot run more queries in this transaction, it has been rolled back' if @failed
-        raise Exceptions::ClientException, 'Transaction is closed' unless @open
+        unless @open
+          # Mirror the Java/JRuby messages so the closed-state reason
+          # (committed vs rolled back) is reported the same on both impls.
+          raise Exceptions::ClientException,
+                "Cannot run more queries in this transaction, it has been #{@committed ? 'committed' : 'rolled back'}"
+        end
 
         consume_current_result
 
@@ -88,8 +93,10 @@ module Neo4j
       end
 
       def commit
+        # Java/JRuby-aligned messages for the already-closed states.
+        raise Exceptions::ClientException, 'Can\'t commit, transaction has been committed' if @committed
+        raise Exceptions::ClientException, 'Can\'t commit, transaction has been rolled back' if @rolled_back
         raise Exceptions::ClientException, 'Transaction is already closed' unless @open
-        raise Exceptions::ClientException, 'Transaction is already committed' if @committed
 
         if @failed
           rollback_via_reset
