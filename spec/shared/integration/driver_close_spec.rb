@@ -14,24 +14,24 @@ RSpec.describe 'Driver#close' do
     Neo4j::Driver::GraphDatabase.driver(uri, basic_auth_token)
   end
 
-  it 'is idempotent — closing an already-closed driver does not raise' do
+  it 'close closed driver' do
     d = new_driver
     expect { d.close; d.close; d.close }.not_to raise_error
   end
 
-  it 'raises when calling session on a closed driver' do
+  it 'session throws for closed driver' do
     d = new_driver
     d.close
     expect { d.session }.to raise_error(/closed/i)
   end
 
-  it 'raises when calling session(default_access_mode:) on a closed driver' do
+  it 'session with mode throws for closed driver' do
     d = new_driver
     d.close
     expect { d.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE) }.to raise_error(/closed/i)
   end
 
-  it 'raises when using a session after the driver is closed' do
+  it 'use session after driver is closed' do
     d = new_driver
     session = d.session
     d.close
