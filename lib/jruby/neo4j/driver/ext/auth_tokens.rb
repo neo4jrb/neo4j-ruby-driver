@@ -11,7 +11,11 @@ module Neo4j
           super
         end
 
-        def custom(principal, credentials, realm, scheme, **parameters)
+        # `parameters` is a positional Hash (matching Java's Map arg and
+        # the MRI flavour), so the same call works on both impls — a
+        # `**`-kwargs signature here would reject the positional-hash
+        # calls every caller uses (testkit AuthorizationToken, specs).
+        def custom(principal, credentials, realm, scheme, parameters = {})
           super(principal, credentials, realm, scheme, to_neo(parameters))
         end
       end

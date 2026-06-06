@@ -29,10 +29,10 @@ module Neo4j
           { scheme: 'none' }
         end
 
-        def custom(principal, credentials, realm, scheme, parameters = nil)
+        def custom(principal, credentials, realm, scheme, parameters = {})
           token = { scheme: scheme, principal: principal, credentials: credentials }
           token[:realm] = realm if realm
-          token[:parameters] = parameters if parameters
+          token[:parameters] = parameters unless parameters.empty?
           token
         end
       end
