@@ -795,7 +795,7 @@ RSpec.describe 'Session' do
 
   # --- Ported from neo4j-java-driver SessionIT.java ---
 
-  it 'allows consuming records slowly and closing the session' do
+  it 'allows to consume records slowly and close session' do
     skip 'Ruby driver does not surface the pending stream error on session.close (Java does)'
     session = driver.session
     result = session.run('UNWIND range(10000, 0, -1) AS x RETURN 10 / x')
