@@ -6,12 +6,12 @@ RSpec.describe 'Query' do
   let(:session) { driver.session }
   after(:example) { session.close }
 
-  it 'raises on a nil query (shouldFailForIllegalQueries)' do
+  # Java's shouldFailForIllegalQueries asserts both illegal inputs in one
+  # method. MRI now validates query text client-side (Internal::Validator),
+  # matching the Java/JRuby behaviour, so this is portable across flavours.
+  it 'fails for illegal queries' do
     expect { session.run(nil) }
       .to raise_error(ArgumentError, /Cypher query text should not be null/)
-  end
-
-  it 'raises on an empty query (shouldFailForIllegalQueries)' do
     expect { session.run('') }
       .to raise_error(ArgumentError, /Cypher query text should not be an empty string/)
   end

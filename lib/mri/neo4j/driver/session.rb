@@ -36,6 +36,7 @@ module Neo4j
       end
 
       def run(query, parameters = {}, config = {})
+        Internal::Validator.require_query_text!(query)
         parameters ||= {}
 
         unless parameters.is_a?(Hash)

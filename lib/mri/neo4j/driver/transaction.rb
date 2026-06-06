@@ -53,6 +53,7 @@ module Neo4j
       end
 
       def run(query, **parameters)
+        Internal::Validator.require_query_text!(query)
         raise Exceptions::ClientException, 'Cannot run more queries in this transaction, it has been rolled back' if @failed
         unless @open
           # Mirror the Java/JRuby messages so the closed-state reason
