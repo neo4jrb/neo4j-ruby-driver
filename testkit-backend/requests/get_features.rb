@@ -24,8 +24,11 @@ module TestkitBackend
         # manifest-aware server (5.7+) replies with the sentinel and
         # we negotiate via HandshakeManifestV1; older servers ignore
         # the sentinel and pick from the legacy slots.
+        # 'r' (MRI) is added to Bolt:3.0 by the commit that lands the
+        # MRI V3 protocol handler later in this branch.
         'Feature:Bolt:3.0'                                  => 'ja',
-        'Feature:Bolt:4.1'                                  => 'ja',
+        # No Feature:Bolt:4.1 — the Java driver's matrix jumps 3.0 -> 4.2
+        # (GetFeatures.java COMMON/SYNC sets), so we don't carry it either.
         'Feature:Bolt:4.2'                                  => 'jar',
         'Feature:Bolt:4.3'                                  => 'jar',
         'Feature:Bolt:4.4'                                  => 'jar',
