@@ -85,7 +85,7 @@ module TestkitBackend
         'Feature:API:RetryableExceptions'                   => '',
         'Feature:API:Session:AuthConfig'                    => 'jar',
         'Feature:API:Session:NotificationsConfig'           => 'a',
-        'Feature:API:SSLClientCertificate'                  => 'a', # mTLS client cert not yet wired on Ruby
+        'Feature:API:SSLClientCertificate'                  => 'ja', # JRuby: ClientCertificateManager via DriverFactory; MRI mTLS not wired
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'ja',

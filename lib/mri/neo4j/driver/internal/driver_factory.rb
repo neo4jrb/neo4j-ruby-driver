@@ -34,7 +34,11 @@ module Neo4j
           raise NotImplementedError, 'MRI driver does not yet expose a custom clock hook'
         end
 
-        def new_instance(uri, auth_token_manager, config = {})
+        # `client_certificate_manager` is accepted for a uniform cross-impl
+        # signature but ignored — MRI doesn't implement mutual-TLS client
+        # certificates (Feature:API:SSLClientCertificate is JRuby-only), and
+        # testkit never supplies one to the MRI flavour.
+        def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
           validate_uri(uri)
           Driver.new(uri, auth_token_manager.get_token, config)
         end

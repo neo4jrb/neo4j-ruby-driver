@@ -16,9 +16,9 @@ module Neo4j
         # `java.time.Clock`).
         #
         # `new_instance` is a Ruby-friendly wrapper over Java's 4-arg
-        # `newInstance` — takes a Ruby Hash config, fills in the nil
-        # `ClientCertificateManager`, and `super`s into the Java
-        # method.
+        # `newInstance` — takes a Ruby Hash config and an optional
+        # `ClientCertificateManager` (mutual TLS), and `super`s into the
+        # Java method.
         module DriverFactory
           include Ext::ConfigConverter
           include Ext::ExceptionCheckable
@@ -39,11 +39,11 @@ module Neo4j
             ClockAdapter.new(clock)
           end
 
-          def new_instance(uri, auth_token_manager, config = {})
+          def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
             check do
               super(java.net.URI.create(uri.to_s),
                     auth_token_manager,
-                    nil, # ClientCertificateManager — wired in a later slice
+                    client_certificate_manager,
                     to_java_config(Neo4j::Driver::Config, **config))
             end
           end
