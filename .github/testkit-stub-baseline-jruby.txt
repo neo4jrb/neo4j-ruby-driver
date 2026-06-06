@@ -922,4 +922,5 @@ Stub tests::test_tx_run_result_list_pulls_all_records_at_once_next_before_list (
 Stub tests::test_unmanaged_tx_raises_tx_closed_exec (tests.stub.tx_lifetime.test_tx_lifetime.TestTxLifetime.test_unmanaged_tx_raises_tx_closed_exec)
 Stub tests::test_unsupported_type (tests.stub.datatypes.test_unsupported_type.TestUnsupportedTypes.test_unsupported_type)
 Stub tests::test_unsupported_type_in_list (tests.stub.datatypes.test_unsupported_type.TestUnsupportedTypes.test_unsupported_type_in_list)
+Stub tests::test_warm_cache_during_cluster_upgrade (tests.stub.homedb.test_homedb.TestHomeDbMixedCluster.test_warm_cache_during_cluster_upgrade)
 Stub tests::test_warm_router_failure (tests.stub.authorization.verify_authentication.test_verify_authentication.TestVerifyAuthenticationV5x1.test_warm_router_failure)

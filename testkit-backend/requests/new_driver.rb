@@ -26,6 +26,7 @@ module TestkitBackend
           # driver_metrics: true,
           max_transaction_retry_time: timeout_duration(max_tx_retry_time_ms),
           connection_liveness_check_timeout: timeout_duration(liveness_check_timeout_ms),
+          max_connection_lifetime: timeout_duration(max_connection_lifetime_ms),
           max_connection_pool_size: max_connection_pool_size,
           connection_acquisition_timeout: timeout_duration(connection_acquisition_timeout_ms),
           encryption: encrypted,
