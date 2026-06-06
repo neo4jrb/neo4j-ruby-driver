@@ -75,8 +75,8 @@ module Neo4j
 
         run_response =
           begin
-            connection.send_message(Bolt::Message.run(query, parameters, run_extra))
-            connection.send_message(Bolt::Message.pull(n: fetch_size))
+            connection.send_message(connection.protocol.build_run(query, parameters, run_extra))
+            connection.send_message(connection.protocol.build_pull(n: fetch_size))
             connection.flush
             connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e

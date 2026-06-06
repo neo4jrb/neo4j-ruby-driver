@@ -33,16 +33,14 @@ module Neo4j
 
         # Range encoding: [reserved=0, range=N, minor, major]. Each
         # slot covers `major.minor` down to `major.(minor-N)`. We
-        # advertise 5.0–5.8 (slot 2) and 4.2–4.4 (slot 3). Slot 4 is
-        # unused (zero). We don't advertise Bolt 3.0: PULL_ALL /
-        # DISCARD_ALL / no-multi-DB / no-routing aren't wired and a
-        # crash on dispatch is worse than refusing the handshake
-        # outright; 3.0-only servers (Neo4j 3.4 / 3.5) are EOL.
+        # advertise 5.0–5.8 (slot 2), 4.2–4.4 (slot 3) and 3.0 (slot 4).
+        # Bolt 3.0 is fully wired now (Protocol::V3: PULL_ALL /
+        # DISCARD_ALL, single-DB, no routing in HELLO).
         SLOTS = [
           MANIFEST_SENTINEL,
           0x00_08_08_05,  # 5.0–5.8
           0x00_02_04_04,  # 4.2–4.4
-          0x00_00_00_00   # unused
+          0x00_00_00_03   # 3.0
         ].freeze
 
         # Versions we'd accept from a manifest, highest-preference first.
@@ -60,7 +58,8 @@ module Neo4j
           BoltVersion::V5_0,
           BoltVersion::V4_4,
           BoltVersion::V4_3,
-          BoltVersion::V4_2
+          BoltVersion::V4_2,
+          BoltVersion::V3_0
         ].freeze
 
         def initialize(socket)

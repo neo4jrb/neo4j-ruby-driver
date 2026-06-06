@@ -49,9 +49,44 @@ module Neo4j
           # registers the common ones, so an override here wins.
           def customize_hydration(_unpacker); end
 
+          # --- Message builders -------------------------------------------
+          # The protocol handler owns the wire shape of the streaming /
+          # transaction messages, mirroring Java's BoltProtocolVxY. The
+          # defaults here are the Bolt 4.0+ forms; V3 overrides the three
+          # that changed: PULL/DISCARD carry no fields, and RUN/BEGIN have
+          # no `db` (3.0 is single-database). The `db` strip is keyed on
+          # supports_multiple_databases? so it is automatic for V3.
+
+          def build_run(query, parameters, extra)
+            Message.run(query, parameters, strip_db(extra))
+          end
+
+          def build_begin(extra)
+            Message.begin_transaction(strip_db(extra))
+          end
+
+          # 4.0+ PULL carries `{n, qid}`. V3 overrides to the
+          # parameterless PULL_ALL.
+          def build_pull(extra)
+            Message.pull(extra)
+          end
+
+          # 4.0+ DISCARD carries `{n, qid}`. V3 overrides to DISCARD_ALL.
+          def build_discard(extra)
+            Message.discard(extra)
+          end
+
           def supports_re_auth? = false
           def supports_multiple_databases? = false
           def supports_notification_filtering? = false
+
+          private
+
+          def strip_db(extra)
+            return extra if supports_multiple_databases?
+
+            extra.reject { |key, _| key.to_sym == :db }
+          end
         end
       end
     end

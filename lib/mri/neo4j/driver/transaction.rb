@@ -31,7 +31,7 @@ module Neo4j
         }
         begin_extra.reject!(&Internal::Extras::BLANK)
 
-        @connection.send_message(Bolt::Message.begin_transaction(begin_extra))
+        @connection.send_message(@connection.protocol.build_begin(begin_extra))
         @connection.flush
 
         @connection.fetch_response.assert_success!
@@ -78,8 +78,8 @@ module Neo4j
         # rollback_via_reset) and re-fails on the dead connection.
         run_response =
           begin
-            @connection.send_message(Bolt::Message.run(query, parameters))
-            @connection.send_message(Bolt::Message.pull(n: fetch_size))
+            @connection.send_message(@connection.protocol.build_run(query, parameters, {}))
+            @connection.send_message(@connection.protocol.build_pull(n: fetch_size))
             @connection.flush
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e

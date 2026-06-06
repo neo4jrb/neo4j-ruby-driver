@@ -168,7 +168,7 @@ module Neo4j
         # consume() asked to cancel the stream, send DISCARD instead so
         # the server stops shipping records and returns the summary.
         if msg.metadata[:has_more]
-          next_msg = @cancelled ? Bolt::Message.discard(n: -1) : Bolt::Message.pull(n: @fetch_size)
+          next_msg = @cancelled ? @connection.protocol.build_discard(n: -1) : @connection.protocol.build_pull(n: @fetch_size)
           @connection.send_message(next_msg)
           @connection.flush
           return
