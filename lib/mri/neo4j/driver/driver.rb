@@ -61,7 +61,11 @@ module Neo4j
 
       def verify_connectivity
         @connection_provider.verify_connectivity
-      rescue Exceptions::AuthenticationException
+      rescue Exceptions::Neo4jException
+        # Propagate driver exceptions (auth/security/client/service-
+        # unavailable) as-is, like Java — wrapping them would hide the
+        # type and message callers assert on. Only unexpected non-driver
+        # errors get the contextual wrapper.
         raise
       rescue StandardError => e
         raise Exceptions::ServiceUnavailableException, "Failed to verify connectivity: #{e.message}"

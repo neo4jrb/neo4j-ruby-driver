@@ -22,6 +22,10 @@ module Neo4j
       class Handshake
         MAGIC_PREAMBLE = "\x60\x60\xB0\x17".b
 
+        # First four bytes of an HTTP response ("HTTP") read as a
+        # big-endian int — a server speaking HTTP on the Bolt port.
+        HTTP_REPLY = 0x4854_5450
+
         # Slot 1 advertises "I speak HandshakeManifestV1". Decodes as
         # BoltVersion(major=255, minor=1); servers that don't understand
         # the sentinel ignore it and pick from slots 2-4 instead.
@@ -82,6 +86,13 @@ module Neo4j
           server_reply = read_int32!('Server closed the connection during handshake')
           raise Exceptions::ServiceUnavailableException,
                 'Server does not support any of the proposed Bolt versions' if server_reply.zero?
+
+          # An HTTP server on the Bolt port replies with an HTTP status
+          # line; its first four bytes spell "HTTP". Mirror Java's helpful
+          # error instead of reporting a bogus protocol version.
+          raise Exceptions::ClientException,
+                'Server responded HTTP. Make sure you are not trying to connect to the http ' \
+                'endpoint (HTTP defaults to port 7474 whereas BOLT defaults to port 7687)' if server_reply == HTTP_REPLY
 
           server_reply == MANIFEST_SENTINEL ? negotiate_manifest : server_reply
         end
