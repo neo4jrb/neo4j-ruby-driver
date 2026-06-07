@@ -166,15 +166,28 @@ runs:
       shell: bash
       run: |
         LOG="${{ steps.log.outputs.path }}"
-        # Raw counts — every parametrised occurrence is its own
-        # pass/fail/error result. The dedup'd unique-test-id count
-        # used by the gate is reported separately below.
-        # Count both shapes (inline " ... ok" and bare "ok" after a
-        # warning-split header) so warnings don't make the totals lie.
-        PASS=$(awk '/ \.\.\. ok$/ { c++; next } /^ok$/ { c++ } END { print c+0 }' "$LOG")
-        FAIL=$(awk '/ \.\.\. FAIL$/ { c++; next } /^FAIL$/ { c++ } END { print c+0 }' "$LOG")
-        ERROR=$(awk '/ \.\.\. ERROR$/ { c++; next } /^ERROR$/ { c++ } END { print c+0 }' "$LOG")
-        SKIP=$(grep -cE 'skipped' "$LOG" || true)
+        # Parse unittest's own end-of-run summary lines rather than the
+        # inline " ... ok/FAIL/ERROR" tokens. With subTests (the TLS
+        # suite runs each test per scheme= subtest), a failing subtest
+        # does NOT print " ... FAIL" inline — the method still prints
+        # "ok" and the failures surface as end-of-run "FAIL:" / "ERROR:"
+        # blocks, so the old inline-token count reported Fail 0 / Error 0
+        # even with 20 failures. unittest prints, once per run (and the
+        # integration suite runs once per Neo4j config, so we SUM):
+        #     Ran N tests in T
+        #     OK | OK (skipped=S) | FAILED (failures=F, errors=E, skipped=S)
+        # Pass = Ran - failures - errors - skipped, matching unittest's
+        # own arithmetic.
+        read -r PASS FAIL ERROR SKIP < <(awk '
+          /^Ran [0-9]+ tests/ { ran += $2 }
+          # No \b — POSIX awk (the CI runner default) does not support it.
+          /^(OK|FAILED)/ {
+            if (match($0, /failures=[0-9]+/)) fail += substr($0, RSTART+9, RLENGTH-9)
+            if (match($0, /errors=[0-9]+/))   err  += substr($0, RSTART+7, RLENGTH-7)
+            if (match($0, /skipped=[0-9]+/))  skip += substr($0, RSTART+8, RLENGTH-8)
+          }
+          END { printf "%d %d %d %d\n", ran-fail-err-skip, fail, err, skip }
+        ' "$LOG")
         {
           echo "## Testkit (${{ inputs.target_label }}) results"
           echo ""
