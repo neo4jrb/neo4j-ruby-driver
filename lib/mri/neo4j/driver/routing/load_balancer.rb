@@ -63,8 +63,14 @@ module Neo4j
           loop do
             address = select_address(database, access_mode)
             unless address
-              raise last_error || Exceptions::SessionExpiredException.new(
-                "No #{access_mode} servers available for database #{database.inspect}"
+              # Routing table yielded no usable server for this mode —
+              # a session-expired condition (the session can't be served,
+              # caller should get a fresh one), even if the last attempt
+              # failed with a connection-level ServiceUnavailable. Surface
+              # SessionExpired with that as the cause (matches Java).
+              raise Exceptions::SessionExpiredException.new(
+                "No #{access_mode} servers available for database #{database.inspect}",
+                suppressed: last_error ? [last_error] : []
               )
             end
 
