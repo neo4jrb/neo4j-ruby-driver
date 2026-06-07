@@ -1,16 +1,11 @@
 module TestkitBackend
   module Requests
-    # Mirrors the chain used by GetRoutingTable so the handler works
-    # on both impls. JRuby's RoutingTableRegistry doesn't yet expose
-    # `refresh` (Java's force-refresh path needs ClusterComposition
-    # parameters that aren't trivial to build from Ruby), so the call
-    # is gated on respond_to?. testkit only sends this request when
-    # the impl advertises `Feature.BACKEND_RT_FORCE_UPDATE` (see
-    # GetFeatures), so the no-op path is unreachable in practice.
+    # testkit only sends this when the impl advertises
+    # Feature.BACKEND_RT_FORCE_UPDATE (see GetFeatures) — MRI today;
+    # the driver decides how to force the refresh.
     class ForcedRoutingTableUpdate < Request
       def process
-        registry = fetch(driver_id).session_factory.connection_provider.routing_table_registry
-        registry.refresh(database, bookmarks) if registry.respond_to?(:refresh)
+        fetch(driver_id).routing_table_refresh(database, bookmarks)
         named_entity('Driver', id: driver_id)
       end
     end

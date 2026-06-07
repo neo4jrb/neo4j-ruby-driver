@@ -57,6 +57,41 @@ module Neo4j
         def supports_session_auth?
           check { supports_session_auth }
         end
+
+        # Routing table for `database` (testkit GetRoutingTable). Returns
+        # Java's RoutingTable (routers/writers/readers + expirationTimestamp);
+        # the path to it is the driver's business, not testkit's.
+        def routing_table(database)
+          routing_table_registry.routing_table_handler(database).routing_table
+        end
+
+        # Force a routing-table refresh (testkit ForcedRoutingTableUpdate /
+        # Backend:RTForceUpdate — advertised on MRI only). Java's registry
+        # doesn't expose a Ruby-callable force-refresh yet, so this is a
+        # no-op on JRuby until that's wired.
+        def routing_table_refresh(database, bookmarks)
+          registry = routing_table_registry
+          registry.refresh(database, bookmarks) if registry.respond_to?(:refresh)
+        end
+
+        private
+
+        # Reflect from the session factory down to the RoutedBoltConnectionSource
+        # that owns the routing-table registry. The number of delegating
+        # wrappers varies by driver version (6.1.x adds a
+        # ProviderClosingBoltConnectionSource), so unwrap `delegate` until the
+        # source with a `registry` field.
+        def routing_table_registry
+          source = Internal::Reflection.field(session_factory, 'connectionSource')
+          until Internal::Reflection.field?(source, 'registry')
+            unless Internal::Reflection.field?(source, 'delegate')
+              raise KeyError, "No routing-table registry in the connection-source chain (#{source.java_class.simple_name})"
+            end
+
+            source = Internal::Reflection.field(source, 'delegate')
+          end
+          Internal::Reflection.field(source, 'registry')
+        end
       end
     end
   end

@@ -192,14 +192,17 @@ module Neo4j
               'Driver#pool_metrics: per-address pool metrics not yet implemented'
       end
 
-      # Internal — mirrors Java's Driver#getSessionFactory() so testkit
-      # backend handlers (GetRoutingTable, ForcedRoutingTableUpdate)
-      # can use the same chain on both JRuby and MRI:
-      #   driver.session_factory.connection_provider
-      #         .routing_table_registry.routing_table_handler(db)
-      #         .routing_table
-      # MRI has no real SessionFactory layer — Driver plays both roles.
-      def session_factory = self
+      # Routing table for `database` (testkit GetRoutingTable). Returns the
+      # routing table from the load balancer; testkit reads routers/writers/
+      # readers + ttl off it without knowing this internal path.
+      def routing_table(database)
+        connection_provider.routing_table_registry.routing_table_handler(database).routing_table
+      end
+
+      # Force a routing-table refresh (testkit ForcedRoutingTableUpdate).
+      def routing_table_refresh(database, bookmarks)
+        connection_provider.routing_table_registry.refresh(database, bookmarks)
+      end
 
       attr_reader :connection_provider
 

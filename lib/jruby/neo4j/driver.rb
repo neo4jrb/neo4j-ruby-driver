@@ -64,8 +64,6 @@ Java::OrgNeo4jDriverInternal::InternalSession.prepend Neo4j::Driver::Ext::Intern
 Java::OrgNeo4jDriverInternal::InternalTransaction.prepend Neo4j::Driver::Ext::InternalTransaction
 Java::OrgNeo4jDriverInternal::DelegatingTransactionContext.prepend Neo4j::Driver::Ext::Internal::AbstractQueryRunner
 Java::OrgNeo4jDriverInternalAsync::InternalAsyncSession.prepend Neo4j::Driver::Ext::Internal::Async::InternalAsyncSession
-Java::OrgNeo4jDriverInternal::SessionFactoryImpl.include Neo4j::Driver::Ext::Internal::SessionFactoryImpl
-Java::OrgNeo4jDriverInternalShadedBoltConnectionRouted::RoutedBoltConnectionSource.include Neo4j::Driver::Ext::Internal::Cluster::RoutedBoltConnectionSource
 Java::OrgNeo4jDriverInternalShadedBoltConnectionRoutedImplCluster::RoutingTableRegistryImpl.include Neo4j::Driver::Ext::Internal::Cluster::RoutingTableRegistryImpl
 # Java::OrgNeo4jDriverInternalCursor::DisposableAsyncResultCursor.prepend Neo4j::Driver::Ext::Internal::Cursor::DisposableAsyncResultCursor
 Java::OrgNeo4jDriverObservationMetricsInternal::InternalConnectionPoolMetrics.include Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics
