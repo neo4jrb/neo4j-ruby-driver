@@ -32,7 +32,10 @@ module TestkitBackend
             named_entity('CypherDuration', months: object.months, days: object.days,
                          seconds: object.seconds, nanoseconds: object.nanoseconds)
           when Time
-            named_entity('CypherDateTime', **map_of(object, :year, :month, :day, :hour), minute: object.min, second: object.sec, nanosecond: object.nsec, 'utc_offset_s' => object.utc_offset, 'timezone_id' => object.try(:time_zone)&.name)
+            # JRuby returns a Time whose `zone` is the TZInfo::Timezone for a
+            # named zone (nil for offset-only) — `identifier` is the IANA id;
+            # MRI's TimeWithZone exposes it via `time_zone.name`.
+            named_entity('CypherDateTime', **map_of(object, :year, :month, :day, :hour), minute: object.min, second: object.sec, nanosecond: object.nsec, 'utc_offset_s' => object.utc_offset, 'timezone_id' => object.zone.try(:identifier) || object.try(:time_zone)&.name)
           when Symbol
             to_testkit(object.to_s)
           when Neo4j::Driver::Types::Path
