@@ -173,27 +173,80 @@ module Neo4j
           flush
         end
 
-        # Bolt 4.3+ ROUTE call. Returns the routing-table map from the
-        # SUCCESS response (the `rt` field). Caller wraps it in
-        # Routing::RoutingTable.from_response. Fail fast if the
-        # connection negotiated < 4.3 so a misconfigured neo4j:// URI
-        # against a 4.2 server surfaces a clear error rather than the
-        # server's protocol-error on an unknown message tag.
+        # Fetch the cluster routing table. Bolt 4.3+ uses the dedicated
+        # ROUTE message; older versions have no ROUTE and call a
+        # server-side procedure instead (route_via_procedure). Either
+        # way the return is the `{ttl:, servers:}` map the caller wraps
+        # in Routing::RoutingTable.from_response.
         def route(database: nil, bookmarks: [], imp_user: nil, routing_context: {})
-          unless @bolt_version >= BoltVersion::V4_3
-            raise Exceptions::ClientException,
-                  "Bolt #{@bolt_version} does not support ROUTE; routing requires 4.3+ — " \
-                  'use a bolt:// URI or upgrade the server'
-          end
+          return route_via_procedure(database, bookmarks, routing_context) if @bolt_version < BoltVersion::V4_3
 
-          extra = { db: database, imp_user: imp_user }.compact
-          send_message(Message.route(routing_context, bookmarks, extra))
+          # ROUTE's 3rd field changed at 4.4: 4.3 sends the bare database
+          # name (string/null), 4.4+ a `{db, imp_user}` map. The protocol
+          # handler owns that shape.
+          send_message(@protocol.build_route(routing_context, Array(bookmarks), database, imp_user))
           flush
 
           fetch_response.assert_success!.metadata[:rt]
         rescue Exceptions::Neo4jException
           # ROUTE failure leaves the server in FAILED state — RESET clears it
           # so the connection can be reused.
+          reset!
+          raise
+        end
+
+        # Pre-4.3 routing: there is no ROUTE message, so fetch the table
+        # by calling the server-side procedure and shaping its single
+        # row ([ttl, servers]) into the same map ROUTE would return.
+        #   Bolt 3.0:    CALL dbms.cluster.routing.getRoutingTable($context)
+        #                on the home database (single-DB protocol).
+        #   Bolt 4.0-4.2: CALL dbms.routing.getRoutingTable($context, $database)
+        #                run against the `system` database.
+        def route_via_procedure(database, bookmarks, routing_context)
+          if @bolt_version >= BoltVersion::V4_0
+            # 4.0-4.2: dbms.routing.getRoutingTable run against `system`.
+            # Pass $database only when a target db is named — the home-db
+            # case uses the single-arg form (matches the server procedure
+            # overloads the stub scripts pin).
+            if database
+              query = 'CALL dbms.routing.getRoutingTable($context, $database)'
+              params = { context: routing_context, database: database }
+            else
+              query = 'CALL dbms.routing.getRoutingTable($context)'
+              params = { context: routing_context }
+            end
+            extra = { db: 'system', mode: 'r' }
+          else
+            # 3.0: single-database cluster routing procedure, home db.
+            query = 'CALL dbms.cluster.routing.getRoutingTable($context)'
+            params = { context: routing_context }
+            extra = { mode: 'r' }
+          end
+          extra[:bookmarks] = Array(bookmarks) unless Array(bookmarks).empty?
+
+          send_message(@protocol.build_run(query, params, extra))
+          send_message(@protocol.build_pull(n: -1))
+          flush
+
+          summary = fetch_response.assert_success!
+          fields = summary.metadata[:fields] || summary.metadata['fields'] || []
+          row = nil
+          loop do
+            response = fetch_response
+            case response
+            when Message::Success then break # PULL summary — end of stream
+            when Message::Record  then row ||= fields.zip(response.fields).to_h
+            else response.assert_success! # FAILURE / IGNORED — raises
+            end
+          end
+
+          unless row
+            raise Exceptions::ServiceUnavailableException,
+                  "Routing procedure on #{@address || @uri} returned no rows"
+          end
+
+          { ttl: row['ttl'], servers: row['servers'] }
+        rescue Exceptions::Neo4jException
           reset!
           raise
         end

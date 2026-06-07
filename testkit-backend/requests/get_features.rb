@@ -24,7 +24,10 @@ module TestkitBackend
         # manifest-aware server (5.7+) replies with the sentinel and
         # we negotiate via HandshakeManifestV1; older servers ignore
         # the sentinel and pick from the legacy slots.
-        'Feature:Bolt:3.0'                                  => 'ja',
+        # 'r' (MRI) added: this branch implements the pure-Ruby Bolt 3.0
+        # protocol handler (Protocol::V3) + getRoutingTable procedure
+        # fallback, so MRI negotiates and passes the v3 suites too.
+        'Feature:Bolt:3.0'                                  => 'jar',
         'Feature:Bolt:4.1'                                  => 'j',
         'Feature:Bolt:4.2'                                  => 'jar',
         'Feature:Bolt:4.3'                                  => 'jar',

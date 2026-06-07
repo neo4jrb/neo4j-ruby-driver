@@ -21,7 +21,8 @@ module Neo4j
           BoltVersion::V5_0.to_i => Protocol::V5_0,
           BoltVersion::V4_4.to_i => Protocol::V4,
           BoltVersion::V4_3.to_i => Protocol::V4,
-          BoltVersion::V4_2.to_i => Protocol::V4
+          BoltVersion::V4_2.to_i => Protocol::V4,
+          BoltVersion::V3_0.to_i => Protocol::V3
         }.freeze
 
         def self.for_version(connection, version_int)
