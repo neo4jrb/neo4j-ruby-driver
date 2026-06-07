@@ -25,7 +25,7 @@ module TestkitBackend
         # we negotiate via HandshakeManifestV1; older servers ignore
         # the sentinel and pick from the legacy slots.
         'Feature:Bolt:3.0'                                  => 'ja',
-        'Feature:Bolt:4.1'                                  => 'ja',
+        'Feature:Bolt:4.1'                                  => 'j',
         'Feature:Bolt:4.2'                                  => 'jar',
         'Feature:Bolt:4.3'                                  => 'jar',
         'Feature:Bolt:4.4'                                  => 'jar',
@@ -70,6 +70,7 @@ module TestkitBackend
         'Feature:API:BookmarkManager'                       => 'jar',
         'Feature:API:ConnectionAcquisitionTimeout'          => 'jar',
         'Feature:API:Driver.ExecuteQuery'                   => 'ja',
+        'Feature:API:Driver.ExecuteQuery:WithAuth'          => 'a',
         'Feature:API:Driver:GetServerInfo'                  => '',
         'Feature:API:Driver.IsEncrypted'                    => 'jar',
         'Feature:API:Driver:NotificationsConfig'            => 'ja',
@@ -82,13 +83,14 @@ module TestkitBackend
         'Feature:API:Result.Peek'                           => 'jar',
         'Feature:API:Result.Single'                         => 'jar',
         'Feature:API:Result.SingleOptional'                 => '',
-        'Feature:API:RetryableExceptions'                   => '',
+        'Feature:API:RetryableExceptions'                   => 'a',
         'Feature:API:Session:AuthConfig'                    => 'jar',
         'Feature:API:Session:NotificationsConfig'           => 'a',
         'Feature:API:SSLClientCertificate'                  => 'ja', # JRuby: ClientCertificateManager via DriverFactory; MRI mTLS not wired
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'ja',
+        'Feature:API:Summary:Profile:OptionalStats'         => '',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'ja',  # jruby: wraps Java's temporal types directly; MRI ('r') still has subtest gating gaps
         'Feature:API:Type.UnsupportedType'                  => 'ja',
@@ -96,7 +98,7 @@ module TestkitBackend
 
         # --- Other features --------------------------------------------------
         'Feature:Impersonation'                             => 'jar',
-        'Feature:IdempotentRetries'                         => '',
+        'Feature:IdempotentRetries'                         => 'a',
 
         # --- Optimizations ---------------------------------------------------
         'Optimization:AuthPipelining'                       => 'ja',
@@ -104,9 +106,11 @@ module TestkitBackend
         'Optimization:EagerTransactionBegin'                => 'ja',
         'Optimization:ExecuteQueryPipelining'               => 'ja',
         'Optimization:HomeDatabaseCache'                    => 'ja',
+        'Optimization:HomeDbCacheBasicPrincipalIsImpersonatedUser'  => '',
         'Optimization:ImplicitDefaultArguments'             => 'ja',
         'Optimization:MinimalBookmarksSet'                  => '',
         'Optimization:MinimalResets'                        => '',  # disabled in Java too
+        'Optimization:MinimalVerifyAuthentication'          => '',
         'Optimization:PullPipelining'                       => 'ja',
         'Optimization:ResultListFetchAll'                   => 'ja',
 
@@ -126,7 +130,7 @@ module TestkitBackend
         'ConfHint:connection.recv_timeout_seconds'          => 'ja',
         'Detail:ClosedDriverIsEncrypted'                    => '',
         'Detail:DefaultSecurityConfigValueEquality'         => 'ja',
-        'Detail:NumberIsNumber'                             => 'jar'
+        'Detail:NumberIsNumber'                             => 'jr'
       }.freeze
 
       def process
