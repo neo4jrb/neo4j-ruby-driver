@@ -189,9 +189,15 @@ module Neo4j
 
         begin
           @current_result.buffer
-        rescue Exceptions::Neo4jException
+        rescue Exceptions::Neo4jException => e
           @failed = true
-          raise
+          # A wire error during PULL streaming (e.g. a reader connection
+          # interrupted mid-stream) raises ServiceUnavailable straight
+          # from fetch_response, not via Result#on_failure — so it never
+          # saw the routing classifier. Run it through here so a routed
+          # connection failure surfaces as SessionExpired (idempotent if
+          # already classified).
+          raise @connection.classify_failure(e)
         end
 
         # buffer is a no-op when the result was already consumed by the
