@@ -181,8 +181,10 @@ module Neo4j
         def route(database: nil, bookmarks: [], imp_user: nil, routing_context: {})
           return route_via_procedure(database, bookmarks, routing_context) if @bolt_version < BoltVersion::V4_3
 
-          extra = { db: database, imp_user: imp_user }.compact
-          send_message(Message.route(routing_context, bookmarks, extra))
+          # ROUTE's 3rd field changed at 4.4: 4.3 sends the bare database
+          # name (string/null), 4.4+ a `{db, imp_user}` map. The protocol
+          # handler owns that shape.
+          send_message(@protocol.build_route(routing_context, Array(bookmarks), database, imp_user))
           flush
 
           fetch_response.assert_success!.metadata[:rt]
