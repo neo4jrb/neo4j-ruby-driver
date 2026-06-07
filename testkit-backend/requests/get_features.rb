@@ -39,6 +39,7 @@ module TestkitBackend
         'Feature:Bolt:5.7'                                  => 'jar',
         'Feature:Bolt:5.8'                                  => 'jar',
         'Feature:Bolt:6.0'                                  => 'jar',
+        'Feature:Bolt:6.1'                                  => '',
         'Feature:Bolt:HandshakeManifestV1'                  => 'jar',
         'Feature:Bolt:Patch:UTC'                            => 'ja',
 
@@ -94,6 +95,7 @@ module TestkitBackend
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'ja',  # jruby: wraps Java's temporal types directly; MRI ('r') still has subtest gating gaps
         'Feature:API:Type.UnsupportedType'                  => 'ja',
+        'Feature:API:Type.UUID'                             => '',
         'Feature:API:Type.Vector'                           => '',
 
         # --- Other features --------------------------------------------------
