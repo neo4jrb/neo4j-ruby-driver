@@ -12,6 +12,8 @@ TLS tests::test_driver_is_encrypted (tests.tls.test_secure_scheme.TestTrustSyste
 TLS tests::test_driver_is_encrypted (tests.tls.test_self_signed_scheme.TestSelfSignedScheme.test_driver_is_encrypted)
 TLS tests::test_driver_is_encrypted (tests.tls.test_self_signed_scheme.TestTrustAllCertsConfig.test_driver_is_encrypted)
 TLS tests::test_driver_is_not_encrypted (tests.tls.test_unsecure_scheme.TestUnsecureScheme.test_driver_is_not_encrypted)
+TLS tests::test_secure_server (tests.tls.test_unsecure_scheme.TestUnsecureScheme.test_secure_server)
+TLS tests::test_secure_server_explicitly_disabled_encryption (tests.tls.test_unsecure_scheme.TestUnsecureScheme.test_secure_server_explicitly_disabled_encryption)
 TLS tests::test_trusted_ca_correct_hostname (tests.tls.test_secure_scheme.TestSecureScheme.test_trusted_ca_correct_hostname)
 TLS tests::test_trusted_ca_correct_hostname (tests.tls.test_secure_scheme.TestTrustCustomCertsConfig.test_trusted_ca_correct_hostname)
 TLS tests::test_trusted_ca_correct_hostname (tests.tls.test_secure_scheme.TestTrustSystemCertsConfig.test_trusted_ca_correct_hostname)

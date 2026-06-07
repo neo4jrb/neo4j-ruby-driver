@@ -54,7 +54,27 @@ module Neo4j
             end
           end
 
-          raise last_error || Exceptions::ServiceUnavailableException.new('No addresses to connect to')
+          raise Exceptions::ServiceUnavailableException, 'No addresses to connect to' if last_error.nil?
+
+          # A Neo4jException (e.g. the handshake's ServiceUnavailable) is
+          # already classified — propagate as-is. A raw transport error
+          # (Errno::ECONNRESET when a plaintext client hits a TLS-only
+          # server, EOFError on a mid-handshake close, …) must be wrapped
+          # so callers see a DriverError rather than a bare SystemCallError.
+          # Without this, native MRI's C-OpenSSL leaks Errno::ECONNRESET and
+          # the testkit-backend reports a generic BackendError instead of a
+          # DriverError — the one TLS test where mri-on-jruby (whose Java
+          # socket layer surfaces a classified error) diverged from native
+          # mri (test_secure_server_explicitly_disabled_encryption).
+          raise last_error if last_error.is_a?(Exceptions::Neo4jException)
+
+          # Keep the original transport error (and its backtrace) as a
+          # suppressed exception so the underlying failure location is
+          # not lost behind the wrapper.
+          raise Exceptions::ServiceUnavailableException.new(
+            "Unable to connect to #{@address || @uri}: #{last_error.class}: #{last_error.message}",
+            suppressed: [last_error]
+          )
         end
 
         # Lightweight RESET-based liveness probe. Used by Bolt::Pool
