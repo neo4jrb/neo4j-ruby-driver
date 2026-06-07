@@ -339,11 +339,16 @@ module Neo4j
             errors << e
 
             if Time.now - start_time >= max_retry_time
-              raise Exceptions::ServiceUnavailableException.new(
-                "Transaction failed after retries: #{e.message}",
-                code: e.code,
-                suppressed: errors[0...-1]
-              )
+              # Retries exhausted — re-raise the LAST error with its real
+              # type (SessionExpired / Transient / ServiceUnavailable)
+              # rather than flattening everything to ServiceUnavailable;
+              # Java's transaction executor likewise rethrows the last
+              # error. testkit asserts on the type (e.g. a routed reader
+              # interruption must surface as SessionExpired), so the
+              # generic wrapper masked it. Earlier attempts ride along as
+              # suppressed.
+              e.add_suppressed(*errors[0...-1])
+              raise e
             end
 
             # Exponential backoff: 1s, 2s, 4s, ... matching Java driver defaults
