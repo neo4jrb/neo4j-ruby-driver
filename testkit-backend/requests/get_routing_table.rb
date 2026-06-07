@@ -14,8 +14,7 @@ module TestkitBackend
       end
 
       def to_object
-        @obj ||= fetch(driver_id).session_factory.connection_provider.routing_table_registry
-                                .routing_table_handler(database).routing_table
+        @obj ||= fetch(driver_id).routing_table(database)
       end
     end
   end

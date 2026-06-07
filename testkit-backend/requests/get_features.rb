@@ -121,16 +121,14 @@ module TestkitBackend
 
         # --- Backend / detail ------------------------------------------------
         'Backend:MockTime'                                  => 'ja',
-        # MRI: routes through driver.session_factory.connection_provider
-        # .routing_table_registry.routing_table_handler(db).routing_table —
-        # mirrors Java's internal API on top of Routing::LoadBalancer.
-        # JRuby: uses Java's getRoutingTableHandler via the
-        # RoutingTableRegistryImpl extension.
+        # Both impls answer via Driver#routing_table(db) (returns a
+        # RoutingTable — Java's on JRuby, Routing::RoutingTable on MRI);
+        # how each reaches it is the driver's business, not testkit's.
         'Backend:RTFetch'                                   => 'jr',
-        # MRI: registry.refresh forces a ROUTE call.
-        # JRuby: ForcedRoutingTableUpdate is still a no-op (Java's
-        # force-refresh needs ClusterComposition parameters not yet
-        # wired from Ruby). Don't advertise until that's done.
+        # Driver#routing_table_refresh(db, bookmarks). MRI forces a ROUTE
+        # call; JRuby is still a no-op (Java's force-refresh needs
+        # ClusterComposition parameters not yet wired from Ruby), so only
+        # MRI advertises it.
         'Backend:RTForceUpdate'                             => 'r',
         'ConfHint:connection.recv_timeout_seconds'          => 'ja',
         'Detail:ClosedDriverIsEncrypted'                    => '',
