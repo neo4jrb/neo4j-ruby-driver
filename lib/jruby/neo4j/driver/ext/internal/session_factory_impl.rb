@@ -16,7 +16,20 @@ module Neo4j
         # keeps working on JRuby the same as on MRI.
         module SessionFactoryImpl
           def connection_provider
-            Reflection.field(Reflection.field(self, 'connectionSource'), 'delegate')
+            # The routed provider holding the registry sits behind one or
+            # more delegating wrappers whose count varies by driver version
+            # (6.0.x: AdaptingDriverBoltConnectionSource → routed;
+            # 6.1.x adds a ProviderClosingBoltConnectionSource in between).
+            # Unwrap `delegate` until the source that owns the registry.
+            source = Reflection.field(self, 'connectionSource')
+            until Reflection.field?(source, 'registry')
+              unless Reflection.field?(source, 'delegate')
+                raise KeyError, "No routing-table registry in the connection-source chain (#{source.java_class.simple_name})"
+              end
+
+              source = Reflection.field(source, 'delegate')
+            end
+            source
           end
         end
       end

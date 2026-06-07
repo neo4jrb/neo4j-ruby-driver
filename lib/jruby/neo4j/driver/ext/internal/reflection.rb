@@ -11,6 +11,10 @@ module Neo4j
           def self.field(object, name)
             object.java_class.declared_field(name).tap { |f| f.accessible = true }.get(object)
           end
+
+          def self.field?(object, name)
+            object.java_class.declared_fields.any? { |f| f.name == name }
+          end
         end
       end
     end
