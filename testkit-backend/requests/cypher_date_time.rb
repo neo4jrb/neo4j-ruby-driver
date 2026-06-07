@@ -7,7 +7,9 @@ module TestkitBackend
         elsif utc_offset_s
           Time.new(year, month, day, hour, minute, second + nanosecond * 1e-9, utc_offset_s)
         else
-          Neo4j::Driver::Types::LocalDateTime.new(Time.new(year, month, day, hour, minute, second + nanosecond * 1e-9))
+          # Naive datetime: store the wall clock as if it were UTC (epoch
+          # seconds) with the nanoseconds kept exact.
+          Neo4j::Driver::Types::LocalDateTime.new(Time.utc(year, month, day, hour, minute, second).to_i, nanosecond)
         end
       end
     end

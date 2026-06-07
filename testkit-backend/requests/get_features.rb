@@ -24,9 +24,11 @@ module TestkitBackend
         # manifest-aware server (5.7+) replies with the sentinel and
         # we negotiate via HandshakeManifestV1; older servers ignore
         # the sentinel and pick from the legacy slots.
+        # 'r' (MRI) added: this branch implements the pure-Ruby Bolt 3.0
+        # protocol handler (Protocol::V3) + getRoutingTable procedure
+        # fallback, so MRI negotiates and passes the v3 suites too.
         'Feature:Bolt:3.0'                                  => 'jar',
-        # No Feature:Bolt:4.1 — the Java driver's matrix jumps 3.0 -> 4.2
-        # (GetFeatures.java COMMON/SYNC sets), so we don't carry it either.
+        'Feature:Bolt:4.1'                                  => 'j',
         'Feature:Bolt:4.2'                                  => 'jar',
         'Feature:Bolt:4.3'                                  => 'jar',
         'Feature:Bolt:4.4'                                  => 'jar',
@@ -40,6 +42,7 @@ module TestkitBackend
         'Feature:Bolt:5.7'                                  => 'jar',
         'Feature:Bolt:5.8'                                  => 'jar',
         'Feature:Bolt:6.0'                                  => 'jar',
+        'Feature:Bolt:6.1'                                  => '',
         'Feature:Bolt:HandshakeManifestV1'                  => 'jar',
         'Feature:Bolt:Patch:UTC'                            => 'ja',
 
@@ -71,6 +74,7 @@ module TestkitBackend
         'Feature:API:BookmarkManager'                       => 'jar',
         'Feature:API:ConnectionAcquisitionTimeout'          => 'jar',
         'Feature:API:Driver.ExecuteQuery'                   => 'ja',
+        'Feature:API:Driver.ExecuteQuery:WithAuth'          => 'a',
         'Feature:API:Driver:GetServerInfo'                  => '',
         'Feature:API:Driver.IsEncrypted'                    => 'jar',
         'Feature:API:Driver:NotificationsConfig'            => 'ja',
@@ -83,21 +87,23 @@ module TestkitBackend
         'Feature:API:Result.Peek'                           => 'jar',
         'Feature:API:Result.Single'                         => 'jar',
         'Feature:API:Result.SingleOptional'                 => '',
-        'Feature:API:RetryableExceptions'                   => '',
+        'Feature:API:RetryableExceptions'                   => 'a',
         'Feature:API:Session:AuthConfig'                    => 'jar',
         'Feature:API:Session:NotificationsConfig'           => 'a',
-        'Feature:API:SSLClientCertificate'                  => 'a', # mTLS client cert not yet wired on Ruby
+        'Feature:API:SSLClientCertificate'                  => 'ja', # JRuby: ClientCertificateManager via DriverFactory; MRI mTLS not wired
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'ja',
+        'Feature:API:Summary:Profile:OptionalStats'         => '',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'ja',  # jruby: wraps Java's temporal types directly; MRI ('r') still has subtest gating gaps
         'Feature:API:Type.UnsupportedType'                  => 'ja',
+        'Feature:API:Type.UUID'                             => '',
         'Feature:API:Type.Vector'                           => '',
 
         # --- Other features --------------------------------------------------
         'Feature:Impersonation'                             => 'jar',
-        'Feature:IdempotentRetries'                         => '',
+        'Feature:IdempotentRetries'                         => 'a',
 
         # --- Optimizations ---------------------------------------------------
         'Optimization:AuthPipelining'                       => 'ja',
@@ -105,9 +111,11 @@ module TestkitBackend
         'Optimization:EagerTransactionBegin'                => 'ja',
         'Optimization:ExecuteQueryPipelining'               => 'ja',
         'Optimization:HomeDatabaseCache'                    => 'ja',
+        'Optimization:HomeDbCacheBasicPrincipalIsImpersonatedUser'  => '',
         'Optimization:ImplicitDefaultArguments'             => 'ja',
         'Optimization:MinimalBookmarksSet'                  => '',
         'Optimization:MinimalResets'                        => '',  # disabled in Java too
+        'Optimization:MinimalVerifyAuthentication'          => '',
         'Optimization:PullPipelining'                       => 'ja',
         'Optimization:ResultListFetchAll'                   => 'ja',
 
@@ -127,7 +135,7 @@ module TestkitBackend
         'ConfHint:connection.recv_timeout_seconds'          => 'ja',
         'Detail:ClosedDriverIsEncrypted'                    => '',
         'Detail:DefaultSecurityConfigValueEquality'         => 'ja',
-        'Detail:NumberIsNumber'                             => 'jar'
+        'Detail:NumberIsNumber'                             => 'jr'
       }.freeze
 
       def process
