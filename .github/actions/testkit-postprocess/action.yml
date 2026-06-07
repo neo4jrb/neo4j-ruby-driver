@@ -179,7 +179,7 @@ runs:
         # Pass = Ran - failures - errors - skipped, matching unittest's
         # own arithmetic.
         read -r PASS FAIL ERROR SKIP < <(awk '
-          /^Ran [0-9]+ tests/ { ran += $2 }
+          /^Ran [0-9]+ tests?/ { ran += $2 }
           # No \b — POSIX awk (the CI runner default) does not support it.
           /^(OK|FAILED)/ {
             if (match($0, /failures=[0-9]+/)) fail += substr($0, RSTART+9, RLENGTH-9)
