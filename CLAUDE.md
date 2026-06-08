@@ -1,5 +1,11 @@
 # Neo4j Ruby Driver
 
+## Branches
+
+`main` is the active development branch — base feature branches on it and
+target PRs at it. `4.4` is a diverged, older release line (it predates the
+JRuby/shared split and the auth-manager work); don't branch off it.
+
 ## Essential References
 
 ### Specifications
