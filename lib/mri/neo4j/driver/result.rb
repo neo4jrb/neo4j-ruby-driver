@@ -49,9 +49,12 @@ module Neo4j
           @connection.fetch_response.accept(self) until @consumed || @peeked_record
         end
         !@peeked_record.nil?
-      rescue StandardError
+      rescue StandardError => e
         @consumed = true
-        raise
+        # A connection failure mid-stream (e.g. the writer dropped during
+        # PULL) arrives here, not via on_failure — classify it so routing
+        # turns ServiceUnavailable into SessionExpired (no-op for direct).
+        raise @connection.classify_failure(e)
       end
 
       def next
