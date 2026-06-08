@@ -38,7 +38,7 @@ module Neo4j::Driver::Ext
 
     def to_future(completion_stage)
       Concurrent::Promises.resolvable_future.tap do |future|
-        completion_stage.then_apply(&future.method(:fulfill)).exceptionally { |e| future.reject(mapped_exception(e.cause)) }
+        completion_stage.then_apply(&future.method(:fulfill)).exceptionally { |e| future.reject(mapped_exception_with_cause(e.cause)) }
       end
     end
 
@@ -48,7 +48,13 @@ module Neo4j::Driver::Ext
         variable.resolve([value, error])
       end
       value, error = variable.wait
-      raise mapped_exception(error.cause || error) if error
+      if error
+        # This raise is outside any rescue, so set cause explicitly (the
+        # backtrace is correctly captured here, unlike the value-handoff
+        # helper). Mirrors mapped_exception(error.cause || error).
+        original = error.cause || error
+        raise mapped_exception(original), cause: original
+      end
       value
     end
   end

@@ -22,7 +22,7 @@ module Neo4j
       def get_token = java.util.concurrent.CompletableFuture.completed_future(super)
 
       def handle_security_exception(token, exception)
-        super(token, mapped_exception(exception))
+        super(token, mapped_exception_with_cause(exception))
       end
     end
   end
