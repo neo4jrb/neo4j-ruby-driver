@@ -39,10 +39,15 @@ module Neo4j
         # `raise … cause:` is the only way to attach one.
         def mapped_exception_with_cause(exception)
           mapped = mapped_exception(exception)
-          return mapped if mapped.equal?(exception) # unmapped passthrough
+          return mapped if mapped.equal?(exception) # unmapped passthrough — no self-cause
 
           raise mapped, cause: exception
         rescue StandardError => e
+          # Only the mapped exception we just raised becomes a return
+          # value; anything else (e.g. a bug in mapped_exception) must
+          # propagate rather than be silently turned into a value.
+          raise unless e.equal?(mapped)
+
           e
         end
 

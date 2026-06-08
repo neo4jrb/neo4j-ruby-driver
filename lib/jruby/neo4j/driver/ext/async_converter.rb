@@ -51,9 +51,13 @@ module Neo4j::Driver::Ext
       if error
         # This raise is outside any rescue, so set cause explicitly (the
         # backtrace is correctly captured here, unlike the value-handoff
-        # helper). Mirrors mapped_exception(error.cause || error).
+        # helper). Guard the unmapped passthrough — `cause: original` when
+        # mapped == original is a self-cause.
         original = error.cause || error
-        raise mapped_exception(original), cause: original
+        mapped = mapped_exception(original)
+        raise mapped if mapped.equal?(original)
+
+        raise mapped, cause: original
       end
       value
     end
