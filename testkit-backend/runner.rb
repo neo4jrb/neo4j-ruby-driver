@@ -26,7 +26,13 @@ module TestkitBackend
       # overflows and testkit gets ConnectionRefused on retries.
       Thread.new(socket, host, port) do |sock, h, p|
         cp = CommandProcessor.new(sock)
-        while cp.process(blocking: true) do
+        # A dedicated reader thread owns the socket; this thread is the
+        # executor that runs requests. Driver callbacks (auth manager,
+        # resolver, …) fire on driver-owned threads and round-trip via
+        # CommandProcessor#callback, so nothing but the reader touches the
+        # socket for reads — concurrent routing callbacks can't race.
+        cp.start_reader
+        while cp.process_next do
         end
       rescue StandardError => e
         warn "*** #{h}:#{p} handler crashed: #{e.class}: #{e.message}"

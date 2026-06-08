@@ -73,13 +73,11 @@ module TestkitBackend
       end
 
       def domain_name_resolver(name)
-        @command_processor.process_response(named_entity('DomainNameResolutionRequired', id: object_id, name: name))
-        @command_processor.process(blocking: true).addresses
+        @command_processor.callback(named_entity('DomainNameResolutionRequired', id: object_id, name: name)).addresses
       end
 
       def callback_resolver(address)
-        @command_processor.process_response(named_entity('ResolverResolutionRequired', id: object_id, address: address))
-        @command_processor.process(blocking: true).addresses.map do |addr|
+        @command_processor.callback(named_entity('ResolverResolutionRequired', id: object_id, address: address)).addresses.map do |addr|
           addr.rpartition(':').then { |host, _, port| Neo4j::Driver::Net::ServerAddress.of(host, port.to_i) }
         end
       end

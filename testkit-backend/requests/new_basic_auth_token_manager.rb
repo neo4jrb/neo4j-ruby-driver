@@ -22,9 +22,9 @@ module TestkitBackend
       private
 
       def supply(manager_id)
-        @command_processor.process_response(
+        reply = @command_processor.callback(
           named_entity('BasicAuthTokenProviderRequest', id: manager_id, basic_auth_token_manager_id: manager_id))
-        Request.object_from(@command_processor.process(blocking: true).auth)
+        Request.object_from(reply.auth)
       end
     end
   end

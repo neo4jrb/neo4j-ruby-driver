@@ -27,9 +27,8 @@ module TestkitBackend
       private
 
       def supply(manager_id)
-        @command_processor.process_response(
-          named_entity('BearerAuthTokenProviderRequest', id: manager_id, bearer_auth_token_manager_id: manager_id))
-        body = @command_processor.process(blocking: true).auth[:data]
+        body = @command_processor.callback(
+          named_entity('BearerAuthTokenProviderRequest', id: manager_id, bearer_auth_token_manager_id: manager_id)).auth[:data]
         token = Request.object_from(body[:auth])
         expires_in_ms = body[:expiresInMs]
         expires_at_ms = expires_in_ms && Internal::TestkitClock::INSTANCE.now_millis + expires_in_ms
