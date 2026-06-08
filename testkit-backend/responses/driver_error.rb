@@ -17,7 +17,8 @@ module TestkitBackend
           classification: @object.try(:classification)&.to_s,
           rawClassification: @object.try(:raw_classification),
           retryable: @object.is_a?(Neo4j::Driver::Exceptions::TransientException) ||
-                     @object.is_a?(Neo4j::Driver::Exceptions::ServiceUnavailableException)
+                     @object.is_a?(Neo4j::Driver::Exceptions::ServiceUnavailableException) ||
+                     @object.is_a?(Neo4j::Driver::Exceptions::SecurityRetryableException)
         }.compact
       end
 

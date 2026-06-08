@@ -14,6 +14,7 @@ module Neo4j
         java_import org.neo4j.driver.exceptions.ProtocolException
         java_import org.neo4j.driver.exceptions.ResultConsumedException
         java_import org.neo4j.driver.exceptions.SecurityException
+        java_import org.neo4j.driver.exceptions.SecurityRetryableException
         java_import org.neo4j.driver.exceptions.ServiceUnavailableException
         java_import org.neo4j.driver.exceptions.SessionExpiredException
         java_import org.neo4j.driver.exceptions.TokenExpiredException
@@ -95,6 +96,8 @@ module Neo4j
             Neo4j::Driver::Exceptions::ResultConsumedException
           when TokenExpiredException
             Neo4j::Driver::Exceptions::TokenExpiredException
+          when SecurityRetryableException # subclass of SecurityException — match first
+            Neo4j::Driver::Exceptions::SecurityRetryableException
           when SecurityException
             Neo4j::Driver::Exceptions::SecurityException
           when TransactionNestingException
