@@ -83,8 +83,9 @@ module Neo4j
             # retry picks a different server (mirrors Java's RoutingConnection
             # mapping connection failures to SessionExpired). Both are
             # retryable, so retry behaviour is unchanged; only the surfaced
-            # type differs.
-            Exceptions::SessionExpiredException.new(error.message, code: error.code, suppressed: [error])
+            # type differs. The original is chained as `cause` automatically
+            # when the caller re-raises this inside its `rescue => error`.
+            Exceptions::SessionExpiredException.new(error.message, code: error.code)
           when Exceptions::TransientException
             if error.code == DATABASE_UNAVAILABLE_CODE
               @discard_on_release = true
@@ -95,11 +96,11 @@ module Neo4j
             if @access_mode == :write && WRITE_FAILURE_CODES.include?(error.code)
               @discard_on_release = true
               @pool.on_write_failure(@address_obj, @database)
+              # Original ClientException chained as `cause` at re-raise.
               Exceptions::SessionExpiredException.new(
                 "Server at #{@address_obj} no longer accepts writes for database " \
                 "#{@database.inspect} (#{error.code})",
-                code: error.code,
-                suppressed: [error]
+                code: error.code
               )
             else
               error

@@ -68,13 +68,13 @@ module Neo4j
           # mri (test_secure_server_explicitly_disabled_encryption).
           raise last_error if last_error.is_a?(Exceptions::Neo4jException)
 
-          # Keep the original transport error (and its backtrace) as a
-          # suppressed exception so the underlying failure location is
-          # not lost behind the wrapper.
-          raise Exceptions::ServiceUnavailableException.new(
-            "Unable to connect to #{@address || @uri}: #{last_error.class}: #{last_error.message}",
-            suppressed: [last_error]
-          )
+          # Chain the original transport error as `cause` (this raise is
+          # outside the per-address rescue, so it's set explicitly rather
+          # than auto-populated from $!). Preserves the underlying failure
+          # and its backtrace behind the wrapper.
+          raise Exceptions::ServiceUnavailableException,
+                "Unable to connect to #{@address || @uri}: #{last_error.class}: #{last_error.message}",
+                cause: last_error
         end
 
         # Lightweight RESET-based liveness probe. Used by Bolt::Pool
