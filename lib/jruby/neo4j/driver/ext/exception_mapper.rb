@@ -19,6 +19,7 @@ module Neo4j
         java_import org.neo4j.driver.exceptions.SessionExpiredException
         java_import org.neo4j.driver.exceptions.TokenExpiredException
         java_import org.neo4j.driver.exceptions.TransactionNestingException
+        java_import org.neo4j.driver.exceptions.TransactionTerminatedException
         java_import org.neo4j.driver.exceptions.TransientException
         java_import org.neo4j.driver.exceptions.UnsupportedFeatureException
         java_import org.neo4j.driver.exceptions.UntrustedServerException
@@ -104,6 +105,8 @@ module Neo4j
             Neo4j::Driver::Exceptions::TransactionNestingException
           when UnsupportedFeatureException
             Neo4j::Driver::Exceptions::UnsupportedFeatureException
+          when TransactionTerminatedException # subclass of ClientException — match first
+            Neo4j::Driver::Exceptions::TransactionTerminatedException
           when ClientException
             Neo4j::Driver::Exceptions::ClientException
           when ConnectionReadTimeoutException
