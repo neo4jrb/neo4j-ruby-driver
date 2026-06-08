@@ -1,6 +1,7 @@
 {
   "testkit": {
-    "uri": "https://github.com/neo4j-drivers/testkit.git",
-    "ref": "a342fd02966075f4b21685074ad929d6a126d25f"
+    "_comment": "TEMPORARY: pinned to the klobuczek/testkit fork branch carrying the ruby error-mapping additions (PR neo4j-drivers/testkit#717). Revert uri to neo4j-drivers/testkit.git and ref to a SHA once #717 merges upstream.",
+    "uri": "https://github.com/klobuczek/testkit.git",
+    "ref": "ruby-auth-error-mappings"
   }
 }
