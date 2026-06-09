@@ -53,6 +53,12 @@ module TestkitBackend
                          startNodeElementId: to_testkit(object.start_node_element_id),
                          endNodeElementId: to_testkit(object.end_node_element_id),
                          type: to_testkit(object.type), props: to_testkit(object.properties))
+          when Java::OrgNeo4jDriverTypes::UnsupportedType
+            # A value of a type newer than this driver understands; the Java
+            # driver keeps its name + the bolt version that introduced it.
+            named_entity('CypherUnsupportedType', name: object.name,
+                         minimumProtocol: object.min_protocol_version,
+                         message: object.message.or_else(nil))
           else
             raise "Not implemented #{object.class.name}:#{object.inspect}"
           end
