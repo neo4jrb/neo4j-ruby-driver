@@ -47,6 +47,15 @@ module Neo4j
             instant = time.to_instant
             Time.at(instant.epoch_second, instant.nano, :nsec, in: TZInfo::Timezone.get(zone_id))
           end
+        rescue Java::JavaTime::DateTimeException => e
+          # The server sent a zoned datetime whose zone the driver can't
+          # resolve (e.g. an unknown tz id); the Java value defers the
+          # failure to access time. Surface it as a driver exception
+          # (preserving the zone id in the message) instead of leaking the
+          # raw Java exception. cause: nil so the managed-tx reverse_check
+          # doesn't unwrap to (and re-raise) the raw Java DateTimeException,
+          # which the retry logic can't map back to a driver exception.
+          raise Exceptions::ClientException.new(e.message), cause: nil
         end
 
         def nullable(double)
