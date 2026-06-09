@@ -87,7 +87,11 @@ module Neo4j
           @pool ||= Bolt::Pool.new(
             size: max_pool_size,
             options: @options,
-            connect_factory: -> { Bolt::Connection.new(@uri, @auth_manager.get_token, @options).connect }
+            connect_factory: lambda {
+              conn = Bolt::Connection.new(@uri, @auth_manager.get_token, @options).connect
+              conn.security_exception_handler = method(:on_security_exception)
+              conn
+            }
           )
         end
 

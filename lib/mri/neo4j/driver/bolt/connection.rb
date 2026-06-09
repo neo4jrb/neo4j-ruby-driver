@@ -152,14 +152,29 @@ module Neo4j
           @auth = new_auth
         end
 
-        # No-op classifier for the direct (bolt://) path — there's no
-        # routing table to feed back, no `on_write_failure`, no
-        # write-failure-to-SessionExpired swap. Routing::RoutedConnection
-        # overrides this with the real implementation. Defined here so
+        # Provider-set callback (token, error) -> Boolean: feeds a
+        # security failure back to the auth-token manager so it can
+        # invalidate / refresh the token. nil for drivers built without a
+        # managed manager (the static case never invalidates).
+        attr_accessor :security_exception_handler
+
+        # Report a security failure to the auth-token manager (if any).
+        # Every operation site funnels errors through classify_failure, so
+        # this is the single notification point. Returns the error
+        # unchanged — the manager's job here is the side effect (token
+        # invalidation); the error still surfaces to the caller.
+        def notify_security_exception(error)
+          @security_exception_handler&.call(@auth, error) if error.is_a?(Exceptions::SecurityException)
+          error
+        end
+
+        # No-op routing classifier for the direct (bolt://) path — there's
+        # no routing table to feed back. Still funnels through the auth
+        # manager. Routing::RoutedConnection overrides with the real
+        # routing classification (and also notifies). Defined here so
         # session.rb / transaction.rb / Result#on_failure can call
-        # `connection.classify_failure(e)` unconditionally without
-        # `respond_to?` guards.
-        def classify_failure(error) = error
+        # `connection.classify_failure(e)` unconditionally.
+        def classify_failure(error) = notify_security_exception(error)
 
         # Defer peer-closed errors from the write path for the same
         # reason as #flush: a server FAILURE buffered before the peer

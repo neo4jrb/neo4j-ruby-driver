@@ -229,7 +229,17 @@ module Neo4j
         # no-op when the target identity already matches, so the hot
         # path — including default sessions on Bolt 4.4 connections —
         # never reaches the protocol re-auth check.
-        connection.authenticate(@options[:auth_token] || connection.driver_auth)
+        # A per-session :auth_token always re-auths (and correctly errors
+        # on Bolt < 5.1, where per-session auth is unsupported). The
+        # manager default identity only re-auths where re-auth exists
+        # (5.1+); on 5.0 a pooled connection keeps its creation-time token
+        # and the manager's refresh reaches new connections instead (an
+        # in-place re-auth would wrongly raise on a still-valid token).
+        if @options[:auth_token]
+          connection.authenticate(@options[:auth_token])
+        elsif connection.protocol.supports_re_auth?
+          connection.authenticate(@connection_provider.current_auth_token)
+        end
         connection
       end
 

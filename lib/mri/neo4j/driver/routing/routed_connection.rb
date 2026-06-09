@@ -69,6 +69,11 @@ module Neo4j
         # PULL/DISCARD). Each invokes this in its catch-Neo4jException
         # block and re-raises whatever we return.
         def classify_failure(error)
+          # Funnel security failures to the auth-token manager (via the
+          # inner connection's provider-set handler), same as the direct
+          # path — then apply routing classification.
+          @inner.notify_security_exception(error)
+
           case error
           when Exceptions::SessionExpiredException
             # Already routing-classified — deactivate and keep the type.

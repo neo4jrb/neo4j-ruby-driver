@@ -409,7 +409,9 @@ module Neo4j
           # context is sent to readers/writers too; non-router servers
           # just ignore it).
           opts = @options.merge(routing_context: @routing_context)
-          Bolt::Connection.new(uri, @auth_manager.get_token, opts).connect
+          conn = Bolt::Connection.new(uri, @auth_manager.get_token, opts).connect
+          conn.security_exception_handler = method(:on_security_exception)
+          conn
         end
 
         def symbolize(value)
