@@ -4,26 +4,94 @@ module TestkitBackend
       REQUEST_BEGIN = "#request begin"
       REQUEST_END = "#request end"
 
+      # Backend->frontend callback replies. The driver invokes the matching
+      # callbacks (auth-token manager, resolver, bookmark manager, …) from its
+      # own threads — for a routing driver that's Netty I/O threads, and more
+      # than one can be in flight at once. The reader routes these to the
+      # waiting callback instead of treating them as new top-level requests.
+      COMPLETION_NAMES = %w[
+        AuthTokenManagerGetAuthCompleted
+        AuthTokenManagerHandleSecurityExceptionCompleted
+        BasicAuthTokenProviderCompleted
+        BearerAuthTokenProviderCompleted
+        BookmarksSupplierCompleted
+        BookmarksConsumerCompleted
+        ClientCertificateProviderCompleted
+        DomainNameResolutionCompleted
+        ResolverResolutionCompleted
+      ].to_set.freeze
+
       def initialize(socket)
         @socket = socket
         @buffer = String.new
         @closed = false
         @debug = ENV["TESTKIT_DEBUG"] == "1"
+        # One reader thread owns the socket; everything else communicates
+        # through these. @io_mutex guards every write and the FIFO waiter
+        # list — never held across a blocking wait, so it can't deadlock.
+        @io_mutex = Mutex.new
+        @waiters = []
+        @requests = Queue.new
       end
 
-      def process(blocking: false)
-        while (var = read_chunk(blocking))
-          log_chunk(blocking ? "blocking:" : "nonblocking:", var)
-          @buffer << var
-          if (request_begin = find_request_begin) && (request_end = find_request_end(request_begin))
-            to_process = @buffer[request_begin...request_end[:start]]
-            @buffer = @buffer[(request_end[:line_end] + 1)..-1] || ""
-            return process_request(to_process)
+      # Sole socket reader. Frames each message and routes it: a callback
+      # reply goes to the oldest waiting callback (FIFO is correct because
+      # writes are serialised, so request order == reply order); anything
+      # else is a request for the executor to run.
+      def start_reader
+        @reader = Thread.new do
+          while (raw = read_message)
+            if COMPLETION_NAMES.include?(JSON.parse(raw, symbolize_names: true)[:name])
+              (@io_mutex.synchronize { @waiters.shift })&.push(raw)
+            else
+              @requests.push(raw)
+            end
           end
+        ensure
+          # Unblock any callback still waiting on a reply — the connection is
+          # gone, so its reply will never arrive (a closed Thread::Queue#pop
+          # returns nil). Otherwise that driver thread hangs forever.
+          @io_mutex.synchronize do
+            @waiters.each(&:close)
+            @waiters.clear
+          end
+          @requests.close
         end
-      rescue Errno::EBADF, Errno::EPIPE, IOError => e
-        warn "socket read failed: #{e.class}: #{e.message}"
-        nil
+      end
+
+      # Executor loop body: run the next queued request (parse, dispatch to
+      # its handler, write the response). Returns falsey when the reader has
+      # closed the connection.
+      def process_next
+        raw = @requests.pop
+        return false if raw.nil?
+
+        process_request(raw)
+        true
+      end
+
+      # Used by the managed-transaction handler to drain nested requests
+      # (TransactionRun, RetryablePositive/Negative …) that the frontend
+      # sends while the retry function runs. Returns the processed message.
+      def next_request
+        process_request(@requests.pop)
+      end
+
+      # Send a backend->frontend request and block for its reply. Register the
+      # waiter and write the request atomically so the FIFO order of waiters
+      # matches the order the frontend sees the requests (and thus replies).
+      def callback(request_message)
+        queue = Thread::Queue.new
+        @io_mutex.synchronize do
+          raise IOError, "connection closed" if @closed
+
+          @waiters.push(queue)
+          write_all(response(request_message))
+        end
+        raw = queue.pop
+        raise IOError, "connection closed while awaiting callback reply" unless raw
+
+        process_request(raw)
       end
 
       def process_request(request)
@@ -38,7 +106,7 @@ module TestkitBackend
         payload = response(response_message)
         return unless payload
 
-        write_all(payload)
+        @io_mutex.synchronize { write_all(payload) }
       end
 
       def to_testkit(name, object)
@@ -47,6 +115,27 @@ module TestkitBackend
 
       def response(message)
         "#response begin\n#{JSON.dump(message)}\n#response end\n".tap { |var| log_chunk("written:", var) } if message
+      end
+
+      # Read and return one complete framed message (blocking). Reader-thread
+      # only, so @buffer needs no locking.
+      def read_message
+        loop do
+          if (request_begin = find_request_begin) && (request_end = find_request_end(request_begin))
+            message = @buffer[request_begin...request_end[:start]]
+            @buffer = @buffer[(request_end[:line_end] + 1)..-1] || ""
+            return message
+          end
+
+          chunk = read_chunk(true)
+          return nil unless chunk
+
+          log_chunk("blocking:", chunk)
+          @buffer << chunk
+        end
+      rescue Errno::EBADF, Errno::EPIPE, IOError => e
+        warn "socket read failed: #{e.class}: #{e.message}"
+        nil
       end
 
       def read_chunk(blocking)

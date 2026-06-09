@@ -26,17 +26,15 @@ module TestkitBackend
       private
 
       def supply(bookmark_manager_id)
-        @command_processor.process_response(
-          named_entity('BookmarksSupplierRequest', id: bookmark_manager_id, bookmark_manager_id: bookmark_manager_id))
-        bookmarks = @command_processor.process(blocking: true).bookmarks || []
+        bookmarks = @command_processor.callback(
+          named_entity('BookmarksSupplierRequest', id: bookmark_manager_id, bookmark_manager_id: bookmark_manager_id)).bookmarks || []
         bookmarks.map(&Neo4j::Driver::Bookmark.method(:from))
       end
 
       def consume(bookmark_manager_id, bookmarks)
-        @command_processor.process_response(
+        @command_processor.callback(
           named_entity('BookmarksConsumerRequest', id: bookmark_manager_id, bookmark_manager_id: bookmark_manager_id,
                        bookmarks: bookmarks.map(&:value)))
-        @command_processor.process(blocking: true)
         nil
       end
     end
