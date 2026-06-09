@@ -11,12 +11,13 @@ module Neo4j
         def timeout_to_milliseconds(timeout)
           return if timeout.nil?
 
-          (timeout.to_f * 1000).round.tap do |ms|
-            next unless ms.negative?
+          # Check the sign before rounding: a tiny negative timeout
+          # (e.g. -0.4ms) would otherwise round to 0 and slip through.
+          ms = timeout.to_f * 1000
+          raise Exceptions::ClientException,
+                "Transaction timeout must not be negative, but was #{ms}ms" if ms.negative?
 
-            raise Exceptions::ClientException,
-                  "Transaction timeout must not be negative, but was #{ms}ms"
-          end
+          ms.round
         end
       end
     end
