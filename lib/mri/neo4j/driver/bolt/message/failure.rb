@@ -9,12 +9,14 @@ module Neo4j
           # Code-prefix → driver exception class. Order matters: more specific
           # patterns must come first.
           EXCEPTION_FOR_CODE = [
-            [%r{^Neo\.ClientError\.Security\.Unauthorized},     Exceptions::AuthenticationException],
-            [%r{^Neo\.ClientError\.Security},                   Exceptions::SecurityException],
-            [%r{^Neo\.ClientError\.Database\.DatabaseNotFound}, Exceptions::FatalDiscoveryException],
-            [%r{^Neo\.ClientError},                             Exceptions::ClientException],
-            [%r{^Neo\.TransientError},                          Exceptions::TransientException],
-            [%r{^Neo\.DatabaseError},                           Exceptions::DatabaseException]
+            [%r{^Neo\.ClientError\.Security\.Unauthorized},         Exceptions::AuthenticationException],
+            [%r{^Neo\.ClientError\.Security\.AuthorizationExpired}, Exceptions::AuthorizationExpiredException],
+            [%r{^Neo\.ClientError\.Security\.TokenExpired},         Exceptions::TokenExpiredException],
+            [%r{^Neo\.ClientError\.Security},                       Exceptions::SecurityException],
+            [%r{^Neo\.ClientError\.Database\.DatabaseNotFound},     Exceptions::FatalDiscoveryException],
+            [%r{^Neo\.ClientError},                                 Exceptions::ClientException],
+            [%r{^Neo\.TransientError},                              Exceptions::TransientException],
+            [%r{^Neo\.DatabaseError},                               Exceptions::DatabaseException]
           ].freeze
 
           attr_reader :metadata
