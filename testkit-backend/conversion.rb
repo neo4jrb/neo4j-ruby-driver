@@ -53,9 +53,11 @@ module TestkitBackend
                          startNodeElementId: to_testkit(object.start_node_element_id),
                          endNodeElementId: to_testkit(object.end_node_element_id),
                          type: to_testkit(object.type), props: to_testkit(object.properties))
-          when Java::OrgNeo4jDriverTypes::UnsupportedType
+          when ->(o) { defined?(Java::OrgNeo4jDriverTypes::UnsupportedType) &&
+                       Java::OrgNeo4jDriverTypes::UnsupportedType === o }
             # A value of a type newer than this driver understands; the Java
             # driver keeps its name + the bolt version that introduced it.
+            # JRuby-only type, so guard the Java constant (absent on MRI).
             named_entity('CypherUnsupportedType', name: object.name,
                          minimumProtocol: object.min_protocol_version,
                          message: object.message.or_else(nil))
