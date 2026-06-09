@@ -155,10 +155,13 @@ module Neo4j
         rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException
           # Rolling back on a broken/dead connection is a no-op — the
           # server discards the tx when the link dies. Swallow these so
-          # session.close's rollback path stays clean. A server FAILURE
-          # response (e.g. DatabaseUnavailable on ROLLBACK) is a real
-          # error and must surface, so only connection-level errors are
-          # caught here.
+          # session.close's rollback path stays clean.
+        rescue Exceptions::Neo4jException
+          # A server FAILURE on ROLLBACK (e.g. DatabaseUnavailable) is a
+          # real error: the connection is now in FAILED state. RESET it
+          # back to READY so it is reusable, then surface the failure.
+          @connection.reset!
+          raise
         ensure
           @rolled_back = true
           @open = false
