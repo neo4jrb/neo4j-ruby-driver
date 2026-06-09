@@ -6,11 +6,6 @@ module Neo4j
       # A signal that the contract for client-server communication has broken down.
       # The user should contact support and cannot resolve this his or herself.
       class ProtocolException < Neo4jException
-        CODE = "Protocol violation: "
-
-        def initialize(message, e = nil)
-          super(nil, "#{CODE}#{message}", e)
-        end
       end
     end
   end

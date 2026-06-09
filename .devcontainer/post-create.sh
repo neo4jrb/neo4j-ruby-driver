@@ -38,18 +38,22 @@ if ! [ -x "$JRUBY_HOME/bin/jruby" ] \
 fi
 
 # ----------------------------------------------------------------- testkit
-# Always fetch + checkout the pinned ref. If the clone is fresh, init
-# first; if it exists at a different commit (older build), this brings
-# it back to TESTKIT_REF.
-TESTKIT_REF=a233c3f32c9e7db33d856345c4c98f487d15aabb
+# Source of truth is testkit/testkit.json (same uri + ref the CI workflows
+# pin), so a re-point (e.g. the temporary fork) only has to change one file.
+# Always fetch + checkout the pinned ref; init first if the clone is fresh,
+# otherwise re-point the remote in case an older build used a different one.
 TESTKIT_PATH="$(dirname "$(pwd)")/testkit"
+TESTKIT_URI=$(python3 -c "import json; print(json.load(open('testkit/testkit.json'))['testkit']['uri'])")
+TESTKIT_REF=$(python3 -c "import json; print(json.load(open('testkit/testkit.json'))['testkit']['ref'])")
 
 if [ ! -d "$TESTKIT_PATH/.git" ]; then
   echo ">>> Initialising testkit clone at $TESTKIT_PATH"
   git init "$TESTKIT_PATH"
-  git -C "$TESTKIT_PATH" remote add origin https://github.com/neo4j-drivers/testkit.git
+  git -C "$TESTKIT_PATH" remote add origin "$TESTKIT_URI"
+else
+  git -C "$TESTKIT_PATH" remote set-url origin "$TESTKIT_URI"
 fi
-echo ">>> Pinning testkit to $TESTKIT_REF"
+echo ">>> Pinning testkit to $TESTKIT_REF ($TESTKIT_URI)"
 git -C "$TESTKIT_PATH" fetch --depth 1 origin "$TESTKIT_REF"
 git -C "$TESTKIT_PATH" checkout --quiet --detach FETCH_HEAD
 pip install --quiet -Ur "$TESTKIT_PATH/requirements.txt"
