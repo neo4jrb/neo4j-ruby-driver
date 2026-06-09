@@ -14,11 +14,11 @@ module Neo4j
       # URI schemes that imply transport encryption.
       ENCRYPTED_SCHEMES = %w[bolt+s bolt+ssc neo4j+s neo4j+ssc].freeze
 
-      def initialize(uri, auth, options = {})
+      def initialize(uri, auth_manager, options = {})
         @uri = URI(uri)
         @options = options
         @closed = false
-        @connection_provider = build_connection_provider(@uri, auth)
+        @connection_provider = build_connection_provider(@uri, auth_manager)
       end
 
       def session(**options)
@@ -208,9 +208,9 @@ module Neo4j
 
       private
 
-      def build_connection_provider(uri, auth)
+      def build_connection_provider(uri, auth_manager)
         klass = uri.scheme.start_with?('neo4j') ? Routing::LoadBalancer : Direct::ConnectionProvider
-        klass.new(uri, auth, @options)
+        klass.new(uri, auth_manager, @options)
       end
     end
   end

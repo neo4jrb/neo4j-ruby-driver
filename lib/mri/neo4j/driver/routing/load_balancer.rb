@@ -31,9 +31,9 @@ module Neo4j
           Neo.ClientError.Request.Invalid
         ].freeze
 
-        def initialize(uri, auth, options = {})
+        def initialize(uri, auth_manager, options = {})
           @uri = uri
-          @auth = auth
+          @auth_manager = auth_manager
           @options = options
           @routing_context = parse_routing_context(uri)
           @pools = {}                      # ServerAddress => ConnectionPool::TimedStack
@@ -92,6 +92,13 @@ module Neo4j
             end
           end
         end
+
+        # Current default identity from the auth-token manager (refreshes
+        # as needed); on_security_exception feeds a failure back to it.
+        # Mirror Direct::ConnectionProvider so Session stays polymorphic.
+        def current_auth_token = @auth_manager.get_token
+
+        def on_security_exception(token, error) = @auth_manager.handle_security_exception(token, error)
 
         def release(connection)
           # Direct provider tolerates nil; mirror that. Internal callers
@@ -402,7 +409,7 @@ module Neo4j
           # context is sent to readers/writers too; non-router servers
           # just ignore it).
           opts = @options.merge(routing_context: @routing_context)
-          Bolt::Connection.new(uri, @auth, opts).connect
+          Bolt::Connection.new(uri, @auth_manager.get_token, opts).connect
         end
 
         def symbolize(value)

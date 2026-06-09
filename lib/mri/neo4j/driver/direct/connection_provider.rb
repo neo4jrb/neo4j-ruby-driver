@@ -15,11 +15,22 @@ module Neo4j
       # kwargs are accepted so call sites stay polymorphic with
       # Routing::LoadBalancer.
       class ConnectionProvider
-        def initialize(uri, auth, options = {})
+        def initialize(uri, auth_manager, options = {})
           @uri = uri
-          @auth = auth
+          @auth_manager = auth_manager
           @options = options
         end
+
+        # The current default identity, sourced from the auth-token
+        # manager (which refreshes / re-fetches as needed). Sessions
+        # re-auth pooled connections to this on acquire unless they carry
+        # their own per-session :auth_token.
+        def current_auth_token = @auth_manager.get_token
+
+        # Feed a security failure back to the manager. Returns true when
+        # the manager considers it retryable (token refreshed), so the
+        # caller can re-auth and retry.
+        def on_security_exception(token, error) = @auth_manager.handle_security_exception(token, error)
 
         # imp_user is accepted for signature parity with
         # Routing::LoadBalancer#acquire but unused here: the direct path
@@ -76,7 +87,7 @@ module Neo4j
           @pool ||= Bolt::Pool.new(
             size: max_pool_size,
             options: @options,
-            connect_factory: -> { Bolt::Connection.new(@uri, @auth, @options).connect }
+            connect_factory: -> { Bolt::Connection.new(@uri, @auth_manager.get_token, @options).connect }
           )
         end
 

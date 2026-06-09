@@ -40,7 +40,10 @@ module Neo4j
         # testkit never supplies one to the MRI flavour.
         def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
           validate_uri(uri)
-          Driver.new(uri, auth_token_manager.get_token, config)
+          # Retain the manager (not a frozen token): the connection
+          # provider consults it for the current token on every acquire
+          # and on security failures, so token refresh / re-auth works.
+          Driver.new(uri, auth_token_manager, config)
         end
 
         private
