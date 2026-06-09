@@ -58,10 +58,12 @@ module Neo4j
           # supports_multiple_databases? so it is automatic for V3.
 
           def build_run(query, parameters, extra)
+            enforce_impersonation_support!(extra[:imp_user])
             Message.run(query, parameters, strip_db(extra))
           end
 
           def build_begin(extra)
+            enforce_impersonation_support!(extra[:imp_user])
             Message.begin_transaction(strip_db(extra))
           end
 
@@ -79,6 +81,22 @@ module Neo4j
           def supports_re_auth? = false
           def supports_multiple_databases? = false
           def supports_notification_filtering? = false
+          # Impersonation (imp_user on RUN/BEGIN/ROUTE) arrived with Bolt 4.4.
+          def supports_impersonation? = version >= BoltVersion::V4_4
+
+          # Fail fast when a caller asks to impersonate over a protocol
+          # that can't carry imp_user (Bolt < 4.4) — otherwise the field
+          # is silently dropped and the query runs as the authenticated
+          # user. Matches Java, which raises ClientException here. Public
+          # so Connection#route can enforce the same rule on the discovery
+          # path (a routed session impersonating against a 4.3 cluster
+          # must fail before sending ROUTE, not silently lose imp_user).
+          def enforce_impersonation_support!(imp_user)
+            return if imp_user.nil? || supports_impersonation?
+
+            raise Exceptions::ClientException,
+                  "Impersonation (impersonated_user) is not supported on Bolt #{version}; requires Bolt 4.4+"
+          end
 
           private
 

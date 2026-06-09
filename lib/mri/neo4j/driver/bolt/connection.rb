@@ -199,20 +199,29 @@ module Neo4j
         # way the return is the `{ttl:, servers:}` map the caller wraps
         # in Routing::RoutingTable.from_response.
         def route(database: nil, bookmarks: [], imp_user: nil, routing_context: {})
+          # Enforce impersonation support before touching the wire: a
+          # routed session impersonating against a pre-4.4 cluster must
+          # fail (ClientException) rather than silently drop imp_user from
+          # the discovery call. Raised here — outside the wire-error
+          # begin/rescue — so the still-clean connection isn't RESET.
+          @protocol.enforce_impersonation_support!(imp_user)
+
           return route_via_procedure(database, bookmarks, routing_context) if @bolt_version < BoltVersion::V4_3
 
-          # ROUTE's 3rd field changed at 4.4: 4.3 sends the bare database
-          # name (string/null), 4.4+ a `{db, imp_user}` map. The protocol
-          # handler owns that shape.
-          send_message(@protocol.build_route(routing_context, Array(bookmarks), database, imp_user))
-          flush
+          begin
+            # ROUTE's 3rd field changed at 4.4: 4.3 sends the bare database
+            # name (string/null), 4.4+ a `{db, imp_user}` map. The protocol
+            # handler owns that shape.
+            send_message(@protocol.build_route(routing_context, Array(bookmarks), database, imp_user))
+            flush
 
-          fetch_response.assert_success!.metadata[:rt]
-        rescue Exceptions::Neo4jException
-          # ROUTE failure leaves the server in FAILED state — RESET clears it
-          # so the connection can be reused.
-          reset!
-          raise
+            fetch_response.assert_success!.metadata[:rt]
+          rescue Exceptions::Neo4jException
+            # ROUTE failure leaves the server in FAILED state — RESET clears it
+            # so the connection can be reused.
+            reset!
+            raise
+          end
         end
 
         # Pre-4.3 routing: there is no ROUTE message, so fetch the table

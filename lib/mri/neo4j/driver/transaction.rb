@@ -151,11 +151,20 @@ module Neo4j
         begin
           @connection.send_message(Bolt::Message.rollback)
           @connection.flush
-          @connection.fetch_response
-        rescue Exceptions::Neo4jException
-          # Rolling back on a broken connection is a no-op anyway —
-          # the server will discard the tx when the link dies.
-          # Swallow so session.close's rollback path stays clean.
+          @connection.fetch_response.assert_success!
+        rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException
+          # Rolling back on a broken/dead connection is a no-op — the
+          # server discards the tx when the link dies. Swallow these so
+          # session.close's rollback path stays clean.
+        rescue Exceptions::Neo4jException => e
+          # A server FAILURE on ROLLBACK (e.g. DatabaseUnavailable) is a
+          # real error: the connection is now in FAILED state. RESET it
+          # back to READY, then surface the failure through the routing
+          # classifier — same as commit/run — so routing side effects
+          # (e.g. deactivate on DatabaseUnavailable) fire and the surfaced
+          # type is consistent. No-op for direct connections.
+          @connection.reset!
+          raise @connection.classify_failure(e)
         ensure
           @rolled_back = true
           @open = false

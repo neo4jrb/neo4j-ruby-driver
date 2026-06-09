@@ -212,7 +212,11 @@ module Neo4j
         connection = @connection_provider.acquire(
           access_mode: access_mode,
           database: @options[:database],
-          bookmarks: current_bookmarks_for_extra
+          bookmarks: current_bookmarks_for_extra,
+          # Threaded into routing discovery so the ROUTE call enforces
+          # impersonation support (Bolt 4.4+) before sending; the direct
+          # provider ignores it (RUN/BEGIN enforce it instead).
+          imp_user: @options[:impersonated_user]
         )
         # Per-session auth (Bolt 5.1+): ensure the pooled connection
         # holds the right identity. A non-nil `:auth_token` pins this
