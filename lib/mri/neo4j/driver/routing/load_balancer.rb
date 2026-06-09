@@ -49,7 +49,7 @@ module Neo4j
         # acquire, deactivate on connection failure and try again. Raises
         # ServiceUnavailableException only when the role bucket has been
         # exhausted by deactivations.
-        def acquire(access_mode: :write, database: nil, bookmarks: nil)
+        def acquire(access_mode: :write, database: nil, bookmarks: nil, imp_user: nil)
           # Fast-fail with IllegalStateException for use-after-close.
           # Otherwise the next routing fetch would propagate a generic
           # Connection-refused ServiceUnavailableException, masking the
@@ -57,7 +57,10 @@ module Neo4j
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
           access_mode = access_mode.to_sym
-          ensure_routing_table_is_fresh(database, access_mode, bookmarks: bookmarks)
+          # imp_user is threaded into discovery so the ROUTE call enforces
+          # impersonation support (Bolt 4.4+) against the router, matching
+          # the RUN/BEGIN path — see Connection#route.
+          ensure_routing_table_is_fresh(database, access_mode, bookmarks: bookmarks, imp_user: imp_user)
 
           last_error = nil
           loop do
@@ -220,12 +223,12 @@ module Neo4j
         # second freshness check (double-checked locking pattern matches
         # Python's ensure_routing_table_is_fresh). Optional `bookmarks`
         # are threaded into the ROUTE payload.
-        def ensure_routing_table_is_fresh(database, access_mode, bookmarks: nil)
+        def ensure_routing_table_is_fresh(database, access_mode, bookmarks: nil, imp_user: nil)
           @refresh_lock.synchronize do
             table = @routing_tables[database]
             return table if table && table.fresh?(readonly: access_mode == :read)
 
-            update_routing_table(database, bookmarks: bookmarks)
+            update_routing_table(database, bookmarks: bookmarks, imp_user: imp_user)
           end
         end
 
@@ -238,13 +241,13 @@ module Neo4j
         # the existing table came back without writers (likely-stale),
         # otherwise prefer the existing routers list first. Each failed
         # router is `deactivate`d before moving on to the next.
-        def update_routing_table(database, bookmarks: nil)
+        def update_routing_table(database, bookmarks: nil, imp_user: nil)
           existing = @routing_tables[database]
           prefer_seed = existing.nil? || existing.initialized_without_writers
 
           errors = []
           routers_in_order(existing, prefer_seed: prefer_seed).each do |router|
-            new_table = fetch_routing_table_from(router, database, bookmarks, errors)
+            new_table = fetch_routing_table_from(router, database, bookmarks, errors, imp_user)
             next unless new_table
 
             apply_routing_table(database, new_table)
@@ -278,7 +281,7 @@ module Neo4j
         # the router; protocol-level failures (e.g. ClientException
         # while routing) just record the error so the caller tries the
         # next router.
-        def fetch_routing_table_from(router, database, bookmarks, errors)
+        def fetch_routing_table_from(router, database, bookmarks, errors, imp_user = nil)
           pool = pool_for(router)
           conn = nil
           begin
@@ -288,7 +291,8 @@ module Neo4j
             # update_routing_table's iteration over remaining routers
             # would stop on the first unreachable one.
             conn = pool.pop
-            rt = conn.route(database: database, bookmarks: Array(bookmarks), routing_context: @routing_context)
+            rt = conn.route(database: database, bookmarks: Array(bookmarks),
+                            imp_user: imp_user, routing_context: @routing_context)
             new_table = RoutingTable.from_response(symbolize(rt), database)
 
             if new_table.routers.empty? || new_table.readers.empty?
@@ -329,6 +333,13 @@ module Neo4j
         def fatal_during_discovery?(error)
           code = error.code.to_s
           return true if FATAL_DISCOVERY_CODES.include?(code)
+
+          # A client-side ClientException carries no server code — it was
+          # raised by the driver while building the request (e.g.
+          # impersonation over a pre-4.4 protocol), so it is identical on
+          # every router and retrying can't help. Propagate it rather than
+          # collecting it and masking it as a ServiceUnavailableException.
+          return true if code.empty? && error.is_a?(Exceptions::ClientException)
 
           code.start_with?('Neo.ClientError.Security.') &&
             code != 'Neo.ClientError.Security.AuthorizationExpired'

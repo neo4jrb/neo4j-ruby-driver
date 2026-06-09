@@ -21,7 +21,11 @@ module Neo4j
           @options = options
         end
 
-        def acquire(access_mode: nil, database: nil, bookmarks: nil)
+        # imp_user is accepted for signature parity with
+        # Routing::LoadBalancer#acquire but unused here: the direct path
+        # has no discovery, so impersonation is enforced on RUN/BEGIN by
+        # the protocol handler (Bolt::Protocol::Base#enforce_impersonation_support!).
+        def acquire(access_mode: nil, database: nil, bookmarks: nil, imp_user: nil)
           # See Routing::LoadBalancer#acquire for the rationale.
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
