@@ -49,8 +49,14 @@ module Neo4j
         end
 
         def to_zoned_date_time(object, zone)
-          Java::JavaTime::ZonedDateTime.of(object.year, object.month, object.day, object.hour, object.min, object.sec,
-                                           object.nsec, Java::JavaTime::ZoneId.of(zone))
+          # Build from the instant, not the wall-clock fields: during a DST
+          # fall-back the local time is ambiguous and ZonedDateTime.of(...)
+          # would silently pick the earlier offset, dropping the object's
+          # actual offset. ofInstant keeps the real instant (and is identical
+          # for non-ambiguous times). Use to_i/nsec (the UTC instant) rather
+          # than to_time, which triggers an ActiveSupport localtime path.
+          instant = Java::JavaTime::Instant.of_epoch_second(object.to_i, object.nsec)
+          Java::JavaTime::ZonedDateTime.of_instant(instant, Java::JavaTime::ZoneId.of(zone))
         end
 
         def zone_identifier_for(time)
