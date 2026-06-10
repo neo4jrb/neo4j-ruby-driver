@@ -36,13 +36,16 @@ module Neo4j
 
         @connection.fetch_response.assert_success!
       rescue Exceptions::Neo4jException => e
-        # BEGIN failed — server is now in FAILED state. Clear it before
-        # propagating so the connection is reusable by whoever is managing
-        # this session's pool checkout.
-        @connection.reset!
+        # Classify first so the auth-token manager is notified and the
+        # connection is flagged for discard on an auth failure (the server
+        # closes it). BEGIN failed → server is in FAILED state; RESET to
+        # make it reusable, unless it's being discarded (a security
+        # failure: the server closes it and RESET would just error).
+        classified = @connection.classify_failure(e)
+        @connection.reset! unless @connection.discard_on_release
         @open = false
         release_connection
-        raise @connection.classify_failure(e)
+        raise classified
       rescue StandardError
         # Transport-level failure (IO/socket). RESET will likely fail
         # too on a dead connection, but release the lease so it doesn't
@@ -120,8 +123,11 @@ module Neo4j
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
             @failed = true
+            # Classify first so a security failure flags the connection
+            # for discard before rollback_via_reset releases it.
+            classified = @connection.classify_failure(e)
             rollback_via_reset
-            raise @connection.classify_failure(e)
+            raise classified
           end
 
         @committed = true
@@ -224,7 +230,10 @@ module Neo4j
       # connection. RESET transitions the server from FAILED back to READY
       # and implicitly rolls back the open transaction.
       def rollback_via_reset
-        @connection.reset!
+        # Skip RESET on a connection being discarded (auth failure: the
+        # server closes it, RESET would just error); release then honors
+        # the discard flag so it isn't pooled.
+        @connection.reset! unless @connection.discard_on_release
         @rolled_back = true
         @open = false
         release_connection
