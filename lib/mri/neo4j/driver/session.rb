@@ -90,7 +90,7 @@ module Neo4j
             # Server is in FAILED state; RESET so the connection is
             # immediately reusable — but not if it's being discarded
             # (auth failure: the server closes it, RESET would just error).
-            connection.reset! unless connection.discard_on_release
+            connection.reset! unless connection.auth_failed
             @connection_provider.release(connection)
             raise classified
           rescue StandardError

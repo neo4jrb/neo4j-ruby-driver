@@ -42,7 +42,7 @@ module Neo4j
         # make it reusable, unless it's being discarded (a security
         # failure: the server closes it and RESET would just error).
         classified = @connection.classify_failure(e)
-        @connection.reset! unless @connection.discard_on_release
+        @connection.reset! unless @connection.auth_failed
         @open = false
         release_connection
         raise classified
@@ -233,7 +233,7 @@ module Neo4j
         # Skip RESET on a connection being discarded (auth failure: the
         # server closes it, RESET would just error); release then honors
         # the discard flag so it isn't pooled.
-        @connection.reset! unless @connection.discard_on_release
+        @connection.reset! unless @connection.auth_failed
         @rolled_back = true
         @open = false
         release_connection

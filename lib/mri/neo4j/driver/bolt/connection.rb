@@ -20,6 +20,12 @@ module Neo4j
         # provider's release discards instead of pooling. (Routing's
         # RoutedConnection carries its own discard_on_release flag.)
         attr_accessor :discard_on_release
+        # Set on a security FAILURE specifically: the server closes the
+        # connection, so callers must NOT send a RESET (it would error /
+        # surface a spurious wire error). Distinct from discard_on_release,
+        # which also covers still-alive cases (e.g. NotALeader) that DO
+        # want a RESET before the connection is dropped.
+        attr_accessor :auth_failed
 
         def initialize(uri, auth, options = {})
           @uri = URI(uri)
@@ -41,6 +47,7 @@ module Neo4j
           @created_at = nil
           @idle_since = nil
           @discard_on_release = false
+          @auth_failed = false
         end
 
         def connect
@@ -178,8 +185,9 @@ module Neo4j
 
           # The server closes the connection after a security FAILURE and
           # the identity is compromised regardless of retryability — never
-          # return it to the pool.
+          # return it to the pool, and don't RESET it (the socket is gone).
           @discard_on_release = true
+          @auth_failed = true
           return error unless @security_exception_handler&.call(@auth, error)
 
           Exceptions::SecurityRetryableException.new(error.message, code: error.code)
