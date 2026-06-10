@@ -55,10 +55,11 @@ jobs:
 
       - name: Clone pinned testkit
         run: |
+          URI=$(python3 -c "import json; print(json.load(open('testkit/testkit.json'))['testkit']['uri'])")
           REF=$(python3 -c "import json; print(json.load(open('testkit/testkit.json'))['testkit']['ref'])")
           mkdir -p "$RUNNER_TEMP/testkit"
           git -C "$RUNNER_TEMP/testkit" init
-          git -C "$RUNNER_TEMP/testkit" remote add origin https://github.com/neo4j-drivers/testkit.git
+          git -C "$RUNNER_TEMP/testkit" remote add origin "$URI"
           git -C "$RUNNER_TEMP/testkit" fetch --depth 1 origin "$REF"
           git -C "$RUNNER_TEMP/testkit" checkout FETCH_HEAD
           echo "TESTKIT_PATH=$RUNNER_TEMP/testkit" >> "$GITHUB_ENV"
