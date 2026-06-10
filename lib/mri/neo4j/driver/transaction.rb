@@ -105,7 +105,7 @@ module Neo4j
         end
 
         begin
-          consume_current_result
+          consume_current_result(discard: true)
         rescue Exceptions::Neo4jException
           rollback_via_reset
           raise
@@ -136,7 +136,7 @@ module Neo4j
         raise Exceptions::ClientException, 'Transaction is already closed' unless @open
 
         begin
-          consume_current_result
+          consume_current_result(discard: true)
         rescue Exceptions::Neo4jException
           # Failures surfaced while draining a pending result are expected
           # during rollback — the tx is being discarded anyway. @failed is
@@ -193,11 +193,17 @@ module Neo4j
         size.nil? ? 1000 : size
       end
 
-      def consume_current_result
+      # On a new RUN in the same tx the previous result is buffered so it
+      # stays accessible; at tx end (commit/rollback) it goes out of
+      # scope, so discard it instead — DISCARD abandons remaining records
+      # (essential when the result is unbounded) rather than streaming
+      # them all into memory, and leaves it raising ResultConsumedException
+      # on later access.
+      def consume_current_result(discard: false)
         return unless @current_result
 
         begin
-          @current_result.buffer
+          discard ? @current_result.consume : @current_result.buffer
         rescue Exceptions::Neo4jException => e
           @failed = true
           # A wire error during PULL streaming (e.g. a reader connection
