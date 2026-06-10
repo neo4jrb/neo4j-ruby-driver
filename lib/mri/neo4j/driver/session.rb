@@ -80,18 +80,19 @@ module Neo4j
             connection.flush
             connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
-            # Server is in FAILED state and any queued messages (e.g. the
-            # PULL that followed our RUN) will be IGNORED. Drain them and
-            # RESET so the connection is immediately reusable.
-            connection.reset!
+            # Classify first: this notifies the auth-token manager (and
+            # may flag the connection for discard on an auth failure) and,
+            # for routed connections, fires on_write_failure / deactivate
+            # and swaps NotALeader for SessionExpired. assert_success!
+            # raises *outside* RoutedConnection's wrapper, so this is the
+            # only place the classifier sees FAILURE responses to RUN.
+            classified = connection.classify_failure(e)
+            # Server is in FAILED state; RESET so the connection is
+            # immediately reusable — but not if it's being discarded
+            # (auth failure: the server closes it, RESET would just error).
+            connection.reset! unless connection.discard_on_release
             @connection_provider.release(connection)
-            # For routed connections, run the error through the
-            # classifier so on_write_failure / deactivate fire and
-            # NotALeader is surfaced as SessionExpired. The
-            # `.assert_success!` above raises *outside* RoutedConnection's
-            # wrapper, so this is the only place the classifier sees
-            # FAILURE responses to RUN.
-            raise connection.classify_failure(e)
+            raise classified
           rescue StandardError
             # Transport-level failure (IO/socket) — the connection is
             # likely dead. Return it to the pool either way so this lease

@@ -44,7 +44,16 @@ module Neo4j
         end
 
         def release(connection)
-          pool.push(connection) if connection
+          return unless connection
+
+          # Honor a connection flagged for discard (e.g. after an auth
+          # failure) — close it and free the slot rather than pooling a
+          # compromised / server-closed connection.
+          if connection.discard_on_release
+            pool.discard(connection)
+          else
+            pool.push(connection)
+          end
         end
 
         def verify_connectivity

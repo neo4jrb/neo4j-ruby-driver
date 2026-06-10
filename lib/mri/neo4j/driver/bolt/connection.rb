@@ -14,6 +14,12 @@ module Neo4j
         # created_at: when the TCP/Bolt handshake finished, so the
         # pool can evict connections older than max_connection_lifetime.
         attr_accessor :idle_since, :created_at
+        # Set when this connection must not return to the pool — e.g. an
+        # auth failure (the server closes the connection after a security
+        # FAILURE, and the identity is compromised either way). The direct
+        # provider's release discards instead of pooling. (Routing's
+        # RoutedConnection carries its own discard_on_release flag.)
+        attr_accessor :discard_on_release
 
         def initialize(uri, auth, options = {})
           @uri = URI(uri)
@@ -34,6 +40,7 @@ module Neo4j
           @closed = false
           @created_at = nil
           @idle_since = nil
+          @discard_on_release = false
         end
 
         def connect
@@ -158,14 +165,24 @@ module Neo4j
         # managed manager (the static case never invalidates).
         attr_accessor :security_exception_handler
 
-        # Report a security failure to the auth-token manager (if any).
-        # Every operation site funnels errors through classify_failure, so
-        # this is the single notification point. Returns the error
-        # unchanged — the manager's job here is the side effect (token
-        # invalidation); the error still surfaces to the caller.
+        # Report a security failure to the auth-token manager (if any) and
+        # let it decide retryability. Every operation site funnels errors
+        # through classify_failure, so this is the single notification
+        # point. When the manager deems the failure retryable (it has
+        # invalidated the token so the next acquire re-fetches), surface a
+        # SecurityRetryableException wrapping the original (code/message
+        # preserved, original chained as cause when the caller re-raises)
+        # — mirrors Java, and the testkit reports it as retryable.
         def notify_security_exception(error)
-          @security_exception_handler&.call(@auth, error) if error.is_a?(Exceptions::SecurityException)
-          error
+          return error unless error.is_a?(Exceptions::SecurityException)
+
+          # The server closes the connection after a security FAILURE and
+          # the identity is compromised regardless of retryability — never
+          # return it to the pool.
+          @discard_on_release = true
+          return error unless @security_exception_handler&.call(@auth, error)
+
+          Exceptions::SecurityRetryableException.new(error.message, code: error.code)
         end
 
         # No-op routing classifier for the direct (bolt://) path — there's
