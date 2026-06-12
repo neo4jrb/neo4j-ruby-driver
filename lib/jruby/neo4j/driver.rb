@@ -33,6 +33,7 @@ module Neo4j
 
     module Summary
       include_package 'org.neo4j.driver.summary'
+      GqlNotification = Java::OrgNeo4jDriverInternalSummary::InternalGqlNotification
     end
 
     module Types
@@ -44,12 +45,13 @@ module Neo4j
   end
 end
 
+Java::JavaUtil::Map.include Neo4j::Driver::Ext::PlainMapConverter
 Java::OrgNeo4jDriver::AuthTokens.singleton_class.prepend Neo4j::Driver::Ext::AuthTokens
-Java::OrgNeo4jDriverInternalSecurity::InternalAuthToken.include Neo4j::Driver::Ext::AuthToken
 Java::OrgNeo4jDriver::BookmarkManagers.singleton_class.prepend Neo4j::Driver::Ext::BookmarkManagers
-Java::OrgNeo4jDriverInternal::DriverFactory.prepend Neo4j::Driver::Ext::Internal::DriverFactory
 Java::OrgNeo4jDriver::GraphDatabase.singleton_class.prepend Neo4j::Driver::Ext::GraphDatabase
 Java::OrgNeo4jDriver::Query.prepend Neo4j::Driver::Ext::Query
+Java::OrgNeo4jDriverInternal::DelegatingTransactionContext.prepend Neo4j::Driver::Ext::Internal::AbstractQueryRunner
+Java::OrgNeo4jDriverInternal::DriverFactory.prepend Neo4j::Driver::Ext::Internal::DriverFactory
 Java::OrgNeo4jDriverInternal::EagerResultValue.prepend Neo4j::Driver::Ext::Internal::EagerResultValue
 Java::OrgNeo4jDriverInternal::InternalDriver.prepend Neo4j::Driver::Ext::InternalDriver
 Java::OrgNeo4jDriverInternal::InternalEntity.include Neo4j::Driver::Ext::InternalEntity
@@ -62,13 +64,14 @@ Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::I
 Java::OrgNeo4jDriverInternal::InternalResult.prepend Neo4j::Driver::Ext::InternalResult
 Java::OrgNeo4jDriverInternal::InternalSession.prepend Neo4j::Driver::Ext::InternalSession
 Java::OrgNeo4jDriverInternal::InternalTransaction.prepend Neo4j::Driver::Ext::InternalTransaction
-Java::OrgNeo4jDriverInternal::DelegatingTransactionContext.prepend Neo4j::Driver::Ext::Internal::AbstractQueryRunner
 Java::OrgNeo4jDriverInternalAsync::InternalAsyncSession.prepend Neo4j::Driver::Ext::Internal::Async::InternalAsyncSession
-Java::OrgNeo4jDriverInternalShadedBoltConnectionRoutedImplCluster::RoutingTableRegistryImpl.include Neo4j::Driver::Ext::Internal::Cluster::RoutingTableRegistryImpl
 # Java::OrgNeo4jDriverInternalCursor::DisposableAsyncResultCursor.prepend Neo4j::Driver::Ext::Internal::Cursor::DisposableAsyncResultCursor
-Java::OrgNeo4jDriverObservationMetricsInternal::InternalConnectionPoolMetrics.include Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics
+Java::OrgNeo4jDriverInternalSecurity::InternalAuthToken.include Neo4j::Driver::Ext::AuthToken
+Java::OrgNeo4jDriverInternalShadedBoltConnectionRoutedImplCluster::RoutingTableRegistryImpl.include Neo4j::Driver::Ext::Internal::Cluster::RoutingTableRegistryImpl
+Java::OrgNeo4jDriverInternalSummary::InternalGqlNotification.prepend Neo4j::Driver::Ext::Internal::Summary::InternalGqlNotification
+Java::OrgNeo4jDriverInternalSummary::InternalGqlStatusObject.prepend Neo4j::Driver::Ext::Internal::Summary::InternalGqlStatusObject
 Java::OrgNeo4jDriverInternalSummary::InternalNotification.prepend Neo4j::Driver::Ext::Internal::Summary::InternalNotification
 Java::OrgNeo4jDriverInternalSummary::InternalPlan.prepend Neo4j::Driver::Ext::Internal::Summary::InternalPlan
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
-Java::JavaUtil::Map.include Neo4j::Driver::Ext::PlainMapConverter
+Java::OrgNeo4jDriverObservationMetricsInternal::InternalConnectionPoolMetrics.include Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics
