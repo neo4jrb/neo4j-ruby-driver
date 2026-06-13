@@ -345,7 +345,11 @@ module Neo4j
 
         op_mode = (access_mode == AccessMode::READ ? :read : :write)
         tx_options = @options.merge(
-          access_mode: access_mode == AccessMode::READ ? 'r' : 'w',
+          # BEGIN carries `mode: "r"` for read; write is the server default
+          # and omits the field (reference drivers and the stub scripts
+          # expect `BEGIN {"db": ...}`, not `…"mode": "w"`). Matches the
+          # auto-commit and explicit-begin paths; `compact` drops the nil.
+          access_mode: (access_mode == AccessMode::READ ? 'r' : nil),
           timeout: timeout_to_milliseconds(timeout),
           metadata:
         ).compact
