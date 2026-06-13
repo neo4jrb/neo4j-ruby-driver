@@ -13,3 +13,6 @@ neo4j-ruby-driver_jars.rb
 #  CustomCAs/ from .../custom). Transient build context.
 testkit/CAs/
 testkit/CustomCAs/
+# JRuby/jbundler build artifacts (generated; not part of the gem)
+testkit-backend/gems.locked
+testkit-backend/.mvn/
