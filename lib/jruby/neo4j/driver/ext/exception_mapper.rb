@@ -90,13 +90,19 @@ module Neo4j
         # chains the original failure (the shaded BoltFailureException, which
         # carries the real Neo4j code) as its cause. testkit asserts on that
         # original code, so walk the cause chain to the first real code,
-        # falling back to the wrapper's own when none is found.
-        def effective_code(e, fallback = e.code)
-          code = e.try(:code)
-          return code if code && code != 'N/A'
+        # falling back to the wrapper's own when none is found. Iterative with
+        # a visited guard so a deep or cyclic cause chain can't overflow.
+        def effective_code(e)
+          fallback = e.code
+          seen = []
+          while e && !seen.include?(e.object_id)
+            seen << e.object_id
+            code = e.code if e.respond_to?(:code)
+            return code if code && code != 'N/A'
 
-          cause = e.respond_to?(:cause) ? e.cause : nil
-          cause ? effective_code(cause, fallback) : fallback
+            e = e.respond_to?(:cause) ? e.cause : nil
+          end
+          fallback
         end
 
         def mapped_neo4j_exception_class(exception_class)
