@@ -123,7 +123,13 @@ module Neo4j
 
         tx_options = @options.merge(
           timeout: timeout_to_milliseconds(timeout),
-          metadata:
+          metadata:,
+          # BEGIN carries `mode: "r"` for read sessions (write is the
+          # server default and omits it), matching the auto-commit path.
+          # The Transaction reads tx_options[:access_mode]; without this an
+          # explicit read transaction dropped the field (session stores the
+          # mode under :default_access_mode, not :access_mode).
+          access_mode: (session_access_mode == :read ? 'r' : nil)
         ).compact
 
         @transaction = open_transaction(session_access_mode, tx_options)
