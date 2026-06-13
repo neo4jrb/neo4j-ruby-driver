@@ -16,6 +16,7 @@ module TestkitBackend
           database: @object.database&.name,
           queryType: @object.query_type,
           notifications: (notifications_to_h(notifications) if notifications&.any?),
+          gqlStatusObjects: @object.gql_status_objects.map(&method(:gql_status_to_h)),
           plan: (plan_to_h(@object.plan, PLAN_FIELDS) if @object.has_plan?),
           profile: (plan_to_h(@object.profile, PROFILE_FIELDS) if @object.has_profile?)
         }.merge!(to_map(@object, *%w[result_available_after result_consumed_after]))
@@ -42,6 +43,30 @@ module TestkitBackend
             .merge(to_map(n, *%w[category severity_level]) { |o| o.respond_to?(:name) ? o.name : (o || 'UNKNOWN') })
             .merge(map_entry(n, :position, :column, :line, :offset))
         end
+      end
+
+      # A GqlStatusObject (ResultSummary#gql_status_objects). A plain status
+      # carries no position/classification/severity; a notification (the
+      # GqlNotification subtype) adds them. Defaults live here — the testkit
+      # shape, not driver data — so the ext only exposes what the driver has.
+      def gql_status_to_h(g)
+        {
+          gqlStatus: g.gql_status,
+          statusDescription: g.status_description,
+          diagnosticRecord: g.diagnostic_record.transform_values(&self.class.method(:to_testkit)),
+          **if g.is_a?(Neo4j::Driver::Summary::GqlNotification)
+              { isNotification: true,
+                position: (to_map(g.position, :column, :line, :offset) if g.position),
+                classification: g.classification || 'UNKNOWN',
+                rawClassification: g.raw_classification,
+                severity: g.severity || 'UNKNOWN',
+                rawSeverity: g.raw_severity }
+            else
+              { isNotification: false,
+                position: nil, classification: 'UNKNOWN', rawClassification: nil,
+                severity: 'UNKNOWN', rawSeverity: nil }
+            end
+        }
       end
 
       # Walks the public Plan/Profile API (operator_type, identifiers,

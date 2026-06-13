@@ -97,6 +97,13 @@ module Neo4j
             .map { |n| Notification.new(n) }
         end
 
+        # GqlStatusObjects (Feature:API:Summary:GqlStatusObjects) isn't
+        # implemented on MRI yet, so it isn't advertised. Return an empty
+        # list so the flavour-agnostic backend serialises summaries uniformly.
+        def gql_status_objects
+          []
+        end
+
         private
 
         def statuses_as_notifications
