@@ -50,27 +50,23 @@ module TestkitBackend
       # GqlNotification subtype) adds them. Defaults live here — the testkit
       # shape, not driver data — so the ext only exposes what the driver has.
       def gql_status_to_h(g)
-        notification = g.is_a?(Neo4j::Driver::Summary::GqlNotification)
-        status = {
+        {
           gqlStatus: g.gql_status,
           statusDescription: g.status_description,
           diagnosticRecord: g.diagnostic_record.transform_values(&self.class.method(:to_testkit)),
-          isNotification: notification,
-          position: nil,
-          classification: 'UNKNOWN',
-          rawClassification: nil,
-          severity: 'UNKNOWN',
-          rawSeverity: nil
+          **if g.is_a?(Neo4j::Driver::Summary::GqlNotification)
+              { isNotification: true,
+                position: (to_map(g.position, :column, :line, :offset) if g.position),
+                classification: g.classification || 'UNKNOWN',
+                rawClassification: g.raw_classification,
+                severity: g.severity || 'UNKNOWN',
+                rawSeverity: g.raw_severity }
+            else
+              { isNotification: false,
+                position: nil, classification: 'UNKNOWN', rawClassification: nil,
+                severity: 'UNKNOWN', rawSeverity: nil }
+            end
         }
-        return status unless notification
-
-        status.merge!(
-          position: (to_map(g.position, :column, :line, :offset) if g.position),
-          classification: g.classification || 'UNKNOWN',
-          rawClassification: g.raw_classification,
-          severity: g.severity || 'UNKNOWN',
-          rawSeverity: g.raw_severity
-        )
       end
 
       # Walks the public Plan/Profile API (operator_type, identifiers,
