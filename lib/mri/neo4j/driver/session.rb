@@ -80,18 +80,19 @@ module Neo4j
             connection.flush
             connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
-            # Server is in FAILED state and any queued messages (e.g. the
-            # PULL that followed our RUN) will be IGNORED. Drain them and
-            # RESET so the connection is immediately reusable.
-            connection.reset!
+            # Classify first: this notifies the auth-token manager (and
+            # may flag the connection for discard on an auth failure) and,
+            # for routed connections, fires on_write_failure / deactivate
+            # and swaps NotALeader for SessionExpired. assert_success!
+            # raises *outside* RoutedConnection's wrapper, so this is the
+            # only place the classifier sees FAILURE responses to RUN.
+            classified = connection.classify_failure(e)
+            # Server is in FAILED state; RESET so the connection is
+            # immediately reusable — but not if it's being discarded
+            # (auth failure: the server closes it, RESET would just error).
+            connection.reset! unless connection.auth_failed
             @connection_provider.release(connection)
-            # For routed connections, run the error through the
-            # classifier so on_write_failure / deactivate fire and
-            # NotALeader is surfaced as SessionExpired. The
-            # `.assert_success!` above raises *outside* RoutedConnection's
-            # wrapper, so this is the only place the classifier sees
-            # FAILURE responses to RUN.
-            raise connection.classify_failure(e)
+            raise classified
           rescue StandardError
             # Transport-level failure (IO/socket) — the connection is
             # likely dead. Return it to the pool either way so this lease
@@ -218,18 +219,26 @@ module Neo4j
           # provider ignores it (RUN/BEGIN enforce it instead).
           imp_user: @options[:impersonated_user]
         )
-        # Per-session auth (Bolt 5.1+): ensure the pooled connection
-        # holds the right identity. A non-nil `:auth_token` pins this
-        # session to that identity (matches Java's
-        # SessionConfig.withAuthToken so the JRuby ConfigConverter
-        # delegates via with_auth_token without special-casing); a
-        # nil or absent key uses the connection's stored driver_auth
-        # (so a connection previously borrowed by a per-session-auth
-        # session re-authenticates back here). authenticate is a
-        # no-op when the target identity already matches, so the hot
-        # path — including default sessions on Bolt 4.4 connections —
-        # never reaches the protocol re-auth check.
-        connection.authenticate(@options[:auth_token] || connection.driver_auth)
+        # Ensure the pooled connection holds the right identity.
+        #
+        # A non-nil per-session `:auth_token` pins this session to that
+        # identity (matches Java's SessionConfig.withAuthToken so the JRuby
+        # ConfigConverter delegates via with_auth_token without special-
+        # casing) and always re-auths — correctly erroring on Bolt < 5.1,
+        # where per-session auth is unsupported.
+        #
+        # With no per-session token, the default identity is the auth-token
+        # manager's current token (refreshed/rotated as needed). It's
+        # applied via in-place re-auth only where re-auth exists (Bolt
+        # 5.1+); on 5.0 a pooled connection keeps its creation-time token
+        # and the manager's refresh reaches new connections instead (an
+        # in-place re-auth would wrongly raise on a still-valid token).
+        # authenticate is a no-op when the target identity already matches.
+        if @options[:auth_token]
+          connection.authenticate(@options[:auth_token])
+        elsif connection.protocol.supports_re_auth?
+          connection.authenticate(@connection_provider.current_auth_token)
+        end
         connection
       end
 

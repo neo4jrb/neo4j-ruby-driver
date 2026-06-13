@@ -52,7 +52,8 @@ module Neo4j
                        :send_message, :send_all, :flush,
                        :fetch_response, :fetch_all,
                        :reset!, :route,
-                       :auth, :driver_auth, :authenticate
+                       :auth, :driver_auth, :authenticate,
+                       :auth_failed, :notify_security_exception
 
         # Run a caught exception through the routing classifier:
         # - ServiceUnavailableException → deactivate(address); mark
@@ -69,6 +70,15 @@ module Neo4j
         # PULL/DISCARD). Each invokes this in its catch-Neo4jException
         # block and re-raises whatever we return.
         def classify_failure(error)
+          # Funnel security failures to the auth-token manager first (via
+          # the inner connection's provider-set handler); a retryable one
+          # comes back wrapped as SecurityRetryableException. Then apply
+          # routing classification to whatever we surface.
+          error = @inner.notify_security_exception(error)
+          # A security failure compromises the connection (server closes
+          # it; identity is bad) — discard regardless of routing role.
+          @discard_on_release = true if error.is_a?(Exceptions::SecurityException)
+
           case error
           when Exceptions::SessionExpiredException
             # Already routing-classified — deactivate and keep the type.

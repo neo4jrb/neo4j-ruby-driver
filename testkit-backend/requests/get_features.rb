@@ -67,7 +67,7 @@ module TestkitBackend
         'Feature:Auth:Bearer'                               => 'jar',
         'Feature:Auth:Custom'                               => 'jar',
         'Feature:Auth:Kerberos'                             => 'jar',
-        'Feature:Auth:Managed'                              => 'ja',
+        'Feature:Auth:Managed'                              => 'jar',
         'AuthorizationExpiredTreatment'                     => 'ja',
 
         # --- Public API surface ----------------------------------------------
