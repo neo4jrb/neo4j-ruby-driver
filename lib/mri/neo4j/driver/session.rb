@@ -354,7 +354,12 @@ module Neo4j
           begin
             return run_managed_transaction(op_mode, tx_options, &block)
           rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException,
-                 Exceptions::TransientException => e
+                 Exceptions::TransientException,
+                 # AuthorizationExpired (server authz-cache expiry) is always
+                 # retryable; SecurityRetryableException is an auth failure the
+                 # token manager has flagged retryable (token refreshed) — both
+                 # warrant another attempt on a fresh connection/identity.
+                 Exceptions::AuthorizationExpiredException, Exceptions::SecurityRetryableException => e
             errors << e
 
             if Time.now - start_time >= max_retry_time
