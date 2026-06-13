@@ -71,7 +71,7 @@ module Neo4j
         # leak Java types over the public API.
         def neo4j_exception_kwargs(e)
           {
-            code: e.code,
+            code: effective_code(e),
             suppressed: suppressed(e),
             gql_status: unwrap_optional(e.try(:gql_status)),
             status_description: unwrap_optional(e.try(:status_description)),
@@ -83,6 +83,20 @@ module Neo4j
 
         def unwrap_optional(v)
           v.respond_to?(:or_else) ? v.or_else(nil) : v
+        end
+
+        # A driver-generated wrapper — e.g. the SessionExpiredException raised
+        # for a write against a read-only database — reports code "N/A" but
+        # chains the original failure (the shaded BoltFailureException, which
+        # carries the real Neo4j code) as its cause. testkit asserts on that
+        # original code, so walk the cause chain to the first real code,
+        # falling back to the wrapper's own when none is found.
+        def effective_code(e, fallback = e.code)
+          code = e.try(:code)
+          return code if code && code != 'N/A'
+
+          cause = e.respond_to?(:cause) ? e.cause : nil
+          cause ? effective_code(cause, fallback) : fallback
         end
 
         def mapped_neo4j_exception_class(exception_class)
