@@ -402,7 +402,12 @@ module Neo4j
 
       def open_transaction(op_mode, tx_options)
         connection = acquire_connection(op_mode)
-        Transaction.new(connection, self, @last_bookmarks.to_a, tx_options,
+        # BEGIN must carry the bookmarks the BookmarkManager supplies (merged
+        # with the session's own), not just @last_bookmarks — otherwise an
+        # explicit/managed transaction loses cross-session causal consistency.
+        # current_bookmarks_for_extra also records @bookmarks_used_on_begin so
+        # the commit-time update_bookmarks reports the right `previous` set.
+        Transaction.new(connection, self, current_bookmarks_for_extra, tx_options,
                         on_release: -> { @connection_provider.release(connection) })
       end
     end
