@@ -74,7 +74,9 @@ module TestkitBackend
       # PROFILE_FIELDS list). Both flavors expose the same method names,
       # so no driver-side `to_h` is needed.
       def plan_to_h(plan, fields)
-        to_map(plan, *fields).merge(children: plan.children&.map { plan_to_h(it, fields) })
+        to_map(plan, *fields)
+          .transform_keys(records: :rows) # testkit's profile shape names ProfiledPlan#records "rows"
+          .merge(children: plan.children&.map { plan_to_h(it, fields) })
       end
     end
   end
