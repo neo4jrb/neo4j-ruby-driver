@@ -219,23 +219,21 @@ module Neo4j
           # provider ignores it (RUN/BEGIN enforce it instead).
           imp_user: @options[:impersonated_user]
         )
-        # Per-session auth (Bolt 5.1+): ensure the pooled connection
-        # holds the right identity. A non-nil `:auth_token` pins this
-        # session to that identity (matches Java's
-        # SessionConfig.withAuthToken so the JRuby ConfigConverter
-        # delegates via with_auth_token without special-casing); a
-        # nil or absent key uses the connection's stored driver_auth
-        # (so a connection previously borrowed by a per-session-auth
-        # session re-authenticates back here). authenticate is a
-        # no-op when the target identity already matches, so the hot
-        # path — including default sessions on Bolt 4.4 connections —
-        # never reaches the protocol re-auth check.
-        # A per-session :auth_token always re-auths (and correctly errors
-        # on Bolt < 5.1, where per-session auth is unsupported). The
-        # manager default identity only re-auths where re-auth exists
-        # (5.1+); on 5.0 a pooled connection keeps its creation-time token
+        # Ensure the pooled connection holds the right identity.
+        #
+        # A non-nil per-session `:auth_token` pins this session to that
+        # identity (matches Java's SessionConfig.withAuthToken so the JRuby
+        # ConfigConverter delegates via with_auth_token without special-
+        # casing) and always re-auths — correctly erroring on Bolt < 5.1,
+        # where per-session auth is unsupported.
+        #
+        # With no per-session token, the default identity is the auth-token
+        # manager's current token (refreshed/rotated as needed). It's
+        # applied via in-place re-auth only where re-auth exists (Bolt
+        # 5.1+); on 5.0 a pooled connection keeps its creation-time token
         # and the manager's refresh reaches new connections instead (an
         # in-place re-auth would wrongly raise on a still-valid token).
+        # authenticate is a no-op when the target identity already matches.
         if @options[:auth_token]
           connection.authenticate(@options[:auth_token])
         elsif connection.protocol.supports_re_auth?
