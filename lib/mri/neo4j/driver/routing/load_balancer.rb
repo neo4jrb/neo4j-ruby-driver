@@ -49,7 +49,7 @@ module Neo4j
         # acquire, deactivate on connection failure and try again. Raises
         # ServiceUnavailableException only when the role bucket has been
         # exhausted by deactivations.
-        def acquire(access_mode: :write, database: nil, bookmarks: nil, imp_user: nil)
+        def acquire(access_mode: :write, database: nil, bookmarks: nil, imp_user: nil, auth: nil)
           # Fast-fail with IllegalStateException for use-after-close.
           # Otherwise the next routing fetch would propagate a generic
           # Connection-refused ServiceUnavailableException, masking the
@@ -57,10 +57,20 @@ module Neo4j
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
           access_mode = access_mode.to_sym
+          # `auth` is the per-session override (nil = manager's current
+          # token). Resolve the worker identity once — this is the worker's
+          # single manager consult. Discovery resolves its own identity
+          # independently (below), so a routed acquire with the default token
+          # consults the manager twice (get_auth_count == 2): once for the
+          # ROUTE connection, once for the worker. A session-carried token
+          # short-circuits both (count 0).
+          effective = auth || @auth_manager.get_token
           # imp_user is threaded into discovery so the ROUTE call enforces
           # impersonation support (Bolt 4.4+) against the router, matching
-          # the RUN/BEGIN path — see Connection#route.
-          ensure_routing_table_is_fresh(database, access_mode, bookmarks: bookmarks, imp_user: imp_user)
+          # the RUN/BEGIN path — see Connection#route. `auth` is threaded so
+          # the ROUTE connection authenticates as the session's identity
+          # (per-session token) rather than always the manager's default.
+          ensure_routing_table_is_fresh(database, access_mode, bookmarks: bookmarks, imp_user: imp_user, auth: auth)
 
           last_error = nil
           loop do
@@ -81,7 +91,8 @@ module Neo4j
 
             pool = pool_for(address)
             begin
-              inner = pool.pop
+              inner = pool.pop(auth: effective)
+              ensure_identity(inner, effective, session_auth: auth)
               return RoutedConnection.new(self, inner, address, access_mode, database)
             rescue Exceptions::ServiceUnavailableException => e
               # Server is unreachable (open_connection raised inside the
@@ -230,12 +241,12 @@ module Neo4j
         # second freshness check (double-checked locking pattern matches
         # Python's ensure_routing_table_is_fresh). Optional `bookmarks`
         # are threaded into the ROUTE payload.
-        def ensure_routing_table_is_fresh(database, access_mode, bookmarks: nil, imp_user: nil)
+        def ensure_routing_table_is_fresh(database, access_mode, bookmarks: nil, imp_user: nil, auth: nil)
           @refresh_lock.synchronize do
             table = @routing_tables[database]
             return table if table && table.fresh?(readonly: access_mode == :read)
 
-            update_routing_table(database, bookmarks: bookmarks, imp_user: imp_user)
+            update_routing_table(database, bookmarks: bookmarks, imp_user: imp_user, auth: auth)
           end
         end
 
@@ -248,13 +259,13 @@ module Neo4j
         # the existing table came back without writers (likely-stale),
         # otherwise prefer the existing routers list first. Each failed
         # router is `deactivate`d before moving on to the next.
-        def update_routing_table(database, bookmarks: nil, imp_user: nil)
+        def update_routing_table(database, bookmarks: nil, imp_user: nil, auth: nil)
           existing = @routing_tables[database]
           prefer_seed = existing.nil? || existing.initialized_without_writers
 
           errors = []
           routers_in_order(existing, prefer_seed: prefer_seed).each do |router|
-            new_table = fetch_routing_table_from(router, database, bookmarks, errors, imp_user)
+            new_table = fetch_routing_table_from(router, database, bookmarks, errors, imp_user, auth)
             next unless new_table
 
             apply_routing_table(database, new_table)
@@ -288,7 +299,7 @@ module Neo4j
         # the router; protocol-level failures (e.g. ClientException
         # while routing) just record the error so the caller tries the
         # next router.
-        def fetch_routing_table_from(router, database, bookmarks, errors, imp_user = nil)
+        def fetch_routing_table_from(router, database, bookmarks, errors, imp_user = nil, auth = nil)
           pool = pool_for(router)
           conn = nil
           begin
@@ -297,7 +308,9 @@ module Neo4j
             # (router unreachable). If that escaped the method,
             # update_routing_table's iteration over remaining routers
             # would stop on the first unreachable one.
-            conn = pool.pop
+            # `auth` (per-session token, nil = manager default) is threaded
+            # so the ROUTE connection authenticates as the session identity.
+            conn = pool.pop(auth: auth)
             rt = conn.route(database: database, bookmarks: Array(bookmarks),
                             imp_user: imp_user, routing_context: @routing_context)
             new_table = RoutingTable.from_response(symbolize(rt), database)
@@ -393,12 +406,12 @@ module Neo4j
             @pools[address] ||= Bolt::Pool.new(
               size: max_pool_size,
               options: @options,
-              connect_factory: -> { open_connection(address) }
+              connect_factory: ->(auth) { open_connection(address, auth) }
             )
           end
         end
 
-        def open_connection(address)
+        def open_connection(address, auth = nil)
           # Preserve the encryption suffix: neo4j+s → bolt+s,
           # neo4j+ssc → bolt+ssc, neo4j → bolt. Otherwise routing
           # connections to a TLS cluster would open plaintext and the
@@ -409,9 +422,28 @@ module Neo4j
           # context is sent to readers/writers too; non-router servers
           # just ignore it).
           opts = @options.merge(routing_context: @routing_context)
-          conn = Bolt::Connection.new(uri, @auth_manager.get_token, opts).connect
+          # `auth` is the per-acquire identity (per-session token or the
+          # worker's resolved token). Fall back to the manager's current
+          # token for acquires that don't carry one (verify_connectivity).
+          conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts).connect
           conn.security_exception_handler = method(:on_security_exception)
           conn
+        end
+
+        # Bring a popped worker connection to the `effective` identity —
+        # no-op for a fresh connection (built with it), LOGOFF/LOGON for a
+        # reused one. Mirrors Direct::ConnectionProvider#ensure_identity;
+        # see there for the session-auth-needs-5.1 rationale.
+        def ensure_identity(conn, effective, session_auth:)
+          if session_auth
+            unless conn.protocol.supports_re_auth?
+              raise Exceptions::UnsupportedFeatureException,
+                    "Per-session auth requires Bolt 5.1+; negotiated #{conn.protocol.version}"
+            end
+            conn.authenticate(effective)
+          elsif conn.protocol.supports_re_auth?
+            conn.authenticate(effective)
+          end
         end
 
         def symbolize(value)

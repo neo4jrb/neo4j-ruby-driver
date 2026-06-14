@@ -35,13 +35,14 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
   end
 
   # Factory that hands out preconfigured connections in order. The
-  # pool calls it on demand (when stack is empty / on discard).
+  # pool calls it on demand (when stack is empty / on discard) with the
+  # per-acquire auth token, which these tests ignore.
   def build_pool(connections, **options)
     queue = connections.dup
     described_class.new(
       size: 8,
       options: options,
-      connect_factory: -> { queue.shift || raise('factory exhausted') }
+      connect_factory: ->(_auth) { queue.shift || raise('factory exhausted') }
     )
   end
 
@@ -119,7 +120,7 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       pool = described_class.new(
         size: 1,
         options: { connection_acquisition_timeout: 0.05 },
-        connect_factory: -> { connection_class.new.tap { |c| c.created_at = monotonic } }
+        connect_factory: ->(_auth) { connection_class.new.tap { |c| c.created_at = monotonic } }
       )
       pool.pop # exhaust the single slot
 
@@ -138,10 +139,11 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       fresh.created_at = monotonic
       # size: 1 makes the slot accounting observable — without
       # decrement_created the second pop would block / time out.
+      sequence = [bad, fresh].each
       pool = described_class.new(
         size: 1,
         options: { connection_acquisition_timeout: 0.5 },
-        connect_factory: [bad, fresh].each.method(:next)
+        connect_factory: ->(_auth) { sequence.next }
       )
       pool.pop # `bad` is now the checked-out one
       pool.discard(bad)

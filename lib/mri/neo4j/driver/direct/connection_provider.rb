@@ -36,11 +36,21 @@ module Neo4j
         # Routing::LoadBalancer#acquire but unused here: the direct path
         # has no discovery, so impersonation is enforced on RUN/BEGIN by
         # the protocol handler (Bolt::Protocol::Base#enforce_impersonation_support!).
-        def acquire(access_mode: nil, database: nil, bookmarks: nil, imp_user: nil)
+        def acquire(access_mode: nil, database: nil, bookmarks: nil, imp_user: nil, auth: nil)
           # See Routing::LoadBalancer#acquire for the rationale.
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
-          pool.pop
+          # `auth` is the per-session override (nil = use the manager's
+          # current token). Resolve the effective identity ONCE: this is the
+          # single point the manager is consulted on the direct path
+          # (get_auth_count == 1 for the default identity, 0 when the session
+          # carries its own token). A freshly-built connection authenticates
+          # with it directly (no LOGOFF/LOGON); a reused one is re-authed to
+          # it via ensure_identity.
+          effective = auth || @auth_manager.get_token
+          conn = pool.pop(auth: effective)
+          ensure_identity(conn, effective, session_auth: auth)
+          conn
         end
 
         def release(connection)
@@ -86,6 +96,31 @@ module Neo4j
 
         private
 
+        # Bring a popped connection to the `effective` identity. A fresh
+        # connection was built with it, so authenticate is a no-op; a reused
+        # one currently authenticated as somebody else is re-authed (LOGOFF/
+        # LOGON, Bolt 5.1+).
+        #
+        # When `session_auth` is set (per-session token), the identity must
+        # be enforceable, so we require Bolt 5.1+ even if the popped
+        # connection already happens to hold the token — a 5.0 connection
+        # built with the session token would otherwise silently bypass the
+        # "per-session auth needs re-auth support" contract. With the default
+        # identity, re-auth is applied only where it exists (5.1+); on 5.0 a
+        # pooled connection keeps its creation-time token and the manager's
+        # refresh reaches new connections instead.
+        def ensure_identity(conn, effective, session_auth:)
+          if session_auth
+            unless conn.protocol.supports_re_auth?
+              raise Exceptions::UnsupportedFeatureException,
+                    "Per-session auth requires Bolt 5.1+; negotiated #{conn.protocol.version}"
+            end
+            conn.authenticate(effective)
+          elsif conn.protocol.supports_re_auth?
+            conn.authenticate(effective)
+          end
+        end
+
         # Bolt::Pool wraps connection_pool's TimedStack primitive
         # and adds the lifetime / liveness / acquisition-timeout gates
         # (see Bolt::Pool docstring). TimedStack is used because, unlike
@@ -96,8 +131,11 @@ module Neo4j
           @pool ||= Bolt::Pool.new(
             size: max_pool_size,
             options: @options,
-            connect_factory: lambda {
-              conn = Bolt::Connection.new(@uri, @auth_manager.get_token, @options).connect
+            connect_factory: lambda { |auth|
+              # `auth` is the per-acquire identity resolved in #acquire and
+              # threaded through pool.pop. The `||` is a belt-and-braces
+              # fallback for any future pop path that forgets to pass one.
+              conn = Bolt::Connection.new(@uri, auth || @auth_manager.get_token, @options).connect
               conn.security_exception_handler = method(:on_security_exception)
               conn
             }
