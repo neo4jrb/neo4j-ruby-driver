@@ -109,6 +109,15 @@ module Neo4j
                 discard(address, inner)
                 raise
               end
+              # On Bolt 5.0 ensure_identity can't re-auth in place, so a
+              # reused connection whose token or auth epoch is stale (token
+              # rotation, or an AuthorizationExpired refresh) must be discarded
+              # and replaced by a fresh one — mirrors Direct::ConnectionProvider.
+              unless inner.protocol.supports_re_auth? ||
+                     (inner.auth == effective && inner.auth_epoch == @auth_epochs[address])
+                discard(address, inner)
+                next
+              end
               return RoutedConnection.new(self, inner, address, access_mode, database)
             rescue Exceptions::ServiceUnavailableException => e
               # Server is unreachable (open_connection raised inside the
