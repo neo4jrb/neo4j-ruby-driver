@@ -21,7 +21,7 @@ module TestkitBackend
       # ceil so a sub-second-old table still reports its original whole-second
       # ttl rather than 999.
       def ttl_seconds
-        ((to_object.expiration_timestamp - Time.now.to_f * 1000) / 1000.0).ceil
+        [((to_object.expiration_timestamp - Time.now.to_f * 1000) / 1000.0).ceil, 0].max
       end
 
       # host:port (IPv6 bracketed), built from the host/port accessors both
