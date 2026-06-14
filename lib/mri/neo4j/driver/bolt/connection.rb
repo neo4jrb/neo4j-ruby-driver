@@ -48,6 +48,7 @@ module Neo4j
           @idle_since = nil
           @discard_on_release = false
           @auth_failed = false
+          @security_notified = false
         end
 
         def connect
@@ -188,18 +189,26 @@ module Neo4j
           @discard_on_release = true
 
           # AuthorizationExpired is the server's authorization-cache expiry,
-          # not a token problem: the connection stays usable (so RESET is
-          # fine), the auth-token manager is NOT consulted, and the error
-          # surfaces unchanged (always retryable) for the managed-tx retry
-          # / AuthorizationExpiredTreatment to handle.
-          return error if error.is_a?(Exceptions::AuthorizationExpiredException)
+          # not a closed socket — the connection stays usable, so RESET is
+          # fine. Unauthorized / TokenExpired close the connection server-
+          # side, so skip RESET there.
+          @auth_failed = true unless error.is_a?(Exceptions::AuthorizationExpiredException)
 
-          # Other security failures (Unauthorized / TokenExpired) close the
-          # connection server-side — skip RESET (the socket is gone). Notify
-          # the manager; a retryable verdict surfaces a SecurityRetryable-
-          # Exception wrapping the original (code/message preserved, original
-          # chained as cause at re-raise).
-          @auth_failed = true
+          # Notify the auth-token manager at most once per connection. The
+          # same failure is classified again as it propagates (result
+          # streaming on_failure, then the tx rollback re-consuming the
+          # failed result), so without this guard the manager's
+          # handle_security_exception fires twice. The connection is
+          # discarded after a security failure, so the flag never needs
+          # clearing.
+          return error if @security_notified
+
+          @security_notified = true
+          # Every Neo.ClientError.Security.* failure is reported to the
+          # manager (including AuthorizationExpired — the manager decides
+          # whether it's retryable). A retryable verdict surfaces a
+          # SecurityRetryableException wrapping the original (code/message
+          # preserved, original chained as cause at re-raise).
           return error unless @security_exception_handler&.call(@auth, error)
 
           Exceptions::SecurityRetryableException.new(error.message, code: error.code)
