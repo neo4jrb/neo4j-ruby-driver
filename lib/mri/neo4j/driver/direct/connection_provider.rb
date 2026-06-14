@@ -22,8 +22,14 @@ module Neo4j
           # Authorization-expired generation counter (see Connection#auth_epoch).
           # Bumped when any connection reports AuthorizationExpired so every
           # other pooled connection re-authenticates on its next acquire.
+          # Guarded by a mutex: the pool is shared across threads and on JRuby
+          # (mri-on-jruby) there's no GIL, so a bare `+= 1` could lose bumps.
           @auth_epoch = 0
+          @auth_epoch_mutex = Mutex.new
         end
+
+        # Current auth generation, read atomically.
+        def auth_epoch = @auth_epoch_mutex.synchronize { @auth_epoch }
 
         # The current default identity, sourced from the auth-token
         # manager (which refreshes / re-fetches as needed). Sessions
@@ -37,8 +43,14 @@ module Neo4j
         # bumps the auth epoch: the server dropped its authorization cache
         # for this identity, so every pooled connection must re-authenticate
         # (with whatever token is current) before its next use.
-        def on_security_exception(token, error)
-          @auth_epoch += 1 if error.is_a?(Exceptions::AuthorizationExpiredException)
+        def on_security_exception(token, error, session_scoped = false)
+          # Provider-side invalidation happens regardless of who owns the token.
+          @auth_epoch_mutex.synchronize { @auth_epoch += 1 } if error.is_a?(Exceptions::AuthorizationExpiredException)
+          # A per-session token wasn't issued by the manager — don't notify it
+          # (testkit: handle_security_exception_count stays 0), and don't treat
+          # the failure as manager-retryable.
+          return false if session_scoped
+
           @auth_manager.handle_security_exception(token, error)
         end
 
@@ -66,10 +78,13 @@ module Neo4j
           # each turn means the replacement issues its own get_token, as the
           # managed-auth contract expects (one extra get_auth per rotation).
           loop do
+            # Snapshot the epoch once per turn so the staleness check and the
+            # connection's stamp (in ensure_identity) use one consistent value.
+            epoch = auth_epoch
             effective = auth || @auth_manager.get_token
             conn = pool.pop(auth: effective)
             begin
-              ensure_identity(conn, effective, session_auth: auth)
+              ensure_identity(conn, effective, session_auth: auth, epoch: epoch)
             rescue StandardError
               # Identity enforcement can raise (per-session auth on Bolt < 5.1,
               # or a re-auth LOGON failure). Free the just-checked-out slot
@@ -83,7 +98,7 @@ module Neo4j
             # already match — otherwise discard and let the pool rebuild a
             # fresh one (token rotation, or an AuthorizationExpired refresh).
             return conn if conn.protocol.supports_re_auth? ||
-                           (conn.auth == effective && conn.auth_epoch == @auth_epoch)
+                           (conn.auth == effective && conn.auth_epoch == epoch)
 
             pool.discard(conn)
           end
@@ -145,7 +160,7 @@ module Neo4j
         # identity, re-auth is applied only where it exists (5.1+); on 5.0 a
         # pooled connection keeps its creation-time token and the manager's
         # refresh reaches new connections instead.
-        def ensure_identity(conn, effective, session_auth:)
+        def ensure_identity(conn, effective, session_auth:, epoch: auth_epoch)
           # Record whose identity this connection currently holds so a later
           # security failure knows whether to notify the manager. Updated
           # every acquire because a pooled connection changes lessee.
@@ -153,17 +168,17 @@ module Neo4j
           # Force a re-auth (even to the same token) when this connection was
           # authed before the latest AuthorizationExpired — the server needs
           # a fresh LOGON to rebuild its authorization cache.
-          force = conn.auth_epoch < @auth_epoch
+          force = conn.auth_epoch < epoch
           if session_auth
             unless conn.protocol.supports_re_auth?
               raise Exceptions::UnsupportedFeatureException,
                     "Per-session auth requires Bolt 5.1+; negotiated #{conn.protocol.version}"
             end
             conn.authenticate(effective, force: force)
-            conn.auth_epoch = @auth_epoch
+            conn.auth_epoch = epoch
           elsif conn.protocol.supports_re_auth?
             conn.authenticate(effective, force: force)
-            conn.auth_epoch = @auth_epoch
+            conn.auth_epoch = epoch
           end
         end
 
@@ -185,7 +200,7 @@ module Neo4j
               conn.security_exception_handler = method(:on_security_exception)
               # A freshly-authenticated connection belongs to the current
               # auth generation, so ensure_identity won't force-re-auth it.
-              conn.auth_epoch = @auth_epoch
+              conn.auth_epoch = auth_epoch
               conn
             }
           )

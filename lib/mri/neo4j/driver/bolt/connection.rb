@@ -231,17 +231,18 @@ module Neo4j
           return @security_classification if @security_notified
 
           @security_notified = true
-          # Every Neo.ClientError.Security.* failure is reported to the
-          # manager (including AuthorizationExpired — the manager decides
-          # whether it's retryable). A retryable verdict surfaces a
-          # SecurityRetryableException wrapping the original (code/message
-          # preserved, original chained as cause at re-raise).
-          # A security failure on a per-session identity is the session's
-          # problem, not the manager's — skip the manager notification (and
-          # the retryable upgrade) so its handle_security_exception_count
-          # stays 0. The default (manager-issued) identity still reports.
+          # Always run the provider handler — it performs provider-side work
+          # that must happen regardless of who owns the token, notably bumping
+          # the auth epoch on AuthorizationExpired so SIBLING pooled
+          # connections re-authenticate. `session_scoped_auth` is passed so the
+          # handler can skip the auth-token-MANAGER notification for a
+          # per-session identity (the manager didn't issue that token, so its
+          # handle_security_exception_count must stay 0). A retryable verdict
+          # surfaces a SecurityRetryableException wrapping the original
+          # (code/message preserved, original chained as cause at re-raise);
+          # the handler returns false for session-scoped auth, so no upgrade.
           @security_classification =
-            if !@session_scoped_auth && @security_exception_handler&.call(@auth, error)
+            if @security_exception_handler&.call(@auth, error, @session_scoped_auth)
               Exceptions::SecurityRetryableException.new(error.message, code: error.code)
             else
               error
