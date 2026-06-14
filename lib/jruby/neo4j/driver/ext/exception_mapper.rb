@@ -100,7 +100,7 @@ module Neo4j
             code = e.code if e.respond_to?(:code)
             return code if code && code != 'N/A'
 
-            e = e.respond_to?(:cause) ? e.cause : nil
+            e = e.cause
           end
           fallback
         end
