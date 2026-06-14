@@ -60,7 +60,7 @@ module Neo4j
           # passing a routing context to a direct connection.
           if parsed.scheme.start_with?('bolt') && !parsed.query.to_s.empty?
             raise ArgumentError,
-                  "Routing parameters are not supported with scheme 'bolt'. Given URI: '#{uri}'"
+                  "Routing parameters are not supported with scheme '#{parsed.scheme}'. Given URI: '#{uri}'"
           end
         rescue URI::InvalidURIError
           raise ArgumentError, 'Scheme must not be null'
