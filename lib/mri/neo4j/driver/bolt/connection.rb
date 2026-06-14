@@ -51,6 +51,7 @@ module Neo4j
           @security_notified = false
           @security_classification = nil
           @session_scoped_auth = false
+          @auth_epoch = 0
         end
 
         def connect
@@ -150,12 +151,23 @@ module Neo4j
         # bookkeeping.
         attr_reader :auth, :driver_auth
 
+        # The auth "generation" this connection last authenticated at.
+        # The provider bumps its own counter on an AuthorizationExpired
+        # failure (the server invalidated its authorization cache for every
+        # connection of this identity); a pooled connection authed at an
+        # older generation must re-authenticate on next acquire even though
+        # its token is unchanged. Set by the provider's connect_factory /
+        # ensure_identity.
+        attr_accessor :auth_epoch
+
         # Bolt 5.1+ re-auth: LOGOFF then LOGON with `new_auth`. Used by
         # Session when it has its own `:auth` and the pooled connection
         # is currently authenticated as somebody else. No-op when the
-        # connection already holds the target identity.
-        def authenticate(new_auth)
-          return if @auth == new_auth
+        # connection already holds the target identity — unless `force`
+        # (an AuthorizationExpired-driven refresh re-auths to the *same*
+        # token to refresh the server's authorization cache).
+        def authenticate(new_auth, force: false)
+          return if !force && @auth == new_auth
           unless @protocol&.supports_re_auth?
             raise Exceptions::UnsupportedFeatureException,
                   "Per-session auth requires Bolt 5.1+; negotiated #{@bolt_version}"

@@ -39,6 +39,14 @@ module Neo4j
           @pools = {}                      # ServerAddress => ConnectionPool::TimedStack
           @routing_tables = {}             # database (str or nil) => RoutingTable
           @cursor = Hash.new(0)            # round-robin per (database, role)
+          # Per-server authorization-expired generation counters (see
+          # Connection#auth_epoch and Direct::ConnectionProvider). Bumped for a
+          # server when one of its connections reports AuthorizationExpired, so
+          # the OTHER connections to that same server re-authenticate on their
+          # next acquire. Scoped per-address (not driver-wide) because the
+          # server's authorization cache is per-server — a reader's expiry must
+          # not force the writer pool to re-auth.
+          @auth_epochs = Hash.new(0)
           # Monitor (reentrant) because ensure_routing_table_is_fresh holds
           # the lock while it goes through pool_for, which also locks.
           @refresh_lock = Monitor.new
@@ -93,7 +101,7 @@ module Neo4j
             begin
               inner = pool.pop(auth: effective)
               begin
-                ensure_identity(inner, effective, session_auth: auth)
+                ensure_identity(inner, effective, session_auth: auth, address: address)
               rescue StandardError
                 # Don't leak the worker slot if identity enforcement fails
                 # (per-session auth on Bolt < 5.1, or a re-auth LOGON
@@ -117,7 +125,13 @@ module Neo4j
         # Mirror Direct::ConnectionProvider so Session stays polymorphic.
         def current_auth_token = @auth_manager.get_token
 
-        def on_security_exception(token, error) = @auth_manager.handle_security_exception(token, error)
+        def on_security_exception(address, token, error)
+          # See Direct::ConnectionProvider#on_security_exception: an expired
+          # authorization cache forces the OTHER connections to that same
+          # server to re-auth.
+          @refresh_lock.synchronize { @auth_epochs[address] += 1 } if error.is_a?(Exceptions::AuthorizationExpiredException)
+          @auth_manager.handle_security_exception(token, error)
+        end
 
         def release(connection)
           # Direct provider tolerates nil; mirror that. Internal callers
@@ -325,7 +339,7 @@ module Neo4j
             # update_routing_table's iteration over remaining routers
             # would stop on the first unreachable one.
             conn = pool.pop(auth: effective)
-            ensure_identity(conn, effective, session_auth: auth)
+            ensure_identity(conn, effective, session_auth: auth, address: router)
             rt = conn.route(database: database, bookmarks: Array(bookmarks),
                             imp_user: imp_user, routing_context: @routing_context)
             new_table = RoutingTable.from_response(symbolize(rt), database)
@@ -441,7 +455,12 @@ module Neo4j
           # worker's resolved token). Fall back to the manager's current
           # token for acquires that don't carry one (verify_connectivity).
           conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts).connect
-          conn.security_exception_handler = method(:on_security_exception)
+          # Bind the security handler to this connection's server so an
+          # AuthorizationExpired bumps the right per-address epoch.
+          conn.security_exception_handler = ->(token, error) { on_security_exception(address, token, error) }
+          # A freshly-authenticated connection belongs to the current auth
+          # generation for its server, so ensure_identity won't force-re-auth it.
+          conn.auth_epoch = @auth_epochs[address]
           conn
         end
 
@@ -449,19 +468,24 @@ module Neo4j
         # no-op for a fresh connection (built with it), LOGOFF/LOGON for a
         # reused one. Mirrors Direct::ConnectionProvider#ensure_identity;
         # see there for the session-auth-needs-5.1 rationale.
-        def ensure_identity(conn, effective, session_auth:)
+        def ensure_identity(conn, effective, session_auth:, address:)
           # See Direct::ConnectionProvider#ensure_identity — tag the
           # connection's current identity so security failures only notify
-          # the manager for the manager's own (default) token.
+          # the manager for the manager's own (default) token, and force a
+          # re-auth when this connection predates the latest AuthorizationExpired
+          # for its server.
           conn.session_scoped_auth = !session_auth.nil?
+          force = conn.auth_epoch < @auth_epochs[address]
           if session_auth
             unless conn.protocol.supports_re_auth?
               raise Exceptions::UnsupportedFeatureException,
                     "Per-session auth requires Bolt 5.1+; negotiated #{conn.protocol.version}"
             end
-            conn.authenticate(effective)
+            conn.authenticate(effective, force: force)
+            conn.auth_epoch = @auth_epochs[address]
           elsif conn.protocol.supports_re_auth?
-            conn.authenticate(effective)
+            conn.authenticate(effective, force: force)
+            conn.auth_epoch = @auth_epochs[address]
           end
         end
 
