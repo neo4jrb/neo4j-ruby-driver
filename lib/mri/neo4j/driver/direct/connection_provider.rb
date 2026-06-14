@@ -41,24 +41,36 @@ module Neo4j
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
           # `auth` is the per-session override (nil = use the manager's
-          # current token). Resolve the effective identity ONCE: this is the
-          # single point the manager is consulted on the direct path
-          # (get_auth_count == 1 for the default identity, 0 when the session
-          # carries its own token). A freshly-built connection authenticates
-          # with it directly (no LOGOFF/LOGON); a reused one is re-authed to
-          # it via ensure_identity.
-          effective = auth || @auth_manager.get_token
-          conn = pool.pop(auth: effective)
-          begin
-            ensure_identity(conn, effective, session_auth: auth)
-          rescue StandardError
-            # Identity enforcement can raise (per-session auth on Bolt < 5.1,
-            # or a re-auth LOGON failure). Free the just-checked-out slot
-            # instead of leaking it for the driver's lifetime, then re-raise.
+          # current token). `effective` is the identity this acquire should
+          # hand out; resolving it consults the manager (get_auth_count == 1
+          # for the default identity, 0 when the session carries its own
+          # token). A freshly-built connection authenticates with it directly
+          # (no LOGOFF/LOGON); a reused one is re-authed to it via
+          # ensure_identity on Bolt 5.1+.
+          #
+          # On Bolt 5.0 there is no in-place re-auth, so a *reused* connection
+          # keeps its creation-time identity. If the manager has since rotated
+          # its token, that connection is stale — discard it and loop, letting
+          # the pool build a fresh one authenticated as the current identity
+          # (Java's backwards-compatible behaviour). Re-resolving `effective`
+          # each turn means the replacement issues its own get_token, as the
+          # managed-auth contract expects (one extra get_auth per rotation).
+          loop do
+            effective = auth || @auth_manager.get_token
+            conn = pool.pop(auth: effective)
+            begin
+              ensure_identity(conn, effective, session_auth: auth)
+            rescue StandardError
+              # Identity enforcement can raise (per-session auth on Bolt < 5.1,
+              # or a re-auth LOGON failure). Free the just-checked-out slot
+              # instead of leaking it for the driver's lifetime, then re-raise.
+              pool.discard(conn)
+              raise
+            end
+            return conn if conn.protocol.supports_re_auth? || conn.auth == effective
+
             pool.discard(conn)
-            raise
           end
-          conn
         end
 
         def release(connection)
