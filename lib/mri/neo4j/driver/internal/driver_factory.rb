@@ -52,6 +52,16 @@ module Neo4j
           parsed = URI(uri)
           raise ArgumentError, 'Scheme must not be null' if parsed.scheme.nil? || parsed.scheme.empty?
           raise ArgumentError, "Unsupported URI scheme: #{parsed.scheme}" unless VALID_SCHEMES.include?(parsed.scheme)
+
+          # Routing context (URI query parameters, e.g. region/policy) only
+          # applies to routing drivers (neo4j://). A direct bolt:// driver
+          # would silently drop it — so reject it instead, matching Java's
+          # IllegalArgumentException. Server Side Routing is not enabled by
+          # passing a routing context to a direct connection.
+          if parsed.scheme.start_with?('bolt') && !parsed.query.to_s.empty?
+            raise ArgumentError,
+                  "Routing parameters are not supported with scheme '#{parsed.scheme}'. Given URI: '#{uri}'"
+          end
         rescue URI::InvalidURIError
           raise ArgumentError, 'Scheme must not be null'
         end
