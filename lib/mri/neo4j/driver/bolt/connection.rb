@@ -341,13 +341,17 @@ module Neo4j
               params = { context: routing_context }
             end
             extra = { db: 'system', mode: 'r' }
+            # 4.0-4.2 runs the procedure against `system`, which accepts
+            # bookmarks (causal consistency for a freshly-created database).
+            extra[:bookmarks] = Array(bookmarks) unless Array(bookmarks).empty?
           else
-            # 3.0: single-database cluster routing procedure, home db.
+            # 3.0: single-database cluster routing procedure, home db. No
+            # system db and no bookmark-aware routing (that arrived with the
+            # 4.3 ROUTE message), so the discovery RUN carries only `mode`.
             query = 'CALL dbms.cluster.routing.getRoutingTable($context)'
             params = { context: routing_context }
             extra = { mode: 'r' }
           end
-          extra[:bookmarks] = Array(bookmarks) unless Array(bookmarks).empty?
 
           send_message(@protocol.build_run(query, params, extra))
           send_message(@protocol.build_pull(n: -1))
