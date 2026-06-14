@@ -183,10 +183,22 @@ module Neo4j
         def notify_security_exception(error)
           return error unless error.is_a?(Exceptions::SecurityException)
 
-          # The server closes the connection after a security FAILURE and
-          # the identity is compromised regardless of retryability — never
-          # return it to the pool, and don't RESET it (the socket is gone).
+          # A security failure means this connection can't be reused — drop
+          # it from the pool either way.
           @discard_on_release = true
+
+          # AuthorizationExpired is the server's authorization-cache expiry,
+          # not a token problem: the connection stays usable (so RESET is
+          # fine), the auth-token manager is NOT consulted, and the error
+          # surfaces unchanged (always retryable) for the managed-tx retry
+          # / AuthorizationExpiredTreatment to handle.
+          return error if error.is_a?(Exceptions::AuthorizationExpiredException)
+
+          # Other security failures (Unauthorized / TokenExpired) close the
+          # connection server-side — skip RESET (the socket is gone). Notify
+          # the manager; a retryable verdict surfaces a SecurityRetryable-
+          # Exception wrapping the original (code/message preserved, original
+          # chained as cause at re-raise).
           @auth_failed = true
           return error unless @security_exception_handler&.call(@auth, error)
 
