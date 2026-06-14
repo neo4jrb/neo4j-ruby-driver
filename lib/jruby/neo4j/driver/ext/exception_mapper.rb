@@ -93,10 +93,12 @@ module Neo4j
         # nil when none carries one ('N/A' is Java's no-code sentinel, which
         # the Ruby API represents as nil, the same as MRI).
         def effective_code(e)
+          return unless e
+
           code = e.code if e.respond_to?(:code)
           return code if code && code != 'N/A'
 
-          effective_code(e.cause) if e.cause
+          effective_code(e.cause)
         end
 
         def mapped_neo4j_exception_class(exception_class)
