@@ -74,11 +74,11 @@ module Neo4j
           {
             code: effective_code(e),
             suppressed: suppressed(e),
-            gql_status: unwrap_optional(e.try(:gql_status)),
-            status_description: unwrap_optional(e.try(:status_description)),
-            classification: unwrap_optional(e.try(:classification))&.to_s,
-            raw_classification: unwrap_optional(e.try(:raw_classification)),
-            diagnostic_record: unwrap_optional(e.try(:diagnostic_record))&.to_h,
+            gql_status: unwrap_optional(e.gql_status),
+            status_description: unwrap_optional(e.status_description),
+            classification: unwrap_optional(e.classification)&.to_s,
+            raw_classification: unwrap_optional(e.raw_classification),
+            diagnostic_record: unwrap_optional(e.diagnostic_record)&.to_h,
             gql_cause: gql_cause(e)
           }
         end
@@ -88,7 +88,7 @@ module Neo4j
         # asserts on. Each cause is itself a Neo4jException, so mapped_exception
         # recurses (its own gqlCause included) until the chain ends.
         def gql_cause(e)
-          cause = unwrap_optional(e.try(:gql_cause))
+          cause = unwrap_optional(e.gql_cause)
           cause && mapped_exception(cause)
         end
 
