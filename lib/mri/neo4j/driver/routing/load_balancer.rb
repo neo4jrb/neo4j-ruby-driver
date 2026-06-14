@@ -92,7 +92,15 @@ module Neo4j
             pool = pool_for(address)
             begin
               inner = pool.pop(auth: effective)
-              ensure_identity(inner, effective, session_auth: auth)
+              begin
+                ensure_identity(inner, effective, session_auth: auth)
+              rescue StandardError
+                # Don't leak the worker slot if identity enforcement fails
+                # (per-session auth on Bolt < 5.1, or a re-auth LOGON
+                # failure); discard it, then let the error propagate.
+                discard(address, inner)
+                raise
+              end
               return RoutedConnection.new(self, inner, address, access_mode, database)
             rescue Exceptions::ServiceUnavailableException => e
               # Server is unreachable (open_connection raised inside the
@@ -303,14 +311,21 @@ module Neo4j
           pool = pool_for(router)
           conn = nil
           begin
+            # Resolve discovery's identity once — its single, independent
+            # manager consult (per-session token short-circuits it). Used for
+            # BOTH the fresh-connection token and the re-auth of a reused
+            # router connection: pool.pop(auth:) only sets a *fresh*
+            # connection's identity, so without ensure_identity a reused
+            # ROUTE connection would run under the previous lessee's user
+            # (and skip the Bolt 5.1 gate for per-session auth).
+            effective = auth || @auth_manager.get_token
             # pop is inside the begin block on purpose: open_connection
             # is the pool's create block and can raise ServiceUnavailable
             # (router unreachable). If that escaped the method,
             # update_routing_table's iteration over remaining routers
             # would stop on the first unreachable one.
-            # `auth` (per-session token, nil = manager default) is threaded
-            # so the ROUTE connection authenticates as the session identity.
-            conn = pool.pop(auth: auth)
+            conn = pool.pop(auth: effective)
+            ensure_identity(conn, effective, session_auth: auth)
             rt = conn.route(database: database, bookmarks: Array(bookmarks),
                             imp_user: imp_user, routing_context: @routing_context)
             new_table = RoutingTable.from_response(symbolize(rt), database)

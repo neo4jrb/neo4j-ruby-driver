@@ -33,15 +33,19 @@ module Neo4j
         def initialize(size:, options:, connect_factory:)
           @options = options
           # connect_factory takes the auth token a fresh connection should
-          # authenticate with. The pool stashes the token the current pop
-          # asked for in @next_auth; the TimedStack create block (run
-          # synchronously inside pop) reads it. This lets a session create
-          # a fresh connection with its own identity (per-session auth) or
-          # the manager's current token in a single get_token call, instead
-          # of connecting as the manager and re-authing.
+          # authenticate with. pop hands it to the create block via a
+          # thread-local: the create block runs synchronously inside
+          # @stack.pop on the *calling* thread, so a thread-local is read
+          # back by the same thread that set it and can't be clobbered by a
+          # concurrent pop on another thread (a shared ivar could — this
+          # pool is shared across sessions). Keyed by object_id so distinct
+          # pools don't collide on the same thread. This lets a session
+          # create a fresh connection with its own identity (per-session
+          # auth) or the manager's current token in a single get_token call,
+          # instead of connecting as the manager and re-authing.
           @connect_factory = connect_factory
-          @next_auth = nil
-          @stack = ConnectionPool::TimedStack.new(size: size) { @connect_factory.call(@next_auth) }
+          @auth_key = :"bolt_pool_next_auth_#{object_id}"
+          @stack = ConnectionPool::TimedStack.new(size: size) { @connect_factory.call(Thread.current[@auth_key]) }
         end
 
         # Pop a connection that's young enough and confirmed alive.
@@ -49,11 +53,11 @@ module Neo4j
         # budget runs out — every discarded slot opens room for the
         # factory to make a fresh one.
         def pop(auth: nil)
-          # The token a freshly-built connection should authenticate
-          # with. Read by the TimedStack create block, which runs
-          # synchronously inside @stack.pop below, so the assignment is
-          # in effect for exactly this pop's lazy construction.
-          @next_auth = auth
+          # The token a freshly-built connection should authenticate with,
+          # handed to the create block via a thread-local that lives only
+          # for this pop (see #initialize). Cleared in `ensure` so it never
+          # leaks into a later create on the same thread.
+          Thread.current[@auth_key] = auth
           deadline = current_monotonic + acquisition_timeout
           loop do
             timeout = [deadline - current_monotonic, 0].max
@@ -67,6 +71,8 @@ module Neo4j
         rescue ::Timeout::Error
           raise Exceptions::ClientException,
                 "Unable to acquire connection from the pool within configured maximum time of #{format_acquisition_timeout}"
+        ensure
+          Thread.current[@auth_key] = nil
         end
 
         def push(connection)

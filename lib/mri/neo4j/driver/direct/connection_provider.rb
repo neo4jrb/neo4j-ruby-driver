@@ -49,7 +49,15 @@ module Neo4j
           # it via ensure_identity.
           effective = auth || @auth_manager.get_token
           conn = pool.pop(auth: effective)
-          ensure_identity(conn, effective, session_auth: auth)
+          begin
+            ensure_identity(conn, effective, session_auth: auth)
+          rescue StandardError
+            # Identity enforcement can raise (per-session auth on Bolt < 5.1,
+            # or a re-auth LOGON failure). Free the just-checked-out slot
+            # instead of leaking it for the driver's lifetime, then re-raise.
+            pool.discard(conn)
+            raise
+          end
           conn
         end
 

@@ -49,6 +49,7 @@ module Neo4j
           @discard_on_release = false
           @auth_failed = false
           @security_notified = false
+          @security_classification = nil
         end
 
         def connect
@@ -198,10 +199,14 @@ module Neo4j
           # same failure is classified again as it propagates (result
           # streaming on_failure, then the tx rollback re-consuming the
           # failed result), so without this guard the manager's
-          # handle_security_exception fires twice. The connection is
-          # discarded after a security failure, so the flag never needs
+          # handle_security_exception fires twice. We also cache the
+          # classified result and return it on the repeat calls, so the
+          # retryability/type stays stable — the first call may upgrade to
+          # SecurityRetryableException, and a later call must not downgrade
+          # back to the raw error. The connection is discarded after a
+          # security failure, so neither the flag nor the cache needs
           # clearing.
-          return error if @security_notified
+          return @security_classification if @security_notified
 
           @security_notified = true
           # Every Neo.ClientError.Security.* failure is reported to the
@@ -209,9 +214,12 @@ module Neo4j
           # whether it's retryable). A retryable verdict surfaces a
           # SecurityRetryableException wrapping the original (code/message
           # preserved, original chained as cause at re-raise).
-          return error unless @security_exception_handler&.call(@auth, error)
-
-          Exceptions::SecurityRetryableException.new(error.message, code: error.code)
+          @security_classification =
+            if @security_exception_handler&.call(@auth, error)
+              Exceptions::SecurityRetryableException.new(error.message, code: error.code)
+            else
+              error
+            end
         end
 
         # No-op routing classifier for the direct (bolt://) path — there's
