@@ -216,36 +216,27 @@ module Neo4j
       private
 
       def acquire_connection(access_mode)
-        connection = @connection_provider.acquire(
+        # The identity is resolved and applied by the connection provider
+        # (it owns the pool, so it knows whether a popped connection is fresh
+        # — built with the right token already — or a reused one that must be
+        # re-authed). We only hand it the per-session override: a non-nil
+        # `:auth_token` pins this session to that identity (matches Java's
+        # SessionConfig.withAuthToken so the JRuby ConfigConverter delegates
+        # via with_auth_token without special-casing). nil means "use the
+        # auth-token manager's current token", and the provider consults the
+        # manager exactly as many times as the path needs (once for direct,
+        # once for discovery + once for the worker on routing) — never an
+        # extra time for a redundant re-auth.
+        @connection_provider.acquire(
           access_mode: access_mode,
           database: @options[:database],
           bookmarks: current_bookmarks_for_extra,
           # Threaded into routing discovery so the ROUTE call enforces
           # impersonation support (Bolt 4.4+) before sending; the direct
           # provider ignores it (RUN/BEGIN enforce it instead).
-          imp_user: @options[:impersonated_user]
+          imp_user: @options[:impersonated_user],
+          auth: @options[:auth_token]
         )
-        # Ensure the pooled connection holds the right identity.
-        #
-        # A non-nil per-session `:auth_token` pins this session to that
-        # identity (matches Java's SessionConfig.withAuthToken so the JRuby
-        # ConfigConverter delegates via with_auth_token without special-
-        # casing) and always re-auths — correctly erroring on Bolt < 5.1,
-        # where per-session auth is unsupported.
-        #
-        # With no per-session token, the default identity is the auth-token
-        # manager's current token (refreshed/rotated as needed). It's
-        # applied via in-place re-auth only where re-auth exists (Bolt
-        # 5.1+); on 5.0 a pooled connection keeps its creation-time token
-        # and the manager's refresh reaches new connections instead (an
-        # in-place re-auth would wrongly raise on a still-valid token).
-        # authenticate is a no-op when the target identity already matches.
-        if @options[:auth_token]
-          connection.authenticate(@options[:auth_token])
-        elsif connection.protocol.supports_re_auth?
-          connection.authenticate(@connection_provider.current_auth_token)
-        end
-        connection
       end
 
 
