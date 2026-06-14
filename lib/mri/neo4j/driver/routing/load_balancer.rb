@@ -450,6 +450,10 @@ module Neo4j
         # reused one. Mirrors Direct::ConnectionProvider#ensure_identity;
         # see there for the session-auth-needs-5.1 rationale.
         def ensure_identity(conn, effective, session_auth:)
+          # See Direct::ConnectionProvider#ensure_identity — tag the
+          # connection's current identity so security failures only notify
+          # the manager for the manager's own (default) token.
+          conn.session_scoped_auth = !session_auth.nil?
           if session_auth
             unless conn.protocol.supports_re_auth?
               raise Exceptions::UnsupportedFeatureException,

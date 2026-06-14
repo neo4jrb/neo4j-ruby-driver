@@ -50,6 +50,7 @@ module Neo4j
           @auth_failed = false
           @security_notified = false
           @security_classification = nil
+          @session_scoped_auth = false
         end
 
         def connect
@@ -168,6 +169,15 @@ module Neo4j
           @auth = new_auth
         end
 
+        # True when the connection's current identity came from a per-session
+        # auth token rather than the auth-token manager's default. The manager
+        # didn't issue that token, so a security failure on such a connection
+        # must NOT be reported to it (testkit's get_auth contract:
+        # handle_security_exception_count stays 0 for session-scoped auth).
+        # Set by the provider's ensure_identity on every acquire so it tracks
+        # the current lessee of a reused pooled connection.
+        attr_accessor :session_scoped_auth
+
         # Provider-set callback (token, error) -> Boolean: feeds a
         # security failure back to the auth-token manager so it can
         # invalidate / refresh the token. nil for drivers built without a
@@ -214,8 +224,12 @@ module Neo4j
           # whether it's retryable). A retryable verdict surfaces a
           # SecurityRetryableException wrapping the original (code/message
           # preserved, original chained as cause at re-raise).
+          # A security failure on a per-session identity is the session's
+          # problem, not the manager's — skip the manager notification (and
+          # the retryable upgrade) so its handle_security_exception_count
+          # stays 0. The default (manager-issued) identity still reports.
           @security_classification =
-            if @security_exception_handler&.call(@auth, error)
+            if !@session_scoped_auth && @security_exception_handler&.call(@auth, error)
               Exceptions::SecurityRetryableException.new(error.message, code: error.code)
             else
               error

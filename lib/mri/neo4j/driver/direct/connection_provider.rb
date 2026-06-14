@@ -118,6 +118,10 @@ module Neo4j
         # pooled connection keeps its creation-time token and the manager's
         # refresh reaches new connections instead.
         def ensure_identity(conn, effective, session_auth:)
+          # Record whose identity this connection currently holds so a later
+          # security failure knows whether to notify the manager. Updated
+          # every acquire because a pooled connection changes lessee.
+          conn.session_scoped_auth = !session_auth.nil?
           if session_auth
             unless conn.protocol.supports_re_auth?
               raise Exceptions::UnsupportedFeatureException,
