@@ -11,6 +11,7 @@ module Neo4j
         java_import org.neo4j.driver.exceptions.DatabaseException
         java_import org.neo4j.driver.exceptions.DiscoveryException
         java_import org.neo4j.driver.exceptions.FatalDiscoveryException
+        java_import org.neo4j.driver.exceptions.Neo4jException
         java_import org.neo4j.driver.exceptions.ProtocolException
         java_import org.neo4j.driver.exceptions.ResultConsumedException
         java_import org.neo4j.driver.exceptions.SecurityException
@@ -77,8 +78,18 @@ module Neo4j
             status_description: unwrap_optional(e.try(:status_description)),
             classification: unwrap_optional(e.try(:classification))&.to_s,
             raw_classification: unwrap_optional(e.try(:raw_classification)),
-            diagnostic_record: unwrap_optional(e.try(:diagnostic_record))&.to_h
+            diagnostic_record: unwrap_optional(e.try(:diagnostic_record))&.to_h,
+            gql_cause: gql_cause(e)
           }
+        end
+
+        # The GQL cause chain (Neo4jException#gqlCause), mapped recursively so
+        # the Ruby exception carries the nested cause the testkit error shape
+        # asserts on. Each cause is itself a Neo4jException, so mapped_exception
+        # recurses (its own gqlCause included) until the chain ends.
+        def gql_cause(e)
+          cause = unwrap_optional(e.try(:gql_cause))
+          cause && mapped_exception(cause)
         end
 
         def unwrap_optional(v)
@@ -139,6 +150,8 @@ module Neo4j
             Neo4j::Driver::Exceptions::SessionExpiredException
           when TransientException
             Neo4j::Driver::Exceptions::TransientException
+          when Neo4jException # base — catches plain GQL-cause exceptions (must be last)
+            Neo4j::Driver::Exceptions::Neo4jException
           else
             nil
           end
