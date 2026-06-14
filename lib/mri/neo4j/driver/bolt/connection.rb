@@ -50,6 +50,8 @@ module Neo4j
           @auth_failed = false
           @security_notified = false
           @security_classification = nil
+          @session_scoped_auth = false
+          @auth_epoch = 0
         end
 
         def connect
@@ -149,12 +151,23 @@ module Neo4j
         # bookkeeping.
         attr_reader :auth, :driver_auth
 
+        # The auth "generation" this connection last authenticated at.
+        # The provider bumps its own counter on an AuthorizationExpired
+        # failure (the server invalidated its authorization cache for every
+        # connection of this identity); a pooled connection authed at an
+        # older generation must re-authenticate on next acquire even though
+        # its token is unchanged. Set by the provider's connect_factory /
+        # ensure_identity.
+        attr_accessor :auth_epoch
+
         # Bolt 5.1+ re-auth: LOGOFF then LOGON with `new_auth`. Used by
         # Session when it has its own `:auth` and the pooled connection
         # is currently authenticated as somebody else. No-op when the
-        # connection already holds the target identity.
-        def authenticate(new_auth)
-          return if @auth == new_auth
+        # connection already holds the target identity — unless `force`
+        # (an AuthorizationExpired-driven refresh re-auths to the *same*
+        # token to refresh the server's authorization cache).
+        def authenticate(new_auth, force: false)
+          return if !force && @auth == new_auth
           unless @protocol&.supports_re_auth?
             raise Exceptions::UnsupportedFeatureException,
                   "Per-session auth requires Bolt 5.1+; negotiated #{@bolt_version}"
@@ -167,6 +180,15 @@ module Neo4j
           fetch_response.assert_success!
           @auth = new_auth
         end
+
+        # True when the connection's current identity came from a per-session
+        # auth token rather than the auth-token manager's default. The manager
+        # didn't issue that token, so a security failure on such a connection
+        # must NOT be reported to it (testkit's get_auth contract:
+        # handle_security_exception_count stays 0 for session-scoped auth).
+        # Set by the provider's ensure_identity on every acquire so it tracks
+        # the current lessee of a reused pooled connection.
+        attr_accessor :session_scoped_auth
 
         # Provider-set callback (token, error) -> Boolean: feeds a
         # security failure back to the auth-token manager so it can
@@ -209,13 +231,18 @@ module Neo4j
           return @security_classification if @security_notified
 
           @security_notified = true
-          # Every Neo.ClientError.Security.* failure is reported to the
-          # manager (including AuthorizationExpired — the manager decides
-          # whether it's retryable). A retryable verdict surfaces a
-          # SecurityRetryableException wrapping the original (code/message
-          # preserved, original chained as cause at re-raise).
+          # Always run the provider handler — it performs provider-side work
+          # that must happen regardless of who owns the token, notably bumping
+          # the auth epoch on AuthorizationExpired so SIBLING pooled
+          # connections re-authenticate. `session_scoped_auth` is passed so the
+          # handler can skip the auth-token-MANAGER notification for a
+          # per-session identity (the manager didn't issue that token, so its
+          # handle_security_exception_count must stay 0). A retryable verdict
+          # surfaces a SecurityRetryableException wrapping the original
+          # (code/message preserved, original chained as cause at re-raise);
+          # the handler returns false for session-scoped auth, so no upgrade.
           @security_classification =
-            if @security_exception_handler&.call(@auth, error)
+            if @security_exception_handler&.call(@auth, error, @session_scoped_auth)
               Exceptions::SecurityRetryableException.new(error.message, code: error.code)
             else
               error
