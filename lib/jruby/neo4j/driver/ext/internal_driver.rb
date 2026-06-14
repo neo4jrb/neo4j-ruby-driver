@@ -65,14 +65,27 @@ module Neo4j
           routing_table_registry.routing_table_handler(database).routing_table
         end
 
-        # Force a routing-table refresh (testkit ForcedRoutingTableUpdate /
-        # Backend:RTForceUpdate — advertised on MRI only). Java's registry
-        # doesn't expose a Ruby-callable force-refresh yet, so this is a
-        # no-op on JRuby until that's wired.
+        # Force a routing-table refresh (testkit ForcedRoutingTableUpdate).
+        # Drive the registry's ensureRoutingTable — a fresh/aged table is
+        # stale, so this triggers a real ROUTE and populates the handler.
+        # ImmutableObservation is an empty marker interface, so a bare impl
+        # is enough.
         def routing_table_refresh(database, bookmarks)
-          registry = routing_table_registry
-          registry.refresh(database, bookmarks) if registry.respond_to?(:refresh)
+          db_name = Neo4j::Driver::Internal::DatabaseName.database(database)
+          params = Java::OrgNeo4jDriverInternalShadedBoltConnection::RoutedBoltConnectionParameters
+                   .builder
+                   .with_database_name(db_name)
+                   .with_bookmarks(java.util.HashSet.new(Array(bookmarks)))
+                   .build
+          routing_table_registry
+            .ensure_routing_table(java.util.concurrent.CompletableFuture.completed_future(db_name),
+                                  params, NOOP_OBSERVATION)
+            .to_completable_future.get
         end
+
+        NOOP_OBSERVATION = Class.new do
+          include Java::OrgNeo4jDriverInternalShadedBoltConnectionObservation::ImmutableObservation
+        end.new
 
         private
 

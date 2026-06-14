@@ -64,6 +64,13 @@ module Neo4j
           now >= @last_updated + @ttl
         end
 
+        # Absolute expiry in epoch millis (last_updated + ttl). testkit's
+        # backend derives the relative ttl from this — uniformly with JRuby,
+        # whose Java RoutingTable exposes only this absolute timestamp.
+        def expiration_timestamp
+          ((@last_updated + @ttl).to_f * 1000).round
+        end
+
         # Past the cache grace period? Used by LoadBalancer to drop tables
         # for databases nobody is touching anymore.
         def purge?(grace:, now: Time.now)
