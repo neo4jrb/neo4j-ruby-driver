@@ -34,8 +34,8 @@ RSpec.describe Neo4j::Driver::Ext::ExceptionMapper do
       expect(mapper.mapped_exception(client_exception(forbidden)).code).to eq forbidden
     end
 
-    it 'keeps "N/A" when no cause carries a real code' do
-      expect(mapper.mapped_exception(session_expired('Server gone')).code).to eq 'N/A'
+    it 'is nil when no cause carries a real code (N/A is Java for no code)' do
+      expect(mapper.mapped_exception(session_expired('Server gone')).code).to be_nil
     end
   end
 end
