@@ -322,14 +322,25 @@ module Neo4j
         end
 
         def routers_in_order(existing, prefer_seed:)
-          seed = seed_router
-          existing_others = existing ? existing.routers.to_a - [seed] : []
-          prefer_seed ? [seed, *existing_others] : [*existing_others, seed]
+          seeds = resolved_seed_routers
+          existing_others = existing ? existing.routers.to_a - seeds : []
+          prefer_seed ? [*seeds, *existing_others] : [*existing_others, *seeds]
         end
 
-        # The driver's URI host:port is the seed router. Multi-seed
-        # discovery (via resolver / URI list) is a future slice; one
-        # seed is enough to bootstrap most clusters.
+        # The seed router(s) to bootstrap discovery from. A custom address
+        # resolver (Config#resolver, Java's ServerAddressResolver) expands the
+        # driver's URI address into the set of initial routers — re-resolved
+        # on every rediscovery so a changed cluster membership / router IP is
+        # picked up. Without a resolver the single URI address is the only
+        # seed. (Hostname->IP resolution is a separate, connect-time concern;
+        # see Bolt::Connection#resolved_addresses.)
+        def resolved_seed_routers
+          seed = seed_router
+          return [seed] unless (resolver = @options[:resolver])
+
+          Array(resolver.call(seed.to_s)).map { |addr| ServerAddress.parse(addr.to_s) }
+        end
+
         def seed_router
           ServerAddress.parse("#{@uri.host}:#{@uri.port || ServerAddress::DEFAULT_PORT}")
         end

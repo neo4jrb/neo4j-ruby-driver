@@ -507,8 +507,13 @@ module Neo4j
           host = @uri.host
           port = @uri.port || DEFAULT_PORT
 
-          if (resolver = @options[:resolver])
-            Array(resolver.call(format_address(host, port))).map { |addr| split_addr(addr, port) }
+          # Domain-name resolution (hostname -> one or more IPs) happens at
+          # connect time, on every connection. The custom *address* resolver
+          # (ServerAddressResolver) is a separate, routing-only concern that
+          # expands the seed into initial routers — applied by the
+          # LoadBalancer, not here (Java draws the same line).
+          if (resolver = @options[:domain_name_resolver])
+            Array(resolver.call(host)).map { |ip| [ip.to_s, port] }
           else
             [[host, port]]
           end

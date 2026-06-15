@@ -26,9 +26,12 @@ module Neo4j
           clock
         end
 
-        def get_domain_name_resolver
-          raise NotImplementedError, 'MRI driver does not yet expose a domain-name-resolver hook'
-        end
+        # camelCase to match the name Java's DriverFactory exposes and that
+        # subclasses (testkit's DriverFactoryWithDomainNameResolver) call
+        # `super` on. Default: no custom resolver (system DNS is used). The
+        # subclass returns its proc when one is registered, else falls through
+        # to this via `super`.
+        def getDomainNameResolver = nil
 
         def create_clock
           raise NotImplementedError, 'MRI driver does not yet expose a custom clock hook'
@@ -40,6 +43,14 @@ module Neo4j
         # testkit never supplies one to the MRI flavour.
         def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
           validate_uri(uri)
+          # Subclasses (e.g. the testkit DriverFactoryWithDomainNameResolver)
+          # expose a custom hostname->IPs resolver via the Java-named
+          # getDomainNameResolver hook; thread it into the options so
+          # Bolt::Connection#resolved_addresses can use it at connect time.
+          # nil (the base default) means "use system DNS".
+          if (resolver = getDomainNameResolver)
+            config = config.merge(domain_name_resolver: resolver)
+          end
           # Retain the manager (not a frozen token): the connection
           # provider consults it for the current token on every acquire
           # and on security failures, so token refresh / re-auth works.
