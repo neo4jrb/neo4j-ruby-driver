@@ -73,6 +73,26 @@ module TestkitBackend
           'Direct-connection custom resolver (bolt://*): testkit skips it for go/java; the resolver is covered by the neo4j:// routing tests'
       }.freeze
 
+      # --- Per-impl permanent skips ----------------------------------------
+      # Tests a specific Ruby flavour structurally can't pass (not flakiness,
+      # not a shared Ruby gap). Keyed by Loader.jruby? (mri-on-jruby loads the
+      # MRI driver → :mri bucket). Unlike FLAKY_SKIP_PATTERNS these are
+      # deterministic limitations of one impl, deliberately NOT skipped on the
+      # other so its real gap stays visible.
+      IMPL_SKIP_PATTERNS = {
+        jruby: {
+          # The only test calling get_connection_pool_metrics. JRuby ships the
+          # shaded neo4j-java-driver-all jar that the unshaded
+          # observation-metrics module can't bind to (AbstractMethodError);
+          # unblocking needs the deferred unshaded-jar migration. Liveness.Check
+          # stays advertised (the TestLivenessCheck config tests pass). NOT
+          # skipped on MRI — MRI must implement pool metrics.
+          /\.test_should_drop_connections_failing_liveness_check\z/ =>
+            'get_connection_pool_metrics blocked on JRuby (shaded-jar ABI clash); deferred unshaded-jar migration'
+        }.freeze,
+        mri: {}.freeze
+      }.freeze
+
       # --- Per-impl flaky-test bypasses ------------------------------------
       # Last-resort skip list for tests that flake on one driver impl AND
       # resist a real fix (driver bug confirmed but blocked on upstream,
@@ -103,11 +123,12 @@ module TestkitBackend
 
       def process
         reason = SKIP_PATTERNS.find { |pattern, _| pattern.match?(test_name) }&.last \
-              || FLAKY_SKIP_PATTERNS[flaky_impl].find { |pattern, _| pattern.match?(test_name) }&.last
+              || IMPL_SKIP_PATTERNS[impl].find { |pattern, _| pattern.match?(test_name) }&.last \
+              || FLAKY_SKIP_PATTERNS[impl].find { |pattern, _| pattern.match?(test_name) }&.last
         reason ? skip(reason) : run
       end
 
-      def flaky_impl = Neo4j::Driver::Loader.jruby? ? :jruby : :mri
+      def impl = Neo4j::Driver::Loader.jruby? ? :jruby : :mri
 
       def run(_ = nil)
         named_entity('RunTest')
