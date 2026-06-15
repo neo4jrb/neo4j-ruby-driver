@@ -60,13 +60,14 @@ module Neo4j
         # `imp_user` (Bolt 4.4+) makes the server run the query as if
         # the named user had issued it — auth as the session's user,
         # authz as the impersonated one.
+        bookmarks = current_bookmarks_for_extra
         run_extra = {
-          db: operation_database,
+          db: operation_database(bookmarks),
           mode: (session_access_mode == :read ? 'r' : nil),
           tx_timeout: timeout_to_milliseconds(timeout),
           tx_metadata:,
           imp_user: @options[:impersonated_user],
-          bookmarks: current_bookmarks_for_extra
+          bookmarks: bookmarks
         }
         run_extra.reject!(&Internal::Extras::BLANK)
 
@@ -122,9 +123,9 @@ module Neo4j
         @current_result = nil
 
         tx_options = @options.merge(
-          # Resolved home database (nil = let the server resolve it) so the
-          # explicit-tx BEGIN carries the same `db` as the auto-commit path.
-          database: operation_database,
+          # The resolved home database is added in open_transaction, where the
+          # BEGIN bookmark snapshot is computed (so resolution and BEGIN share
+          # one snapshot).
           timeout: timeout_to_milliseconds(timeout),
           metadata:,
           # BEGIN carries `mode: "r"` for read sessions (write is the
@@ -224,7 +225,10 @@ module Neo4j
       # (Bolt 4.4+/5.x return it in the ROUTE reply); the direct provider and
       # the procedure-based protocols return nil, leaving the server to
       # resolve the home db from an absent `db`.
-      def operation_database
+      # `bookmarks` is the snapshot the caller is already using for this
+      # operation's wire `bookmarks` — passed in (not recomputed) so a single
+      # operation never takes two different BookmarkManager snapshots.
+      def operation_database(bookmarks)
         return @options[:database] if @options[:database]
         return @home_database if defined?(@home_database)
 
@@ -235,7 +239,7 @@ module Neo4j
         # or surface as a discovery ServiceUnavailable instead of the
         # ClientException the caller expects.
         @home_database = @connection_provider.home_database(
-          current_bookmarks_for_extra, @options[:impersonated_user], @options[:auth_token]
+          bookmarks, @options[:impersonated_user], @options[:auth_token]
         )
       end
 
@@ -370,7 +374,6 @@ module Neo4j
           # expect `BEGIN {"db": ...}`, not `…"mode": "w"`). Matches the
           # auto-commit and explicit-begin paths; `compact` drops the nil.
           access_mode: (access_mode == AccessMode::READ ? 'r' : nil),
-          database: operation_database,
           timeout: timeout_to_milliseconds(timeout),
           metadata:
         ).compact
@@ -427,13 +430,18 @@ module Neo4j
       end
 
       def open_transaction(op_mode, tx_options)
+        # Compute the BEGIN bookmark snapshot once and reuse it for the home-db
+        # resolution, so a single transaction never takes two different
+        # BookmarkManager snapshots. current_bookmarks_for_extra also records
+        # @bookmarks_used_on_begin so the commit-time update_bookmarks reports
+        # the right `previous` set.
+        bookmarks = current_bookmarks_for_extra
+        # Resolved home database (nil = let the server resolve it), so the
+        # explicit/managed-tx BEGIN carries the same `db` as the auto-commit
+        # path. Dropped when nil via compact.
+        tx_options = tx_options.merge(database: operation_database(bookmarks)).compact
         connection = acquire_connection(op_mode)
-        # BEGIN must carry the bookmarks the BookmarkManager supplies (merged
-        # with the session's own), not just @last_bookmarks — otherwise an
-        # explicit/managed transaction loses cross-session causal consistency.
-        # current_bookmarks_for_extra also records @bookmarks_used_on_begin so
-        # the commit-time update_bookmarks reports the right `previous` set.
-        Transaction.new(connection, self, current_bookmarks_for_extra, tx_options,
+        Transaction.new(connection, self, bookmarks, tx_options,
                         on_release: -> { @connection_provider.release(connection) })
       end
     end

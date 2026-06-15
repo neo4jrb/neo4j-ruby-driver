@@ -500,9 +500,11 @@ module Neo4j
         # in order. Hosts are kept in their native form — IPv6 stays bracketed
         # ("[::1]") so address strings re-parse unambiguously; brackets are
         # only stripped at the TCPSocket boundary.
-        # With a custom resolver, the user's callable receives a "host:port"
-        # string (IPv6 bracketed) and returns one or more such strings,
-        # matching the Java driver's ServerAddressResolver contract.
+        # With a `domain_name_resolver` (Java's DomainNameResolver), the
+        # callable receives the hostname and returns one or more IPs, each
+        # paired with the original port. The custom *address* resolver
+        # (ServerAddressResolver) is a separate, routing-only concern handled
+        # by the LoadBalancer, not here.
         def resolved_addresses
           host = @uri.host
           port = @uri.port || DEFAULT_PORT

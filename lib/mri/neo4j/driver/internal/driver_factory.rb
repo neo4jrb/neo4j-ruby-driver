@@ -11,10 +11,11 @@ module Neo4j
       # `StaticAuthTokenManager` and calls us.
       #
       # The `to_*` converters are identity (MRI doesn't bridge any
-      # types); `get_domain_name_resolver` / `create_clock` raise
-      # since MRI doesn't have those hooks wired yet — testkit's
-      # subclass overrides both so the production raisers never
-      # fire in the tests we currently run.
+      # types). `getDomainNameResolver` returns nil by default (use system
+      # DNS); testkit's subclass overrides it to supply a custom
+      # hostname->IPs resolver, which new_instance threads into the options.
+      # `create_clock` still raises (no custom-clock hook on MRI yet);
+      # testkit's subclass overrides it.
       class DriverFactory
         VALID_SCHEMES = %w[bolt bolt+s bolt+ssc neo4j neo4j+s neo4j+ssc].freeze
 
