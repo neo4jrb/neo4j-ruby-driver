@@ -61,7 +61,7 @@ module Neo4j
         # the named user had issued it — auth as the session's user,
         # authz as the impersonated one.
         run_extra = {
-          db: @options[:database],
+          db: operation_database,
           mode: (session_access_mode == :read ? 'r' : nil),
           tx_timeout: timeout_to_milliseconds(timeout),
           tx_metadata:,
@@ -122,6 +122,9 @@ module Neo4j
         @current_result = nil
 
         tx_options = @options.merge(
+          # Resolved home database (nil = let the server resolve it) so the
+          # explicit-tx BEGIN carries the same `db` as the auto-commit path.
+          database: operation_database,
           timeout: timeout_to_milliseconds(timeout),
           metadata:,
           # BEGIN carries `mode: "r"` for read sessions (write is the
@@ -214,6 +217,19 @@ module Neo4j
       end
 
       private
+
+      # The database name to put on the wire for this session's operations.
+      # An explicit `:database` is used as-is. For a home-db session (nil) on
+      # a routing driver, resolve the name from discovery once and reuse it
+      # (Bolt 4.4+/5.x return it in the ROUTE reply); the direct provider and
+      # the procedure-based protocols return nil, leaving the server to
+      # resolve the home db from an absent `db`.
+      def operation_database
+        return @options[:database] if @options[:database]
+        return @home_database if defined?(@home_database)
+
+        @home_database = @connection_provider.home_database(current_bookmarks_for_extra)
+      end
 
       def acquire_connection(access_mode)
         # The identity is resolved and applied by the connection provider
@@ -346,6 +362,7 @@ module Neo4j
           # expect `BEGIN {"db": ...}`, not `…"mode": "w"`). Matches the
           # auto-commit and explicit-begin paths; `compact` drops the nil.
           access_mode: (access_mode == AccessMode::READ ? 'r' : nil),
+          database: operation_database,
           timeout: timeout_to_milliseconds(timeout),
           metadata:
         ).compact

@@ -133,6 +133,16 @@ module Neo4j
         # Current default identity from the auth-token manager (refreshes
         # as needed); on_security_exception feeds a failure back to it.
         # Mirror Direct::ConnectionProvider so Session stays polymorphic.
+        # Resolve the user's home database (database == nil): the ROUTE
+        # response carries the resolved name in `db` (Bolt 4.4+/5.x), which
+        # the routing table records as its `database`. The session uses the
+        # resolved name on RUN/BEGIN so the server doesn't re-resolve it per
+        # op. nil on the procedure path (3.0/4.0-4.2 have no db in the reply),
+        # where the server resolves the home db from a null `db` itself.
+        def home_database(bookmarks)
+          ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks).database
+        end
+
         def current_auth_token = @auth_manager.get_token
 
         def on_security_exception(address, token, error, session_scoped = false)

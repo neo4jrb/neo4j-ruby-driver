@@ -31,6 +31,12 @@ module Neo4j
         # Current auth generation, read atomically.
         def auth_epoch = @auth_epoch_mutex.synchronize { @auth_epoch }
 
+        # No home-database resolution on the direct path: a bolt:// driver
+        # talks to one server, which resolves the user's home database itself
+        # when the operation omits `db`. Returns nil so the session leaves it
+        # unset (matches Java's DirectConnectionProvider).
+        def home_database(_bookmarks) = nil
+
         # The current default identity, sourced from the auth-token
         # manager (which refreshes / re-fetches as needed). Sessions
         # re-auth pooled connections to this on acquire unless they carry
