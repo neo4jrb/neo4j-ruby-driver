@@ -35,7 +35,7 @@ module Neo4j
         # talks to one server, which resolves the user's home database itself
         # when the operation omits `db`. Returns nil so the session leaves it
         # unset (matches Java's DirectConnectionProvider).
-        def home_database(_bookmarks) = nil
+        def home_database(_bookmarks, _imp_user = nil, _auth = nil) = nil
 
         # The current default identity, sourced from the auth-token
         # manager (which refreshes / re-fetches as needed). Sessions

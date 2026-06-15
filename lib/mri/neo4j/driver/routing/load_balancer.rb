@@ -139,8 +139,8 @@ module Neo4j
         # resolved name on RUN/BEGIN so the server doesn't re-resolve it per
         # op. nil on the procedure path (3.0/4.0-4.2 have no db in the reply),
         # where the server resolves the home db from a null `db` itself.
-        def home_database(bookmarks)
-          ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks).database
+        def home_database(bookmarks, imp_user = nil, auth = nil)
+          ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks, imp_user: imp_user, auth: auth).database
         end
 
         def current_auth_token = @auth_manager.get_token

@@ -228,7 +228,15 @@ module Neo4j
         return @options[:database] if @options[:database]
         return @home_database if defined?(@home_database)
 
-        @home_database = @connection_provider.home_database(current_bookmarks_for_extra)
+        # Resolution goes through discovery, so it must carry the same
+        # identity/impersonation context as the operation's own acquire —
+        # otherwise a per-session token or a pre-4.4 impersonation attempt
+        # would be evaluated under the wrong identity (session-auth routing)
+        # or surface as a discovery ServiceUnavailable instead of the
+        # ClientException the caller expects.
+        @home_database = @connection_provider.home_database(
+          current_bookmarks_for_extra, @options[:impersonated_user], @options[:auth_token]
+        )
       end
 
       def acquire_connection(access_mode)
