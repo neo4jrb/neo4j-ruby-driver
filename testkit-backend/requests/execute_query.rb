@@ -18,9 +18,12 @@ module TestkitBackend
       # CypherValue tx metadata, ms timeout, bookmark-manager id) into
       # the common Ruby execute_query config hash (3rd positional arg
       # to driver.execute_query) — mirroring how NewSession maps 'r'/'w'
-      # to AccessMode. auth_token sits alongside the rest in config
-      # (driver-side: MRI ignores it for now, JRuby pulls it back out
-      # before handing to Java's QueryConfig builder).
+      # to AccessMode. The auth token (Feature:API:Driver.ExecuteQuery:
+      # WithAuth) arrives nested as config[:authorizationToken], a testkit
+      # AuthorizationToken entity — convert it to a real Neo4j AuthToken
+      # like NewSession does. It rides along in config (driver-side: MRI
+      # ignores it for now, JRuby pulls it back out before handing the
+      # rest to Java's QueryConfig builder).
       def query_config
         cfg = {
           routing: routing_control,
@@ -28,7 +31,7 @@ module TestkitBackend
           impersonated_user: config[:impersonatedUser],
           metadata: config[:txMeta] && decode(config[:txMeta]),
           timeout: timeout_duration(config[:timeout]),
-          auth_token: auth_token
+          auth_token: config[:authorizationToken] && Request.object_from(config[:authorizationToken])
         }.compact
         # bookmarkManagerId absent -> driver default (omit the key); -1 ->
         # disabled (nil -> withBookmarkManager(null)); otherwise a NewBookmarkManager.
