@@ -193,8 +193,18 @@ module Neo4j
         # Routing requires Bolt 4.0+ (the ROUTE message and `CALL
         # dbms.routing.getRoutingTable` are 4.0+ features). If we got
         # this far the answer is always true.
+        # Multi-database support is a property of the negotiated Bolt
+        # version (4.0+), not of routing per se — a neo4j:// driver against a
+        # 3.0 cluster still routes (via the getRoutingTable procedure) but
+        # does NOT support multiple databases. Probe an actual connection's
+        # protocol, mirroring Direct::ConnectionProvider. The acquire does
+        # discovery + a reader HELLO (no query), then the connection is
+        # released straight back to the pool.
         def supports_multi_db?
-          true
+          conn = acquire(access_mode: :read)
+          conn.protocol.supports_multiple_databases?
+        ensure
+          release(conn) if conn
         end
 
         def close
