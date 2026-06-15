@@ -29,6 +29,9 @@ module TestkitBackend
           max_connection_lifetime: timeout_duration(max_connection_lifetime_ms),
           max_connection_pool_size: max_connection_pool_size,
           connection_acquisition_timeout: timeout_duration(connection_acquisition_timeout_ms),
+          # Feature:IdempotentRetries — driver-level boolean default; sessions
+          # can still override it. nil (absent) is compacted away => Java default.
+          auto_commit_retries_disabled: disable_auto_commit_retries,
           encryption: encrypted,
           telemetry_disabled: telemetry_disabled,
           trust_strategy: trust_strategy(trusted_certificates),
