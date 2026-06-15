@@ -330,7 +330,12 @@ module Neo4j
         # own connection (likely a different server in routing mode).
         drain_current_result
 
-        max_retry_time = @options[:max_transaction_retry_time] || 2
+        # Default matches Java's Config.DEFAULT_MAX_TRANSACTION_RETRY_TIME
+        # (30s). The window matters for cluster failover: a leader election
+        # can take several seconds, during which the router keeps returning
+        # the old/no leader, so the managed-tx retry must keep rediscovering
+        # (with exponential backoff) well past a second or two.
+        max_retry_time = @options[:max_transaction_retry_time] || 30
         start_time = Time.now
         errors = []
 
