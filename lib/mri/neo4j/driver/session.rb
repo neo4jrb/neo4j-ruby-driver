@@ -430,9 +430,15 @@ module Neo4j
       end
 
       def open_transaction(op_mode, tx_options)
-        # Compute the BEGIN bookmark snapshot once and reuse it for the home-db
+        # Acquire first: acquire_connection drives routing discovery (which
+        # resolves the home database), so by the time we read the BEGIN
+        # snapshot below the routing table is fresh and operation_database
+        # needs no extra round-trip.
+        connection = acquire_connection(op_mode)
+        # Take the BEGIN bookmark snapshot once — after acquire so it reflects
+        # the latest BookmarkManager state — and reuse it for the home-db
         # resolution, so a single transaction never takes two different
-        # BookmarkManager snapshots. current_bookmarks_for_extra also records
+        # snapshots. current_bookmarks_for_extra also records
         # @bookmarks_used_on_begin so the commit-time update_bookmarks reports
         # the right `previous` set.
         bookmarks = current_bookmarks_for_extra
@@ -440,7 +446,6 @@ module Neo4j
         # explicit/managed-tx BEGIN carries the same `db` as the auto-commit
         # path. Dropped when nil via compact.
         tx_options = tx_options.merge(database: operation_database(bookmarks)).compact
-        connection = acquire_connection(op_mode)
         Transaction.new(connection, self, bookmarks, tx_options,
                         on_release: -> { @connection_provider.release(connection) })
       end
