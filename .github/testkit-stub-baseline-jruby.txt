@@ -136,6 +136,7 @@ Stub tests::test_error_on_rollback_using_tx_run (tests.stub.authorization.test_a
 Stub tests::test_error_on_rollback_using_tx_run (tests.stub.authorization.test_auth_token_manager.TestAuthTokenManager5x1.test_error_on_rollback_using_tx_run)
 Stub tests::test_error_on_run_using_tx_run (tests.stub.authorization.test_auth_token_manager.TestAuthTokenManager5x0.test_error_on_run_using_tx_run)
 Stub tests::test_error_on_run_using_tx_run (tests.stub.authorization.test_auth_token_manager.TestAuthTokenManager5x1.test_error_on_run_using_tx_run)
+Stub tests::test_error_retryable (tests.stub.errors.test_errors.TestError5x7.test_error_retryable)
 Stub tests::test_execute_query (tests.stub.driver_parameters.telemetry.test_telemetry.TestTelemetry.test_execute_query)
 Stub tests::test_execute_query (tests.stub.driver_parameters.telemetry.test_telemetry.TestTelemetryRouting.test_execute_query)
 Stub tests::test_execute_query_pipelines_begin (tests.stub.optimizations.test_optimizations.TestOptimizations.test_execute_query_pipelines_begin)
