@@ -27,7 +27,11 @@ module Neo4j
         # want a RESET before the connection is dropped.
         attr_accessor :auth_failed
 
-        def initialize(uri, auth, options = {})
+        # `domain_name_resolver` is the non-public hostname->IPs hook the
+        # DriverFactory wires in (default nil = system DNS). It's an explicit
+        # dependency, not part of the user `options`, so factory-only
+        # extension points never leak into the driver's public config.
+        def initialize(uri, auth, options = {}, domain_name_resolver: nil)
           @uri = URI(uri)
           # The driver's stored auth — the identity HELLO/LOGON
           # authenticated as on connect, and what Session restores via
@@ -36,6 +40,7 @@ module Neo4j
           @driver_auth = auth
           @auth = auth
           @options = options
+          @domain_name_resolver = domain_name_resolver
           @socket = nil
           @packer = PackStream::Packer.new
           @response_queue = []
@@ -341,13 +346,17 @@ module Neo4j
               params = { context: routing_context }
             end
             extra = { db: 'system', mode: 'r' }
+            # 4.0-4.2 runs the procedure against `system`, which accepts
+            # bookmarks (causal consistency for a freshly-created database).
+            extra[:bookmarks] = Array(bookmarks) unless Array(bookmarks).empty?
           else
-            # 3.0: single-database cluster routing procedure, home db.
+            # 3.0: single-database cluster routing procedure, home db. No
+            # system db and no bookmark-aware routing (that arrived with the
+            # 4.3 ROUTE message), so the discovery RUN carries only `mode`.
             query = 'CALL dbms.cluster.routing.getRoutingTable($context)'
             params = { context: routing_context }
             extra = { mode: 'r' }
           end
-          extra[:bookmarks] = Array(bookmarks) unless Array(bookmarks).empty?
 
           send_message(@protocol.build_run(query, params, extra))
           send_message(@protocol.build_pull(n: -1))
@@ -496,15 +505,22 @@ module Neo4j
         # in order. Hosts are kept in their native form — IPv6 stays bracketed
         # ("[::1]") so address strings re-parse unambiguously; brackets are
         # only stripped at the TCPSocket boundary.
-        # With a custom resolver, the user's callable receives a "host:port"
-        # string (IPv6 bracketed) and returns one or more such strings,
-        # matching the Java driver's ServerAddressResolver contract.
+        # With a `domain_name_resolver` (Java's DomainNameResolver), the
+        # callable receives the hostname and returns one or more IPs, each
+        # paired with the original port. The custom *address* resolver
+        # (ServerAddressResolver) is a separate, routing-only concern handled
+        # by the LoadBalancer, not here.
         def resolved_addresses
           host = @uri.host
           port = @uri.port || DEFAULT_PORT
 
-          if (resolver = @options[:resolver])
-            Array(resolver.call(format_address(host, port))).map { |addr| split_addr(addr, port) }
+          # Domain-name resolution (hostname -> one or more IPs) happens at
+          # connect time, on every connection. The custom *address* resolver
+          # (ServerAddressResolver) is a separate, routing-only concern that
+          # expands the seed into initial routers — applied by the
+          # LoadBalancer, not here (Java draws the same line).
+          if @domain_name_resolver
+            Array(@domain_name_resolver.call(host)).map { |ip| [ip.to_s, port] }
           else
             [[host, port]]
           end

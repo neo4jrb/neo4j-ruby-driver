@@ -8,9 +8,11 @@ module Neo4j
         # speaks (matches the Java driver's matrix, which starts at 3.0).
         #
         # Differences from V4 that this class encodes:
-        #   * HELLO carries user_agent + auth, but NO routing context
-        #     (routing in HELLO arrived with 4.1; 3.0 routing is done
-        #     purely client-side, no server ROUTE message).
+        #   * Routing is the `dbms.cluster.routing.getRoutingTable`
+        #     procedure (RUN), not a server ROUTE message — but the HELLO
+        #     still carries the routing context, matching the Java driver
+        #     (and so JRuby): testkit gates `routing` in the 3.0 HELLO on
+        #     driver name java/ruby specifically.
         #   * Single-database: no `db` field on RUN / BEGIN. Inherits
         #     supports_multiple_databases? = false from Base, so the
         #     strip_db in build_run / build_begin happens automatically.
@@ -19,8 +21,10 @@ module Neo4j
         #     PULL / DISCARD which carry `{n, qid}`.
         class V3 < Base
           def hello_extra(user_agent:, auth:, routing:)
-            # routing intentionally dropped — 3.0 HELLO has no routing key.
-            { user_agent:, **auth }
+            # `routing` is the routing context for a neo4j:// driver, nil for
+            # bolt:// — build_hello_message compacts the nil away, so a direct
+            # 3.0 connection still sends no routing key.
+            { user_agent:, routing:, **auth }
           end
 
           # PULL_ALL: no metadata map. The caller still passes `{n:}` for

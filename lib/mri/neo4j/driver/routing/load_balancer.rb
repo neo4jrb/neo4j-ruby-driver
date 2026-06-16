@@ -31,10 +31,13 @@ module Neo4j
           Neo.ClientError.Request.Invalid
         ].freeze
 
-        def initialize(uri, auth_manager, options = {})
+        # `domain_name_resolver` is the factory-injected hostname->IPs hook
+        # (nil = system DNS); baked into every connection this balancer builds.
+        def initialize(uri, auth_manager, options = {}, domain_name_resolver: nil)
           @uri = uri
           @auth_manager = auth_manager
           @options = options
+          @domain_name_resolver = domain_name_resolver
           @routing_context = parse_routing_context(uri)
           @pools = {}                      # ServerAddress => ConnectionPool::TimedStack
           @routing_tables = {}             # database (str or nil) => RoutingTable
@@ -133,6 +136,16 @@ module Neo4j
         # Current default identity from the auth-token manager (refreshes
         # as needed); on_security_exception feeds a failure back to it.
         # Mirror Direct::ConnectionProvider so Session stays polymorphic.
+        # Resolve the user's home database (database == nil): the ROUTE
+        # response carries the resolved name in `db` (Bolt 4.4+/5.x), which
+        # the routing table records as its `database`. The session uses the
+        # resolved name on RUN/BEGIN so the server doesn't re-resolve it per
+        # op. nil on the procedure path (3.0/4.0-4.2 have no db in the reply),
+        # where the server resolves the home db from a null `db` itself.
+        def home_database(bookmarks, imp_user = nil, auth = nil)
+          ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks, imp_user: imp_user, auth: auth).database
+        end
+
         def current_auth_token = @auth_manager.get_token
 
         def on_security_exception(address, token, error, session_scoped = false)
@@ -180,11 +193,35 @@ module Neo4j
           release(conn)
         end
 
+        # Probe the supplied token with a one-shot connection to the seed
+        # (HELLO/LOGON), then discard it. Owned by the provider — not the
+        # Driver — so it's built with the factory-injected domain-name
+        # resolver. Mirrors Direct::ConnectionProvider#verify_authentication.
+        def verify_authentication(token)
+          probe = Bolt::Connection.new(@uri, token, @options, domain_name_resolver: @domain_name_resolver)
+          probe.connect
+          true
+        rescue Exceptions::AuthenticationException
+          false
+        ensure
+          probe&.close
+        end
+
         # Routing requires Bolt 4.0+ (the ROUTE message and `CALL
         # dbms.routing.getRoutingTable` are 4.0+ features). If we got
         # this far the answer is always true.
+        # Multi-database support is a property of the negotiated Bolt
+        # version (4.0+), not of routing per se — a neo4j:// driver against a
+        # 3.0 cluster still routes (via the getRoutingTable procedure) but
+        # does NOT support multiple databases. Probe an actual connection's
+        # protocol, mirroring Direct::ConnectionProvider. The acquire does
+        # discovery + a reader HELLO (no query), then the connection is
+        # released straight back to the pool.
         def supports_multi_db?
-          true
+          conn = acquire(access_mode: :read)
+          conn.protocol.supports_multiple_databases?
+        ensure
+          release(conn) if conn
         end
 
         def close
@@ -322,14 +359,25 @@ module Neo4j
         end
 
         def routers_in_order(existing, prefer_seed:)
-          seed = seed_router
-          existing_others = existing ? existing.routers.to_a - [seed] : []
-          prefer_seed ? [seed, *existing_others] : [*existing_others, seed]
+          seeds = resolved_seed_routers
+          existing_others = existing ? existing.routers.to_a - seeds : []
+          prefer_seed ? [*seeds, *existing_others] : [*existing_others, *seeds]
         end
 
-        # The driver's URI host:port is the seed router. Multi-seed
-        # discovery (via resolver / URI list) is a future slice; one
-        # seed is enough to bootstrap most clusters.
+        # The seed router(s) to bootstrap discovery from. A custom address
+        # resolver (Config#resolver, Java's ServerAddressResolver) expands the
+        # driver's URI address into the set of initial routers — re-resolved
+        # on every rediscovery so a changed cluster membership / router IP is
+        # picked up. Without a resolver the single URI address is the only
+        # seed. (Hostname->IP resolution is a separate, connect-time concern;
+        # see Bolt::Connection#resolved_addresses.)
+        def resolved_seed_routers
+          seed = seed_router
+          return [seed] unless (resolver = @options[:resolver])
+
+          Array(resolver.call(seed.to_s)).map { |addr| ServerAddress.parse(addr.to_s) }
+        end
+
         def seed_router
           ServerAddress.parse("#{@uri.host}:#{@uri.port || ServerAddress::DEFAULT_PORT}")
         end
@@ -485,7 +533,8 @@ module Neo4j
           # `auth` is the per-acquire identity (per-session token or the
           # worker's resolved token). Fall back to the manager's current
           # token for acquires that don't carry one (verify_connectivity).
-          conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts).connect
+          conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts,
+                                      domain_name_resolver: @domain_name_resolver).connect
           # Bind the security handler to this connection's server so an
           # AuthorizationExpired bumps the right per-address epoch.
           conn.security_exception_handler =

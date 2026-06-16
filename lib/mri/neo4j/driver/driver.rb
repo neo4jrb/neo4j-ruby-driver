@@ -14,11 +14,14 @@ module Neo4j
       # URI schemes that imply transport encryption.
       ENCRYPTED_SCHEMES = %w[bolt+s bolt+ssc neo4j+s neo4j+ssc].freeze
 
-      def initialize(uri, auth_manager, options = {})
+      # The ConnectionProvider is assembled by the DriverFactory (which wires
+      # in non-public hooks like the domain-name resolver), so the Driver
+      # itself never sees those extension points — it just uses the provider.
+      def initialize(uri, options, connection_provider)
         @uri = URI(uri)
         @options = options
         @closed = false
-        @connection_provider = build_connection_provider(@uri, auth_manager)
+        @connection_provider = connection_provider
       end
 
       def session(**options)
@@ -172,13 +175,9 @@ module Neo4j
       # signature — the token is required; pass AuthTokens.none if
       # you want the unauthenticated probe.
       def verify_authentication(auth_token)
-        probe = Bolt::Connection.new(@uri, auth_token, @options)
-        probe.connect
-        true
-      rescue Exceptions::AuthenticationException
-        false
-      ensure
-        probe&.close
+        # Delegated to the provider, which builds the one-shot probe with the
+        # factory-injected domain-name resolver baked in.
+        @connection_provider.verify_authentication(auth_token)
       end
 
       # Per-server-address pool metrics: how many connections currently
@@ -205,13 +204,6 @@ module Neo4j
       end
 
       attr_reader :connection_provider
-
-      private
-
-      def build_connection_provider(uri, auth_manager)
-        klass = uri.scheme.start_with?('neo4j') ? Routing::LoadBalancer : Direct::ConnectionProvider
-        klass.new(uri, auth_manager, @options)
-      end
     end
   end
 end

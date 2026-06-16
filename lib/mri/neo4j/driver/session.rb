@@ -60,13 +60,14 @@ module Neo4j
         # `imp_user` (Bolt 4.4+) makes the server run the query as if
         # the named user had issued it — auth as the session's user,
         # authz as the impersonated one.
+        bookmarks = current_bookmarks_for_extra
         run_extra = {
-          db: @options[:database],
+          db: operation_database(bookmarks),
           mode: (session_access_mode == :read ? 'r' : nil),
           tx_timeout: timeout_to_milliseconds(timeout),
           tx_metadata:,
           imp_user: @options[:impersonated_user],
-          bookmarks: current_bookmarks_for_extra
+          bookmarks: bookmarks
         }
         run_extra.reject!(&Internal::Extras::BLANK)
 
@@ -122,6 +123,9 @@ module Neo4j
         @current_result = nil
 
         tx_options = @options.merge(
+          # The resolved home database is added in open_transaction, where the
+          # BEGIN bookmark snapshot is computed (so resolution and BEGIN share
+          # one snapshot).
           timeout: timeout_to_milliseconds(timeout),
           metadata:,
           # BEGIN carries `mode: "r"` for read sessions (write is the
@@ -214,6 +218,30 @@ module Neo4j
       end
 
       private
+
+      # The database name to put on the wire for this session's operations.
+      # An explicit `:database` is used as-is. For a home-db session (nil) on
+      # a routing driver, resolve the name from discovery once and reuse it
+      # (Bolt 4.4+/5.x return it in the ROUTE reply); the direct provider and
+      # the procedure-based protocols return nil, leaving the server to
+      # resolve the home db from an absent `db`.
+      # `bookmarks` is the snapshot the caller is already using for this
+      # operation's wire `bookmarks` — passed in (not recomputed) so a single
+      # operation never takes two different BookmarkManager snapshots.
+      def operation_database(bookmarks)
+        return @options[:database] if @options[:database]
+        return @home_database if defined?(@home_database)
+
+        # Resolution goes through discovery, so it must carry the same
+        # identity/impersonation context as the operation's own acquire —
+        # otherwise a per-session token or a pre-4.4 impersonation attempt
+        # would be evaluated under the wrong identity (session-auth routing)
+        # or surface as a discovery ServiceUnavailable instead of the
+        # ClientException the caller expects.
+        @home_database = @connection_provider.home_database(
+          bookmarks, @options[:impersonated_user], @options[:auth_token]
+        )
+      end
 
       def acquire_connection(access_mode)
         # The identity is resolved and applied by the connection provider
@@ -330,7 +358,12 @@ module Neo4j
         # own connection (likely a different server in routing mode).
         drain_current_result
 
-        max_retry_time = @options[:max_transaction_retry_time] || 2
+        # Default matches Java's Config.DEFAULT_MAX_TRANSACTION_RETRY_TIME
+        # (30s). The window matters for cluster failover: a leader election
+        # can take several seconds, during which the router keeps returning
+        # the old/no leader, so the managed-tx retry must keep rediscovering
+        # (with exponential backoff) well past a second or two.
+        max_retry_time = @options[:max_transaction_retry_time] || 30
         start_time = Time.now
         errors = []
 
@@ -397,13 +430,23 @@ module Neo4j
       end
 
       def open_transaction(op_mode, tx_options)
+        # Acquire first: acquire_connection drives routing discovery (which
+        # resolves the home database), so by the time we read the BEGIN
+        # snapshot below the routing table is fresh and operation_database
+        # needs no extra round-trip.
         connection = acquire_connection(op_mode)
-        # BEGIN must carry the bookmarks the BookmarkManager supplies (merged
-        # with the session's own), not just @last_bookmarks — otherwise an
-        # explicit/managed transaction loses cross-session causal consistency.
-        # current_bookmarks_for_extra also records @bookmarks_used_on_begin so
-        # the commit-time update_bookmarks reports the right `previous` set.
-        Transaction.new(connection, self, current_bookmarks_for_extra, tx_options,
+        # Take the BEGIN bookmark snapshot once — after acquire so it reflects
+        # the latest BookmarkManager state — and reuse it for the home-db
+        # resolution, so a single transaction never takes two different
+        # snapshots. current_bookmarks_for_extra also records
+        # @bookmarks_used_on_begin so the commit-time update_bookmarks reports
+        # the right `previous` set.
+        bookmarks = current_bookmarks_for_extra
+        # Resolved home database (nil = let the server resolve it), so the
+        # explicit/managed-tx BEGIN carries the same `db` as the auto-commit
+        # path. Dropped when nil via compact.
+        tx_options = tx_options.merge(database: operation_database(bookmarks)).compact
+        Transaction.new(connection, self, bookmarks, tx_options,
                         on_release: -> { @connection_provider.release(connection) })
       end
     end
