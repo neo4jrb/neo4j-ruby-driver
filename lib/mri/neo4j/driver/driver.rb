@@ -163,21 +163,55 @@ module Neo4j
       end
 
       # Verify that the supplied auth token would succeed against the
-      # server, without disturbing the existing connection state. Opens
-      # a one-shot connection with the token, discards it after
-      # HELLO/LOGON. Returns true on SUCCESS, false on
-      # AuthenticationException. Any other exception (transport
-      # failure, TLS rejection, server unreachable, …) propagates so
-      # the caller can distinguish "credentials rejected" from
-      # "couldn't even ask".
+      # server, without disturbing the existing connection state. Returns
+      # true when the credentials are accepted, false when the server
+      # rejects them (see VERIFY_AUTH_NEGATIVE_CODES). Any other error
+      # (transport failure, TLS rejection, server unreachable, a security
+      # code outside the negative set) propagates so the caller can
+      # distinguish "credentials rejected" from "couldn't even ask".
       #
-      # Mirrors Java's `Driver.verifyAuthentication(AuthToken)`
-      # signature — the token is required; pass AuthTokens.none if
-      # you want the unauthenticated probe.
+      # Mirrors Java's `Driver.verifyAuthentication(AuthToken)` — the token
+      # is required; pass AuthTokens.none for the unauthenticated probe.
+
+      # Security failure codes that mean "these credentials are not valid"
+      # (verify_authentication returns false). Every other security error —
+      # AuthorizationExpired, an unknown Security.* code, a rate-limit — is a
+      # condition the caller must see, so it propagates. Mirrors Java's
+      # verifyAuthentication NEGATIVE/PROPAGATE split.
+      VERIFY_AUTH_NEGATIVE_CODES = %w[
+        Neo.ClientError.Security.Unauthorized
+        Neo.ClientError.Security.CredentialsExpired
+        Neo.ClientError.Security.Forbidden
+        Neo.ClientError.Security.TokenExpired
+      ].freeze
+
       def verify_authentication(auth_token)
-        # Delegated to the provider, which builds the one-shot probe with the
-        # factory-injected domain-name resolver baked in.
-        @connection_provider.verify_authentication(auth_token)
+        # Acquire a read connection AS the supplied identity, routing through
+        # `system` exactly like Java's verifyAuthentication: for neo4j:// this
+        # discovers (ROUTE on system) then reaches a reader; for bolt:// it
+        # uses the single server. We then force a LOGON with the token: a clean
+        # response means the credentials are good. The connection is one-shot —
+        # discarded, never pooled under the probe identity.
+        connection = @connection_provider.acquire(
+          access_mode: AccessMode::READ, database: 'system', auth: auth_token
+        )
+        begin
+          # Force a fresh LOGON even when the pooled connection already holds
+          # this identity (warm verify, or verifying the driver's own token):
+          # verification has to actually round-trip the credentials to the
+          # server, not trust a cached auth state. On a freshly built
+          # connection this is a redundant re-auth the scripts tolerate; on a
+          # reused one it's the whole point.
+          connection.authenticate(auth_token, force: true)
+        ensure
+          connection.discard_on_release = true
+          @connection_provider.release(connection)
+        end
+        true
+      rescue Exceptions::SecurityException => e
+        raise unless VERIFY_AUTH_NEGATIVE_CODES.include?(e.code)
+
+        false
       end
 
       # Per-server-address pool metrics: how many connections currently
