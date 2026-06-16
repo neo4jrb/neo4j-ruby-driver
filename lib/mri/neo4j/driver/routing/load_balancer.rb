@@ -31,10 +31,13 @@ module Neo4j
           Neo.ClientError.Request.Invalid
         ].freeze
 
-        def initialize(uri, auth_manager, options = {})
+        # `domain_name_resolver` is the factory-injected hostname->IPs hook
+        # (nil = system DNS); baked into every connection this balancer builds.
+        def initialize(uri, auth_manager, options = {}, domain_name_resolver: nil)
           @uri = uri
           @auth_manager = auth_manager
           @options = options
+          @domain_name_resolver = domain_name_resolver
           @routing_context = parse_routing_context(uri)
           @pools = {}                      # ServerAddress => ConnectionPool::TimedStack
           @routing_tables = {}             # database (str or nil) => RoutingTable
@@ -188,6 +191,20 @@ module Neo4j
           conn = acquire(access_mode: :read)
           conn.reset!
           release(conn)
+        end
+
+        # Probe the supplied token with a one-shot connection to the seed
+        # (HELLO/LOGON), then discard it. Owned by the provider — not the
+        # Driver — so it's built with the factory-injected domain-name
+        # resolver. Mirrors Direct::ConnectionProvider#verify_authentication.
+        def verify_authentication(token)
+          probe = Bolt::Connection.new(@uri, token, @options, domain_name_resolver: @domain_name_resolver)
+          probe.connect
+          true
+        rescue Exceptions::AuthenticationException
+          false
+        ensure
+          probe&.close
         end
 
         # Routing requires Bolt 4.0+ (the ROUTE message and `CALL
@@ -516,7 +533,8 @@ module Neo4j
           # `auth` is the per-acquire identity (per-session token or the
           # worker's resolved token). Fall back to the manager's current
           # token for acquires that don't carry one (verify_connectivity).
-          conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts).connect
+          conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts,
+                                      domain_name_resolver: @domain_name_resolver).connect
           # Bind the security handler to this connection's server so an
           # AuthorizationExpired bumps the right per-address epoch.
           conn.security_exception_handler =

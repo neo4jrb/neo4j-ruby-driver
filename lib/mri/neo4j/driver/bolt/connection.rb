@@ -27,7 +27,11 @@ module Neo4j
         # want a RESET before the connection is dropped.
         attr_accessor :auth_failed
 
-        def initialize(uri, auth, options = {})
+        # `domain_name_resolver` is the non-public hostname->IPs hook the
+        # DriverFactory wires in (default nil = system DNS). It's an explicit
+        # dependency, not part of the user `options`, so factory-only
+        # extension points never leak into the driver's public config.
+        def initialize(uri, auth, options = {}, domain_name_resolver: nil)
           @uri = URI(uri)
           # The driver's stored auth — the identity HELLO/LOGON
           # authenticated as on connect, and what Session restores via
@@ -36,6 +40,7 @@ module Neo4j
           @driver_auth = auth
           @auth = auth
           @options = options
+          @domain_name_resolver = domain_name_resolver
           @socket = nil
           @packer = PackStream::Packer.new
           @response_queue = []
@@ -514,8 +519,8 @@ module Neo4j
           # (ServerAddressResolver) is a separate, routing-only concern that
           # expands the seed into initial routers — applied by the
           # LoadBalancer, not here (Java draws the same line).
-          if (resolver = @options[:domain_name_resolver])
-            Array(resolver.call(host)).map { |ip| [ip.to_s, port] }
+          if @domain_name_resolver
+            Array(@domain_name_resolver.call(host)).map { |ip| [ip.to_s, port] }
           else
             [[host, port]]
           end

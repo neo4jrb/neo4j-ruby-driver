@@ -15,10 +15,13 @@ module Neo4j
       # kwargs are accepted so call sites stay polymorphic with
       # Routing::LoadBalancer.
       class ConnectionProvider
-        def initialize(uri, auth_manager, options = {})
+        # `domain_name_resolver` is the factory-injected hostname->IPs hook
+        # (nil = system DNS); baked into every connection this provider builds.
+        def initialize(uri, auth_manager, options = {}, domain_name_resolver: nil)
           @uri = uri
           @auth_manager = auth_manager
           @options = options
+          @domain_name_resolver = domain_name_resolver
           # Authorization-expired generation counter (see Connection#auth_epoch).
           # Bumped when any connection reports AuthorizationExpired so every
           # other pooled connection re-authenticates on its next acquire.
@@ -127,6 +130,21 @@ module Neo4j
           release(acquire)
         end
 
+        # Probe the supplied token with a one-shot connection (HELLO/LOGON),
+        # then discard it. The provider owns this — not the Driver — so the
+        # connection is built with the factory-injected domain-name resolver.
+        # true on SUCCESS, false on AuthenticationException; anything else
+        # propagates so callers distinguish "rejected" from "couldn't ask".
+        def verify_authentication(token)
+          probe = Bolt::Connection.new(@uri, token, @options, domain_name_resolver: @domain_name_resolver)
+          probe.connect
+          true
+        rescue Exceptions::AuthenticationException
+          false
+        ensure
+          probe&.close
+        end
+
         # True iff the negotiated Bolt protocol supports multi-database
         # routing (Bolt 4.0+). Acquires a connection to ensure HELLO has
         # happened.
@@ -202,7 +220,8 @@ module Neo4j
               # `auth` is the per-acquire identity resolved in #acquire and
               # threaded through pool.pop. The `||` is a belt-and-braces
               # fallback for any future pop path that forgets to pass one.
-              conn = Bolt::Connection.new(@uri, auth || @auth_manager.get_token, @options).connect
+              conn = Bolt::Connection.new(@uri, auth || @auth_manager.get_token, @options,
+                                          domain_name_resolver: @domain_name_resolver).connect
               conn.security_exception_handler = method(:on_security_exception)
               # A freshly-authenticated connection belongs to the current
               # auth generation, so ensure_identity won't force-re-auth it.

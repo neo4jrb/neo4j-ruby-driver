@@ -10,12 +10,13 @@ module Neo4j
       # that wraps the user-supplied `AuthToken` in a
       # `StaticAuthTokenManager` and calls us.
       #
-      # The `to_*` converters are identity (MRI doesn't bridge any
-      # types). `getDomainNameResolver` returns nil by default (use system
-      # DNS); testkit's subclass overrides it to supply a custom
-      # hostname->IPs resolver, which new_instance threads into the options.
-      # `create_clock` still raises (no custom-clock hook on MRI yet);
-      # testkit's subclass overrides it.
+      # The factory is also the single owner of the driver's non-public
+      # extension hooks: `getDomainNameResolver` (nil by default = system DNS)
+      # and `create_clock` (still raises — no MRI clock hook yet). testkit's
+      # subclass overrides them. Rather than leaking these into the
+      # user-facing config, new_instance bakes them into the ConnectionProvider
+      # it assembles, so the Driver never sees them. The `to_*` converters are
+      # identity (MRI doesn't bridge any types).
       class DriverFactory
         VALID_SCHEMES = %w[bolt bolt+s bolt+ssc neo4j neo4j+s neo4j+ssc].freeze
 
@@ -44,21 +45,25 @@ module Neo4j
         # testkit never supplies one to the MRI flavour.
         def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
           validate_uri(uri)
-          # Subclasses (e.g. the testkit DriverFactoryWithDomainNameResolver)
-          # expose a custom hostname->IPs resolver via the Java-named
-          # getDomainNameResolver hook; thread it into the options so
-          # Bolt::Connection#resolved_addresses can use it at connect time.
-          # nil (the base default) means "use system DNS".
-          if (resolver = getDomainNameResolver)
-            config = config.merge(domain_name_resolver: resolver)
-          end
-          # Retain the manager (not a frozen token): the connection
-          # provider consults it for the current token on every acquire
-          # and on security failures, so token refresh / re-auth works.
-          Driver.new(uri, auth_token_manager, config)
+          # The factory is the single place that knows about the non-public
+          # extension hooks (the domain-name resolver today; createClock and
+          # others later). It assembles a fully-wired ConnectionProvider with
+          # those baked in and hands it to the Driver, so the Driver and the
+          # user-facing `config` never carry these hooks.
+          #
+          # Retain the manager (not a frozen token): the provider consults it
+          # for the current token on every acquire and on security failures,
+          # so token refresh / re-auth works.
+          provider = build_connection_provider(URI(uri), auth_token_manager, config)
+          Driver.new(uri, config, provider)
         end
 
         private
+
+        def build_connection_provider(uri, auth_manager, options)
+          klass = uri.scheme.start_with?('neo4j') ? Routing::LoadBalancer : Direct::ConnectionProvider
+          klass.new(uri, auth_manager, options, domain_name_resolver: getDomainNameResolver)
+        end
 
         def validate_uri(uri)
           parsed = URI(uri)
