@@ -19,14 +19,16 @@ module Neo4j
           Query.new(@query_text, @parameters)
         end
 
-        # Mirrors Java's ResultSummary#queryType — returns nil when the
-        # server didn't send a :type field (testkit relies on this). A
-        # present-but-unrecognised type is a protocol violation, so we
-        # raise (Java raises ProtocolException here too) rather than
-        # silently returning nil for it.
+        # Mirrors Java's ResultSummary#queryType — returns nil only when the
+        # server omitted the :type field (testkit relies on this). A field
+        # that is present but holds anything other than a known code — an
+        # unrecognised string, or an explicit null — is a protocol
+        # violation, so we raise (Java's extractQueryType chokes on those
+        # too) rather than silently returning nil.
         def query_type
+          return nil unless @metadata.key?(:type)
+
           case @metadata[:type]
-          when nil then nil
           when 'r' then QueryType::READ_ONLY
           when 'w' then QueryType::WRITE_ONLY
           when 'rw' then QueryType::READ_WRITE
