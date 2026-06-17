@@ -2,8 +2,7 @@
 
 # Exercises the common BookmarkManager API — BookmarkManagers.default_manager
 # plus session(bookmark_manager:) — in Ruby terms only (Set, Bookmark#value).
-# Lives under spec/jruby for now only because MRI has not implemented the
-# feature yet; the assertions are impl-agnostic and should hold on MRI too.
+# Impl-agnostic, so it runs on both flavors.
 RSpec.describe 'BookmarkManager' do
   it 'tracks bookmarks across sessions and notifies the consumer on commit' do
     consumed = nil
