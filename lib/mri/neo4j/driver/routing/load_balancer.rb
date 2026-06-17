@@ -193,20 +193,6 @@ module Neo4j
           release(conn)
         end
 
-        # Probe the supplied token with a one-shot connection to the seed
-        # (HELLO/LOGON), then discard it. Owned by the provider — not the
-        # Driver — so it's built with the factory-injected domain-name
-        # resolver. Mirrors Direct::ConnectionProvider#verify_authentication.
-        def verify_authentication(token)
-          probe = Bolt::Connection.new(@uri, token, @options, domain_name_resolver: @domain_name_resolver)
-          probe.connect
-          true
-        rescue Exceptions::AuthenticationException
-          false
-        ensure
-          probe&.close
-        end
-
         # Routing requires Bolt 4.0+ (the ROUTE message and `CALL
         # dbms.routing.getRoutingTable` are 4.0+ features). If we got
         # this far the answer is always true.

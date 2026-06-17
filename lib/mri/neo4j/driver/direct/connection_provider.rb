@@ -130,21 +130,6 @@ module Neo4j
           release(acquire)
         end
 
-        # Probe the supplied token with a one-shot connection (HELLO/LOGON),
-        # then discard it. The provider owns this — not the Driver — so the
-        # connection is built with the factory-injected domain-name resolver.
-        # true on SUCCESS, false on AuthenticationException; anything else
-        # propagates so callers distinguish "rejected" from "couldn't ask".
-        def verify_authentication(token)
-          probe = Bolt::Connection.new(@uri, token, @options, domain_name_resolver: @domain_name_resolver)
-          probe.connect
-          true
-        rescue Exceptions::AuthenticationException
-          false
-        ensure
-          probe&.close
-        end
-
         # True iff the negotiated Bolt protocol supports multi-database
         # routing (Bolt 4.0+). Acquires a connection to ensure HELLO has
         # happened.
