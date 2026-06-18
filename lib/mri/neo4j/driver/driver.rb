@@ -86,7 +86,7 @@ module Neo4j
       # — either via a +s/+ssc URI scheme or an explicit `encrypted: true`
       # option. Mirrors Java's Driver.isEncrypted().
       def encrypted?
-        ENCRYPTED_SCHEMES.include?(@uri.scheme) || @options[:encrypted] == true
+        ENCRYPTED_SCHEMES.include?(@uri.scheme) || @options[:encryption] == true
       end
 
       # Whether the connected server supports per-session re-authentication
