@@ -19,14 +19,22 @@ module Neo4j
           Query.new(@query_text, @parameters)
         end
 
-        # Mirrors Java's ResultSummary#queryType — returns nil when the
-        # server didn't send a :type field (testkit relies on this).
+        # Mirrors Java's ResultSummary#queryType — returns nil only when the
+        # server omitted the :type field (testkit relies on this). A field
+        # that is present but holds anything other than a known code — an
+        # unrecognised string, or an explicit null — is a protocol
+        # violation, so we raise (Java's extractQueryType chokes on those
+        # too) rather than silently returning nil.
         def query_type
+          return nil unless @metadata.key?(:type)
+
           case @metadata[:type]
           when 'r' then QueryType::READ_ONLY
           when 'w' then QueryType::WRITE_ONLY
           when 'rw' then QueryType::READ_WRITE
           when 's' then QueryType::SCHEMA_WRITE
+          else
+            raise Exceptions::ProtocolException, "Unexpected query type: #{@metadata[:type].inspect}"
           end
         end
 
@@ -97,11 +105,17 @@ module Neo4j
             .map { |n| Notification.new(n) }
         end
 
-        # GqlStatusObjects (Feature:API:Summary:GqlStatusObjects) isn't
-        # implemented on MRI yet, so it isn't advertised. Return an empty
-        # list so the flavour-agnostic backend serialises summaries uniformly.
+        # GQL status objects, as reported natively by Bolt 5.6+ servers in
+        # the summary `statuses` list (preserving server order — the driver
+        # must not reorder them). A status carrying a `neo4j_code` is also a
+        # notification (GqlNotification); the rest are plain status objects.
+        # The pre-5.6 backfill (Feature:API:Summary:GqlStatusObjects, which
+        # synthesises statuses from notifications) isn't implemented, so it
+        # stays unadvertised.
         def gql_status_objects
-          []
+          (@metadata[:statuses] || []).map do |status|
+            (status[:neo4j_code] ? GqlNotification : GqlStatusObject).new(status)
+          end
         end
 
         private
