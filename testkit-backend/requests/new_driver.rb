@@ -85,9 +85,17 @@ module TestkitBackend
         end
       end
 
+      # testkit sends trustedCertificates only when the test wants to pin a
+      # specific trust strategy: a cert list -> trust those CAs; an empty
+      # list -> trust all; "None"/absent -> *no* explicit trust config.
+      # In the last case we must return nil (compacted away, not sent) so
+      # the driver applies its own scheme-aware default — system certs for
+      # bolt://+encryption and +s, but trust-all for +ssc. Fabricating
+      # :trust_system_certificates here instead would override the +ssc
+      # scheme's trust-all and wrongly reject self-signed servers.
       def trust_strategy(trusted_certificates)
         if trusted_certificates.nil?
-          { strategy: :trust_system_certificates }
+          nil
         elsif trusted_certificates.empty?
           { strategy: :trust_all_certificates }
         else
