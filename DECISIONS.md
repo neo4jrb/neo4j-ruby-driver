@@ -128,3 +128,22 @@ with a *hypothetical unshaded JRuby build* too: consume a duck-typed
 metrics object (`connection_pool_metrics` → items responding to
 `id`/`in_use`/`idle`), and match the requested address by parsing `id`
 as `"host:port-…"`, mirroring Java's `GetConnectionPoolMetrics`.
+
+## 2026-06-19 — MRI Bolt::Connection goes pipeline-first
+
+The synchronous send-then-read connection model is a wall: HELLO+LOGON
+pipelining (recv-timeout), pipelined RESET-on-release (MinimalResets / the 5
+drop_connections tests), PullPipelining/AuthPipelining/ExecuteQueryPipelining,
+and the router-liveness interaction all stall on it. The earlier "async is
+overengineering / YAGNI" call deferred the foundation the Bolt protocol and the
+conformance suite assume; we're paying the interest now.
+
+Decision: refactor `Bolt::Connection` to flush a *batch* of outbound messages
+and drain their responses lazily and in order against the existing
+`@response_queue` spine (a discipline change at the call sites + handshake, not
+a rewrite). Sequence it in validated slices — HELLO+LOGON first, then pipelined
+dirty-connection RESET (→ real MinimalResets), then a narrow router-liveness
+trigger, then the pipelining optimizations. A reader thread/fiber (true async,
+for idle keepalive/recv-timeout reads) is a clean later layer. Full design:
+`docs/pipelined-connection.md`. Do NOT keep nibbling symptoms — per-op home-db
+re-route regressed default-db reads; eager reset-on-release timed out the suite.
