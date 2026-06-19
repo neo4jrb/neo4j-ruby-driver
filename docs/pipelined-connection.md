@@ -1,8 +1,8 @@
 # MRI Bolt::Connection — pipeline-first refactor
 
-Status: **proposed** (2026-06-19). Kickoff design for a fresh session. See the
-`mri-needs-pipelined-connection` memory for the why and the symptom→root map,
-and `DECISIONS.md` for the dated decision.
+Status: **proposed** (2026-06-19). Kickoff design for a fresh session. The
+why and the symptom→root map are in "The problem" below; `DECISIONS.md` has the
+dated decision.
 
 ## The problem
 
@@ -47,7 +47,7 @@ ground-up rewrite.
 
 Decided 2026-06-19 (with the user) and **empirically validated** on Ruby 3.4.9 /
 async 2.39.0 (`docs/async_spike.rb`). Reads and writes are fully independent —
-not a pull-driven degrade — in every host.
+not a pull-driven degradation — in every host.
 
 **The driver owns one `Async` reactor thread.** All connection IO (read *and*
 write) runs as fibers on it. Each connection has a long-lived **reader fiber**
@@ -57,12 +57,18 @@ independently of any request.
 
 The spine is a FIFO queue of `(message, response handler)` pairs:
 
-- `send_message` enqueues `(message, handler)` and returns a **future**.
+- `send_message` enqueues `(message, handler)` and returns a **result mailbox**
+  — concretely a stdlib `Thread::Queue` (one-shot) or `Mutex`+`ConditionVariable`,
+  *not* `concurrent-ruby`'s `Future`. These are the Ruby-3.2 scheduler-aware
+  primitives: they block a plain caller thread *and* yield a fiber under a
+  scheduler, so the same handle works in both worlds (`Async::Variable`/
+  `Async::Condition` are the in-reactor idiom, but can't be awaited from a
+  non-scheduler caller thread, which is why the mailbox is stdlib).
 - The reader fiber loops: read one response, pop the front handler, complete its
-  future (`SUCCESS` / `FAILURE` / `IGNORED`) or feed a `RECORD` into the owning
+  mailbox (`SUCCESS` / `FAILURE` / `IGNORED`) or feed a `RECORD` into the owning
   `Result`'s buffer. Bolt responses arrive in request order → front-of-queue
   dispatch is correct.
-- A caller blocks on its future when it needs the value.
+- A caller blocks on its mailbox when it needs the value.
 
 **Callers bridge in via scheduler-aware primitives** (`Queue` / `Mutex` /
 `ConditionVariable`, made fiber-aware in Ruby 3.2):
@@ -70,7 +76,7 @@ The spine is a FIFO queue of `(message, response handler)` pairs:
 - Under a **Fiber scheduler** (Falcon, or any `Async {}`): the caller fiber
   yields while waiting → the host reactor runs other requests. Async for free.
 - **Without** a scheduler (Puma threads, bare scripts): the caller thread
-  blocks on the future; the driver's reactor completes it cross-thread — the
+  blocks on the mailbox; the driver's reactor completes it cross-thread — the
   scheduler's `unblock` hook is thread-safe (validated: a non-scheduler thread
   woke a reactor fiber parked on a `Thread::Queue` and got a result back).
 
@@ -101,7 +107,7 @@ past one core the standard Ruby way — **more processes** (Puma/Falcon workers,
 each with its own driver+reactor); more reactor *threads* in one process
 wouldn't help (GVL). Discipline: keep CPU-heavy/user code *off* the reactor
 (hand records back to the caller); the reactor does only IO + bounded per-message
-parse + future completion.
+parse + mailbox completion.
 
 ### Considerations (the substance of slice 1)
 
@@ -109,7 +115,7 @@ parse + future completion.
   bridge is the only multi-thread surface; everything else is reactor-local).
 - **RECORD streaming:** the reader feeds records into a buffer the consumer reads
   from; backpressure (PULL `n`) is the reader's concern.
-- **Failure fan-out:** a dead socket / read timeout fails **all** pending futures
+- **Failure fan-out:** a dead socket / read timeout resolves **all** pending mailboxes
   and marks the connection dead.
 - **Clean shutdown:** closing a connection / stopping the driver must unblock the
   reader and tear down the reactor thread without leaking.
@@ -118,9 +124,10 @@ parse + future completion.
 
 ## Slice sequencing (each its own validation pass)
 
-1. **Reader-thread + handler-queue + futures machinery, proven on HELLO+LOGON.**
+1. **Reactor + reader-fiber + handler-queue + mailbox machinery, proven on HELLO+LOGON.**
    This is the foundation, not a localized reorder: stand up the per-connection
-   reader thread, the mutex-guarded `(message, handler)` FIFO, futures, RECORD
+   driver-owned reactor, the per-connection reader fiber, the mutex-guarded
+   `(message, handler)` FIFO, result mailboxes, RECORD
    buffering, failure fan-out and clean shutdown. Exercise it first on the
    handshake (send HELLO+LOGON, then the reader drains both) and on a basic
    RUN/PULL. Combine with the `connection.recv_timeout_seconds` socket timeout to
@@ -142,10 +149,10 @@ parse + future completion.
 ## Constraints / guardrails
 
 - Don't flip `get_features.rb` flags to grab skipped tests; advertise a flag
-  only when its whole cluster genuinely passes (`no-new-feature-advertising`).
+  only when its whole cluster genuinely passes.
 - Validate every slice against the testkit stub suite locally with the **rust**
-  boltstub on the **MRI** flavor before expanding (`local-tls-testing` /
-  `local-boltstub-debug-loop` memories; ruby-3.4.9 via rvm). The full suite is
+  boltstub on the **MRI** flavor before expanding (ruby-3.4.9 via rvm; see
+  `DEVELOPMENT.md` and the `bin/run-testkit` header). The full suite is
   the regression guard — eager reset-on-release proved a per-release round-trip
   is unacceptable (it timed the suite out).
 - Already done and parked on `fix/mri-liveness-check-routing`:

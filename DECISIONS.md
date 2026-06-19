@@ -141,14 +141,15 @@ conformance suite assume; we're paying the interest now.
 Decision: make `Bolt::Connection` fully read/write independent via a
 **driver-owned `Async` reactor**, from day one — true independence, not a
 pull-driven interim (deferred debt again). The driver owns one reactor thread;
-all connection IO (read+write) are fibers on it; each connection has a
+all connection IO (read+write) runs as fibers on it; each connection has a
 long-lived reader fiber that drains responses for the connection's whole life
 (incl. idle in the pool). `send_message` enqueues `(message, handler)` on a FIFO
-and returns a future; the reader fiber completes futures (SUCCESS/FAILURE/
-IGNORED) / buffers RECORDs, in request order. Callers bridge in via the Ruby 3.2
+and returns a result mailbox (a stdlib scheduler-aware `Thread::Queue`/
+`ConditionVariable`, not concurrent-ruby's Future); the reader fiber resolves
+mailboxes (SUCCESS/FAILURE/IGNORED) / buffers RECORDs, in request order. Callers bridge in via the Ruby 3.2
 scheduler-aware `Queue`/`Mutex`/`ConditionVariable`: under a Fiber scheduler
 (Falcon) the caller fiber yields (async for free); without one (Puma/sync) the
-caller thread blocks and the reactor completes its future cross-thread (the
+caller thread blocks and the reactor resolves its mailbox cross-thread (the
 scheduler's `unblock` hook is thread-safe).
 
 Why driver-owned, not per-caller: **fibers can't cross threads** (FiberError),

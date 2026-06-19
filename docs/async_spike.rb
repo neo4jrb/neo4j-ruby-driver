@@ -37,3 +37,17 @@ work.push(21)                 # pushed from main thread (no scheduler)
 res = done.pop
 puts "  main pushed 21 -> reactor fiber returned #{res}"
 work.push(:stop); rt.join
+
+# TEST C — a fiber cannot be resumed from another thread (why a shared pool
+# can't put reader fibers on per-caller reactors): forces a driver-owned reactor.
+puts "TEST C — fiber resume across threads:"
+f = Fiber.new { Fiber.yield; :done }
+f.resume
+Thread.new do
+  begin
+    f.resume
+    puts "  resumed cross-thread (unexpected!)"
+  rescue => e
+    puts "  cross-thread resume -> #{e.class}: #{e.message}"
+  end
+end.join
