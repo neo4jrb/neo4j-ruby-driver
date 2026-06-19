@@ -164,6 +164,17 @@ module Neo4j
         # the @auth_epochs Hash (mutated in on_security_exception).
         def auth_epoch_for(address) = @refresh_lock.synchronize { @auth_epochs[address] }
 
+        # Per-address pool occupancy for testkit's GetConnectionPoolMetrics.
+        # One entry per live address pool, keyed by the ServerAddress the pool
+        # was opened for (which already carries host/port).
+        def connection_pool_metrics
+          @refresh_lock.synchronize do
+            @pools.map do |address, pool|
+              Internal::ConnectionPoolMetrics.new(address, pool.in_use, pool.idle)
+            end
+          end
+        end
+
         def release(connection)
           # Direct provider tolerates nil; mirror that. Internal callers
           # always release a RoutedConnection but guard so the wrong

@@ -214,15 +214,12 @@ module Neo4j
         false
       end
 
-      # Per-server-address pool metrics: how many connections currently
-      # in use vs. idle. Test-only API.
-      #
-      # NOT YET IMPLEMENTED: pool metrics infrastructure doesn't exist.
-      # See get_connection_pool_metrics.rb in the testkit-backend for
-      # the required driver-side pieces.
-      def pool_metrics(_address)
-        raise NotImplementedError,
-              'Driver#pool_metrics: per-address pool metrics not yet implemented'
+      # Driver metrics. Today this only surfaces per-address connection-pool
+      # occupancy (in-use / idle), which is all testkit's
+      # GetConnectionPoolMetrics consumes; the counts come from the
+      # ConnectionProvider, which owns the pools.
+      def metrics
+        Internal::Metrics.new(@connection_provider)
       end
 
       # Routing table for `database` (testkit GetRoutingTable). Returns the

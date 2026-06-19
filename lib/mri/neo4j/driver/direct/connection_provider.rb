@@ -130,6 +130,18 @@ module Neo4j
           release(acquire)
         end
 
+        # Single-pool occupancy for testkit's GetConnectionPoolMetrics, keyed
+        # by the one server this provider talks to. Empty until the pool is
+        # built (no connection has been acquired yet).
+        def connection_pool_metrics
+          return [] unless @pool
+
+          address = Routing::ServerAddress.parse(
+            "#{@uri.host}:#{@uri.port || Routing::ServerAddress::DEFAULT_PORT}"
+          )
+          [Internal::ConnectionPoolMetrics.new(address, @pool.in_use, @pool.idle)]
+        end
+
         # True iff the negotiated Bolt protocol supports multi-database
         # routing (Bolt 4.0+). Acquires a connection to ensure HELLO has
         # happened.

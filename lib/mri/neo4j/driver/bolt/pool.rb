@@ -97,6 +97,16 @@ module Neo4j
           @stack.shutdown(&block)
         end
 
+        # Pool occupancy for testkit's connection-pool metrics. Read straight
+        # off the wrapped TimedStack so the counts stay consistent with its
+        # own create/discard accounting: @que holds the idle (pushed)
+        # connections, @created is the live total, so the difference is the
+        # checked-out (in-use) count. The gem is pinned, so reaching for these
+        # ivars is safe.
+        def idle = @stack.instance_variable_get(:@que).size
+
+        def in_use = @stack.instance_variable_get(:@created) - idle
+
         private
 
         # Both gates: too old OR known dead. We probe only when the
