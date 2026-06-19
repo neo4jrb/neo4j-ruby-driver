@@ -128,3 +128,44 @@ with a *hypothetical unshaded JRuby build* too: consume a duck-typed
 metrics object (`connection_pool_metrics` → items responding to
 `id`/`in_use`/`idle`), and match the requested address by parsing `id`
 as `"host:port-…"`, mirroring Java's `GetConnectionPoolMetrics`.
+
+## 2026-06-19 — MRI Bolt::Connection goes pipeline-first
+
+The synchronous send-then-read connection model is a wall: HELLO+LOGON
+pipelining (recv-timeout), pipelined RESET-on-release (MinimalResets / the 5
+drop_connections tests), PullPipelining/AuthPipelining/ExecuteQueryPipelining,
+and the router-liveness interaction all stall on it. The earlier "async is
+overengineering / YAGNI" call deferred the foundation the Bolt protocol and the
+conformance suite assume; we're paying the interest now.
+
+Decision: make `Bolt::Connection` fully read/write independent via a
+**driver-owned `Async` reactor**, from day one — true independence, not a
+pull-driven interim (deferred debt again). The driver owns one reactor thread;
+all connection IO (read+write) are fibers on it; each connection has a
+long-lived reader fiber that drains responses for the connection's whole life
+(incl. idle in the pool). `send_message` enqueues `(message, handler)` on a FIFO
+and returns a future; the reader fiber completes futures (SUCCESS/FAILURE/
+IGNORED) / buffers RECORDs, in request order. Callers bridge in via the Ruby 3.2
+scheduler-aware `Queue`/`Mutex`/`ConditionVariable`: under a Fiber scheduler
+(Falcon) the caller fiber yields (async for free); without one (Puma/sync) the
+caller thread blocks and the reactor completes its future cross-thread (the
+scheduler's `unblock` hook is thread-safe).
+
+Why driver-owned, not per-caller: **fibers can't cross threads** (FiberError),
+but pooled connections are borrowed across threads — so a reader fiber must have
+one stable home or the shared pool breaks. Single-threaded reactor IO is also
+TLS-safe (no concurrent SSL_read/SSL_write). Scalable for MRI: the GVL already
+serializes parsing onto one core, so the reactor centralizes already-serialized
+work with less overhead than thread-per-connection; scale past one core via
+processes (Falcon/Puma workers), not more reactor threads.
+
+Empirically validated on Ruby 3.4.9 / async 2.39.0 (`docs/async_spike.rb`):
+cross-thread fiber resume raises FiberError; SSLSocket#read yields under the
+scheduler; a non-scheduler thread woke a reactor fiber on a Thread::Queue and got
+a result back. Sequence in validated slices: (1) reactor/handler/futures
+machinery proven on HELLO+LOGON + recv-timeout; (2) pipelined dirty-connection
+RESET → real MinimalResets (the 5 drop_connections tests); (3) a *narrow*
+router-liveness trigger; (4) PullPipelining / AuthPipelining /
+ExecuteQueryPipelining. Full design: `docs/pipelined-connection.md`. Do NOT keep
+nibbling symptoms — per-op home-db re-route regressed default-db reads; eager
+reset-on-release timed out the suite.
