@@ -43,31 +43,64 @@ So the **spine** (an ordered queue of in-flight responses) is already there. The
 refactor is a *discipline change* at the call sites + the handshake, not a
 ground-up rewrite.
 
-## Target model
+## Target model — fully independent reads (reader thread, from day one)
 
-Pipeline-first: **flush a batch of outbound messages, then drain their responses
-in order, lazily** — read only when a result is actually needed.
+Decision (2026-06-19, with the user): **true independence, not a pull-driven
+interim.** A pull-driven "read when the caller needs it" step would just be more
+deferred debt. So reads run on their own loop from the start.
 
-- Handshake sends HELLO **and** LOGON before reading, then drains both responses.
-- A connection returned to the pool is marked **dirty**; the RESET is pipelined
-  ahead of its next message rather than a synchronous round-trip on release.
-- `Result`/`Transaction` already queue RUN+PULL; formalize that as the norm and
-  expose it (PullPipelining), then AuthPipelining / ExecuteQueryPipelining.
-- Errors: when a pipelined message FAILs, the server IGNOREs the rest — the
-  response drainer must consume the IGNOREDs in order and surface the first
-  FAILURE (this is the part to get right and test hard).
+The spine is a FIFO queue of `(message, response handler)` pairs:
 
-A reader thread/fiber (true async, for idle keepalive NOOP reads and
-recv-timeout while idle) is a **clean later layer** on top — not needed for the
-first slices.
+- `send_message` enqueues `(message, handler)` under a mutex, writes the bytes,
+  and returns a **future**; the writer may `flush` at any time.
+- A **reader thread per connection** loops: read one response, pop the front
+  handler, and either complete its future (`SUCCESS` / `FAILURE` / `IGNORED`) or
+  feed a `RECORD` into the owning `Result`'s buffer. Bolt guarantees responses
+  arrive in request order, so front-of-queue dispatch is correct.
+- A caller that needs a value blocks on its future (a condition variable the
+  reader signals). Sends and reads are otherwise independent.
+
+**Thread, not fiber.** The driver is thread-based today (sessions, pool, auth-
+epoch mutexes); a reader thread slots in incrementally (Ruby frees the GVL on
+blocking socket reads). Fibers would need a Fiber scheduler threaded through the
+whole call stack — an all-or-nothing async-runtime shift. (Open if we ever adopt
+async-gem-style fibers wholesale.)
+
+This directly yields the stalled features: HELLO+LOGON pipeline naturally;
+release marks the connection **dirty** and pipelines a RESET ahead of next use
+(real MinimalResets); RUN+PULL pipelining is formalized (PullPipelining), then
+AuthPipelining / ExecuteQueryPipelining. A FAILURE makes the server IGNORE the
+rest — each trailing handler simply sees its `IGNORED`, which the handler model
+absorbs cleanly.
+
+### Considerations the reader thread brings (the substance of slice 1)
+
+- **Thread-safety** of the handler queue (`Thread::Queue` / `Monitor`) and
+  connection state.
+- **RECORD streaming:** the reader feeds records into a thread-safe buffer on the
+  `Result`; the consumer iterating the result blocks on that buffer.
+  Backpressure (PULL `n`) is the reader's concern.
+- **Failure fan-out:** a dead socket or read timeout fails **all** pending
+  futures and marks the connection dead — not only the one in flight.
+- **Clean shutdown:** closing the connection must unblock the reader's blocking
+  read (close the socket / signal) so the thread exits without leaking.
+- **Pool semantics stay simple:** a connection is held by one session at a time,
+  so the reader serves a single pipeline — no multi-session concurrency on one
+  connection.
+- **recv-timeout:** the reader applies the `connection.recv_timeout_seconds`
+  socket read timeout (verified to work via `IO#timeout`); a timeout while reads
+  are pending fails them, while idle it is benign / a keepalive signal.
 
 ## Slice sequencing (each its own validation pass)
 
-1. **HELLO+LOGON pipelining** — smallest real slice. `perform_hello` +
-   `perform_post_hello` send both, then read both. Directly unblocks the
-   recv-timeout liveness test (combine with `@socket.timeout =` from the
-   `connection.recv_timeout_seconds` HELLO hint — the socket-timeout mechanism
-   is already verified to work via `IO#timeout`). Re-run the full stub suite.
+1. **Reader-thread + handler-queue + futures machinery, proven on HELLO+LOGON.**
+   This is the foundation, not a localized reorder: stand up the per-connection
+   reader thread, the mutex-guarded `(message, handler)` FIFO, futures, RECORD
+   buffering, failure fan-out and clean shutdown. Exercise it first on the
+   handshake (send HELLO+LOGON, then the reader drains both) and on a basic
+   RUN/PULL. Combine with the `connection.recv_timeout_seconds` socket timeout to
+   close the recv-timeout liveness test. Re-run the **full** stub suite — this
+   touches every operation, so the regression bar is the whole suite, green.
 2. **Pipelined dirty-connection RESET** → real `OPTIMIZATION:MinimalResets`.
    MRI already passes the two MinimalResets *gate* tests (`test_no_reset_on_
    clean_connection`, `test_exactly_one_reset_on_failure`) for clean connections;

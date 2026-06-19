@@ -138,12 +138,23 @@ and the router-liveness interaction all stall on it. The earlier "async is
 overengineering / YAGNI" call deferred the foundation the Bolt protocol and the
 conformance suite assume; we're paying the interest now.
 
-Decision: refactor `Bolt::Connection` to flush a *batch* of outbound messages
-and drain their responses lazily and in order against the existing
-`@response_queue` spine (a discipline change at the call sites + handshake, not
-a rewrite). Sequence it in validated slices — HELLO+LOGON first, then pipelined
-dirty-connection RESET (→ real MinimalResets), then a narrow router-liveness
-trigger, then the pipelining optimizations. A reader thread/fiber (true async,
-for idle keepalive/recv-timeout reads) is a clean later layer. Full design:
-`docs/pipelined-connection.md`. Do NOT keep nibbling symptoms — per-op home-db
-re-route regressed default-db reads; eager reset-on-release timed out the suite.
+Decision: make `Bolt::Connection` fully read/write independent via a
+**per-connection reader thread, from day one** — true independence, not a
+pull-driven interim (that would just be deferred debt again). `send_message`
+enqueues `(message, response handler)` on a mutex-guarded FIFO, writes the
+bytes, and returns a future; the writer flushes anytime. The reader thread loops:
+read one response, pop the front handler, complete its future (SUCCESS / FAILURE
+/ IGNORED) or feed a RECORD into the owning Result's buffer (Bolt responses come
+back in request order). A caller blocks on its future when it needs the value.
+Thread, not fiber — the driver is thread-based; fibers would need an async
+runtime threaded through everything.
+
+This is foundational machinery (thread-safe queue, futures, RECORD streaming,
+failure fan-out across all pending futures, clean shutdown), not a local
+reorder. Sequence in validated slices: (1) the reader-thread/handler/futures
+machinery proven on HELLO+LOGON + recv-timeout; (2) pipelined dirty-connection
+RESET → real MinimalResets (the 5 drop_connections tests); (3) a *narrow*
+router-liveness trigger; (4) PullPipelining / AuthPipelining /
+ExecuteQueryPipelining. Full design: `docs/pipelined-connection.md`. Do NOT keep
+nibbling symptoms — per-op home-db re-route regressed default-db reads; eager
+reset-on-release timed out the suite.
