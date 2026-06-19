@@ -83,10 +83,10 @@ module Neo4j
       end
 
       # True iff the driver was constructed to enforce transport encryption
-      # — either via a +s/+ssc URI scheme or an explicit `encrypted: true`
+      # — either via a +s/+ssc URI scheme or an explicit `encryption: true`
       # option. Mirrors Java's Driver.isEncrypted().
       def encrypted?
-        ENCRYPTED_SCHEMES.include?(@uri.scheme) || @options[:encrypted] == true
+        ENCRYPTED_SCHEMES.include?(@uri.scheme) || @options[:encryption] == true
       end
 
       # Whether the connected server supports per-session re-authentication
