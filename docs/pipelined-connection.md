@@ -43,53 +43,78 @@ So the **spine** (an ordered queue of in-flight responses) is already there. The
 refactor is a *discipline change* at the call sites + the handshake, not a
 ground-up rewrite.
 
-## Target model — fully independent reads (reader thread, from day one)
+## Target model — driver-owned reactor, fiber readers, bridged callers
 
-Decision (2026-06-19, with the user): **true independence, not a pull-driven
-interim.** A pull-driven "read when the caller needs it" step would just be more
-deferred debt. So reads run on their own loop from the start.
+Decided 2026-06-19 (with the user) and **empirically validated** on Ruby 3.4.9 /
+async 2.39.0 (`docs/async_spike.rb`). Reads and writes are fully independent —
+not a pull-driven degrade — in every host.
+
+**The driver owns one `Async` reactor thread.** All connection IO (read *and*
+write) runs as fibers on it. Each connection has a long-lived **reader fiber**
+that drains responses for the whole connection lifetime — including while the
+connection sits idle in the pool, so a server keepalive/close is noticed
+independently of any request.
 
 The spine is a FIFO queue of `(message, response handler)` pairs:
 
-- `send_message` enqueues `(message, handler)` under a mutex, writes the bytes,
-  and returns a **future**; the writer may `flush` at any time.
-- A **reader thread per connection** loops: read one response, pop the front
-  handler, and either complete its future (`SUCCESS` / `FAILURE` / `IGNORED`) or
-  feed a `RECORD` into the owning `Result`'s buffer. Bolt guarantees responses
-  arrive in request order, so front-of-queue dispatch is correct.
-- A caller that needs a value blocks on its future (a condition variable the
-  reader signals). Sends and reads are otherwise independent.
+- `send_message` enqueues `(message, handler)` and returns a **future**.
+- The reader fiber loops: read one response, pop the front handler, complete its
+  future (`SUCCESS` / `FAILURE` / `IGNORED`) or feed a `RECORD` into the owning
+  `Result`'s buffer. Bolt responses arrive in request order → front-of-queue
+  dispatch is correct.
+- A caller blocks on its future when it needs the value.
 
-**Thread, not fiber.** The driver is thread-based today (sessions, pool, auth-
-epoch mutexes); a reader thread slots in incrementally (Ruby frees the GVL on
-blocking socket reads). Fibers would need a Fiber scheduler threaded through the
-whole call stack — an all-or-nothing async-runtime shift. (Open if we ever adopt
-async-gem-style fibers wholesale.)
+**Callers bridge in via scheduler-aware primitives** (`Queue` / `Mutex` /
+`ConditionVariable`, made fiber-aware in Ruby 3.2):
 
-This directly yields the stalled features: HELLO+LOGON pipeline naturally;
-release marks the connection **dirty** and pipelines a RESET ahead of next use
-(real MinimalResets); RUN+PULL pipelining is formalized (PullPipelining), then
-AuthPipelining / ExecuteQueryPipelining. A FAILURE makes the server IGNORE the
-rest — each trailing handler simply sees its `IGNORED`, which the handler model
-absorbs cleanly.
+- Under a **Fiber scheduler** (Falcon, or any `Async {}`): the caller fiber
+  yields while waiting → the host reactor runs other requests. Async for free.
+- **Without** a scheduler (Puma threads, bare scripts): the caller thread
+  blocks on the future; the driver's reactor completes it cross-thread — the
+  scheduler's `unblock` hook is thread-safe (validated: a non-scheduler thread
+  woke a reactor fiber parked on a `Thread::Queue` and got a result back).
 
-### Considerations the reader thread brings (the substance of slice 1)
+### Why driver-owned (not per-caller) reactor
 
-- **Thread-safety** of the handler queue (`Thread::Queue` / `Monitor`) and
-  connection state.
-- **RECORD streaming:** the reader feeds records into a thread-safe buffer on the
-  `Result`; the consumer iterating the result blocks on that buffer.
-  Backpressure (PULL `n`) is the reader's concern.
-- **Failure fan-out:** a dead socket or read timeout fails **all** pending
-  futures and marks the connection dead — not only the one in flight.
-- **Clean shutdown:** closing the connection must unblock the reader's blocking
-  read (close the socket / signal) so the thread exits without leaking.
-- **Pool semantics stay simple:** a connection is held by one session at a time,
-  so the reader serves a single pipeline — no multi-session concurrency on one
-  connection.
-- **recv-timeout:** the reader applies the `connection.recv_timeout_seconds`
-  socket read timeout (verified to work via `IO#timeout`); a timeout while reads
-  are pending fails them, while idle it is benign / a keepalive signal.
+- **Fibers can't cross threads** (`FiberError: fiber called across threads`,
+  verified). Connections are pooled and borrowed by sessions on different
+  threads/fibers. A reader fiber pinned to caller-thread A's reactor cannot be
+  driven when thread B borrows that connection. Per-caller reactors would force
+  per-thread pools (no sharing → up to N×threads more server connections, and a
+  long-lived reactor per thread anyway). One driver-owned reactor keeps a single
+  shared pool coherent.
+- **TLS-safe.** A single reactor thread serializes each socket's read+write
+  cooperatively → never a concurrent `SSL_read`/`SSL_write` on one `SSLSocket`
+  (which OpenSSL is not safe for). And `SSLSocket#read` *yields* under the
+  scheduler (validated: a 1s TLS read let other fibers run), so it doesn't
+  freeze the reactor.
+
+### Scalability
+
+One reactor per driver **per process** is the right granularity for MRI, not a
+bottleneck: the GVL already serializes all Ruby parsing onto one core, so a
+thread-per-connection model is single-core for deserialization too — the reactor
+just centralizes that already-serialized work with *less* overhead (no GVL
+contention, cheap fiber switches, one `epoll`/`kqueue` wait vs N blocked
+threads). Multiplexing ~100 pooled sockets is trivial for an event loop. Scale
+past one core the standard Ruby way — **more processes** (Puma/Falcon workers,
+each with its own driver+reactor); more reactor *threads* in one process
+wouldn't help (GVL). Discipline: keep CPU-heavy/user code *off* the reactor
+(hand records back to the caller); the reactor does only IO + bounded per-message
+parse + future completion.
+
+### Considerations (the substance of slice 1)
+
+- **Thread-safety** of the handler queue and connection state (the cross-thread
+  bridge is the only multi-thread surface; everything else is reactor-local).
+- **RECORD streaming:** the reader feeds records into a buffer the consumer reads
+  from; backpressure (PULL `n`) is the reader's concern.
+- **Failure fan-out:** a dead socket / read timeout fails **all** pending futures
+  and marks the connection dead.
+- **Clean shutdown:** closing a connection / stopping the driver must unblock the
+  reader and tear down the reactor thread without leaking.
+- **recv-timeout:** `IO#timeout` (scheduler-aware) on the reader; timeout while
+  reads are pending fails them, while idle it is a keepalive signal.
 
 ## Slice sequencing (each its own validation pass)
 
