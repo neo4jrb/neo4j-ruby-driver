@@ -29,6 +29,9 @@ module Neo4j
           # (mri-on-jruby) there's no GIL, so a bare `+= 1` could lose bumps.
           @auth_epoch = 0
           @auth_epoch_mutex = Mutex.new
+          # One reactor per driver: every connection this provider builds runs
+          # its IO fibers on it. Torn down in #close.
+          @reactor = Bolt::Reactor.new
         end
 
         # Current auth generation, read atomically.
@@ -152,6 +155,7 @@ module Neo4j
         def close
           @closed = true
           @pool&.shutdown { |conn| conn.close rescue nil }
+          @reactor.stop
         end
 
         private
@@ -206,7 +210,8 @@ module Neo4j
               # threaded through pool.pop. The `||` is a belt-and-braces
               # fallback for any future pop path that forgets to pass one.
               conn = Bolt::Connection.new(@uri, auth || @auth_manager.get_token, @options,
-                                          domain_name_resolver: @domain_name_resolver).connect
+                                          domain_name_resolver: @domain_name_resolver,
+                                          reactor: @reactor).connect
               conn.security_exception_handler = method(:on_security_exception)
               # A freshly-authenticated connection belongs to the current
               # auth generation, so ensure_identity won't force-re-auth it.

@@ -170,3 +170,41 @@ router-liveness trigger; (4) PullPipelining / AuthPipelining /
 ExecuteQueryPipelining. Full design: `docs/pipelined-connection.md`. Do NOT keep
 nibbling symptoms — per-op home-db re-route regressed default-db reads; eager
 reset-on-release timed out the suite.
+
+### Slice 1 implementation notes (2026-06-19)
+
+- **Reuse an ambient reactor.** "Driver-owned" is the default, not a mandate:
+  `Bolt::Reactor#run` checks `Async::Task.current?` and, when the caller is
+  already inside an Async reactor (Falcon, or any `Async {}`), runs the
+  connection's reader/writer fibers there as **transient** tasks rather than
+  starting a second reactor thread — no cross-thread hop, and a one-shot
+  `Async {}` still returns promptly. The owned background reactor is started
+  lazily only when there's no ambient one (sync/Puma). The ambient path assumes
+  the driver is confined to a single long-lived reactor (Falcon-per-process);
+  sharing one driver across several reactors on different threads must use the
+  owned reactor (a reader fiber can't move threads). Prompted by review.
+- **HELLO/LOGON is done synchronously, before the fibers start.** Still
+  pipelined (write both, then read both — what the recv-timeout liveness stub
+  needs), but on the caller thread, because the server's
+  `connection.recv_timeout_seconds` hint arrives *in* the HELLO reply and the
+  reader must know it before its first post-handshake read. Starting the reader
+  first created a race where the first read used `timeout=nil` and never fired.
+- **NOOP keepalives.** The reader skips bare `00 00` chunks (the server's inline
+  keepalives that keep a slow reply under the recv-timeout); they carry no
+  message. Without this the `*_in_time` scripts broke on an empty unpack.
+- **Connection-terminated transactions.** A tx killed by a connection-level
+  failure (recv-timeout, dropped socket — keyed on the *raw*
+  ServiceUnavailableException, before routing reclassifies it to SessionExpired)
+  raises `TransactionTerminatedException` on subsequent use; a plain server
+  FAILURE still rolls back with ClientException. Required by the recv-timeout
+  unmanaged-tx tests.
+- **Recv-timeout flag NOT advertised in this slice.** The machinery is wired and
+  the whole `ConfHint:connection.recv_timeout_seconds` cluster passes when the
+  flag is on, but advertising it adds a *new feature surface* — out of scope for
+  a refactor slice scoped to "fix existing / already-advertised features, zero
+  regressions". Left `ja` (MRI off); flip to `jar` in the slice that wraps up the
+  recv-timeout/liveness cluster. (See [[no-new-feature-advertising]].)
+- Delivered: HELLO+LOGON deadlock gone; full stub suite zero regressions vs
+  baseline, +6 fixes on already-advertised features. Still open (later slices):
+  the `test_timeout*` liveness/router-reset tests (slice 3) and the pre-existing
+  tx-termination empty-code failures.

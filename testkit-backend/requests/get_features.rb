@@ -136,6 +136,12 @@ module TestkitBackend
         # ClusterComposition parameters not yet wired from Ruby), so only
         # MRI advertises it.
         'Backend:RTForceUpdate'                             => 'r',
+        # The pipeline-first MRI connection already applies the server's
+        # connection.recv_timeout_seconds hint (reader IO#timeout ->
+        # ConnectionReadTimeoutException), but the flag stays MRI-disabled for
+        # now: advertising it is a new feature surface, and slice 1 is scoped to
+        # the refactor + already-advertised features. Flip 'ja' -> 'jar' in the
+        # slice that wraps up the recv-timeout/liveness cluster.
         'ConfHint:connection.recv_timeout_seconds'          => 'ja',
         'Detail:ClosedDriverIsEncrypted'                    => '',
         'Detail:DefaultSecurityConfigValueEquality'         => 'ja',

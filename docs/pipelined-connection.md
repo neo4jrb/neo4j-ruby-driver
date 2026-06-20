@@ -1,8 +1,18 @@
 # MRI Bolt::Connection — pipeline-first refactor
 
-Status: **proposed** (2026-06-19). Kickoff design for a fresh session. The
-why and the symptom→root map are in "The problem" below; `DECISIONS.md` has the
-dated decision.
+Status: **slice 1 implemented** (2026-06-19). The reactor + reader/writer
+fibers, pipelined synchronous HELLO+LOGON, recv-timeout machinery (`IO#timeout` →
+`ConnectionReadTimeoutException`), NOOP handling, failure fan-out and
+acquisition-deadline bounding (handshake + ROUTE) are in. The recv-timeout
+machinery is wired but the `ConfHint:connection.recv_timeout_seconds` flag is
+**not advertised yet** — advertising it adds a new feature surface, which is out
+of scope for a refactor slice; it's flipped in the slice that wraps up the
+recv-timeout/liveness cluster. Validated against the full rust-boltstub stub
+suite on MRI: **zero regressions vs the pre-refactor baseline**, +6 fixes (incl.
+the NOOP / handshake-encompass / router-ip tests). Slices 2–4 (MinimalResets,
+router liveness, the pipelining optimizations) remain. The why and the
+symptom→root map are in "The problem" below; `DECISIONS.md` has the dated
+decision and the slice-1 implementation notes.
 
 ## The problem
 
@@ -79,6 +89,26 @@ The spine is a FIFO queue of `(message, response handler)` pairs:
   blocks on the mailbox; the driver's reactor completes it cross-thread — the
   scheduler's `unblock` hook is thread-safe (validated: a non-scheduler thread
   woke a reactor fiber parked on a `Thread::Queue` and got a result back).
+
+**Reuse an ambient reactor when one is already running.** "Driver-owned"
+describes the *default* — the owned background reactor for sync/Puma callers. But
+when the driver is used from inside an existing Async reactor (Falcon, or any
+`Async {}`), spinning up a *second* reactor thread is wasteful and forces a
+cross-thread hop on every call. So `Bolt::Reactor#run` checks
+`Async::Task.current?`: if there is an ambient reactor it runs the connection's
+reader/writer fibers there — as **`transient`** tasks, so a perpetual reader
+never keeps a one-shot `Async {}` block from returning and the fibers are torn
+down with the reactor. Only when there is no ambient reactor does it lazily
+start the owned background thread. Net effect: under Falcon the calling fiber and
+the IO fibers share one reactor (truly "async for free", no thread hop); under
+Puma/sync the owned reactor does the work and callers bridge in cross-thread.
+
+The reader fiber is long-lived and a fiber can't move between threads
+(`FiberError`), so the ambient path assumes the driver is confined to a single,
+long-lived reactor — the Falcon-per-process norm. Sharing one driver across
+several independent reactors on different threads must use the owned reactor;
+don't first-use such a driver from inside an ephemeral `Async {}` on a worker
+thread. (Scaling is still "more processes", each with its own driver+reactor.)
 
 ### Why driver-owned (not per-caller) reactor
 

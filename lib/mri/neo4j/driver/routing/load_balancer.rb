@@ -53,6 +53,9 @@ module Neo4j
           # Monitor (reentrant) because ensure_routing_table_is_fresh holds
           # the lock while it goes through pool_for, which also locks.
           @refresh_lock = Monitor.new
+          # One reactor per driver, shared by every per-address pool's
+          # connections. Torn down in #close.
+          @reactor = Bolt::Reactor.new
         end
 
         # Open (or pop) a connection appropriate for `access_mode` against
@@ -217,6 +220,7 @@ module Neo4j
             @pools.clear
             @routing_tables.clear
           end
+          @reactor.stop
         end
 
         # Internal — mirrors Java's
@@ -520,7 +524,8 @@ module Neo4j
           # worker's resolved token). Fall back to the manager's current
           # token for acquires that don't carry one (verify_connectivity).
           conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts,
-                                      domain_name_resolver: @domain_name_resolver).connect
+                                      domain_name_resolver: @domain_name_resolver,
+                                      reactor: @reactor).connect
           # Bind the security handler to this connection's server so an
           # AuthorizationExpired bumps the right per-address epoch.
           conn.security_exception_handler =

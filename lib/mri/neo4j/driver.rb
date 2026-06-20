@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'async'
 require 'connection_pool'
 require 'neo4j-ruby-driver_loader'
 require 'openssl'

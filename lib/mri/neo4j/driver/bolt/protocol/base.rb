@@ -32,11 +32,10 @@ module Neo4j
             raise NotImplementedError, "#{self.class} must implement hello_extra"
           end
 
-          # Hook for V5_1+ (HELLO/LOGON split): after HELLO succeeds, the
-          # connection calls this to send LOGON and assert its SUCCESS.
-          # Older versions authenticated inside HELLO itself, so this is
-          # a no-op.
-          def perform_post_hello(_auth); end
+          # Hook for V5_1+ (HELLO/LOGON split): the LOGON message that the
+          # connection pipelines right after HELLO. nil here — older versions
+          # carry auth inside the HELLO map and send no separate LOGON.
+          def build_logon_message(_auth) = nil
 
           # Hook for V5_0+: lets the protocol flip the packer's UTC
           # datetime flag (0x49 / 0x69 vs legacy 0x46 / 0x66).

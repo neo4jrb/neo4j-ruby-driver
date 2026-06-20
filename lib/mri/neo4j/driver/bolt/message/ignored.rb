@@ -18,6 +18,8 @@ module Neo4j
             raise Exceptions::ClientException,
                   'Server IGNORED the request — a previous request in this batch failed'
           end
+
+          def terminal? = true
         end
       end
     end

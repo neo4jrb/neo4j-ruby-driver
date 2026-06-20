@@ -31,7 +31,7 @@ module Neo4j
         # DriverFactory wires in (default nil = system DNS). It's an explicit
         # dependency, not part of the user `options`, so factory-only
         # extension points never leak into the driver's public config.
-        def initialize(uri, auth, options = {}, domain_name_resolver: nil)
+        def initialize(uri, auth, options = {}, domain_name_resolver: nil, reactor: nil)
           @uri = URI(uri)
           # The driver's stored auth — the identity HELLO/LOGON
           # authenticated as on connect, and what Session restores via
@@ -41,14 +41,16 @@ module Neo4j
           @auth = auth
           @options = options
           @domain_name_resolver = domain_name_resolver
+          # The driver's IO engine. Owns the thread/reactor the reader and
+          # writer fibers run on. Defaulted so bare Connection.new in tests
+          # still works without a provider wiring one in.
+          @reactor = reactor || Reactor.new
           @socket = nil
           @packer = PackStream::Packer.new
-          @response_queue = []
           @server_version = nil
           @bolt_version = nil
           @protocol = nil
           @server_agent = nil
-          @closed = false
           @created_at = nil
           @idle_since = nil
           @discard_on_release = false
@@ -57,6 +59,28 @@ module Neo4j
           @security_classification = nil
           @session_scoped_auth = false
           @auth_epoch = 0
+
+          # --- Pipelined IO state (see docs/pipelined-connection.md) -------
+          # @write_queue : framed message bytes the writer fiber drains.
+          # @responses   : parsed responses the reader fiber delivers, popped
+          #                in request order by fetch_response. A dead socket
+          #                pushes the classified exception here (fan-out).
+          # Both are scheduler-aware Thread::Queues so a caller bridges in
+          # whether it's a plain thread (blocks) or a fiber (yields).
+          @write_queue = Thread::Queue.new
+          @responses = Thread::Queue.new
+          @reader_task = nil
+          @writer_task = nil
+          # @io_mutex guards the cross-thread fields below (caller thread vs.
+          # reactor thread): everything else is single-owner.
+          @io_mutex = Mutex.new
+          @closed = false
+          @torn_down = false   # #close ran (stopped fibers, closed socket)
+          @dead = nil          # the exception a dead socket fanned out
+          @recv_timeout = nil  # server's connection.recv_timeout_seconds hint
+          @read_deadline = nil # monotonic deadline bounding the synchronous handshake
+          @awaiting = 0        # messages sent whose terminal the reader hasn't read
+          @inflight = 0        # messages sent whose terminal the caller hasn't consumed
         end
 
         def connect
@@ -64,16 +88,32 @@ module Neo4j
           resolved_addresses.each do |host, port|
             begin
               open_socket(host, port)
+              # Handshake + HELLO/LOGON are raw, synchronous round-trips on the
+              # caller thread; the reader/writer fibers take over the socket only
+              # once the connection is authenticated. Doing HELLO/LOGON before
+              # start_io means the server's recv-timeout hint is in hand before
+              # the reader ever waits on a reply — no race over which timeout the
+              # first post-handshake read uses. (HELLO+LOGON are still pipelined:
+              # both are written before either reply is read, which is what the
+              # recv-timeout liveness stub requires.) The whole synchronous
+              # handshake is bounded by one acquisition deadline — a total
+              # deadline, not a per-read timeout, so a server dripping bytes or
+              # NOOP keepalives can't reset the clock and outlast it.
+              @read_deadline = acquisition_deadline
+              @socket.timeout = remaining_handshake_budget
               perform_handshake
               perform_hello
+              @read_deadline = nil
+              start_io
               @created_at = current_monotonic
               return self
             rescue Exceptions::AuthenticationException
               # Auth is the same regardless of which address we hit — fail fast.
+              teardown_io
               raise
             rescue Exceptions::ServiceUnavailableException, IOError, SystemCallError => e
               last_error = e
-              discard_socket
+              teardown_io
             end
           end
 
@@ -117,11 +157,11 @@ module Neo4j
 
           send_message(Message.reset)
           flush
-          fetch_response.assert_success! while !@response_queue.empty?
+          fetch_response.assert_success! while pending_responses?
           true
         rescue StandardError
-          discard_socket
-          @closed = true
+          teardown_io
+          mark_closed
           false
         end
 
@@ -131,20 +171,41 @@ module Neo4j
           Process.clock_gettime(Process::CLOCK_MONOTONIC)
         end
 
+        # Tear down the connection exactly once. Stops the reader/writer and
+        # closes the socket on the reactor thread that owns them (stopping a
+        # fiber and closing its fd from a foreign thread is unsafe). Runs even
+        # for an already-dead connection (closed? is true after a wire failure)
+        # so the pool's discard reaps the still-parked sibling fiber. A live
+        # connection first sends a best-effort GOODBYE; a dead one skips it.
         def close
-          return if @closed
+          return if @torn_down
 
-          begin
-            send_message(Message.goodbye) rescue nil
-            flush rescue nil
-          ensure
-            @socket&.close
-            @closed = true
+          @torn_down = true
+          mark_closed
+          goodbye = (framed_message(Message.goodbye) unless @io_mutex.synchronize { @dead }) rescue nil
+          reader = @reader_task
+          writer = @writer_task
+          socket = @socket
+
+          @reactor.run_and_wait do
+            writer&.stop
+            begin
+              if goodbye
+                socket.write(goodbye)
+                socket.flush
+              end
+            rescue StandardError
+              # peer already gone — nothing to gain from GOODBYE
+            end
+            reader&.stop
+            socket&.close
           end
+        rescue StandardError
+          @socket&.close rescue nil
         end
 
         def closed?
-          @closed || @socket&.closed?
+          @io_mutex.synchronize { @closed } || @socket&.closed?
         end
 
         # Current auth identity (set by HELLO/LOGON, updated by
@@ -262,31 +323,27 @@ module Neo4j
         # `connection.classify_failure(e)` unconditionally.
         def classify_failure(error) = notify_security_exception(error)
 
-        # Defer peer-closed errors from the write path for the same
-        # reason as #flush: a server FAILURE buffered before the peer
-        # closed should be readable via the subsequent fetch_response.
-        # The actually-broken case still surfaces — fetch_response will
-        # hit EOF and raise ServiceUnavailableException through
-        # with_wire_error_handling. We push :pending unconditionally so
-        # the caller's fetch_response always runs.
+        # Pack + frame the message on the caller thread (bounded CPU, kept off
+        # the reactor) and hand the bytes to the writer fiber. Returns
+        # immediately — the response is collected lazily by the reader and read
+        # back via fetch_response. This is what makes the wire pipelined: a
+        # caller can enqueue several messages (HELLO+LOGON, RUN+PULL) before it
+        # reads a single reply.
         def send_message(message)
-          raise IOError, 'Connection is closed' if closed?
+          # A dead/closed connection raises a classified Neo4jException, not a
+          # bare IOError — the cleanup and retry paths (Transaction#rollback,
+          # reset!, the managed-tx retry) all rescue Neo4jException, so a raw
+          # IOError here would escape them and surface as an unhandled backend
+          # error. Reuse the fan-out exception when there is one (it carries the
+          # real cause: a recv-timeout, a dropped socket).
+          dead = @io_mutex.synchronize { @dead }
+          raise dead if dead
+          raise Exceptions::ServiceUnavailableException, "Connection to #{@address || @uri} is closed" if closed?
 
-          begin
-            @packer.reset
-            @packer.pack_message(message)
-            data = @packer.bytes
-
-            # Write chunk header (size as 16-bit big-endian) + data
-            write_chunk(data)
-
-            # End marker (0x00 0x00)
-            @socket.write([0x00, 0x00].pack('S>'))
-          rescue Errno::EPIPE, Errno::ECONNRESET
-            # peer-closed — see method comment
-          end
-
-          @response_queue << :pending
+          bytes = framed_message(message)
+          @io_mutex.synchronize { @awaiting += 1 }
+          @inflight += 1
+          @write_queue.push(bytes)
         end
 
         def send_all(*messages)
@@ -316,13 +373,23 @@ module Neo4j
             send_message(@protocol.build_route(routing_context, Array(bookmarks), database, imp_user))
             flush
 
-            fetch_response.assert_success!.metadata[:rt]
+            # The acquisition timeout must encompass routing discovery, so a
+            # router that stalls the ROUTE reply can't outlast it.
+            fetch_response(deadline: acquisition_deadline).assert_success!.metadata[:rt]
           rescue Exceptions::Neo4jException
             # ROUTE failure leaves the server in FAILED state — RESET clears it
             # so the connection can be reused.
             reset!
             raise
           end
+        end
+
+        # Monotonic deadline from the connection-acquisition timeout, or nil
+        # when unconfigured. Bounds discovery reads (ROUTE) the same way the
+        # synchronous handshake is bounded.
+        def acquisition_deadline
+          acq = @options[:connection_acquisition_timeout]&.to_f
+          acq && current_monotonic + acq
         end
 
         # Pre-4.3 routing: there is no ROUTE message, so fetch the table
@@ -385,73 +452,58 @@ module Neo4j
           raise
         end
 
-        # Defer peer-closed errors from flush so a buffered server
-        # response (e.g. a final FAILURE) gets read before we raise.
-        # Under JRuby the peer-closed state surfaces eagerly on the
-        # very next write/flush; raising here would swallow the
-        # FAILURE bytes already in the receive buffer — the
-        # test_should_error_on_database_shutdown_using_tx_run stub
-        # regression. Every normal request/response cycle pairs flush
-        # with a fetch_response (Transaction#run/commit/rollback,
-        # Result streaming, Connection#route), so a peer-gone state
-        # with nothing buffered still surfaces as
-        # ServiceUnavailableException — just from the read side.
-        # Connection#close also calls flush but discards exceptions
-        # itself (`flush rescue nil`), so it does not need the pair.
-        # Non-peer-closed wire errors (e.g. a timed-out write on a
-        # socket that has SO_SNDTIMEO set, or EBADF on a
-        # closed-out-from-under-us fd) are NOT silenced — they fall
-        # through and propagate. We do not set SO_SNDTIMEO and the fd
-        # is owned by us, so these are improbable in practice.
-        def flush
-          @socket.flush
-        rescue Errno::EPIPE, Errno::ECONNRESET
-          # peer-closed — see method comment
+        # No-op: writes are flushed by the writer fiber as it drains the queue.
+        # Kept so the established `send_message(...); flush; fetch_response`
+        # call shape reads the same — the flush is now implicit and the call
+        # sites don't need to change. (A buffered server FAILURE is still
+        # observed because the reader drains the socket independently of the
+        # writer; fetch_response surfaces it in request order.)
+        def flush; end
+
+        # Pop the next response, in request order, blocking until the reader
+        # delivers it. The reader pushes a classified exception here when the
+        # socket dies, so a broken connection surfaces as a raise rather than a
+        # hang (failure fan-out). RECORDs are returned individually, terminating
+        # in the request's SUCCESS/FAILURE/IGNORED — same contract as before.
+        # `deadline` (monotonic) bounds the wait — used by routing discovery so
+        # the connection-acquisition timeout encompasses the ROUTE round-trip
+        # too. The reader can't be unparked once it's blocked in a kernel read,
+        # but the caller can give up: a timed pop returns nil, which we turn into
+        # a dead-connection failure (the slow connection is then discarded, its
+        # reader reaped by #close).
+        def fetch_response(deadline: nil)
+          # Once the socket has died the reader fans its error out as a single
+          # queued exception, then stops. Re-raise it for every later call too,
+          # so a drain loop (reset!/alive?) that keeps asking doesn't block on a
+          # queue nothing will ever fill again.
+          raise @dead if @io_mutex.synchronize { @dead } && @responses.empty?
+
+          item = deadline ? @responses.pop(timeout: [deadline - current_monotonic, 0.0].max) : @responses.pop
+          raise fail_acquisition_deadline if item.nil? # timed pop elapsed
+          raise item if item.is_a?(Exception)
+
+          @inflight -= 1 if item.terminal? && @inflight.positive?
+          item
         end
 
-        def fetch_response
-          with_wire_error_handling do
-            # Read all chunks until we hit the end marker (0x00 0x00)
-            message_data = String.new(encoding: Encoding::BINARY)
-
-            loop do
-              chunk_size = @socket.read(2)&.unpack1('S>')
-              # Clean EOF on a half-read header — surface as IOError
-              # so the wrapper turns it into a ServiceUnavailable
-              # rather than us silently returning a half-decoded
-              # response.
-              raise IOError, 'Unexpected end of stream while reading chunk header' if chunk_size.nil?
-              break if chunk_size.zero? # End marker
-
-              chunk_data = @socket.read(chunk_size)
-              # Same as above for the body: nil = peer closed, short
-              # bytes = partial read. Either way the message we built
-              # would be junk; raise so the wrapper classifies.
-              if chunk_data.nil? || chunk_data.bytesize < chunk_size
-                raise IOError, 'Unexpected end of stream while reading chunk body'
-              end
-              message_data << chunk_data
-            end
-
-            # Parse the complete message
-            io = StringIO.new(message_data)
-            unpacker = PackStream::Unpacker.new(io)
-
-            # Register hydration handlers
-            register_hydration_handlers(unpacker)
-
-            response = unpacker.unpack
-
-            @response_queue.shift unless @response_queue.empty?
-            response
+        # Mark the connection dead because an acquisition-phase read (ROUTE)
+        # outlasted its deadline, and return the exception to raise. The socket
+        # is left for #close to shut down on the reactor thread (closing a fd
+        # under the parked reader fiber from here would be cross-thread).
+        def fail_acquisition_deadline
+          error = Exceptions::ServiceUnavailableException.new(
+            "Timed out waiting for a response from #{@address || @uri} within the connection acquisition timeout"
+          )
+          @io_mutex.synchronize do
+            @dead ||= error
+            @closed = true
+            @dead
           end
         end
 
         def fetch_all
           results = []
-          while !@response_queue.empty?
-            results << fetch_response
-          end
+          results << fetch_response while pending_responses?
           results
         end
 
@@ -462,43 +514,195 @@ module Neo4j
         def reset!
           send_message(Message.reset)
           flush
-          fetch_response while !@response_queue.empty?
+          fetch_response while pending_responses?
         rescue StandardError
           # If RESET itself fails the connection is likely dead; caller will
           # discover this on next use. Swallow so recovery paths don't mask
           # the original error.
         end
 
+        # True while the caller still owes a fetch for something it sent: a
+        # message whose terminal it hasn't consumed (@inflight), or a response
+        # the reader has already buffered but the caller hasn't popped. The
+        # drain loops in reset!/alive? spin on this.
         def pending_responses?
-          !@response_queue.empty?
+          @inflight.positive? || !@responses.empty?
         end
 
         private
 
-        # Convert transport-level failures (broken socket, EOF on a
-        # partial read, etc.) into a ServiceUnavailableException so
-        # callers see a uniform Neo4jException — same shape as a clean
-        # disconnect during connect(). Server-side FAILUREs already
-        # raise specific Neo4jException subclasses and propagate
-        # untouched; non-IO bugs (ArgumentError from a malformed pack,
-        # etc.) also propagate untouched so they don't get misclassified
-        # as connection failures.
-        def with_wire_error_handling
-          yield
-        rescue Exceptions::Neo4jException
-          raise
-        rescue IOError, SystemCallError => e
-          raise Exceptions::ServiceUnavailableException,
-                "Connection to #{@address || @uri} broken: #{e.class}: #{e.message}"
+        # Start the per-connection reader and writer fibers on the reactor.
+        # They take over the socket from here; the caller thread only ever
+        # touches it again via teardown_io / close (which run on the reactor).
+        def start_io
+          @reader_task = @reactor.run { reader_loop }
+          @writer_task = @reactor.run { writer_loop }
         end
 
-        def discard_socket
+        # The writer fiber: drain framed message bytes and write them to the
+        # socket. One writer keeps wire order; a single reactor thread keeps it
+        # off the reader's toes (no concurrent SSL op).
+        def writer_loop
+          loop do
+            bytes = @write_queue.pop
+            @socket.write(bytes)
+            @socket.flush
+          rescue Errno::EPIPE, Errno::ECONNRESET
+            # Peer closed mid-write. Don't fail here — the reader drains any
+            # buffered server FAILURE first and then surfaces the real broken
+            # state on EOF, preserving the error the server actually sent.
+          rescue Async::Stop
+            break
+          rescue IOError, SystemCallError => e
+            fail_connection(wrap_wire_error(e))
+            break
+          end
+        end
+
+        # The reader fiber: drain responses for the connection's whole life
+        # (including while it sits idle in the pool) and deliver them in request
+        # order. A read that exceeds the server's recv-timeout while a reply is
+        # outstanding marks the connection broken; the same timeout while idle
+        # is just a quiet keepalive and is ignored.
+        def reader_loop
+          loop do
+            @socket.timeout = @io_mutex.synchronize { @recv_timeout }
+            deliver(read_one_response)
+          rescue IO::TimeoutError
+            next unless awaiting?
+
+            fail_connection(Exceptions::ConnectionReadTimeoutException::INSTANCE)
+            break
+          rescue Async::Stop
+            break
+          rescue IOError, SystemCallError => e
+            fail_connection(wrap_wire_error(e))
+            break
+          end
+        end
+
+        # Read one complete Bolt message (chunk-reassembled) and hydrate it.
+        # NOOPs — a bare 00 00 with no chunks — are inline keepalives the server
+        # sends to keep a slow response under the recv-timeout; they carry no
+        # message, so skip them and keep reading (each read still resets the
+        # per-read timeout). Hydration is the only CPU on the reactor — a
+        # bounded per-message parse, which the design explicitly allows; records
+        # are handed to the caller untouched.
+        def read_one_response
+          loop do
+            message_data = read_message_bytes
+            next if message_data.empty? # NOOP keepalive
+
+            unpacker = PackStream::Unpacker.new(StringIO.new(message_data))
+            register_hydration_handlers(unpacker)
+            return unpacker.unpack
+          end
+        end
+
+        def read_message_bytes
+          message_data = String.new(encoding: Encoding::BINARY)
+          loop do
+            # During the synchronous handshake, charge each read against the one
+            # acquisition deadline (no effect once @read_deadline is cleared and
+            # the reader fiber owns the socket timeout).
+            @socket.timeout = remaining_handshake_budget if @read_deadline
+            chunk_size = @socket.read(2)&.unpack1('S>')
+            raise EOFError, 'Unexpected end of stream while reading chunk header' if chunk_size.nil?
+            break if chunk_size.zero? # end marker
+
+            chunk = @socket.read(chunk_size)
+            raise EOFError, 'Unexpected end of stream while reading chunk body' if chunk.nil? || chunk.bytesize < chunk_size
+
+            message_data << chunk
+          end
+          message_data
+        end
+
+        # Hand a parsed response to the caller. A terminal (SUCCESS/FAILURE/
+        # IGNORED) completes one in-flight request, so it drops @awaiting; a
+        # RECORD does not. Pushed before the decrement so a drain loop never
+        # sees "nothing pending" with the terminal still in flight.
+        def deliver(response)
+          @responses.push(response)
+          @io_mutex.synchronize { @awaiting -= 1 if response.terminal? && @awaiting.positive? }
+        end
+
+        # A dead socket / read-timeout resolves every waiting caller: mark the
+        # connection dead and fan the classified exception out through the
+        # response queue so a blocked (or future) fetch_response raises instead
+        # of hanging. Runs in the reader/writer fiber (reactor thread), so it
+        # also hangs up the socket right here — the peer must see the
+        # disconnect promptly (e.g. the recv-timeout liveness contract asserts
+        # the driver hangs up a timed-out connection). The sibling fiber is
+        # reaped later by #close when the pool discards this connection.
+        def fail_connection(error)
+          @io_mutex.synchronize do
+            return if @dead
+
+            @dead = error
+            @closed = true
+          end
+          @responses.push(error)
           @socket&.close rescue nil
+        end
+
+        # Stop the reader/writer and close the socket on the reactor thread that
+        # owns them. Safe to call before start_io (no fibers yet) and idempotent.
+        def teardown_io
+          reader = @reader_task
+          writer = @writer_task
+          socket = @socket
+
+          if reader || writer
+            @reactor.run_and_wait do
+              reader&.stop
+              writer&.stop
+              socket&.close
+            end
+          else
+            socket&.close rescue nil
+          end
+        rescue StandardError
+          socket&.close rescue nil
+        ensure
           @socket = nil
-          # If perform_hello pushed a :pending entry before the failure, the
-          # next address attempt would otherwise carry it forward and later
-          # reset!/drain loops could block waiting for a phantom response.
-          @response_queue.clear
+          @reader_task = nil
+          @writer_task = nil
+        end
+
+        def awaiting? = @io_mutex.synchronize { @awaiting.positive? }
+
+        def mark_closed = @io_mutex.synchronize { @closed = true }
+
+        # Pack a message and wrap it in Bolt chunk framing (one or more
+        # size-prefixed chunks + the 0x00 0x00 end marker) as a single byte
+        # string for the writer.
+        def framed_message(message)
+          @packer.reset
+          @packer.pack_message(message)
+          data = @packer.bytes
+
+          buffer = String.new(encoding: Encoding::BINARY)
+          offset = 0
+          while offset < data.bytesize
+            chunk_size = [data.bytesize - offset, 65535].min
+            buffer << [chunk_size].pack('S>')
+            buffer << data.byteslice(offset, chunk_size)
+            offset += chunk_size
+          end
+          buffer << [0x00, 0x00].pack('S>')
+        end
+
+        # Convert a transport-level failure (broken socket, EOF on a partial
+        # read, etc.) into a ServiceUnavailableException so callers see a
+        # uniform Neo4jException — same shape as a clean disconnect during
+        # connect(). An already-classified Neo4jException passes through.
+        def wrap_wire_error(error)
+          return error if error.is_a?(Exceptions::Neo4jException)
+
+          Exceptions::ServiceUnavailableException.new(
+            "Connection to #{@address || @uri} broken: #{error.class}: #{error.message}"
+          )
         end
 
         # Resolve the URI's host:port into a list of [host, port] pairs to try
@@ -552,14 +756,19 @@ module Neo4j
         else
           @address = format_address(host, port)
           tcp_socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
-
-          if timeout
-            timeval = [timeout, 0].pack('l_2')
-            tcp_socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_RCVTIMEO, timeval)
-            tcp_socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_SNDTIMEO, timeval)
-          end
-
           @socket = wrap_with_tls(tcp_socket, bare_host, port)
+        end
+
+        # Remaining time the synchronous handshake may take before it breaches
+        # the acquisition deadline (nil = unbounded). Distinct from
+        # `connection_timeout`, which bounds only the TCP connect — a handshake
+        # slower than connection_timeout but within the acquisition budget still
+        # succeeds. Floored just above zero so a breached deadline still arms a
+        # real (immediately-firing) IO#timeout rather than nil (= no timeout).
+        def remaining_handshake_budget
+          return nil unless @read_deadline
+
+          [@read_deadline - current_monotonic, 0.001].max
         end
 
         # When the URI uses a +s/+ssc scheme (or :encryption is set
@@ -621,14 +830,34 @@ module Neo4j
             routing: @options[:routing_context]
           )
 
-          send_message(hello_msg)
-          flush
+          # Pipeline HELLO and (on 5.1+) LOGON: write both before reading
+          # either. A pipelined server replies only once it has the whole
+          # handshake (the recv-timeout liveness stub is C: HELLO / C: LOGON /
+          # S: SUCCESS / S: SUCCESS), so reading HELLO's reply before sending
+          # LOGON would deadlock. This runs synchronously on the caller thread,
+          # before start_io — the reader/writer fibers don't exist yet, so the
+          # socket is ours to drive directly. On 5.0/4.x build_logon_message is
+          # nil (auth went in the HELLO map) — a plain single HELLO round-trip.
+          logon_msg = @protocol.build_logon_message(auth_hash)
+          @socket.write(framed_message(hello_msg))
+          @socket.write(framed_message(logon_msg)) if logon_msg
+          @socket.flush
 
-          @server_agent = fetch_response.assert_success!.metadata[:server]
+          hello = read_one_response.assert_success!
+          @server_agent = hello.metadata[:server]
+          # The server may advertise connection.recv_timeout_seconds in HELLO's
+          # SUCCESS hints; from start_io on, the reader treats a read that
+          # exceeds it (while a reply is outstanding) as a broken connection.
+          apply_recv_timeout_hint(hello.metadata[:hints])
 
-          # On 5.1+ a LOGON follows HELLO (perform_post_hello sends it).
-          # On 5.0/4.x this is a no-op because auth went in the HELLO map.
-          @protocol.perform_post_hello(auth_hash)
+          read_one_response.assert_success! if logon_msg
+        end
+
+        def apply_recv_timeout_hint(hints)
+          seconds = hints && hints[:'connection.recv_timeout_seconds']
+          return unless seconds&.positive?
+
+          @io_mutex.synchronize { @recv_timeout = seconds }
         end
 
         # Both 0x66 (legacy local-seconds) and 0x69 (UTC-seconds, Bolt
@@ -649,18 +878,6 @@ module Neo4j
         rescue StandardError
           instant
         end
-
-        def write_chunk(data)
-          # Split data into chunks if necessary (max chunk size 65535)
-          offset = 0
-          while offset < data.bytesize
-            chunk_size = [data.bytesize - offset, 65535].min
-            @socket.write([chunk_size].pack('S>'))
-            @socket.write(data.byteslice(offset, chunk_size))
-            offset += chunk_size
-          end
-        end
-
 
         def register_hydration_handlers(unpacker)
           # Bolt response messages — top-level structures returned from the server.

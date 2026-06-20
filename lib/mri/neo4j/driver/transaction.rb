@@ -15,6 +15,7 @@ module Neo4j
         @committed = false
         @rolled_back = false
         @failed = false
+        @terminated = false  # failed via a connection-level error (not a clean rollback)
         @current_result = nil
 
         # Begin the transaction
@@ -57,6 +58,12 @@ module Neo4j
 
       def run(query, **parameters)
         Internal::Validator.require_query_text!(query)
+        # A tx killed by a connection-level failure (a recv-timeout, a dropped
+        # socket) is *terminated*, not cleanly rolled back — subsequent use must
+        # surface that distinctly (matches Java's TransactionTerminatedException,
+        # and testkit asserts on it). A plain server FAILURE still rolls back.
+        raise Exceptions::TransactionTerminatedException,
+              'Transaction has been terminated and can no longer be used' if @terminated
         raise Exceptions::ClientException, 'Cannot run more queries in this transaction, it has been rolled back' if @failed
         unless @open
           # Mirror the Java/JRuby messages so the closed-state reason
@@ -87,6 +94,12 @@ module Neo4j
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
             @failed = true
+            # A connection-level failure (ServiceUnavailable / recv-timeout)
+            # terminates the tx; a server FAILURE only fails it. Test the
+            # original error, not the classified one — routing reclassifies a
+            # connection failure to SessionExpired, but the raw error is still
+            # the ServiceUnavailable we key on.
+            @terminated = true if e.is_a?(Exceptions::ServiceUnavailableException)
             raise @connection.classify_failure(e)
           end
 
