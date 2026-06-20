@@ -7,11 +7,13 @@ on:
 
 jobs:
   rspec:
-    name: rspec (ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }} / neo4j ${{ matrix.neo4j }})
+    name: rspec (ruby ${{ matrix.ruby }} / neo4j ${{ matrix.neo4j }})
     runs-on: ubuntu-latest
-    # JRuby rows are continue-on-error for now: native JRuby flavor has
-    # no code yet (lib/jruby/ empty), and the MRI-on-JRuby include row
-    # below is exercised here for the first time.
+    # The native JRuby row is continue-on-error: it runs lib/jruby/ (the
+    # Java-driver wrapper). The MRI codebase (lib/mri/) is CRuby-only since
+    # the pipeline-first refactor — its `async` reactor is unsupported on
+    # JRuby — so there is no mri-on-jruby row; MRI is covered by the CRuby
+    # rows below.
     continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
 
     strategy:
@@ -25,16 +27,6 @@ jobs:
           - "4.4.48"
           - "5.26.25"
           - "2026.04.0"
-        # Default value so the `include` below adds a new row rather
-        # than merging into existing combinations (GH Actions semantics).
-        force_mri: [false]
-        include:
-          # MRI flavor on JRuby — exercises the cross-flavor path via
-          # NEO4J_DRIVER_FORCE_MRI=1 (the Gemfile's `gemspec name:` flip).
-          # Single Neo4j version to keep CI minutes reasonable.
-          - ruby: "jruby-10.1.0.0"
-            neo4j: "2026.04.0"
-            force_mri: true
 
     services:
       neo4j:
@@ -56,9 +48,6 @@ jobs:
       TEST_NEO4J_URL: bolt://localhost:7687
       TEST_NEO4J_USER: neo4j
       TEST_NEO4J_PASS: password
-      # Empty string when force_mri is false; '1' on the include row.
-      # The Gemfile checks this and pins to the MRI gemspec when set.
-      NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
       # Serialise gem installs. setup-ruby's `bundler-cache: true` runs
       # `bundle install --jobs 4` by default; on JRuby the parallel
       # workers race on the jar-dependencies post_install hook for the

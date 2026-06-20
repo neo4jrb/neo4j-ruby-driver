@@ -204,6 +204,20 @@ reset-on-release timed out the suite.
   a refactor slice scoped to "fix existing / already-advertised features, zero
   regressions". Left `ja` (MRI off); flip to `jar` in the slice that wraps up the
   recv-timeout/liveness cluster. (See [[no-new-feature-advertising]].)
+- **The MRI flavor is now CRuby-only; mri-on-jruby CI dropped.** The `async`
+  gem is unsupported on JRuby (no native `IO_Event` selector; `IO#timeout` and
+  the fiber scheduler don't fire — verified on JRuby 10.1: timed reads never
+  raise and the reactor hangs; async's own CI never tests JRuby). The MRI Bolt
+  code (`lib/mri/`) runs its IO on that reactor, so it can't run under JRuby.
+  Decision (with the user, 2026-06-19): drop the `mri-on-jruby`
+  (`NEO4J_DRIVER_FORCE_MRI=1`) matrix rows from all CI workflows and cover the
+  MRI flavor on native CRuby (the `mri` / `ruby:4.0-slim` rows already do). This
+  is acceptable because production JRuby never uses `lib/mri/` — it uses
+  `lib/jruby/`, a wrapper over the Java driver, which is unaffected. The
+  alternatives (a thread-based IO backend for JRuby, or threads-everywhere
+  dropping `async`) were weighed and declined: re-implementing what the Java
+  driver already does, for a flavor only used as a test convenience, isn't worth
+  it. See JRUBY.md and docs/pipelined-connection.md ("CRuby-only").
 - Delivered: HELLO+LOGON deadlock gone; full stub suite zero regressions vs
   baseline, +6 fixes on already-advertised features. Still open (later slices):
   the `test_timeout*` liveness/router-reset tests (slice 3) and the pre-existing

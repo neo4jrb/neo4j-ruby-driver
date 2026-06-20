@@ -41,9 +41,9 @@ jobs:
           - flavor: jruby
             base_image: jruby:10.1.0.0-jdk21
             force_mri: ''
-          - flavor: mri-on-jruby
-            base_image: jruby:10.1.0.0-jdk21
-            force_mri: '1'
+          # mri-on-jruby dropped: lib/mri/ is CRuby-only since the
+          # pipeline-first refactor (Async reactor; `async` is unsupported
+          # on JRuby). Covered by the `mri` row; see testkit-stub.yml.
 
     env:
       TEST_DRIVER_NAME: ruby

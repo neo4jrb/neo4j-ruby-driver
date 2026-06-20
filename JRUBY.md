@@ -160,9 +160,20 @@ Bundler picks the platform-compatible gemspec — ruby on MRI, java on
 JRuby. The loader reads `spec.metadata['impl']` from whichever gemspec
 was selected, so it stays in sync automatically.
 
-To force the MRI flavor on JRuby (e.g. to opt out of the Java-driver
-delegation, or to develop the MRI codebase under JRuby), use Bundler's
-per-gem `force_ruby_platform: true`:
+> **The MRI flavor no longer runs on JRuby.** Since the pipeline-first
+> refactor (2026-06; see `docs/pipelined-connection.md`), `lib/mri/` runs
+> its connection IO on an `Async` reactor, and the `async` gem is not
+> supported on JRuby — there is no native `IO_Event` selector, `IO#timeout`
+> and the fiber scheduler don't fire, and the reactor hangs (async's own CI
+> never tests JRuby). The `NEO4J_DRIVER_FORCE_MRI=1` path below still flips
+> the Gemfile to the MRI gemspec, but the resulting code will hang/fail at
+> runtime on JRuby. It is no longer exercised in CI. Production JRuby is
+> unaffected: it uses `lib/jruby/` (the Java-driver wrapper), which has no
+> `async` dependency. Develop/test the MRI codebase on **native CRuby**.
+
+To force the MRI flavor on JRuby (kept for the gemspec-selection mechanics
+only — see the warning above; the MRI code will not run correctly here),
+use Bundler's per-gem `force_ruby_platform: true`:
 
 ```ruby
 gem 'neo4j-ruby-driver', force_ruby_platform: true
@@ -195,9 +206,10 @@ else
 end
 ```
 
-`NEO4J_DRIVER_FORCE_MRI=1 bundle install` on a JRuby host then runs
-the MRI flavor. CI exercises this via an extra matrix row in
-`.github/workflows/{specs,testkit,testkit-stub}.yml`.
+`NEO4J_DRIVER_FORCE_MRI=1 bundle install` on a JRuby host selects the MRI
+gemspec, but (see the warning above) the MRI code does not run on JRuby
+since the async-reactor refactor. The former mri-on-jruby CI matrix rows
+were removed; the MRI flavor is covered on native CRuby instead.
 
 ### What the user sees after install
 
@@ -560,10 +572,11 @@ each).
 
 JRuby rows are `continue-on-error` until `lib/jruby/` has code.
 
-The MRI-on-JRuby flavor is not exercised in CI — see "Selecting a
-flavor from source" above for the override mechanism. It can be
-added later as a sed-based row that pins gemspec discovery to
-`neo4j-ruby-driver.gemspec`.
+The MRI-on-JRuby flavor is not exercised in CI and cannot be: `lib/mri/`
+is CRuby-only since the async-reactor refactor (the `async` gem is
+unsupported on JRuby — see the warning under "Selecting a flavor from
+source" above). The MRI flavor is covered on native CRuby; production
+JRuby uses `lib/jruby/` (the Java driver).
 
 ## Open questions / deferred
 

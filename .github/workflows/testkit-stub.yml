@@ -25,13 +25,14 @@ jobs:
           - flavor: jruby
             base_image: jruby:10.1.0.0-jdk21
             force_mri: ''
-          # MRI-on-JRuby forward-compat: jruby image as the runtime but
-          # NEO4J_DRIVER_FORCE_MRI=1 flips the Gemfile to the MRI gemspec
-          # so we exercise lib/mri/ under JRuby. Uses the mri baseline
-          # because it runs MRI code.
-          - flavor: mri-on-jruby
-            base_image: jruby:10.1.0.0-jdk21
-            force_mri: '1'
+          # NOTE: the mri-on-jruby row was dropped — the pure-Ruby Bolt
+          # impl (lib/mri/) is CRuby-only since the pipeline-first
+          # refactor: it runs connection IO on an Async reactor, and the
+          # `async` gem is not supported on JRuby (no native IO_Event
+          # selector, IO#timeout/scheduler don't fire — async's own CI
+          # never tests JRuby). The MRI code is covered by the `mri`
+          # (native CRuby) row above; production JRuby uses lib/jruby/
+          # (the Java driver), which is unaffected.
 
     env:
       # testkit.main.py contract: TEST_DRIVER_REPO points at the driver
@@ -58,8 +59,9 @@ jobs:
       # expected (we have a per-test baseline gate); we want the full
       # run regardless.
       TEST_RUN_ALL_TESTS: 'true'
-      # mri-on-jruby uses the MRI baseline because it runs MRI code
-      # (just under the JRuby runtime); the other two map directly.
+      # Each flavor maps to its own baseline. (The force_mri branch is a
+      # leftover from the now-dropped mri-on-jruby row; force_mri is always
+      # '' so this resolves to the flavor name.)
       BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
 
     steps:

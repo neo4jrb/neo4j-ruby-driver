@@ -110,6 +110,18 @@ several independent reactors on different threads must use the owned reactor;
 don't first-use such a driver from inside an ephemeral `Async {}` on a worker
 thread. (Scaling is still "more processes", each with its own driver+reactor.)
 
+### CRuby-only (JRuby uses the Java driver)
+
+This engine is **CRuby-only**. The `async` gem is not supported on JRuby —
+there is no native `IO_Event` selector, `IO#timeout` and the fiber scheduler
+don't fire (verified on JRuby 10.1: a timed read never raises and even
+`Reactor#run_and_wait` hangs), and async's own CI never tests JRuby. That's
+fine: production JRuby never uses `lib/mri/` — it runs `lib/jruby/`, a thin
+wrapper over the official Java driver (Netty), which already does pipelined,
+async, pooled IO. The only thing this removes is the *mri-on-jruby* test flavor
+(`NEO4J_DRIVER_FORCE_MRI=1` on a JRuby runtime); those CI matrix rows were
+dropped (2026-06-19) and the MRI flavor is exercised on native CRuby instead.
+
 ### Why driver-owned (not per-caller) reactor
 
 - **Fibers can't cross threads** (`FiberError: fiber called across threads`,
