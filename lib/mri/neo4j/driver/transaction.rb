@@ -94,12 +94,7 @@ module Neo4j
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
             @failed = true
-            # A connection-level failure (ServiceUnavailable / recv-timeout)
-            # terminates the tx; a server FAILURE only fails it. Test the
-            # original error, not the classified one — routing reclassifies a
-            # connection failure to SessionExpired, but the raw error is still
-            # the ServiceUnavailable we key on.
-            @terminated = true if e.is_a?(Exceptions::ServiceUnavailableException)
+            mark_terminated_if_connection_error(e)
             raise @connection.classify_failure(e)
           end
 
@@ -205,6 +200,16 @@ module Neo4j
 
       private
 
+      # A connection-level failure (ServiceUnavailable / recv-timeout — keyed
+      # on the *raw* error, before routing reclassifies it to SessionExpired)
+      # terminates the tx; a plain server FAILURE only fails it. The flag
+      # decides whether a later run/commit raises TransactionTerminatedException
+      # or the rolled-back ClientException. Applied on every path that can hit a
+      # connection error (the RUN/PULL block and result draining).
+      def mark_terminated_if_connection_error(error)
+        @terminated = true if error.is_a?(Exceptions::ServiceUnavailableException)
+      end
+
       # See Session#effective_fetch_size. Transactions inherit the session
       # options at open, so the same default rules apply.
       def effective_fetch_size
@@ -230,7 +235,10 @@ module Neo4j
           # from fetch_response, not via Result#on_failure — so it never
           # saw the routing classifier. Run it through here so a routed
           # connection failure surfaces as SessionExpired (idempotent if
-          # already classified).
+          # already classified). A connection-level failure here also
+          # terminates the tx (so a later run/commit raises
+          # TransactionTerminatedException, not the rolled-back ClientException).
+          mark_terminated_if_connection_error(e)
           raise @connection.classify_failure(e)
         end
 

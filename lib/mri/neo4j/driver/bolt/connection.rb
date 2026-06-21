@@ -178,9 +178,13 @@ module Neo4j
         # so the pool's discard reaps the still-parked sibling fiber. A live
         # connection first sends a best-effort GOODBYE; a dead one skips it.
         def close
-          return if @torn_down
+          # Claim teardown atomically so two concurrent closers (pool discard
+          # racing driver shutdown) can't both run GOODBYE/teardown.
+          @io_mutex.synchronize do
+            return if @torn_down
 
-          @torn_down = true
+            @torn_down = true
+          end
           mark_closed
           goodbye = (framed_message(Message.goodbye) unless @io_mutex.synchronize { @dead }) rescue nil
           reader = @reader_task
@@ -571,7 +575,9 @@ module Neo4j
           rescue IO::TimeoutError
             next unless awaiting?
 
-            fail_connection(Exceptions::ConnectionReadTimeoutException::INSTANCE)
+            # Fresh instance per failure — not the shared INSTANCE — so the
+            # backtrace is this connection's and concurrent timeouts don't race.
+            fail_connection(Exceptions::ConnectionReadTimeoutException.new)
             break
           rescue Async::Stop
             break
