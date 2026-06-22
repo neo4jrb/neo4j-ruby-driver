@@ -23,6 +23,10 @@ module Neo4j
           def assert_success!
             self
           end
+
+          # A SUCCESS completes the request it answers — the connection uses
+          # this to tell summary responses apart from streamed RECORDs.
+          def terminal? = true
         end
       end
     end

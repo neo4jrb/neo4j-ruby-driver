@@ -14,11 +14,7 @@ module Neo4j
             { user_agent:, routing: }
           end
 
-          def perform_post_hello(auth)
-            connection.send_message(Message.logon(auth))
-            connection.flush
-            connection.fetch_response.assert_success!
-          end
+          def build_logon_message(auth) = Message.logon(auth)
 
           def supports_re_auth? = true
         end

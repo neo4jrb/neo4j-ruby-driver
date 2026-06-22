@@ -6,6 +6,9 @@ module Neo4j
       # Handles a single Bolt protocol connection over TCP
       class Connection
         DEFAULT_PORT = 7687
+        # Per-read upper bound; the wire reassembles across reads, so this is
+        # just how much we ask the socket for at once.
+        READ_CHUNK = 65_536
 
         attr_reader :server_version, :server_agent, :protocol, :address
         # idle_since: stamp the pool sets when it pushes a connection
@@ -42,8 +45,19 @@ module Neo4j
           @options = options
           @domain_name_resolver = domain_name_resolver
           @socket = nil
-          @packer = PackStream::Packer.new
-          @response_queue = []
+          # The sans-I/O core: framing + hydration, no socket. Built once the
+          # handshake has negotiated a protocol (perform_handshake). This
+          # Connection is the on-demand pump over it — it owns the socket and
+          # moves bytes between it and the wire on the caller's thread.
+          @wire = nil
+          @inbox = []         # messages parsed by the wire, awaiting fetch_response
+          @pending = 0        # requests sent whose terminal hasn't been consumed
+          @recv_timeout = nil # server's connection.recv_timeout_seconds hint
+          @read_deadline = nil # monotonic bound for acquisition-phase reads
+          # Writes go behind a mutex: the consumer thread normally drives I/O,
+          # but a prefetch pump (later) reads while the consumer may still write
+          # (a new query, DISCARD). One guarded writer, never two readers.
+          @write_mutex = Mutex.new
           @server_version = nil
           @bolt_version = nil
           @protocol = nil
@@ -64,12 +78,21 @@ module Neo4j
           resolved_addresses.each do |host, port|
             begin
               open_socket(host, port)
+              # Bound the whole connection acquisition (negotiation + HELLO/
+              # LOGON) by the acquisition timeout — a server stalling the
+              # handshake can't outlast it. A monotonic *total* deadline (not a
+              # per-read timeout) so interleaved NOOP keepalives can't reset the
+              # clock. Cleared once the connection is ready and steady-state
+              # reads use the recv-timeout hint instead.
+              @read_deadline = acquisition_deadline
               perform_handshake
               perform_hello
+              @read_deadline = nil
               @created_at = current_monotonic
               return self
             rescue Exceptions::AuthenticationException
               # Auth is the same regardless of which address we hit — fail fast.
+              discard_socket
               raise
             rescue Exceptions::ServiceUnavailableException, IOError, SystemCallError => e
               last_error = e
@@ -117,7 +140,7 @@ module Neo4j
 
           send_message(Message.reset)
           flush
-          fetch_response.assert_success! while !@response_queue.empty?
+          fetch_response.assert_success! while pending_responses?
           true
         rescue StandardError
           discard_socket
@@ -262,31 +285,20 @@ module Neo4j
         # `connection.classify_failure(e)` unconditionally.
         def classify_failure(error) = notify_security_exception(error)
 
-        # Defer peer-closed errors from the write path for the same
-        # reason as #flush: a server FAILURE buffered before the peer
-        # closed should be readable via the subsequent fetch_response.
-        # The actually-broken case still surfaces — fetch_response will
-        # hit EOF and raise ServiceUnavailableException through
-        # with_wire_error_handling. We push :pending unconditionally so
-        # the caller's fetch_response always runs.
+        # Frame the message into the wire's outbound buffer and count it as
+        # in-flight. Nothing hits the socket until #flush — so several
+        # send_messages before a flush pipeline naturally (HELLO+LOGON,
+        # RUN+PULL), which is the whole point.
+        #
+        # A dead/closed connection raises a classified Neo4jException, not a raw
+        # IOError: the cleanup and retry paths (Transaction#rollback, reset!,
+        # the managed-tx retry) rescue Neo4jException, so a bare IOError would
+        # escape them and surface as an unhandled error.
         def send_message(message)
-          raise IOError, 'Connection is closed' if closed?
+          raise Exceptions::ServiceUnavailableException, "Connection to #{@address || @uri} is closed" if closed?
 
-          begin
-            @packer.reset
-            @packer.pack_message(message)
-            data = @packer.bytes
-
-            # Write chunk header (size as 16-bit big-endian) + data
-            write_chunk(data)
-
-            # End marker (0x00 0x00)
-            @socket.write([0x00, 0x00].pack('S>'))
-          rescue Errno::EPIPE, Errno::ECONNRESET
-            # peer-closed — see method comment
-          end
-
-          @response_queue << :pending
+          @wire.enqueue(message)
+          @pending += 1
         end
 
         def send_all(*messages)
@@ -312,7 +324,9 @@ module Neo4j
           begin
             # ROUTE's 3rd field changed at 4.4: 4.3 sends the bare database
             # name (string/null), 4.4+ a `{db, imp_user}` map. The protocol
-            # handler owns that shape.
+            # handler owns that shape. The acquisition timeout must encompass
+            # discovery, so bound the ROUTE read by the deadline (cleared after).
+            @read_deadline = acquisition_deadline
             send_message(@protocol.build_route(routing_context, Array(bookmarks), database, imp_user))
             flush
 
@@ -322,6 +336,8 @@ module Neo4j
             # so the connection can be reused.
             reset!
             raise
+          ensure
+            @read_deadline = nil
           end
         end
 
@@ -403,102 +419,157 @@ module Neo4j
         # closed-out-from-under-us fd) are NOT silenced — they fall
         # through and propagate. We do not set SO_SNDTIMEO and the fd
         # is owned by us, so these are improbable in practice.
+        # Drain the wire's outbound buffer to the socket. Writes are mutex-
+        # guarded so a future prefetch reader and the consumer's writes never
+        # interleave on one socket. Peer-closed errors are deferred (not raised)
+        # so a server FAILURE buffered before the close is still read by the
+        # paired fetch_response — every request/response cycle pairs flush with
+        # a fetch (Transaction#run/commit/rollback, Result streaming, #route),
+        # so a genuinely-gone peer still surfaces as ServiceUnavailable from the
+        # read side. #close flushes with `rescue nil`, so it needs no pair.
         def flush
-          @socket.flush
+          bytes = @wire.take_outbound
+          return if bytes.empty?
+
+          @write_mutex.synchronize do
+            @socket.write(bytes)
+            @socket.flush
+          end
         rescue Errno::EPIPE, Errno::ECONNRESET
           # peer-closed — see method comment
         end
 
+        # Return the next response in request order. The wire may decode several
+        # messages from one socket read (RECORD RECORD SUCCESS in one segment),
+        # so they're buffered in @inbox and handed out one at a time — same
+        # contract as before (RECORDs individually, terminating in the
+        # SUCCESS/FAILURE/IGNORED). Reads happen here, on demand: this is the
+        # default pump, on the consumer's thread, no background context.
         def fetch_response
-          with_wire_error_handling do
-            # Read all chunks until we hit the end marker (0x00 0x00)
-            message_data = String.new(encoding: Encoding::BINARY)
-
-            loop do
-              chunk_size = @socket.read(2)&.unpack1('S>')
-              # Clean EOF on a half-read header — surface as IOError
-              # so the wrapper turns it into a ServiceUnavailable
-              # rather than us silently returning a half-decoded
-              # response.
-              raise IOError, 'Unexpected end of stream while reading chunk header' if chunk_size.nil?
-              break if chunk_size.zero? # End marker
-
-              chunk_data = @socket.read(chunk_size)
-              # Same as above for the body: nil = peer closed, short
-              # bytes = partial read. Either way the message we built
-              # would be junk; raise so the wrapper classifies.
-              if chunk_data.nil? || chunk_data.bytesize < chunk_size
-                raise IOError, 'Unexpected end of stream while reading chunk body'
-              end
-              message_data << chunk_data
-            end
-
-            # Parse the complete message
-            io = StringIO.new(message_data)
-            unpacker = PackStream::Unpacker.new(io)
-
-            # Register hydration handlers
-            register_hydration_handlers(unpacker)
-
-            response = unpacker.unpack
-
-            @response_queue.shift unless @response_queue.empty?
-            response
-          end
+          fill_inbox while @inbox.empty?
+          response = @inbox.shift
+          @pending -= 1 if response.terminal? && @pending.positive?
+          response
         end
 
         def fetch_all
           results = []
-          while !@response_queue.empty?
-            results << fetch_response
-          end
+          results << fetch_response while pending_responses?
           results
         end
 
         # Recover from a FAILED server state. Sends RESET and drains all
-        # pending responses (including any IGNOREDs from messages that were
-        # queued before the failure). Returns when the server has acknowledged
-        # the RESET with SUCCESS and the response queue is empty.
+        # pending responses (including any IGNOREDs from messages queued before
+        # the failure). Returns when the server has acknowledged the RESET with
+        # SUCCESS and nothing is left to read.
         def reset!
           send_message(Message.reset)
           flush
-          fetch_response while !@response_queue.empty?
+          fetch_response while pending_responses?
         rescue StandardError
           # If RESET itself fails the connection is likely dead; caller will
           # discover this on next use. Swallow so recovery paths don't mask
           # the original error.
         end
 
+        # True while the caller still owes a fetch: a request whose terminal it
+        # hasn't consumed (@pending), or a message the wire already decoded but
+        # the caller hasn't popped (@inbox). The drain loops spin on this.
         def pending_responses?
-          !@response_queue.empty?
+          @pending.positive? || !@inbox.empty?
         end
 
         private
 
-        # Convert transport-level failures (broken socket, EOF on a
-        # partial read, etc.) into a ServiceUnavailableException so
-        # callers see a uniform Neo4jException — same shape as a clean
-        # disconnect during connect(). Server-side FAILUREs already
-        # raise specific Neo4jException subclasses and propagate
-        # untouched; non-IO bugs (ArgumentError from a malformed pack,
-        # etc.) also propagate untouched so they don't get misclassified
-        # as connection failures.
-        def with_wire_error_handling
-          yield
-        rescue Exceptions::Neo4jException
-          raise
-        rescue IOError, SystemCallError => e
-          raise Exceptions::ServiceUnavailableException,
-                "Connection to #{@address || @uri} broken: #{e.class}: #{e.message}"
-        end
-
         def discard_socket
           @socket&.close rescue nil
           @socket = nil
-          # If perform_hello pushed a :pending entry before the failure, the
-          # next address attempt would otherwise carry it forward and later
-          # reset!/drain loops could block waiting for a phantom response.
-          @response_queue.clear
+          # Reset all per-attempt I/O state so a retry on the next address (or a
+          # later reset!/drain loop) doesn't carry a phantom pending response or
+          # half-parsed message forward. @wire is rebuilt by perform_handshake.
+          @wire = nil
+          @inbox.clear
+          @pending = 0
+        end
+
+        # On-demand read: pull bytes off the socket and feed the wire until it
+        # yields at least one message into @inbox. This is the default pump,
+        # running on the consumer's thread — a read happens only when a caller
+        # is actually awaiting (fetch_response found @inbox empty), so a
+        # recv-timeout here is unambiguously a stalled reply. NOOP keepalives
+        # decode to nothing, so we simply read again (resetting the per-read
+        # timeout, which is exactly the keepalive's intent).
+        def fill_inbox
+          loop do
+            # Non-blocking read + explicit wait so the timeout is honored
+            # (readpartial/read ignore IO#timeout for partial reads) and so the
+            # wait yields under a Fiber scheduler (wait_readable hooks io_wait)
+            # — the on-demand pump is colorless. read_nonblock(exception: false)
+            # returns the bytes, :wait_readable/:wait_writable when it would
+            # block, or nil on EOF.
+            case (chunk = @socket.read_nonblock(READ_CHUNK, exception: false))
+            when :wait_readable
+              @socket.wait_readable(current_read_timeout) or fail_broken(read_timeout_error)
+            when :wait_writable # SSL renegotiation mid-read
+              @socket.wait_writable(current_read_timeout) or fail_broken(read_timeout_error)
+            when nil
+              raise EOFError, 'end of file reached'
+            else
+              messages = @wire.receive(chunk)
+              next if messages.empty? # only partial data / NOOPs so far
+
+              @inbox.concat(messages)
+              return
+            end
+          end
+        rescue IOError, SystemCallError => e
+          fail_broken(Exceptions::ServiceUnavailableException.new(
+                        "Connection to #{@address || @uri} broken: #{e.class}: #{e.message}"))
+        end
+
+        # A read timeout or wire error means this connection is unusable: hang
+        # up (so the peer sees the disconnect — the recv-timeout contract
+        # asserts the driver hangs up a timed-out connection) and mark it closed
+        # so the pool discards it on the next acquire rather than reusing a
+        # broken connection. Then raise the classified error.
+        def fail_broken(error)
+          @socket&.close rescue nil
+          @closed = true
+          raise error
+        end
+
+        # The timeout the next read may take. During acquisition (handshake,
+        # ROUTE) it's the remaining budget of the total deadline; in steady
+        # state it's the server's recv-timeout hint (nil = block indefinitely).
+        def current_read_timeout
+          return [@read_deadline - current_monotonic, 0.001].max if @read_deadline
+
+          @recv_timeout
+        end
+
+        # A read timeout means different things in different phases: during
+        # acquisition the connection-acquisition budget was exceeded (a generic
+        # ServiceUnavailable); in steady state the server breached its own
+        # recv-timeout hint (the specific ConnectionReadTimeoutException, which
+        # routing turns into server eviction). Fresh instance per failure.
+        def read_timeout_error
+          if @read_deadline
+            Exceptions::ServiceUnavailableException.new(
+              "Timed out acquiring a connection to #{@address || @uri} within the acquisition timeout"
+            )
+          else
+            Exceptions::ConnectionReadTimeoutException.new(
+              'Connection read timed out due to it taking longer than the server-supplied timeout value via configuration hint.'
+            )
+          end
+        end
+
+        # Monotonic deadline from the connection-acquisition timeout (nil when
+        # unconfigured). Bounds the handshake and ROUTE reads so a stalled
+        # server can't outlast the acquisition budget.
+        def acquisition_deadline
+          acq = @options[:connection_acquisition_timeout]&.to_f
+          acq && current_monotonic + acq
         end
 
         # Resolve the URI's host:port into a list of [host, port] pairs to try
@@ -590,11 +661,17 @@ module Neo4j
         end
 
         def perform_handshake
+          # Bound the (raw, pre-wire) version negotiation by the acquisition
+          # deadline too, so a server that stalls the magic-byte exchange can't
+          # outlast it (a timeout raises IO::TimeoutError → connect wraps it).
+          @socket.timeout = current_read_timeout
           agreed_version = Handshake.new(@socket).negotiate
           @server_version = agreed_version
           @bolt_version = BoltVersion.from_int(agreed_version)
           @protocol = ProtocolVersionHandler.for_version(self, agreed_version)
-          @protocol.configure_packer(@packer)
+          # Stand up the sans-I/O core now that a protocol is negotiated: it
+          # configures the packer (UTC datetime flag) and owns hydration.
+          @wire = Wire.new(@protocol)
 
           puts "Negotiated Bolt version: #{@bolt_version} (0x#{agreed_version.to_s(16)})" if ENV['DEBUG']
         end
@@ -621,192 +698,32 @@ module Neo4j
             routing: @options[:routing_context]
           )
 
+          # Pipeline HELLO and (on 5.1+) LOGON: enqueue both, flush once, then
+          # read both replies. A pipelined server answers only once it has the
+          # whole handshake (the recv-timeout liveness stub is C: HELLO / C:
+          # LOGON / S: SUCCESS / S: SUCCESS), so reading HELLO's reply before
+          # sending LOGON would deadlock. On 5.0/4.x build_logon_message is nil
+          # — auth went in the HELLO map — and this is a single round-trip.
+          logon_msg = @protocol.build_logon_message(auth_hash)
           send_message(hello_msg)
+          send_message(logon_msg) if logon_msg
           flush
 
-          @server_agent = fetch_response.assert_success!.metadata[:server]
+          hello = fetch_response.assert_success!
+          @server_agent = hello.metadata[:server]
+          # The server may advertise connection.recv_timeout_seconds in HELLO's
+          # SUCCESS hints; from now a steady-state read that exceeds it is a
+          # broken connection (ConnectionReadTimeoutException).
+          apply_recv_timeout_hint(hello.metadata[:hints])
 
-          # On 5.1+ a LOGON follows HELLO (perform_post_hello sends it).
-          # On 5.0/4.x this is a no-op because auth went in the HELLO map.
-          @protocol.perform_post_hello(auth_hash)
+          fetch_response.assert_success! if logon_msg
         end
 
-        # Both 0x66 (legacy local-seconds) and 0x69 (UTC-seconds, Bolt
-        # 5.0+) end up resolving a named tz at a specific instant — the
-        # only difference is whether the caller already knows the UTC
-        # instant. Keep the zone-DB lookup + offset arithmetic in one
-        # place.
-        def hydrate_named_zone(instant, zone_name, local_seconds:)
-          if defined?(ActiveSupport::TimeZone)
-            tz = ActiveSupport::TimeZone[zone_name]
-            utc_instant = local_seconds ? tz.tzinfo.local_to_utc(instant) : instant
-            tz.at(utc_instant)
-          else
-            tz = TZInfo::Timezone.get(zone_name)
-            utc_instant = local_seconds ? tz.local_to_utc(instant) : instant
-            utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
-          end
-        rescue StandardError
-          instant
+        def apply_recv_timeout_hint(hints)
+          seconds = hints && hints[:'connection.recv_timeout_seconds']
+          @recv_timeout = seconds if seconds&.positive?
         end
 
-        def write_chunk(data)
-          # Split data into chunks if necessary (max chunk size 65535)
-          offset = 0
-          while offset < data.bytesize
-            chunk_size = [data.bytesize - offset, 65535].min
-            @socket.write([chunk_size].pack('S>'))
-            @socket.write(data.byteslice(offset, chunk_size))
-            offset += chunk_size
-          end
-        end
-
-
-        def register_hydration_handlers(unpacker)
-          # Bolt response messages — top-level structures returned from the server.
-          unpacker.register_hydration_handler(Message::SUCCESS) { |fields| Message::Success.new(fields[0] || {}) }
-          unpacker.register_hydration_handler(Message::FAILURE) { |fields| Message::Failure.new(fields[0] || {}) }
-          unpacker.register_hydration_handler(Message::RECORD)  { |fields| Message::Record.new(fields[0] || []) }
-          unpacker.register_hydration_handler(Message::IGNORED) { |_| Message::Ignored.new }
-
-          # Register handlers for Neo4j types (Node, Relationship, etc.)
-          # Signature 0x4E - Node
-          unpacker.register_hydration_handler(0x4E) do |fields|
-            Types::Node.new(fields[0], fields[1].map(&:to_sym), fields[2], fields[3])
-          end
-
-          # Signature 0x52 - Relationship (bound).
-          # Bolt 5.0+ adds startNodeElementId and endNodeElementId as
-          # fields[6] / fields[7]; older protocols omit them and the
-          # constructor falls back to nil.
-          unpacker.register_hydration_handler(0x52) do |fields|
-            Types::Relationship.new(fields[0], fields[1], fields[2], fields[3].to_sym,
-                                    fields[4], fields[5], fields[6], fields[7])
-          end
-
-          # Signature 0x72 - UnboundRelationship (relationships in paths).
-          # Bolt 5.0+ adds elementId as fields[3].
-          unpacker.register_hydration_handler(0x72) do |fields|
-            Types::UnboundRelationship.new(fields[0], fields[1].to_sym, fields[2], fields[3])
-          end
-
-          # Signature 0x50 - Path
-          unpacker.register_hydration_handler(0x50) do |fields|
-            nodes = fields[0]
-            unbound_rels = fields[1]
-            indices = fields[2]
-
-            # Build segments from PackStream wire format
-            # indices is an array of [rel_idx, node_idx] pairs
-            # rel_idx is 1-based, negative means reversed relationship
-            segments = []
-            bound_rels = []
-            current_node = nodes.first
-
-            indices.each_slice(2) do |rel_idx, node_idx|
-              next_node = nodes[node_idx]
-
-              # Handle negative indices (relationship traversed in reverse)
-              if rel_idx < 0
-                unbound_rel = unbound_rels[rel_idx.abs - 1]
-                bound_rel = unbound_rel.bind(next_node.id, current_node.id,
-                                             next_node.element_id, current_node.element_id)
-              else
-                unbound_rel = unbound_rels[rel_idx - 1]
-                bound_rel = unbound_rel.bind(current_node.id, next_node.id,
-                                             current_node.element_id, next_node.element_id)
-              end
-              segments << Types::Path::Segment.new(current_node, next_node, bound_rel)
-
-              bound_rels << bound_rel
-              current_node = next_node
-            end
-
-            Types::Path.new(nodes, bound_rels, segments)
-          end
-
-          # Add temporal type handlers
-          register_temporal_handlers(unpacker)
-
-          # Let the negotiated protocol re-register / add handlers for
-          # version-specific message shapes (V5_7 FAILURE, V6_0
-          # VECTOR / UNSUPPORTED). Re-registration wins, so this must
-          # run last.
-          @protocol&.customize_hydration(unpacker)
-        end
-
-        def register_temporal_handlers(unpacker)
-          # Date - signature 0x44 → Ruby ::Date
-          unpacker.register_hydration_handler(0x44) do |fields|
-            ::Date.new(1970, 1, 1) + fields[0]
-          end
-
-          # OffsetTime - signature 0x54
-          unpacker.register_hydration_handler(0x54) do |fields|
-            Types::OffsetTime.from_nanos(fields[0], fields[1])
-          end
-
-          # LocalTime - signature 0x74
-          unpacker.register_hydration_handler(0x74) do |fields|
-            Types::LocalTime.from_nanos(fields[0])
-          end
-
-          # DateTime with offset - signature 0x46 → Ruby Time
-          # (legacy local-seconds encoding, used on Bolt < 4.4 and on
-          # Bolt 4.4 without the `[patch_bolt]: utc` patch). Server
-          # encodes LOCAL seconds (wall-clock time treated as UTC);
-          # subtract the offset to recover the true UTC instant.
-          unpacker.register_hydration_handler(0x46) do |fields|
-            ::Time.at(fields[0] - fields[2], fields[1], :nanosecond).getlocal(fields[2])
-          end
-
-          # DateTime with offset (UTC seconds) - signature 0x49 → Ruby Time.
-          # Bolt 5.0+ uses UTC-encoded seconds by default; same payload
-          # as 0x46 except `fields[0]` is already the UTC instant, so no
-          # offset subtraction.
-          unpacker.register_hydration_handler(0x49) do |fields|
-            ::Time.at(fields[0], fields[1], :nanosecond).getlocal(fields[2])
-          end
-
-          # LocalDateTime - signature 0x64 → Types::LocalDateTime (preserve type for roundtrip)
-          unpacker.register_hydration_handler(0x64) do |fields|
-            Types::LocalDateTime.from_epoch(fields[0], fields[1])
-          end
-
-          # DateTimeZoneId - signature 0x66 (with timezone name) → Ruby Time
-          # fields: [local_epoch_seconds, nanoseconds, timezone_name]
-          # Legacy LOCAL-seconds encoding. Treat as wall-clock in the
-          # target zone and convert to the actual UTC instant (using the
-          # zone's offset at that instant so DST is handled both in
-          # summer and winter).
-          unpacker.register_hydration_handler(0x66) do |fields|
-            wall_clock = ::Time.at(fields[0], fields[1], :nanosecond).utc
-            hydrate_named_zone(wall_clock, fields[2], local_seconds: true)
-          end
-
-          # DateTimeZoneId (UTC seconds) - signature 0x69. Bolt 5.0+
-          # encoding. fields[0] is the UTC instant directly; just
-          # display it in the named zone.
-          unpacker.register_hydration_handler(0x69) do |fields|
-            utc_instant = ::Time.at(fields[0], fields[1], :nanosecond).utc
-            hydrate_named_zone(utc_instant, fields[2], local_seconds: false)
-          end
-
-          # Duration - signature 0x45
-          unpacker.register_hydration_handler(0x45) do |fields|
-            Types::Duration.new(fields[0], fields[1], fields[2], fields[3])
-          end
-
-          # Point2D - signature 0x58
-          unpacker.register_hydration_handler(0x58) do |fields|
-            Types::Point.new(srid: fields[0], x: fields[1], y: fields[2])
-          end
-
-          # Point3D - signature 0x59
-          unpacker.register_hydration_handler(0x59) do |fields|
-            Types::Point.new(srid: fields[0], x: fields[1], y: fields[2], z: fields[3])
-          end
-        end
       end
     end
   end

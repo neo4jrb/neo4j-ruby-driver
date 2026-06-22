@@ -48,6 +48,8 @@ module Neo4j
           def assert_success!
             raise to_exception
           end
+
+          def terminal? = true
         end
       end
     end

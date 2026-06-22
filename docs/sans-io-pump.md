@@ -89,6 +89,20 @@ free.
   sentinel on the control queue; stash a pump exception and re-raise it in the
   consumer on its next `next`.
 
+## Known difference vs the reactor design
+
+The on-demand pump reads only when a caller is awaiting; it does **not** read a
+connection while it sits idle in the pool. So it can't notice a server that
+closes (or moves) an idle pooled connection until that connection is next used —
+e.g. `test_should_successfully_acquire_rt_when_router_ip_changes`, where a router
+EXITs after serving a table and the next refresh reuses the now-dead pooled
+connection. The Async-reactor design's background reader caught this (it drains
+idle connections); the threads design intentionally does not (no reader per
+parked connection — see the transcript). This is **not a regression vs main**
+(it fails there too); it's a property gap vs the reactor branch. The clean ways
+to regain it are the pool's liveness-RESET probe or the single-selector
+escalation — deferred, gated on need.
+
 ## Build order
 
 1. `Bolt::Wire` + unit tests (this commit).

@@ -170,3 +170,40 @@ router-liveness trigger; (4) PullPipelining / AuthPipelining /
 ExecuteQueryPipelining. Full design: `docs/pipelined-connection.md`. Do NOT keep
 nibbling symptoms — per-op home-db re-route regressed default-db reads; eager
 reset-on-release timed out the suite.
+
+## 2026-06-22 — MRI Bolt::Connection: sans-I/O core + pump (threads, not Async)
+
+Revisits the 2026-06-19 reactor decision. The reactor made `lib/mri/` depend on
+the `async` gem, which is unsupported on JRuby (no native IO_Event selector;
+IO#timeout/scheduler don't fire; the reactor hangs) — forcing the mri-on-jruby
+flavor to be dropped. A driver also shouldn't impose a concurrency model on the
+host.
+
+Decision (with the user; rationale in `async_vs_threads.md`): build the MRI
+connection as a **sans-I/O core + pluggable pump + bounded watermark buffer**,
+depending only on Ruby core + stdlib — no `async`.
+
+- `Bolt::Wire` — sans-I/O state machine (enqueue→framed bytes; receive(bytes)→
+  messages), no socket. Owns chunk framing, NOOP skipping, hydration.
+- `Bolt::Connection` is the **on-demand pump** over the wire: synchronous,
+  caller-thread reads via `wait_readable` + `read_nonblock` (honors a timeout
+  *and* yields under a Fiber scheduler — colorless I/O). Pipelined synchronous
+  HELLO+LOGON; recv-timeout + acquisition-deadline via the read timeout.
+- `Bolt::RecordBuffer` (SizedQueue + hi/low watermark autopull), `Bolt::Pump`
+  (background prefetch loop), `Bolt::Executor` (Thread default; `Fiber.schedule`
+  when `Fiber.scheduler` present — the only mode-aware check; core interface,
+  never the async gem). Prefetch is opt-in and validated by unit/spec (incl. the
+  fiber path under an `Async {}` test scheduler); the default streaming path is
+  on-demand.
+
+Result: runs on threads by default (so **mri-on-jruby is restored**) and rides a
+host reactor for free under a scheduler. Validated: full rust-boltstub stub
+suite on CRuby ruby-3.4.9 = **zero regressions vs main**, +5 fixes (NOOP /
+handshake-encompass); mri-on-jruby runs the suite without hanging.
+
+Difference vs the reactor branch (#395): the on-demand pump doesn't read idle
+pooled connections, so it can't notice a server closing/moving one until next
+use — `test_should_successfully_acquire_rt_when_router_ip_changes` (which the
+reactor's background reader caught). Not a regression vs main; regain it later
+via the pool liveness probe or the single-selector escalation. The two designs
+are parallel branches; this one is the no-async, JRuby-compatible alternative.
