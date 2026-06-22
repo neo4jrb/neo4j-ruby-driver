@@ -3,8 +3,6 @@
 require 'timeout'
 
 RSpec.describe Neo4j::Driver::Bolt::RecordBuffer do
-  next unless Neo4j::Driver::Loader.mri?
-
   subject(:buffer) { described_class.new(fetch_size: 4, high_watermark: 4, low_watermark: 2) }
 
   describe 'producer/consumer handoff' do

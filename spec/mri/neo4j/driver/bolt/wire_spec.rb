@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 RSpec.describe Neo4j::Driver::Bolt::Wire do
-  next unless Neo4j::Driver::Loader.mri?
-
   Structure = Neo4j::Driver::PackStream::Structure
   Message = Neo4j::Driver::Bolt::Message
 

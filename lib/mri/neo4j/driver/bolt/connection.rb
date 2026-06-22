@@ -714,9 +714,9 @@ module Neo4j
         def perform_handshake
           # Bound the (raw, pre-wire) version negotiation by the acquisition
           # deadline too, so a server that stalls the magic-byte exchange can't
-          # outlast it (a timeout raises IO::TimeoutError → connect wraps it).
-          @socket.timeout = current_read_timeout
-          agreed_version = Handshake.new(@socket).negotiate
+          # outlast it. Handshake reads via wait_readable, so the bound fires on
+          # JRuby as well as CRuby (read()+IO#timeout would not).
+          agreed_version = Handshake.new(@socket, deadline: @read_deadline).negotiate
           @server_version = agreed_version
           @bolt_version = BoltVersion.from_int(agreed_version)
           @protocol = ProtocolVersionHandler.for_version(self, agreed_version)

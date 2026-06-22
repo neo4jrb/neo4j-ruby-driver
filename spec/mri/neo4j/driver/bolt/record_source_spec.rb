@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 RSpec.describe Neo4j::Driver::Bolt::RecordSource do
-  next unless Neo4j::Driver::Loader.mri?
-
   # A connection double recording what the source asks of it.
   let(:protocol) do
     Class.new do

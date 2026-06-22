@@ -4,8 +4,6 @@ require 'timeout'
 require 'async'
 
 RSpec.describe Neo4j::Driver::Bolt::Executor do
-  next unless Neo4j::Driver::Loader.mri?
-
   describe 'without a Fiber scheduler (threaded host)' do
     it 'reports no reactor and runs the block on a separate thread' do
       expect(described_class.reactor?).to be(false)

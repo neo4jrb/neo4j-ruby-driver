@@ -85,10 +85,10 @@ module Neo4j
         def receive(bytes)
           @inbound << bytes
           while (message = next_message)
-            next if message == :noop
+            next if message == :noop || @handlers.empty?
 
-            message.accept(@handlers.first) unless @handlers.empty?
-            @handlers.shift if message.terminal? && !@handlers.empty?
+            message.accept(@handlers.first)
+            @handlers.shift if message.terminal?
           end
         end
 

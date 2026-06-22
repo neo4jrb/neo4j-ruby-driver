@@ -4,8 +4,6 @@ require 'timeout'
 require 'async'
 
 RSpec.describe Neo4j::Driver::Bolt::Pump do
-  next unless Neo4j::Driver::Loader.mri?
-
   Message = Neo4j::Driver::Bolt::Message
   RecordBuffer = Neo4j::Driver::Bolt::RecordBuffer
   Executor = Neo4j::Driver::Bolt::Executor
