@@ -6,9 +6,8 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
   Structure = Neo4j::Driver::PackStream::Structure
   Message = Neo4j::Driver::Bolt::Message
 
-  # The Wire is created post-handshake with the negotiated protocol; it only
-  # uses it to configure the packer and customise hydration. A no-op double is
-  # all the framing/hydration path needs.
+  # Post-handshake the Wire only uses the protocol to configure the packer and
+  # customise hydration. A no-op double is all the framing/hydration path needs.
   let(:protocol) do
     Class.new do
       def configure_packer(_packer); end
@@ -18,9 +17,21 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
 
   subject(:wire) { described_class.new(protocol) }
 
+  # Records which responses the wire routed to it (a response visitor — the same
+  # interface Message#accept dispatches to).
+  def recorder
+    Class.new do
+      attr_reader :events
+
+      def initialize = @events = []
+      def on_record(m)  = @events << [:record, m]
+      def on_success(m) = @events << [:success, m]
+      def on_failure(m) = @events << [:failure, m]
+      def on_ignored(m) = @events << [:ignored, m]
+    end.new
+  end
+
   # Frame a server message the way the wire reads it: chunk(s) + 0x00 0x00.
-  # Built independently of the wire under test so receive isn't validated
-  # against its own enqueue.
   def framed(structure)
     packer = Neo4j::Driver::PackStream::Packer.new
     packer.reset
@@ -38,74 +49,78 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
 
   def success(meta = {}) = framed(Structure.new(Message::SUCCESS, [meta]))
   def record(values)     = framed(Structure.new(Message::RECORD, [values]))
+  def failure(meta)      = framed(Structure.new(Message::FAILURE, [meta]))
 
-  describe '#receive' do
-    it 'parses a single complete message' do
-      out = wire.receive(success(server: 'Neo4j/5.0'))
-      expect(out.size).to eq(1)
-      expect(out.first).to be_a(Message::Success)
-      expect(out.first.metadata).to eq(server: 'Neo4j/5.0')
+  describe 'response-ordering FIFO' do
+    it 'routes a reply to the handler the request registered' do
+      h = recorder
+      wire.enqueue(Message.reset, h)
+      expect(wire.in_flight).to eq(1)
+      wire.receive(success(server: 'Neo4j/5'))
+      expect(h.events).to eq([[:success, h.events[0][1]]])
+      expect(h.events[0][1].metadata).to eq(server: 'Neo4j/5')
+      expect(wire.in_flight).to eq(0) # terminal popped the handler
     end
 
-    it 'parses several messages from one feed, in order' do
-      bytes = record([1]) + record([2]) + success(type: 'r')
-      out = wire.receive(bytes)
-      expect(out.map(&:class)).to eq([Message::Record, Message::Record, Message::Success])
-      expect(out[0].fields).to eq([1])
-      expect(out[1].fields).to eq([2])
+    it 'keeps a streaming request at the FIFO front across its RECORDs, then advances' do
+      run = recorder
+      pull = recorder
+      wire.enqueue(Message.run('Q', {}, {}), run)   # one SUCCESS
+      wire.enqueue(Message.pull(n: -1), pull)        # RECORDs then SUCCESS
+      expect(wire.in_flight).to eq(2)
+
+      wire.receive(success(fields: %w[n]) + record([1]) + record([2]) + success(type: 'r'))
+
+      expect(run.events.map(&:first)).to eq([:success])              # RUN reply
+      expect(pull.events.map(&:first)).to eq(%i[record record success]) # PULL reply
+      expect(pull.events[0][1].fields).to eq([1])
+      expect(wire.in_flight).to eq(0)
     end
 
-    it 'reassembles a message split across feeds (mid-chunk-body)' do
+    it 'routes a FAILURE to the front handler and pops it' do
+      h = recorder
+      wire.enqueue(Message.run('bad', {}, {}), h)
+      wire.receive(failure(code: 'Neo.ClientError.Statement.SyntaxError', message: 'x'))
+      expect(h.events.map(&:first)).to eq([:failure])
+      expect(wire.in_flight).to eq(0)
+    end
+
+    it 'reassembles a reply split across feeds before dispatching' do
+      h = recorder
+      wire.enqueue(Message.reset, h)
       bytes = success(server: 'x')
-      head = bytes.byteslice(0, 3)
-      tail = bytes.byteslice(3..)
-      expect(wire.receive(head)).to eq([])      # partial — nothing yet
-      out = wire.receive(tail)
-      expect(out.size).to eq(1)
-      expect(out.first.metadata).to eq(server: 'x')
+      wire.receive(bytes.byteslice(0, 3))
+      expect(h.events).to be_empty       # partial — not dispatched yet
+      wire.receive(bytes.byteslice(3..))
+      expect(h.events.map(&:first)).to eq([:success])
     end
 
-    it 'reassembles when split mid-chunk-header (1 byte at a time)' do
-      bytes = success(answer: 42)
-      collected = bytes.each_byte.flat_map { |b| wire.receive(b.chr.b) }
-      expect(collected.size).to eq(1)
-      expect(collected.first.metadata).to eq(answer: 42)
+    it 'skips NOOP keepalives without touching the handler' do
+      h = recorder
+      wire.enqueue(Message.reset, h)
+      wire.receive("\x00\x00".b)              # NOOP
+      expect(h.events).to be_empty
+      expect(wire.in_flight).to eq(1)         # still awaiting
+      wire.receive("\x00\x00".b + success({}) + "\x00\x00".b)
+      expect(h.events.map(&:first)).to eq([:success])
     end
 
-    it 'skips a NOOP keepalive (bare 0x00 0x00)' do
-      expect(wire.receive("\x00\x00".b)).to eq([])
-    end
-
-    it 'skips NOOPs interleaved with a real message' do
-      bytes = "\x00\x00".b + success(ok: true) + "\x00\x00".b
-      out = wire.receive(bytes)
-      expect(out.size).to eq(1)
-      expect(out.first.metadata).to eq(ok: true)
-    end
-
-    it 'handles a message whose chunks span a NOOP-free multi-chunk body' do
-      big = { data: 'z' * 70_000 } # forces >1 chunk (max 65535)
-      out = wire.receive(framed(Structure.new(Message::SUCCESS, [big])))
-      expect(out.first.metadata[:data].bytesize).to eq(70_000)
-    end
-
-    it 'hydrates a Failure into the exception-mapping message' do
-      out = wire.receive(framed(Structure.new(Message::FAILURE,
-                                              [{ code: 'Neo.ClientError.Statement.SyntaxError', message: 'bad' }])))
-      expect(out.first).to be_a(Message::Failure)
-      expect(out.first.code).to eq('Neo.ClientError.Statement.SyntaxError')
+    it 'reassembles a multi-chunk (>65535) reply' do
+      h = recorder
+      wire.enqueue(Message.run('Q', {}, {}), h)
+      wire.receive(framed(Structure.new(Message::SUCCESS, [{ data: 'z' * 70_000 }])))
+      expect(h.events[0][1].metadata[:data].bytesize).to eq(70_000)
     end
   end
 
-  describe '#enqueue / #take_outbound' do
-    it 'frames a message as [size][payload][end marker] with the raw packed payload' do
-      wire.enqueue(Message.run('RETURN 1', {}, {}))
+  describe '#enqueue / #take_outbound (framing)' do
+    it 'frames a request as [size][payload][end marker] with the raw packed payload' do
+      wire.enqueue(Message.run('RETURN 1', {}, {}), recorder)
       bytes = wire.take_outbound
-
       size = bytes.byteslice(0, 2).unpack1('S>')
       payload = bytes.byteslice(2, size)
       expect(bytes.bytesize).to eq(2 + size + 2)
-      expect(bytes[-2..].bytes).to eq([0, 0]) # end marker
+      expect(bytes[-2..].bytes).to eq([0, 0])
 
       packer = Neo4j::Driver::PackStream::Packer.new
       packer.reset
@@ -114,12 +129,9 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
     end
 
     it 'accumulates several enqueues (pipelining) into one outbound blob' do
-      one = described_class.new(protocol)
-      one.enqueue(Message.reset)
-      single = one.take_outbound
-
-      wire.enqueue(Message.reset)
-      wire.enqueue(Message.reset)
+      single = described_class.new(protocol).tap { _1.enqueue(Message.reset, recorder) }.take_outbound
+      wire.enqueue(Message.reset, recorder)
+      wire.enqueue(Message.reset, recorder)
       expect(wire).to be_pending_outbound
       expect(wire.take_outbound).to eq(single + single)
       expect(wire).not_to be_pending_outbound

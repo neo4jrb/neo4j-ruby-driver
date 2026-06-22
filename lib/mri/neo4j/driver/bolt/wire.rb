@@ -37,12 +37,19 @@ module Neo4j
           @outbound = binary_string
           @inbound = binary_string   # received bytes not yet parsed into messages
           @message = binary_string   # chunks of the in-progress inbound message
+          # Response-ordering FIFO. Bolt replies in request order, so each sent
+          # request pushes the handler that will receive its response(s); the
+          # front handler always owns the next reply. A handler is any response
+          # visitor (responds to on_record/on_success/on_failure/on_ignored —
+          # the same interface Message#accept dispatches to).
+          @handlers = []
         end
 
-        # Pack + chunk-frame `message` into the outbound buffer. Several
-        # enqueues before a take_outbound is exactly the pipelining the Bolt
-        # protocol expects (HELLO+LOGON, RUN+PULL).
-        def enqueue(message)
+        # Pack + chunk-frame `message` into the outbound buffer and register the
+        # handler for its reply. Several enqueues before a take_outbound are
+        # exactly the pipelining Bolt expects (HELLO+LOGON, RUN+PULL); the FIFO
+        # keeps each request matched to its response.
+        def enqueue(message, handler)
           @packer.reset
           @packer.pack_message(message)
           data = @packer.bytes
@@ -54,10 +61,14 @@ module Neo4j
             offset += size
           end
           @outbound << END_MARKER
+          @handlers.push(handler)
           self
         end
 
         def pending_outbound? = !@outbound.empty?
+
+        # Requests still awaiting their terminal reply.
+        def in_flight = @handlers.size
 
         # Hand over (and clear) the framed bytes to write to the socket.
         def take_outbound
@@ -66,16 +77,19 @@ module Neo4j
           out
         end
 
-        # Feed inbound bytes; return the messages now fully decodable, in
-        # request order. Returns [] when only a partial chunk/message has
-        # arrived — the bytes are retained for the next call.
+        # Feed inbound bytes and route each fully-decoded message to the front
+        # handler (via its own #accept visitor). A RECORD keeps the handler at
+        # the front (one request streams many); a terminal (SUCCESS/FAILURE/
+        # IGNORED) completes the request and pops it. NOOP keepalives carry no
+        # message and are skipped. Partial bytes are retained for the next call.
         def receive(bytes)
           @inbound << bytes
-          messages = []
           while (message = next_message)
-            messages << message unless message == :noop
+            next if message == :noop
+
+            message.accept(@handlers.first) unless @handlers.empty?
+            @handlers.shift if message.terminal? && !@handlers.empty?
           end
-          messages
         end
 
         private

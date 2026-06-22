@@ -10,6 +10,17 @@ module Neo4j
         # just how much we ask the socket for at once.
         READ_CHUNK = 65_536
 
+        # The on-demand pull model's response handler: the wire routes a
+        # request's reply here (RECORDs then a terminal), and it just collects
+        # everything into the shared inbox queue for fetch_response to drain.
+        # (A streaming request could register a record-routing handler instead.)
+        ResponseCollector = Struct.new(:inbox) do
+          def on_record(message)  = inbox.push(message)
+          def on_success(message) = inbox.push(message)
+          def on_failure(message) = inbox.push(message)
+          def on_ignored(message) = inbox.push(message)
+        end
+
         attr_reader :server_version, :server_agent, :protocol, :address
         # idle_since: stamp the pool sets when it pushes a connection
         # back. Bolt::Pool reads it on pop to decide whether to run a
@@ -50,8 +61,12 @@ module Neo4j
           # Connection is the on-demand pump over it — it owns the socket and
           # moves bytes between it and the wire on the caller's thread.
           @wire = nil
-          @inbox = []         # messages parsed by the wire, awaiting fetch_response
-          @pending = 0        # requests sent whose terminal hasn't been consumed
+          # The on-demand pull model: every request registers @collector as its
+          # response handler on the wire's FIFO; @collector appends each routed
+          # message here, and fetch_response drains it. (The handler seam lets a
+          # streaming request register a record-routing handler instead.)
+          @inbox = []
+          @collector = ResponseCollector.new(@inbox)
           @recv_timeout = nil # server's connection.recv_timeout_seconds hint
           @read_deadline = nil # monotonic bound for acquisition-phase reads
           # Writes go behind a mutex: the consumer thread normally drives I/O,
@@ -297,8 +312,9 @@ module Neo4j
         def send_message(message)
           raise Exceptions::ServiceUnavailableException, "Connection to #{@address || @uri} is closed" if closed?
 
-          @wire.enqueue(message)
-          @pending += 1
+          # Register @collector as this request's response handler; the wire's
+          # FIFO matches it to the reply and pops it on the terminal.
+          @wire.enqueue(message, @collector)
         end
 
         def send_all(*messages)
@@ -447,9 +463,7 @@ module Neo4j
         # default pump, on the consumer's thread, no background context.
         def fetch_response
           fill_inbox while @inbox.empty?
-          response = @inbox.shift
-          @pending -= 1 if response.terminal? && @pending.positive?
-          response
+          @inbox.shift
         end
 
         def fetch_all
@@ -472,11 +486,11 @@ module Neo4j
           # the original error.
         end
 
-        # True while the caller still owes a fetch: a request whose terminal it
-        # hasn't consumed (@pending), or a message the wire already decoded but
-        # the caller hasn't popped (@inbox). The drain loops spin on this.
+        # True while the caller still owes a fetch: a request whose terminal the
+        # wire hasn't seen yet (in_flight), or a message already routed to the
+        # inbox but not yet popped. The drain loops spin on this.
         def pending_responses?
-          @pending.positive? || !@inbox.empty?
+          @wire.in_flight.positive? || !@inbox.empty?
         end
 
         private
@@ -485,11 +499,11 @@ module Neo4j
           @socket&.close rescue nil
           @socket = nil
           # Reset all per-attempt I/O state so a retry on the next address (or a
-          # later reset!/drain loop) doesn't carry a phantom pending response or
-          # half-parsed message forward. @wire is rebuilt by perform_handshake.
+          # later reset!/drain loop) doesn't carry a phantom in-flight request or
+          # half-parsed message forward. @wire (with its handler FIFO) is rebuilt
+          # by perform_handshake.
           @wire = nil
           @inbox.clear
-          @pending = 0
         end
 
         # On-demand read: pull bytes off the socket and feed the wire until it
@@ -515,11 +529,11 @@ module Neo4j
             when nil
               raise EOFError, 'end of file reached'
             else
-              messages = @wire.receive(chunk)
-              next if messages.empty? # only partial data / NOOPs so far
-
-              @inbox.concat(messages)
-              return
+              # receive routes decoded messages to the front handler
+              # (@collector), which fills @inbox. Loop until something landed
+              # (a chunk may be only partial data / a NOOP).
+              @wire.receive(chunk)
+              return unless @inbox.empty?
             end
           end
         rescue IOError, SystemCallError => e
