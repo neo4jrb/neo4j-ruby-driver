@@ -40,6 +40,7 @@ module Neo4j
           @pull_in_flight = false # a PULL has been issued, reply not yet seen
           @ended = false         # final SUCCESS consumed → no more records
           @error = nil           # stream failed; re-raised to the consumer
+          @summary = nil         # terminating SUCCESS metadata
         end
 
         # --- Producer (pump) side -------------------------------------------
@@ -61,12 +62,16 @@ module Neo4j
           end
         end
 
-        # The stream is fully drained (final SUCCESS, no has_more). Unblock a
-        # consumer waiting on an empty buffer and any parked pump.
-        def finish
-          @mutex.synchronize { @ended = true; @has_more = false; @drain.broadcast }
+        # The stream is fully drained (final SUCCESS, no has_more). Stash the
+        # summary metadata for the consumer, unblock a consumer waiting on an
+        # empty buffer, and wake any parked pump.
+        def finish(summary = nil)
+          @mutex.synchronize { @summary = summary; @ended = true; @has_more = false; @drain.broadcast }
           @queue.close
         end
+
+        # The terminating SUCCESS's metadata (nil until finished / on failure).
+        def summary = @mutex.synchronize { @summary }
 
         # The stream failed; the consumer re-raises this on its next read.
         def fail(error)

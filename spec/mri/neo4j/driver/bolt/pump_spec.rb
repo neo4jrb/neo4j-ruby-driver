@@ -74,6 +74,20 @@ RSpec.describe Neo4j::Driver::Bolt::Pump do
     expect { buffer.shift }.to raise_error(Neo4j::Driver::Exceptions::ClientException)
   end
 
+  it 'treats a cancel during backpressure as a clean shutdown, not a stream error' do
+    buffer = RecordBuffer.new(fetch_size: 1, high_watermark: 1, low_watermark: 1)
+    source = FakeSource.new([rec(1), rec(2), done])
+    pump = described_class.new(source, buffer)
+    handle = Executor.spawn { pump.run }
+
+    sleep 0.05    # pump pushes rec(1) (fills bound 1), then parks pushing rec(2)
+    pump.cancel   # closes the buffer → ClosedQueueError in the parked push
+
+    expect(buffer.shift.fields).to eq([1])           # buffered record still delivered
+    expect(Timeout.timeout(2) { buffer.shift }).to be_nil # clean end — NOT a raise
+    handle.join
+  end
+
   # Reactor path is CRuby-only (async/fiber-scheduler unsupported on JRuby,
   # where the thread pump above is the default) — scope this to CRuby.
   it 'runs as a fiber under a host scheduler (fiber-prefetch), no async API used',

@@ -11,9 +11,10 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       attr_accessor :idle_since, :created_at
       attr_reader :alive_calls, :close_calls
 
-      def initialize(alive: true, closed: false)
+      def initialize(alive: true, closed: false, broken: false)
         @alive = alive
         @closed = closed
+        @broken = broken
         @alive_calls = 0
         @close_calls = 0
       end
@@ -21,6 +22,10 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       def alive?
         @alive_calls += 1
         @alive
+      end
+
+      def broken?
+        @broken
       end
 
       def closed?
@@ -114,6 +119,24 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       pool.pop
 
       expect(conn.alive_calls).to eq(0)
+    end
+
+    it 'discards a reused connection the server closed while idle (cheap peer-close check)' do
+      # No liveness-check timeout configured, yet a reused connection whose peer
+      # closed it (broken?) must still be discarded + replaced — without a RESET
+      # round-trip (alive? not consulted).
+      stale = connection_class.new(broken: true)
+      stale.created_at = monotonic
+      fresh = connection_class.new
+      fresh.created_at = monotonic
+      pool = build_pool([fresh])
+
+      pool.push(stale)
+      stale.idle_since = monotonic
+
+      expect(pool.pop).to be(fresh)
+      expect(stale.close_calls).to eq(1)
+      expect(stale.alive_calls).to eq(0) # cheap check, no RESET probe
     end
 
     it 'raises ClientException after the acquisition timeout elapses on a full pool' do

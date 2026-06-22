@@ -32,6 +32,10 @@ module Neo4j
         def run
           @running = true
           @source.next_response.accept(self) while @running && !@cancelled
+        rescue ClosedQueueError
+          # cancel() closed the buffer while we were parked in push_record —
+          # cooperative shutdown, not a stream error. (Must precede the generic
+          # rescue: ClosedQueueError is a StandardError.)
         rescue StandardError => e
           @buffer.fail(e)
         end
@@ -62,7 +66,7 @@ module Neo4j
               @running = false
             end
           else
-            @buffer.finish
+            @buffer.finish(message.metadata) # final SUCCESS — carries the summary
             @running = false
           end
         end

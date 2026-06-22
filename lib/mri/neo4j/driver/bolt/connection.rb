@@ -163,6 +163,35 @@ module Neo4j
           false
         end
 
+        # Cheap, non-blocking "did the peer go away?" check the pool runs before
+        # reusing an idle pooled connection. Unlike alive?, no RESET round-trip:
+        # a clean idle connection has nothing to read, so one non-blocking read
+        # returns :wait_readable and we're done. A server that closed the idle
+        # connection (e.g. a router that served a table then EXITed —
+        # test_should_successfully_acquire_rt_when_router_ip_changes) shows up as
+        # EOF here, so the pool discards it and the next acquire re-resolves and
+        # reconnects. NOOP keepalives are drained harmlessly. This is the
+        # threaded equivalent of the reactor's background reader noticing an
+        # idle close — without a reader per parked connection.
+        def broken?
+          return true if closed?
+
+          loop do
+            case (chunk = @socket.read_nonblock(READ_CHUNK, exception: false))
+            when :wait_readable, :wait_writable
+              return false # nothing pending → healthy
+            when nil
+              mark_closed_broken
+              return true # peer closed
+            else
+              @wire.receive(chunk) # NOOP / stray bytes — drain and re-check
+            end
+          end
+        rescue IOError, SystemCallError
+          mark_closed_broken
+          true
+        end
+
         # Monotonic seconds — immune to wall-clock jumps, which is
         # what every age / idle calculation here needs.
         def current_monotonic
@@ -501,9 +530,13 @@ module Neo4j
           # Reset all per-attempt I/O state so a retry on the next address (or a
           # later reset!/drain loop) doesn't carry a phantom in-flight request or
           # half-parsed message forward. @wire (with its handler FIFO) is rebuilt
-          # by perform_handshake.
+          # by perform_handshake. Crucially clear @closed too: a fail_broken on
+          # one address set it, and connect() retries the next address with a
+          # fresh socket — without this, send_message there would wrongly raise
+          # "Connection is closed" and break address failover.
           @wire = nil
           @inbox.clear
+          @closed = false
         end
 
         # On-demand read: pull bytes off the socket and feed the wire until it
@@ -547,9 +580,13 @@ module Neo4j
         # so the pool discards it on the next acquire rather than reusing a
         # broken connection. Then raise the classified error.
         def fail_broken(error)
+          mark_closed_broken
+          raise error
+        end
+
+        def mark_closed_broken
           @socket&.close rescue nil
           @closed = true
-          raise error
         end
 
         # The timeout the next read may take. During acquisition (handshake,
