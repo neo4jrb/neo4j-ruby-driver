@@ -89,19 +89,22 @@ free.
   sentinel on the control queue; stash a pump exception and re-raise it in the
   consumer on its next `next`.
 
-## Known difference vs the reactor design
+## Noticing an idle connection the server closed
 
-The on-demand pump reads only when a caller is awaiting; it does **not** read a
-connection while it sits idle in the pool. So it can't notice a server that
-closes (or moves) an idle pooled connection until that connection is next used —
-e.g. `test_should_successfully_acquire_rt_when_router_ip_changes`, where a router
-EXITs after serving a table and the next refresh reuses the now-dead pooled
-connection. The Async-reactor design's background reader caught this (it drains
-idle connections); the threads design intentionally does not (no reader per
-parked connection — see the transcript). This is **not a regression vs main**
-(it fails there too); it's a property gap vs the reactor branch. The clean ways
-to regain it are the pool's liveness-RESET probe or the single-selector
-escalation — deferred, gated on need.
+The on-demand pump reads only when a caller is awaiting; it does not read a
+connection while it sits idle in the pool. So on its own it can't notice a
+server that closes (or moves) an idle pooled connection until next use — e.g.
+`test_should_successfully_acquire_rt_when_router_ip_changes`, where a router
+EXITs after serving a table and the next refresh would reuse the now-dead
+connection. The Async-reactor branch caught this with its background reader.
+
+Here we catch it without a reader-per-connection, via `Connection#broken?` — a
+**cheap, non-blocking peer-close check** the pool runs before reusing a
+connection (`idle_since` set): a clean idle connection reads `:wait_readable`
+and passes; a server-closed one reads EOF, so the pool discards it and the next
+acquire re-resolves + reconnects. No RESET round-trip (unlike the liveness
+probe), NOOP keepalives are drained harmlessly. This gives full parity with the
+reactor branch on that test.
 
 ## Build order
 
