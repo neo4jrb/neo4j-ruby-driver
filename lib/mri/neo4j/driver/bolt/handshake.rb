@@ -62,8 +62,14 @@ module Neo4j
           BoltVersion::V3_0
         ].freeze
 
-        def initialize(socket)
+        # `deadline` (monotonic) bounds the negotiation reads so a server that
+        # stalls the magic-byte exchange can't outlast the acquisition timeout.
+        # We read via wait_readable + read_nonblock rather than read(n)+IO#timeout
+        # because IO#timeout is honored for read() only on CRuby, not JRuby —
+        # wait_readable times out on both, so the bound works on every flavor.
+        def initialize(socket, deadline: nil)
           @socket = socket
+          @deadline = deadline
         end
 
         # Run the handshake to completion. Returns the negotiated
@@ -150,8 +156,31 @@ module Neo4j
         end
 
         def read_int32
-          bytes = @socket.read(4)
-          bytes && bytes.bytesize == 4 ? bytes.unpack1('L>') : nil
+          bytes = read_fully(4)
+          bytes ? bytes.unpack1('L>') : nil
+        end
+
+        # Read exactly n bytes, bounded by @deadline. Returns the bytes, or nil
+        # on EOF / deadline (callers turn nil into the right handshake error).
+        # wait_readable yields under a Fiber scheduler and times out on every
+        # Ruby (unlike read()+IO#timeout, which only times out on CRuby).
+        def read_fully(n)
+          buf = String.new(encoding: Encoding::BINARY)
+          while buf.bytesize < n
+            case (chunk = @socket.read_nonblock(n - buf.bytesize, exception: false))
+            when :wait_readable then (@socket.wait_readable(remaining_budget) || return)
+            when :wait_writable then (@socket.wait_writable(remaining_budget) || return)
+            when nil then return
+            else buf << chunk
+            end
+          end
+          buf
+        end
+
+        def remaining_budget
+          return nil unless @deadline
+
+          [@deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC), 0.0].max
         end
 
         # Same as read_int32 but raises a ServiceUnavailableException
@@ -169,7 +198,7 @@ module Neo4j
           value = 0
           shift = 0
           9.times do
-            byte = @socket.read(1)&.unpack1('C')
+            byte = read_fully(1)&.unpack1('C')
             raise IOError, 'Unexpected end of stream while reading varint' if byte.nil?
 
             value |= (byte & 0x7F) << shift

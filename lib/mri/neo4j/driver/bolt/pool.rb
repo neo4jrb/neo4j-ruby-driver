@@ -106,6 +106,12 @@ module Neo4j
           return false if conn.nil?
           return false if conn.closed?
           return false if expired?(conn)
+          # A reused connection (idle_since set when it was pushed back) may have
+          # been closed by the server while parked — a cheap non-blocking
+          # peer-close check, no round-trip, catches that so we don't hand out a
+          # dead connection (and the replacement re-resolves the address). Fresh
+          # connections (idle_since nil) skip it.
+          return false if conn.idle_since && conn.broken?
           return false if needs_liveness_check?(conn) && !conn.alive?
 
           true

@@ -19,6 +19,10 @@ module Neo4j
           def assert_success!
             raise Exceptions::ClientException, "Unexpected RECORD where SUCCESS was expected"
           end
+
+          # A RECORD is a streamed row, not a request summary — it never
+          # completes the request, so it doesn't decrement the in-flight count.
+          def terminal? = false
         end
       end
     end
