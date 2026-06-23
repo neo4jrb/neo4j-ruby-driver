@@ -31,6 +31,16 @@ module Neo4j
         @failed = false     # stream ended with a server FAILURE; connection needs RESET
         @cancelled = false  # consume() called mid-stream — server should DISCARD, not paginate
         @peeked_record = nil
+        # Prefetch promotion (set once the first batch reports has_more): a
+        # background pump drains batches 2..N off the connection into @buffer
+        # while the consumer processes the current batch. Single-batch results
+        # never promote — their lone PULL is already pipelined with RUN, so the
+        # synchronous path below is optimal and spawns nothing. See
+        # docs/sans-io-pump.md and Bolt::Pump.
+        @promoted = false
+        @buffer = nil       # Bolt::RecordBuffer once promoted
+        @pump = nil         # Bolt::Pump driving the connection
+        @pump_handle = nil  # Executor handle (Thread/Fiber) — joined before release
       end
 
       attr_reader :connection, :keys
@@ -41,12 +51,19 @@ module Neo4j
         return false if @consumed
         return true if @peeked_record
 
-        # Loop until the stream gives us a RECORD or signals end. A
-        # SUCCESS in the middle (has_more=true) triggers another PULL
-        # in on_success, so the next iteration's fetch_response reads
-        # the first record of the new batch.
-        with_record_handler(->(msg) { @peeked_record = build_record(msg) }) do
-          @connection.fetch_response.accept(self) until @consumed || @peeked_record
+        if @promoted
+          # Records now arrive from the background pump via the buffer.
+          @peeked_record = next_buffered_record
+        else
+          # Loop until the stream gives us a RECORD or signals end. A SUCCESS
+          # in the middle (has_more=true) either triggers another PULL in
+          # on_success (single batch so far) or *promotes* to the prefetch
+          # pump — in which case the loop exits and the first post-promotion
+          # record comes from the buffer.
+          with_record_handler(->(msg) { @peeked_record = build_record(msg) }) do
+            @connection.fetch_response.accept(self) until @consumed || @peeked_record || @promoted
+          end
+          @peeked_record = next_buffered_record if @promoted && @peeked_record.nil? && !@consumed
         end
         !@peeked_record.nil?
       rescue StandardError => e
@@ -119,7 +136,11 @@ module Neo4j
         # SUCCESS, instead of streaming every record into the void.
         @cancelled = true
         begin
-          drain_until_consumed { |_msg| } unless @consumed
+          if @promoted
+            cancel_via_pump unless @consumed
+          else
+            drain_until_consumed { |_msg| } unless @consumed
+          end
         ensure
           @records.clear
           @discarded = true
@@ -139,7 +160,14 @@ module Neo4j
           @peeked_record = nil
         end
 
-        drain_until_consumed { |msg| @records << build_record(msg) }
+        if @promoted
+          drain_buffer_into_records
+        else
+          drain_until_consumed { |msg| @records << build_record(msg) }
+          # on_success may have promoted mid-drain (first has_more); continue
+          # materialising the remaining batches from the buffer.
+          drain_buffer_into_records if @promoted && !@consumed
+        end
       end
 
       def none?
@@ -156,6 +184,16 @@ module Neo4j
       def discard!
         @peeked_record = nil
         @discarded = true
+        # Stop a still-running pump and wait for it to exit so its thread/fiber
+        # can't read the connection after we release it (a reused connection
+        # with a stray reader would corrupt the protocol). finish() closes the
+        # buffer, waking a pump parked in push_record (ClosedQueueError → clean
+        # exit) or await_pull_capacity (ended → stop). Normal paths drain via
+        # consume/buffer first, so the pump is already done and this is a no-op.
+        if @pump
+          @buffer.finish
+          @pump_handle&.join
+        end
         release_connection
       end
 
@@ -166,14 +204,20 @@ module Neo4j
       end
 
       def on_success(msg)
-        # has_more=true means the server still has records beyond the
-        # last PULL's batch limit. Either pull the next batch or, if
-        # consume() asked to cancel the stream, send DISCARD instead so
-        # the server stops shipping records and returns the summary.
+        # Only the *first* batch's terminal reaches here — once promoted the
+        # pump is the connection's visitor, not the Result.
+        #
+        # has_more=true means the server still has records beyond this batch.
+        # If the consumer already cancelled (consume() during batch 1), send
+        # DISCARD and stay synchronous. Otherwise promote to the prefetch pump,
+        # which streams the remaining batches into @buffer in the background.
         if msg.metadata[:has_more]
-          next_msg = @cancelled ? @connection.protocol.build_discard(n: -1) : @connection.protocol.build_pull(n: @fetch_size)
-          @connection.send_message(next_msg)
-          @connection.flush
+          if @cancelled
+            @connection.send_message(@connection.protocol.build_discard(n: -1))
+            @connection.flush
+          else
+            promote
+          end
           return
         end
 
@@ -206,9 +250,92 @@ module Neo4j
 
       private
 
+      # First batch reported has_more: hand the remaining batches to a
+      # background pump. Send batch 2's PULL on this (consumer) thread — the
+      # pump issues every PULL after that — then spawn it. Once spawned the
+      # pump is the connection's sole reader/writer; the consumer only ever
+      # touches @buffer, so there's no concurrent socket access. The pump runs
+      # as a fiber under a host scheduler, else its own thread (Executor).
+      def promote
+        @buffer = Bolt::RecordBuffer.new(fetch_size: @fetch_size)
+        source = Bolt::RecordSource.new(@connection)
+        source.pull(@fetch_size)
+        @pump = Bolt::Pump.new(source, @buffer)
+        @pump_handle = Bolt::Executor.spawn { @pump.run }
+        @promoted = true
+      end
+
+      # Next record from the prefetch buffer, or nil at end of stream. A nil
+      # means the pump saw the terminating SUCCESS: finalize from the buffer's
+      # summary, harvest the bookmark, and release the connection — the same
+      # terminal handling on_success does for the synchronous path. The pump's
+      # thread/fiber has finished by then (it closes the buffer last); join it
+      # before release so it can't touch a reused connection. A stream failure
+      # surfaces as a raise from shift (handled by the caller's classifier).
+      def next_buffered_record
+        msg =
+          begin
+            @buffer.shift
+          rescue StandardError
+            @failed = true
+            raise
+          end
+        return build_record(msg) if msg
+
+        # End of stream. A terminating SUCCESS carries summary metadata; a bare
+        # finish (e.g. IGNORED) carries none — mirror Result#on_ignored and just
+        # mark consumed, no summary, like the synchronous path.
+        if (summary = @buffer.summary)
+          finalize(summary)
+          @on_summary&.call(@summary)
+        else
+          @consumed = true
+        end
+        @pump_handle&.join
+        release_connection
+        nil
+      end
+
+      # Materialise every remaining buffered record (used by #buffer).
+      def drain_buffer_into_records
+        while (record = next_buffered_record)
+          @records << record
+        end
+      end
+
+      # Abandon a promoted stream: tell the pump to DISCARD the rest, then drain
+      # the buffer (dropping records, which also unblocks a pump parked in
+      # push_record) until the server's terminating SUCCESS closes it. Harvest
+      # that summary's bookmark — DISCARD still returns one for auto-commit.
+      # A failure surfaced during the drain propagates (classified) exactly as
+      # the synchronous consume() path does; the connection is then left for the
+      # caller to RESET + discard!, not released here.
+      def cancel_via_pump
+        @pump.cancel
+        error = nil
+        begin
+          nil while @buffer.shift
+        rescue StandardError => e
+          @failed = true
+          error = e
+        end
+        @pump_handle&.join
+        raise @connection.classify_failure(error) if error
+
+        if !@consumed && (summary = @buffer.summary)
+          finalize(summary)
+          @on_summary&.call(@summary)
+        else
+          @consumed = true
+        end
+        release_connection
+      end
+
       def drain_until_consumed(&record_handler)
         with_record_handler(record_handler) do
-          @connection.fetch_response.accept(self) until @consumed
+          # Stop on promotion too: once on_success hands the stream to the pump,
+          # the pump is the sole reader — the caller continues from the buffer.
+          @connection.fetch_response.accept(self) until @consumed || @promoted
         end
       end
 

@@ -41,6 +41,7 @@ module Neo4j
           @ended = false         # final SUCCESS consumed → no more records
           @error = nil           # stream failed; re-raised to the consumer
           @summary = nil         # terminating SUCCESS metadata
+          @cancelled = false     # consumer asked to stop early → pump should DISCARD
         end
 
         # --- Producer (pump) side -------------------------------------------
@@ -79,6 +80,16 @@ module Neo4j
           @queue.close
         end
 
+        # The consumer abandoned the result early (consume / tx end). Wake a
+        # pump parked in await_pull_capacity so it stops PULLing and asks the
+        # server to DISCARD the rest. Mutex-guarded so the flag is visible to
+        # the pump on JRuby's real threads, not just under MRI's GVL.
+        def request_cancel
+          @mutex.synchronize { @cancelled = true; @drain.broadcast }
+        end
+
+        def cancelled? = @mutex.synchronize { @cancelled }
+
         # --- Consumer (cursor) side -----------------------------------------
 
         # Next record, or nil when the stream is exhausted. Blocks (yields under
@@ -104,12 +115,13 @@ module Neo4j
         # none is in flight, and the buffer has drained to/below the low
         # watermark (hysteresis: don't refill on every freed slot, refill a
         # batch at a time). Returns true and marks a PULL in flight, or false
-        # when the stream has ended/failed/been cancelled (pump should stop).
+        # when the stream has ended/failed/been cancelled (pump should stop
+        # PULLing — on cancel it then checks cancelled? and DISCARDs instead).
         # Scheduler-aware wait, so a pump fiber yields to the host reactor.
         def await_pull_capacity
           @mutex.synchronize do
-            @drain.wait(@mutex) until @ended || @error || ready_to_pull?
-            return false if @ended || @error
+            @drain.wait(@mutex) until @ended || @error || @cancelled || ready_to_pull?
+            return false if @ended || @error || @cancelled
 
             @pull_in_flight = true
             true

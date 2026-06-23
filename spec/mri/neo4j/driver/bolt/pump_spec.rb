@@ -14,14 +14,18 @@ RSpec.describe Neo4j::Driver::Bolt::Pump do
 
   # A socket-free response source. Emits a scripted first batch; each pull(n)
   # appends the next scripted batch (so has_more → pull → next batch). Records
-  # the pull sizes for assertions.
+  # the pull sizes for assertions. discard(n) appends the `on_discard` batch —
+  # the server's response to DISCARD (a terminating SUCCESS), mirroring how a
+  # real server replies when the cursor abandons the rest.
   class FakeSource
-    attr_reader :pulls
+    attr_reader :pulls, :discards
 
-    def initialize(*batches)
+    def initialize(*batches, on_discard: nil)
       @pending = (batches.shift || []).dup
       @rest = batches
+      @on_discard = on_discard
       @pulls = []
+      @discards = []
     end
 
     def next_response
@@ -33,6 +37,11 @@ RSpec.describe Neo4j::Driver::Bolt::Pump do
     def pull(n)
       @pulls << n
       @pending.concat(@rest.shift || [])
+    end
+
+    def discard(n = -1)
+      @discards << n
+      @pending.concat(@on_discard || [])
     end
   end
 
@@ -72,18 +81,25 @@ RSpec.describe Neo4j::Driver::Bolt::Pump do
     expect { buffer.shift }.to raise_error(Neo4j::Driver::Exceptions::ClientException)
   end
 
-  it 'treats a cancel during backpressure as a clean shutdown, not a stream error' do
-    buffer = RecordBuffer.new(fetch_size: 1, high_watermark: 1, low_watermark: 1)
-    source = FakeSource.new([rec(1), rec(2), done])
+  it 'cancels by DISCARDing the rest and ending on the server terminal' do
+    # low 0 ⇒ the pump parks in await_pull_capacity at the has_more boundary
+    # (size 1 > 0) instead of refilling immediately, giving cancel a window.
+    buffer = RecordBuffer.new(fetch_size: 1, high_watermark: 2, low_watermark: 0)
+    # batch 1 has_more → without cancel the pump would PULL again; on cancel it
+    # DISCARDs and the server replies with the terminating SUCCESS (summary).
+    source = FakeSource.new([rec(1), more], on_discard: [Message::Success.new(bookmark: 'bm')])
     pump = described_class.new(source, buffer)
     handle = Executor.spawn { pump.run }
 
-    sleep 0.05    # pump pushes rec(1) (fills bound 1), then parks pushing rec(2)
-    pump.cancel   # closes the buffer → ClosedQueueError in the parked push
+    sleep 0.05            # pump pushes rec(1), then parks in await_pull_capacity
+    pump.cancel           # flag the buffer; pump will DISCARD at the has_more boundary
 
-    expect(buffer.shift.fields).to eq([1])           # buffered record still delivered
-    expect(Timeout.timeout(2) { buffer.shift }).to be_nil # clean end — NOT a raise
+    expect(buffer.shift.fields).to eq([1])               # buffered record still delivered
+    expect(Timeout.timeout(2) { buffer.shift }).to be_nil # clean end after the DISCARD terminal
     handle.join
+    expect(source.discards).to eq([-1])  # asked the server to abandon the rest
+    expect(source.pulls).to be_empty     # no further PULL once cancelled
+    expect(buffer.summary).to eq(bookmark: 'bm') # terminal summary captured
   end
 
   # Reactor path is CRuby-only (async/fiber-scheduler unsupported on JRuby,
