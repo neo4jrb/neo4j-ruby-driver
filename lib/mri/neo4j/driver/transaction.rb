@@ -61,9 +61,11 @@ module Neo4j
         # rejected locally (no wire traffic) as a TransactionTerminatedException
         # — a ClientException subclass, matching the Java driver. Covers both a
         # failed RUN (sets @failed) and a result that failed mid-stream during
-        # the user's own iteration (@current_result.failed?).
+        # the user's own iteration (@current_result.failed?). Message wording
+        # stays "rolled back" to match the Java flavor (a shared integration spec
+        # asserts it on both impls); only the exception class becomes specific.
         raise Exceptions::TransactionTerminatedException,
-              'Cannot run more queries in this transaction, it has been terminated' if terminated?
+              'Cannot run more queries in this transaction, it has been rolled back' if terminated?
         unless @open
           # Mirror the Java/JRuby messages so the closed-state reason
           # (committed vs rolled back) is reported the same on both impls.
@@ -111,7 +113,7 @@ module Neo4j
         if terminated?
           rollback_via_reset
           raise Exceptions::TransactionTerminatedException,
-                "Transaction can't be committed. It has been terminated"
+                "Transaction can't be committed. It has been rolled back"
         end
 
         begin
