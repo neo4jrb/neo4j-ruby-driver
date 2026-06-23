@@ -57,7 +57,15 @@ module Neo4j
 
       def run(query, **parameters)
         Internal::Validator.require_query_text!(query)
-        raise Exceptions::ClientException, 'Cannot run more queries in this transaction, it has been rolled back' if @failed
+        # A server failure terminated this transaction; further work is
+        # rejected locally (no wire traffic) as a TransactionTerminatedException
+        # — a ClientException subclass, matching the Java driver. Covers both a
+        # failed RUN (sets @failed) and a result that failed mid-stream during
+        # the user's own iteration (@current_result.failed?). Message wording
+        # stays "rolled back" to match the Java flavor (a shared integration spec
+        # asserts it on both impls); only the exception class becomes specific.
+        raise Exceptions::TransactionTerminatedException,
+              'Cannot run more queries in this transaction, it has been rolled back' if terminated?
         unless @open
           # Mirror the Java/JRuby messages so the closed-state reason
           # (committed vs rolled back) is reported the same on both impls.
@@ -102,9 +110,10 @@ module Neo4j
         raise Exceptions::ClientException, 'Can\'t commit, transaction has been rolled back' if @rolled_back
         raise Exceptions::ClientException, 'Transaction is already closed' unless @open
 
-        if @failed
+        if terminated?
           rollback_via_reset
-          raise Exceptions::ClientException, "Transaction can't be committed. It has been rolled back"
+          raise Exceptions::TransactionTerminatedException,
+                "Transaction can't be committed. It has been rolled back"
         end
 
         begin
@@ -191,6 +200,11 @@ module Neo4j
       end
 
       private
+
+      # The transaction is terminated once a server failure has hit it — either
+      # a tx method caught it (@failed) or the current result failed during the
+      # user's own iteration (its failure hasn't passed through a tx method).
+      def terminated? = @failed || @current_result&.failed?
 
       # See Session#effective_fetch_size. Transactions inherit the session
       # options at open, so the same default rules apply.
