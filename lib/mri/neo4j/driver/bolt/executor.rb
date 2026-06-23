@@ -21,7 +21,14 @@ module Neo4j
 
         # True when a Fiber scheduler is installed on the current thread, so a
         # spawned pump will be a fiber that cooperates with the host reactor.
-        def reactor? = !Fiber.scheduler.nil?
+        #
+        # CRuby only: JRuby's Fiber-scheduler support is incomplete (no IO_Event
+        # selector; the scheduler's I/O hooks don't fire), so even when a host
+        # installs one we must not hand the pump to it — `Fiber.schedule` there
+        # fails / desyncs the stream. The mri-on-jruby flavor is thread-only by
+        # design (same reason lib/mri can't run on the async reactor under JRuby),
+        # so on JRuby we always spawn a real thread regardless of any scheduler.
+        def reactor? = RUBY_PLATFORM != 'java' && !Fiber.scheduler.nil?
 
         # Run `block` in the background-appropriate context and return a handle
         # (responds to #alive?; #join on the thread path). Under a scheduler the
