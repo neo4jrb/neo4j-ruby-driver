@@ -297,10 +297,19 @@ module Neo4j
       end
 
       # Materialise every remaining buffered record (used by #buffer).
+      # Classify a stream failure here, mirroring the synchronous buffer() path
+      # (whose on_failure raises classify_failure): this is only reached from
+      # buffer(), never from the self-classifying has_next?, so there's no
+      # double-classification (and classify_failure is idempotent anyway).
+      # Without it, a promoted auto-commit stream failing mid-buffer would skip
+      # routing's ServiceUnavailable→SessionExpired swap and the deactivate /
+      # on_write_failure side effects.
       def drain_buffer_into_records
         while (record = next_buffered_record)
           @records << record
         end
+      rescue StandardError => e
+        raise @connection.classify_failure(e)
       end
 
       # Abandon a promoted stream: tell the pump to DISCARD the rest, then drain

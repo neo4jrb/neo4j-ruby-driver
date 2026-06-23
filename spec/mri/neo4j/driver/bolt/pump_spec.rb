@@ -94,9 +94,9 @@ RSpec.describe Neo4j::Driver::Bolt::Pump do
     sleep 0.05            # pump pushes rec(1), then parks in await_pull_capacity
     pump.cancel           # flag the buffer; pump will DISCARD at the has_more boundary
 
-    expect(buffer.shift.fields).to eq([1])               # buffered record still delivered
+    expect(Timeout.timeout(2) { buffer.shift }.fields).to eq([1]) # buffered record still delivered
     expect(Timeout.timeout(2) { buffer.shift }).to be_nil # clean end after the DISCARD terminal
-    handle.join
+    Timeout.timeout(2) { handle.join }
     expect(source.discards).to eq([-1])  # asked the server to abandon the rest
     expect(source.pulls).to be_empty     # no further PULL once cancelled
     expect(buffer.summary).to eq(bookmark: 'bm') # terminal summary captured

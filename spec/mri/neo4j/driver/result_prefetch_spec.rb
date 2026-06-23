@@ -48,7 +48,8 @@ RSpec.describe Neo4j::Driver::Result do
     released = false
     result = result_for([rec(1), rec(2), done(bookmark: 'bm')], on_release: -> { released = true })
 
-    expect(result.to_a.map { _1[:n] }).to eq([1, 2])
+    got = Timeout.timeout(5) { result.to_a.map { _1[:n] } }
+    expect(got).to eq([1, 2])
     expect(result.connection.sent).to be_empty   # no follow-up PULL/DISCARD
     expect(released).to be(true)                  # connection released on terminal
   end
