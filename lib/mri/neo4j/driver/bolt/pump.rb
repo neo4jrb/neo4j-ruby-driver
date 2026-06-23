@@ -23,7 +23,6 @@ module Neo4j
           @source = source
           @buffer = buffer
           @running = false
-          @cancelled = false
         end
 
         # Run the fill loop until the stream ends, fails, or is cancelled. Any
@@ -31,25 +30,32 @@ module Neo4j
         # on its next read) — the stdlib-fiber pump propagates errors manually.
         def run
           @running = true
-          @source.next_response.accept(self) while @running && !@cancelled
+          @source.next_response.accept(self) while @running
         rescue ClosedQueueError
-          # cancel() closed the buffer while we were parked in push_record —
-          # cooperative shutdown, not a stream error. (Must precede the generic
-          # rescue: ClosedQueueError is a StandardError.)
+          # The consumer closed the buffer (fail/finish) while we were parked in
+          # push_record — cooperative shutdown, not a stream error. (Must precede
+          # the generic rescue: ClosedQueueError is a StandardError.)
         rescue StandardError => e
           @buffer.fail(e)
         end
 
-        # Cooperative cancel (cursor closed early). Ends the buffer so a pump
-        # parked in await_pull_capacity wakes; the loop stops between responses.
+        # Cooperative cancel (cursor abandoned the result early). Flags the
+        # buffer so a pump parked in await_pull_capacity wakes; on its next
+        # batch boundary it sends DISCARD instead of PULL and keeps reading
+        # until the server's terminating SUCCESS, so the connection stays
+        # reusable. The consumer drains the buffer concurrently, which also
+        # unblocks a pump parked in push_record.
         def cancel
-          @cancelled = true
-          @buffer.finish
+          @buffer.request_cancel
         end
 
         # --- Response visitor (Bolt::Message#accept dispatches here) --------
 
         def on_record(message)
+          # Once cancelled the consumer no longer wants records; drop them rather
+          # than block on the bound (the DISCARD reply still flows to on_success).
+          return if @buffer.cancelled?
+
           # push_record blocks at the buffer's bound — that block is the
           # consumer backpressure (fill no further than the high watermark).
           @buffer.push_record(message)
@@ -59,9 +65,13 @@ module Neo4j
           if message.metadata[:has_more]
             @buffer.batch_complete(has_more: true)
             # Hysteresis: wait until the buffer has drained to the low watermark
-            # before asking the server for the next batch (false ⇒ ended/cancelled).
+            # before asking the server for the next batch. false ⇒ stop PULLing:
+            # either the stream ended/failed, or the consumer cancelled — in
+            # which case DISCARD the rest and read on to the terminating SUCCESS.
             if @buffer.await_pull_capacity
               @source.pull(@buffer.fetch_size)
+            elsif @buffer.cancelled?
+              @source.discard
             else
               @running = false
             end

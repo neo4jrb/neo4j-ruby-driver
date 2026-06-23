@@ -106,13 +106,48 @@ acquire re-resolves + reconnects. No RESET round-trip (unlike the liveness
 probe), NOOP keepalives are drained harmlessly. This gives full parity with the
 reactor branch on that test.
 
+## Wiring the prefetch pump into the live streaming path
+
+`Result` drives the pump via **lazy promotion**, so the pump only ever runs when
+it actually helps (a multi-batch stream) and single-batch results keep the
+zero-overhead synchronous path:
+
+- **Batch 1 is synchronous.** Its `PULL` is already pipelined with `RUN`, so the
+  cursor drains the first batch on the caller's thread exactly as before. No pump.
+- **First `has_more` ⇒ promote.** `Result#on_success` builds a `RecordBuffer` +
+  `RecordSource`, sends batch 2's `PULL`, and `Executor.spawn`s a `Bolt::Pump`
+  for batches 2..N (a fiber under a host scheduler, else a thread). From then on
+  the pump is the connection's **sole reader/writer**; the cursor only touches
+  the buffer (`@buffer.shift`), so there's no concurrent socket access. The pump
+  prefetches batch *k+1* while the consumer drains batch *k*.
+- **One worker per paginating stream, spanning all pages** — not per page, and
+  never for a single-batch result. It exits at the terminal; the cursor `join`s
+  it before releasing the connection so a reused connection can't get a stray
+  reader.
+- **`consume()` cancels via the pump:** `Pump#cancel` flags the buffer; at the
+  next batch boundary the pump sends `DISCARD {n:-1}` and reads on to the
+  terminating `SUCCESS` (summary/bookmark preserved), so the connection stays
+  reusable. Cancelling during batch 1 (pre-promotion) keeps the old inline
+  `DISCARD`.
+- **Failures** surface as a raise from `@buffer.shift`, classified by the
+  consumer (routing's `SessionExpired` swap etc.) exactly as the synchronous path.
+
+Why connection-pinned per stream (not a persistent per-connection worker): a
+result is server-side stateful and bound to its connection, so every `PULL` for
+one stream goes to that one connection. Thread create/teardown (~15µs, measured)
+is noise against the network round-trips a multi-batch stream already pays, and a
+persistent parked worker would cost ~52KB resident per pooled connection *and*
+force a parked fiber-per-connection under a reactor (which the ambient-reactor
+model avoids). So: uniform per-stream spawn, thread and fiber paths identical.
+
 ## Build order
 
-1. `Bolt::Wire` + unit tests (this commit).
-2. `Bolt::RecordBuffer` + watermark autopull.
-3. Pump + `Executor` (on-demand; Thread/fiber prefetch).
-4. Rewire `Bolt::Connection` onto the core + pump; cursor lifecycle. Preserve the
-   public `Connection` API so session/transaction/result/pool/providers are
-   untouched.
-5. Validate: full rust-boltstub stub suite on CRuby (zero regressions vs main)
-   and mri-on-jruby green; restore the mri-on-jruby CI rows.
+1. `Bolt::Wire` + unit tests. ✅
+2. `Bolt::RecordBuffer` + watermark autopull. ✅
+3. Pump + `Executor` (on-demand default; Thread/fiber prefetch). ✅
+4. Rewire `Bolt::Connection` onto the core + on-demand pump; preserve the public
+   `Connection` API so session/transaction/result/pool/providers are untouched.
+   ✅ (#396)
+5. Promote the public streaming path onto the prefetch pump (this section). ✅
+6. Validate: rust-boltstub stub suite — streaming + routing modules byte-identical
+   vs `main` locally; full CI baseline gate green on mri / mri-on-jruby / jruby.

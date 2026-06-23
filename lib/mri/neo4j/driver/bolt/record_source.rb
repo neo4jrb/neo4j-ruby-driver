@@ -22,6 +22,15 @@ module Neo4j
           @connection.send_message(@connection.protocol.build_pull(n: n))
           @connection.flush
         end
+
+        # Abandon the rest of the stream (cancel path). DISCARD {n: -1} tells the
+        # server to drop all remaining records and reply with the terminating
+        # SUCCESS (carrying the summary / bookmark), keeping the connection
+        # reusable — the same message the synchronous cursor sends on consume().
+        def discard(n = -1)
+          @connection.send_message(@connection.protocol.build_discard(n: n))
+          @connection.flush
+        end
       end
     end
   end
