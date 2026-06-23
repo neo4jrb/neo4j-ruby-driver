@@ -1,0 +1,48 @@
+name: Claude Code
+
+# Interactive "@claude mention" mode: Claude responds only when explicitly
+# invoked with "@claude" in an issue/PR comment, review, or issue body. It does
+# NOT review every PR automatically — that keeps Anthropic API spend pay-per-use
+# (CodeRabbit/Copilot cover the always-on reviews on this public repo).
+#
+# Prerequisites (repo/org admin, one-time — until both are in place this
+# workflow stays inert and never turns a check red):
+#   1. Install the Claude GitHub App: https://github.com/apps/claude
+#   2. Add the repo secret ANTHROPIC_API_KEY (https://console.anthropic.com).
+# Or run `claude /install-github-app` locally, which does both.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  claude:
+    # Only start a runner when "@claude" is actually present, so unrelated
+    # comments don't burn Actions minutes (the action also gates on the phrase).
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Cap the work per invocation to bound cost on large threads.
+          claude_args: "--max-turns 15"
