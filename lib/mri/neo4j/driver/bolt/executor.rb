@@ -31,24 +31,19 @@ module Neo4j
         def reactor? = RUBY_PLATFORM != 'java' && !Fiber.scheduler.nil?
 
         # Run `block` in the background-appropriate context and return a handle
-        # (responds to #alive?; #join on the thread path). Under a scheduler the
-        # caller and the pump share one thread cooperatively; without one the
-        # pump gets its own thread.
+        # responding to #alive? / #join. Without a scheduler the pump gets its own
+        # thread — a plain Thread already satisfies that interface, so it's
+        # returned as-is. Under a scheduler it's a fiber, wrapped (see below).
         def spawn(&block)
-          reactor? ? FiberHandle.new(Fiber.schedule(&block)) : ThreadHandle.new(Thread.new(&block))
+          reactor? ? FiberHandle.new(Fiber.schedule(&block)) : Thread.new(&block)
         end
 
-        # Thin uniform wrappers so callers don't branch on the handle type.
-        ThreadHandle = Struct.new(:thread) do
-          def alive? = thread.alive?
-          def join = thread.join
-        end
-
+        # Adapter for the reactor path only: a scheduled fiber doesn't satisfy the
+        # thread-shaped handle interface — there's no Fiber#join (it's driven by
+        # the host reactor; the consumer observes completion via the buffer's
+        # stream-end signal, not by joining), and #alive? maps straight through.
         FiberHandle = Struct.new(:fiber) do
           def alive? = fiber.alive?
-          # A scheduled fiber is driven by the host reactor, not joined by a
-          # caller; the consumer observes completion via the buffer's stream-end
-          # signal instead. No-op so the interface stays uniform.
           def join = nil
         end
       end
