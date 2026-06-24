@@ -4,43 +4,34 @@ module Neo4j
   module Driver
     # Represents the result of running a Cypher statement.
     #
-    # Acts as a visitor for the streaming Bolt responses (Record/Success/
-    # Failure/Ignored): each fetched response calls back into one of the
-    # `on_*` methods below. The three drain modes (peek for #has_next?,
-    # discard for #consume, store for #buffer) install a per-call
-    # `@record_handler` so the polymorphic dispatch sees uniform
-    # behaviour for SUCCESS/FAILURE while record handling stays
-    # context-specific.
+    # Records arrive through a Bolt::RecordBuffer that the connection's dedicated
+    # reader fills (via the StreamHandler the RUN's PULL registered). The cursor
+    # shifts from that buffer and, as it drains past the low watermark, issues the
+    # next PULL — so the reader keeps a batch or two ahead (watermark prefetch).
+    # The terminal SUCCESS's metadata becomes the Summary; a stream FAILURE is
+    # re-raised (classified) on the next read.
     class Result
       include Enumerable
 
-      def initialize(connection, keys = [], query_text: nil, parameters: {}, run_metadata: {},
-                     fetch_size: 1000, on_summary: nil, on_release: nil)
+      def initialize(connection, keys = [], buffer:, handler:, query_text: nil, parameters: {},
+                     run_metadata: {}, fetch_size: 1000, on_summary: nil, on_release: nil)
         @connection = connection
         @keys = keys
+        @buffer = buffer          # Bolt::RecordBuffer, filled by the reader
+        @handler = handler        # the StreamHandler registered for this result's PULLs
         @query_text = query_text
         @parameters = parameters
         @run_metadata = run_metadata
-        @fetch_size = fetch_size  # used when SUCCESS carries has_more=true to request the next batch
-        @on_summary = on_summary  # called with the built Summary when stream ends in SUCCESS
+        @fetch_size = fetch_size
+        @on_summary = on_summary  # called with the built Summary when the stream ends in SUCCESS
         @on_release = on_release  # called once when the connection is no longer needed
         @records = []       # records pulled into memory by #buffer (not by iteration)
         @summary = nil
-        @consumed = false   # stream has been fully drained from the wire
-        @discarded = false  # records were explicitly released; further access raises
+        @consumed = false   # stream fully drained (terminal seen)
+        @discarded = false  # records explicitly released; further access raises
         @failed = false     # stream ended with a server FAILURE; connection needs RESET
-        @cancelled = false  # consume() called mid-stream — server should DISCARD, not paginate
+        @cancelling = false # consume(): abandon the rest — DISCARD the next batch instead of PULL
         @peeked_record = nil
-        # Prefetch promotion (set once the first batch reports has_more): a
-        # background pump drains batches 2..N off the connection into @buffer
-        # while the consumer processes the current batch. Single-batch results
-        # never promote — their lone PULL is already pipelined with RUN, so the
-        # synchronous path below is optimal and spawns nothing. See
-        # docs/sans-io-pump.md and Bolt::Pump.
-        @promoted = false
-        @buffer = nil       # Bolt::RecordBuffer once promoted
-        @pump = nil         # Bolt::Pump driving the connection
-        @pump_handle = nil  # Executor handle (Thread/Fiber) — joined before release
       end
 
       attr_reader :connection, :keys
@@ -48,30 +39,11 @@ module Neo4j
       def has_next?
         raise Exceptions::ResultConsumedException if @discarded
         return true if @records.any?
-        return false if @consumed
         return true if @peeked_record
+        return false if @consumed
 
-        if @promoted
-          # Records now arrive from the background pump via the buffer.
-          @peeked_record = next_buffered_record
-        else
-          # Loop until the stream gives us a RECORD or signals end. A SUCCESS
-          # in the middle (has_more=true) either triggers another PULL in
-          # on_success (single batch so far) or *promotes* to the prefetch
-          # pump — in which case the loop exits and the first post-promotion
-          # record comes from the buffer.
-          with_record_handler(->(msg) { @peeked_record = build_record(msg) }) do
-            @connection.fetch_response.accept(self) until @consumed || @peeked_record || @promoted
-          end
-          @peeked_record = next_buffered_record if @promoted && @peeked_record.nil? && !@consumed
-        end
+        @peeked_record = next_record
         !@peeked_record.nil?
-      rescue StandardError => e
-        @consumed = true
-        # A connection failure mid-stream (e.g. the writer dropped during
-        # PULL) arrives here, not via on_failure — classify it so routing
-        # turns ServiceUnavailable into SessionExpired (no-op for direct).
-        raise @connection.classify_failure(e)
       end
 
       def next
@@ -130,17 +102,13 @@ module Neo4j
         return @summary if @discarded
 
         @peeked_record = nil
-        # Set the cancel flag before draining so on_success swaps the
-        # next pagination step from PULL to DISCARD — the server then
-        # abandons remaining records and replies with the final summary
-        # SUCCESS, instead of streaming every record into the void.
-        @cancelled = true
+        # Abandon the rest: the watermark path (request_more) now DISCARDs instead
+        # of PULLing the next batch, so the server stops shipping records and the
+        # stream ends on its terminating SUCCESS. We must still drain the records
+        # already in flight (dropping them) so the connection is left clean.
+        @cancelling = true
         begin
-          if @promoted
-            cancel_via_pump unless @consumed
-          else
-            drain_until_consumed { |_msg| } unless @consumed
-          end
+          nil while next_record unless @consumed
         ensure
           @records.clear
           @discarded = true
@@ -149,9 +117,8 @@ module Neo4j
         @summary
       end
 
-      # Pull all remaining records into memory so the underlying connection
-      # can be reused for another query. Unlike #consume, records stay
-      # accessible via #each/#to_a/etc.
+      # Pull all remaining records into memory so the underlying connection can be
+      # reused for another query. Unlike #consume, records stay accessible.
       def buffer
         return if @consumed
 
@@ -160,13 +127,8 @@ module Neo4j
           @peeked_record = nil
         end
 
-        if @promoted
-          drain_buffer_into_records
-        else
-          drain_until_consumed { |msg| @records << build_record(msg) }
-          # on_success may have promoted mid-drain (first has_more); continue
-          # materialising the remaining batches from the buffer.
-          drain_buffer_into_records if @promoted && !@consumed
+        while (record = next_record)
+          @records << record
         end
       end
 
@@ -178,182 +140,69 @@ module Neo4j
         @failed
       end
 
-      # Mark this result as released without touching the wire. Used by the
-      # session when closing — the underlying connection is gone, so further
-      # record access is impossible and must raise ResultConsumedException.
+      # Mark this result as released without touching the wire — the connection is
+      # being returned/reset by the caller. Callers drain (consume/buffer) or RESET
+      # before this, so the stream is already finished; further access raises.
       def discard!
         @peeked_record = nil
         @discarded = true
-        # Stop a still-running pump and wait for it to exit so its thread/fiber
-        # can't read the connection after we release it (a reused connection
-        # with a stray reader would corrupt the protocol). finish() closes the
-        # buffer, waking a pump parked in push_record (ClosedQueueError → clean
-        # exit) or await_pull_capacity (ended → stop). Normal paths drain via
-        # consume/buffer first, so the pump is already done and this is a no-op.
-        if @pump
-          @buffer.finish
-          @pump_handle&.join
-        end
-        release_connection
-      end
-
-      # --- Visitor callbacks (Bolt::Message#accept dispatches here) -------
-
-      def on_record(msg)
-        @record_handler&.call(msg)
-      end
-
-      def on_success(msg)
-        # Only the *first* batch's terminal reaches here — once promoted the
-        # pump is the connection's visitor, not the Result.
-        #
-        # has_more=true means the server still has records beyond this batch.
-        # If the consumer already cancelled (consume() during batch 1), send
-        # DISCARD and stay synchronous. Otherwise promote to the prefetch pump,
-        # which streams the remaining batches into @buffer in the background.
-        if msg.metadata[:has_more]
-          if @cancelled
-            @connection.send_message(@connection.protocol.build_discard(n: -1))
-            @connection.flush
-          else
-            promote
-          end
-          return
-        end
-
-        finalize(msg.metadata)
-        @on_summary&.call(@summary)
-        # Stream is done — auto-commit results don't need the connection
-        # past SUCCESS. Records previously buffered remain accessible.
-        release_connection
-      end
-
-      def on_failure(msg)
-        finalize(msg.metadata)
-        @failed = true
-        # Connection is in FAILED state; the caller (Session) will RESET
-        # before releasing. We just mark failed; the caller path drives
-        # the release via #discard!.
-        #
-        # For routed connections, thread the failure through the
-        # classifier so DatabaseUnavailable / NotALeader on a mid-stream
-        # PULL still trigger deactivate / on_write_failure. The classify
-        # returns the (possibly swapped) exception to raise.
-        raise @connection.classify_failure(msg.to_exception)
-      end
-
-      def on_ignored(_msg)
-        # Treated as terminal — the prior request in the batch already failed.
-        @consumed = true
         release_connection
       end
 
       private
 
-      # First batch reported has_more: hand the remaining batches to a
-      # background pump. Send batch 2's PULL on this (consumer) thread — the
-      # pump issues every PULL after that — then spawn it. Once spawned the
-      # pump is the connection's sole reader/writer; the consumer only ever
-      # touches @buffer, so there's no concurrent socket access. The pump runs
-      # as a fiber under a host scheduler, else its own thread (Executor).
-      def promote
-        @buffer = Bolt::RecordBuffer.new(fetch_size: @fetch_size)
-        source = Bolt::RecordSource.new(@connection)
-        source.pull(@fetch_size)
-        @pump = Bolt::Pump.new(source, @buffer)
-        @pump_handle = Bolt::Executor.spawn { @pump.run }
-        @promoted = true
-      end
-
-      # Next record from the prefetch buffer, or nil at end of stream. A nil
-      # means the pump saw the terminating SUCCESS: finalize from the buffer's
-      # summary, harvest the bookmark, and release the connection — the same
-      # terminal handling on_success does for the synchronous path. The pump's
-      # thread/fiber has finished by then (it closes the buffer last); join it
-      # before release so it can't touch a reused connection. A stream failure
-      # surfaces as a raise from shift (handled by the caller's classifier).
-      def next_buffered_record
-        msg =
+      # Next record from the buffer (reader-filled), or nil at end of stream.
+      # Drives the next PULL once the buffer drains past the low watermark. At end,
+      # finalizes from the terminal summary and releases. A stream FAILURE surfaces
+      # as a raise from shift — classified (routing's ServiceUnavailable→
+      # SessionExpired etc.) and marked @failed so the caller RESETs.
+      def next_record
+        record =
           begin
             @buffer.shift
-          rescue StandardError
+          rescue StandardError => e
             @failed = true
-            raise
+            @consumed = true
+            # A FAILURE carries no summary counters, but the run metadata still
+            # yields a meaningful summary (query text, zero counters) — build it
+            # so a subsequent #consume returns it after re-raising the failure
+            # once (matches main's on_failure, which finalized on the failure).
+            finalize({})
+            raise @connection.classify_failure(e)
           end
-        return build_record(msg) if msg
-
-        # End of stream. A terminating SUCCESS carries summary metadata; a bare
-        # finish (e.g. IGNORED) carries none — mirror Result#on_ignored and just
-        # mark consumed, no summary, like the synchronous path.
-        if (summary = @buffer.summary)
-          finalize(summary)
-          @on_summary&.call(@summary)
-        else
-          @consumed = true
+        if record.nil?
+          finalize_stream
+          return nil
         end
-        @pump_handle&.join
-        release_connection
-        nil
+
+        request_more
+        build_record(record)
       end
 
-      # Materialise every remaining buffered record (used by #buffer).
-      # Classify a stream failure here, mirroring the synchronous buffer() path
-      # (whose on_failure raises classify_failure): this is only reached from
-      # buffer(), never from the self-classifying has_next?, so there's no
-      # double-classification (and classify_failure is idempotent anyway).
-      # Without it, a promoted auto-commit stream failing mid-buffer would skip
-      # routing's ServiceUnavailable→SessionExpired swap and the deactivate /
-      # on_write_failure side effects.
-      def drain_buffer_into_records
-        while (record = next_buffered_record)
-          @records << record
-        end
-      rescue StandardError => e
-        raise @connection.classify_failure(e)
+      # Watermark autopull: once the buffer has drained to/below the low watermark
+      # and the server has confirmed (via a completed batch) it has more, request
+      # the next batch — PULL normally, or DISCARD once consume() has cancelled
+      # (abandon the rest). Driving DISCARD through the same gate is what avoids a
+      # premature DISCARD before the in-flight PULL's reply has even arrived.
+      def request_more
+        return unless @buffer.pull_ready?
+
+        @buffer.note_pull_issued
+        message = @cancelling ? @connection.protocol.build_discard(n: -1) : @connection.protocol.build_pull(n: @fetch_size)
+        @connection.send_message(message, @handler)
+        @connection.flush
       end
 
-      # Abandon a promoted stream: tell the pump to DISCARD the rest, then drain
-      # the buffer (dropping records, which also unblocks a pump parked in
-      # push_record) until the server's terminating SUCCESS closes it. Harvest
-      # that summary's bookmark — DISCARD still returns one for auto-commit.
-      # A failure surfaced during the drain propagates (classified) exactly as
-      # the synchronous consume() path does; the connection is then left for the
-      # caller to RESET + discard!, not released here.
-      def cancel_via_pump
-        @pump.cancel
-        error = nil
-        begin
-          nil while @buffer.shift
-        rescue StandardError => e
-          @failed = true
-          error = e
-        end
-        @pump_handle&.join
-        raise @connection.classify_failure(error) if error
-
-        if !@consumed && (summary = @buffer.summary)
-          finalize(summary)
+      # End of stream: a terminating SUCCESS carries summary metadata (build the
+      # Summary, harvest the bookmark); a bare finish (IGNORED) carries none.
+      def finalize_stream
+        if (metadata = @buffer.summary)
+          finalize(metadata)
           @on_summary&.call(@summary)
         else
           @consumed = true
         end
         release_connection
-      end
-
-      def drain_until_consumed(&record_handler)
-        with_record_handler(record_handler) do
-          # Stop on promotion too: once on_success hands the stream to the pump,
-          # the pump is the sole reader — the caller continues from the buffer.
-          @connection.fetch_response.accept(self) until @consumed || @promoted
-        end
-      end
-
-      def with_record_handler(handler)
-        previous = @record_handler
-        @record_handler = handler
-        yield
-      ensure
-        @record_handler = previous
       end
 
       def build_record(msg)
@@ -367,7 +216,7 @@ module Neo4j
 
       def release_connection
         @on_release&.call
-        @on_release = nil  # idempotent
+        @on_release = nil # idempotent
       end
     end
   end

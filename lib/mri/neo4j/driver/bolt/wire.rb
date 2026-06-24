@@ -92,6 +92,15 @@ module Neo4j
           end
         end
 
+        # Connection failure fan-out: tell every outstanding request's handler
+        # the connection died, so a consumer parked on that handler's buffer
+        # (or completion) wakes and re-raises rather than hanging. Drops them
+        # from the FIFO — the wire is done.
+        def fail_pending(error)
+          @handlers.each { |handler| handler.fail(error) }
+          @handlers.clear
+        end
+
         private
 
         # Pull one complete message off the front of @inbound, or nil if more

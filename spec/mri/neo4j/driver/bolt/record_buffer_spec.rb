@@ -44,7 +44,15 @@ RSpec.describe Neo4j::Driver::Bolt::RecordBuffer do
     end
   end
 
-  describe 'server→driver autopull hysteresis (await_pull_capacity)' do
+  describe 'server→driver autopull (cursor-driven via pull_ready?/note_pull_issued)' do
+    # The first PULL is pipelined with RUN, so a fresh buffer has one in flight.
+    before { buffer.batch_complete(has_more: true) } # that reply seen; none in flight, more to come
+
+    it 'a fresh buffer withholds pulls (first PULL already pipelined with RUN)' do
+      fresh = described_class.new(fetch_size: 4, high_watermark: 4, low_watermark: 2)
+      expect(fresh.pull_ready?).to be(false)
+    end
+
     it 'does not pull while the buffer is above the low watermark' do
       buffer.push_record(1)
       buffer.push_record(2)
@@ -52,24 +60,23 @@ RSpec.describe Neo4j::Driver::Bolt::RecordBuffer do
       expect(buffer.pull_ready?).to be(false)
     end
 
-    it 'pulls once drained to the low watermark, and marks a pull in flight' do
+    it 'is pull-ready once drained to the low watermark' do
       buffer.push_record(1)
       buffer.push_record(2)
       buffer.push_record(3)
-      waiter = Thread.new { Timeout.timeout(2) { buffer.await_pull_capacity } }
-      sleep 0.05
-      expect(waiter).to be_alive # above low watermark → parked
-      buffer.shift               # 3 → 2 (== low)
-      expect(waiter.value).to be(true)
-      expect(buffer.pull_ready?).to be(false) # now in flight → withheld
+      buffer.shift # 3 → 2 (== low)
+      expect(buffer.pull_ready?).to be(true)
     end
 
-    it 'wakes a parked pump and returns false when the stream ends' do
-      buffer.push_record(1); buffer.push_record(2); buffer.push_record(3)
-      waiter = Thread.new { Timeout.timeout(2) { buffer.await_pull_capacity } }
-      sleep 0.05
-      buffer.finish
-      expect(waiter.value).to be(false) # ended → pump should stop
+    it 'withholds another pull once one is noted in flight, until the batch completes' do
+      buffer.push_record(1)
+      buffer.push_record(2) # size 2 == low → ready
+      expect(buffer.pull_ready?).to be(true)
+      buffer.note_pull_issued
+      expect(buffer.pull_ready?).to be(false)        # in flight
+      buffer.shift                                   # drain one
+      buffer.batch_complete(has_more: true)          # reply seen → not in flight
+      expect(buffer.pull_ready?).to be(true)
     end
 
     it 'withholds further pulls after the server says no has_more' do

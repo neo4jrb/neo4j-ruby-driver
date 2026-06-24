@@ -19,6 +19,9 @@ module Neo4j
           def on_success(message) = inbox.push(message)
           def on_failure(message) = inbox.push(message)
           def on_ignored(message) = inbox.push(message)
+          # Failure fan-out is handled connection-wide (inbox closed + @broken_error),
+          # so a sync handler needs nothing here.
+          def fail(_error); end
         end
 
         attr_reader :server_version, :server_agent, :protocol, :address
@@ -65,14 +68,30 @@ module Neo4j
           # response handler on the wire's FIFO; @collector appends each routed
           # message here, and fetch_response drains it. (The handler seam lets a
           # streaming request register a record-routing handler instead.)
-          @inbox = []
+          # The dedicated reader is the sole socket reader; it routes each reply
+          # to the handler the request registered on the wire's FIFO. Sync
+          # replies (RUN/BEGIN/COMMIT/RESET/ROUTE terminals) go to @collector,
+          # which pushes them onto @inbox — a blocking queue fetch_response pops.
+          # Streaming PULLs register a StreamHandler that fills a RecordBuffer
+          # instead. @inbox is a Thread::Queue: the reader pushes, the consumer
+          # pops, both colorless (yields under a Fiber scheduler).
+          @inbox = Thread::Queue.new
           @collector = ResponseCollector.new(@inbox)
           @recv_timeout = nil # server's connection.recv_timeout_seconds hint
           @read_deadline = nil # monotonic bound for acquisition-phase reads
-          # Writes go behind a mutex: the consumer thread normally drives I/O,
-          # but a prefetch pump (later) reads while the consumer may still write
-          # (a new query, DISCARD). One guarded writer, never two readers.
+          # Writes go behind a mutex: the reader writes watermark follow-up
+          # nothing — but the consumer writes (new query, next PULL, DISCARD)
+          # while the reader reads, so one guarded writer, never two readers.
           @write_mutex = Mutex.new
+          # Dedicated reader: a Thread (per-connection lifetime) spawned lazily on
+          # the first request, parked on @reader_cv when nothing is in flight,
+          # stopped on close. Drives #advance and routes via the wire.
+          @reader = nil
+          @reader_mutex = Mutex.new
+          @reader_cv = ConditionVariable.new       # wakes the reader: a reply is expected
+          @quiescent_cv = ConditionVariable.new    # wakes drainers: in_flight hit 0
+          @reader_stopped = false
+          @broken_error = nil # set by failure fan-out; raised to inbox poppers
           @server_version = nil
           @bolt_version = nil
           @protocol = nil
@@ -104,6 +123,10 @@ module Neo4j
               perform_hello
               @read_deadline = nil
               @created_at = current_monotonic
+              # Connection is READY: hand steady-state reads to the dedicated
+              # reader. (Handshake/hello above read synchronously via
+              # fetch_response, so a failed connect never spawns a reader.)
+              start_reader
               return self
             rescue Exceptions::AuthenticationException
               # Auth is the same regardless of which address we hit — fail fast.
@@ -155,7 +178,7 @@ module Neo4j
 
           send_message(Message.reset)
           flush
-          fetch_response.assert_success! while pending_responses?
+          drain_quiesced.each(&:assert_success!)
           true
         rescue StandardError
           discard_socket
@@ -201,13 +224,19 @@ module Neo4j
         def close
           return if @closed
 
+          @closed = true
+          # Best-effort GOODBYE before we tear down. Frame+write directly rather
+          # than via send_message (which would re-arm the reader) / fetch (GOODBYE
+          # has no reply). Then stop the reader and close the socket.
           begin
-            send_message(Message.goodbye) rescue nil
-            flush rescue nil
-          ensure
-            @socket&.close
-            @closed = true
+            @wire&.enqueue(Message.goodbye, @collector)
+            bytes = @wire&.take_outbound
+            @write_mutex.synchronize { @socket.write(bytes); @socket.flush } if bytes && !bytes.empty?
+          rescue StandardError
+            # closing anyway
           end
+          stop_reader
+          @socket&.close rescue nil
         end
 
         def closed?
@@ -338,12 +367,16 @@ module Neo4j
         # IOError: the cleanup and retry paths (Transaction#rollback, reset!,
         # the managed-tx retry) rescue Neo4jException, so a bare IOError would
         # escape them and surface as an unhandled error.
-        def send_message(message)
+        # Register a request on the wire's FIFO with the handler that will route
+        # its reply: @collector (→ @inbox) for sync requests, or a StreamHandler
+        # (→ a RecordBuffer) for a streaming PULL. The dedicated reader (started
+        # once the connection is READY) delivers it; during the acquisition phase
+        # (handshake/hello, before the reader exists) fetch_response drives the
+        # reads synchronously.
+        def send_message(message, handler = @collector)
           raise Exceptions::ServiceUnavailableException, "Connection to #{@address || @uri} is closed" if closed?
 
-          # Register @collector as this request's response handler; the wire's
-          # FIFO matches it to the reply and pops it on the terminal.
-          @wire.enqueue(message, @collector)
+          @wire.enqueue(message, handler)
         end
 
         def send_all(*messages)
@@ -480,36 +513,39 @@ module Neo4j
             @socket.write(bytes)
             @socket.flush
           end
+          wake_reader # a reply is now expected; wake the reader if it's parked
         rescue Errno::EPIPE, Errno::ECONNRESET
           # peer-closed — see method comment
         end
 
-        # Return the next response in request order. The wire may decode several
-        # messages from one socket read (RECORD RECORD SUCCESS in one segment),
-        # so they're buffered in @inbox and handed out one at a time — same
-        # contract as before (RECORDs individually, terminating in the
-        # SUCCESS/FAILURE/IGNORED). Reads happen here, on demand: this is the
-        # default pump, on the consumer's thread — it drives #advance (one read
-        # step) until the next message has landed.
+        # Return the next sync reply in request order. The dedicated reader fills
+        # @inbox (a blocking queue); this pops it, blocking colorlessly until the
+        # reader delivers. On a connection failure the reader closes @inbox and
+        # records @broken_error, so a blocked pop wakes with nil and re-raises the
+        # classified error rather than hanging.
         def fetch_response
-          advance while @inbox.empty?
-          @inbox.shift
+          # Acquisition phase (no reader yet): drive the reads ourselves. Steady
+          # state: the reader fills @inbox; block on pop until it delivers.
+          advance while @reader.nil? && @inbox.empty?
+          message = @inbox.pop
+          raise @broken_error if message.nil? && @broken_error
+
+          message
         end
 
         def fetch_all
-          results = []
-          results << fetch_response while pending_responses?
-          results
+          drain_quiesced
         end
 
-        # Recover from a FAILED server state. Sends RESET and drains all
-        # pending responses (including any IGNOREDs from messages queued before
-        # the failure). Returns when the server has acknowledged the RESET with
-        # SUCCESS and nothing is left to read.
+        # Recover from a FAILED server state. Sends RESET and drains all pending
+        # responses (including any IGNOREDs from messages queued before the
+        # failure — those routed to their handlers; this drains the sync @inbox).
+        # Returns once the server has acknowledged the RESET and the connection is
+        # quiescent.
         def reset!
           send_message(Message.reset)
           flush
-          fetch_response while pending_responses?
+          drain_quiesced
         rescue StandardError
           # If RESET itself fails the connection is likely dead; caller will
           # discover this on next use. Swallow so recovery paths don't mask
@@ -526,17 +562,22 @@ module Neo4j
         private
 
         def discard_socket
+          stop_reader
           @socket&.close rescue nil
           @socket = nil
           # Reset all per-attempt I/O state so a retry on the next address (or a
           # later reset!/drain loop) doesn't carry a phantom in-flight request or
           # half-parsed message forward. @wire (with its handler FIFO) is rebuilt
-          # by perform_handshake. Crucially clear @closed too: a fail_broken on
-          # one address set it, and connect() retries the next address with a
-          # fresh socket — without this, send_message there would wrongly raise
-          # "Connection is closed" and break address failover.
+          # by perform_handshake. A fresh @inbox (the old one may be closed by a
+          # fan-out) and cleared reader/broken state so a retry can re-arm the
+          # reader. Crucially clear @closed too: a fail_broken on one address set
+          # it, and connect() retries the next address with a fresh socket —
+          # without this, send_message there would wrongly raise "Connection is
+          # closed" and break address failover.
           @wire = nil
-          @inbox.clear
+          @inbox = Thread::Queue.new
+          @reader_stopped = false
+          @broken_error = nil
           @closed = false
         end
 
@@ -550,8 +591,7 @@ module Neo4j
         # :wait_writable when it would block, or nil on EOF. The explicit wait
         # honors the recv timeout (readpartial/read ignore IO#timeout for partial
         # reads) and yields under a Fiber scheduler (wait_readable hooks io_wait),
-        # so the pump is colorless. This is the seam step 2's dedicated reader
-        # will loop; for now the consumer drives it on demand.
+        # so the pump is colorless. The dedicated reader loops this.
         def advance
           case (chunk = @socket.read_nonblock(READ_CHUNK, exception: false))
           when :wait_readable
@@ -566,6 +606,89 @@ module Neo4j
         rescue IOError, SystemCallError => e
           fail_broken(Exceptions::ServiceUnavailableException.new(
                         "Connection to #{@address || @uri} broken: #{e.class}: #{e.message}"))
+        end
+
+        # The dedicated reader: the sole socket reader for this connection's
+        # lifetime. It advances (reads + routes via the wire) while replies are
+        # in flight, and parks on @reader_cv when none are — woken by #flush when
+        # a request is sent, or by #stop_reader on close. Any read failure is
+        # fanned out to every waiter (see #fan_out). A plain Thread: it does
+        # blocking I/O and feeds colorless queues/buffers, so a consumer fiber
+        # under a host scheduler still yields on pop/shift. (The reactor-native
+        # fiber reader + per-active-window lifetime is a later step.)
+        def reader_loop
+          until @reader_stopped
+            @reader_mutex.synchronize do
+              # in_flight == 0 ⇒ all expected replies are read: the connection is
+              # quiescent. Wake any drainer (reset!/fetch_all/alive?) before we park.
+              @quiescent_cv.broadcast if @wire.in_flight.zero?
+              @reader_cv.wait(@reader_mutex) while !@reader_stopped && @wire.in_flight.zero?
+            end
+            # Woken to read — unless we were woken to stop (don't advance on the
+            # socket #stop_reader just closed; that would fan out a phantom error).
+            advance unless @reader_stopped
+          end
+        rescue StandardError => e
+          fan_out(e)
+        end
+
+        # Block until the connection is quiescent (the reader has read every
+        # in-flight reply, wherever it routed — @inbox or a stream buffer) or it
+        # broke. The drain loops use this instead of racing on in_flight.
+        def wait_quiescent
+          @reader_mutex.synchronize do
+            @quiescent_cv.wait(@reader_mutex) until @wire.in_flight.zero? || @reader_stopped || @broken_error
+          end
+        end
+
+        # Wait for quiescence, then pop every sync reply sitting in @inbox
+        # (non-blocking). Stream replies went to their buffers, not here.
+        def drain_quiesced
+          wait_quiescent
+          raise @broken_error if @broken_error
+
+          messages = []
+          loop { messages << @inbox.pop(true) }
+        rescue ThreadError, ClosedQueueError
+          messages || []
+        end
+
+        # Start the dedicated reader once the connection is READY (called at the
+        # end of connect). Idempotent; never re-armed once stopped.
+        def start_reader
+          return if @reader || @reader_stopped
+
+          @reader = Thread.new { reader_loop }
+        end
+
+        # Wake a parked reader: a reply is now expected (a request was flushed).
+        def wake_reader
+          @reader_mutex.synchronize { @reader_cv.broadcast }
+        end
+
+        # Stop the reader and wait for it to exit. Closing the socket unblocks a
+        # reader parked in advance's wait_readable; the stopped flag + broadcast
+        # unblocks one parked on @reader_cv.
+        def stop_reader
+          reader = @reader
+          @reader = nil
+          @reader_mutex.synchronize { @reader_stopped = true; @reader_cv.broadcast }
+          return unless reader
+
+          @socket&.close rescue nil
+          reader.join unless reader == Thread.current
+        end
+
+        # Failure fan-out: a dead/timed-out connection must wake every waiter,
+        # not just the front one. Record the classified error, close @inbox so
+        # sync poppers (fetch_response) return nil → re-raise it, and fail each
+        # outstanding stream buffer (via its handler) so a consumer parked in
+        # buffer.shift re-raises too. Idempotent.
+        def fan_out(error)
+          @broken_error ||= error
+          @inbox.close
+          @wire&.fail_pending(error)
+          mark_closed_broken
         end
 
         # A read timeout or wire error means this connection is unusable: hang
