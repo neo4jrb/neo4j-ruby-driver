@@ -47,55 +47,43 @@ and give the connection three primitives:
    completion on a terminal: SUCCESS/FAILURE/IGNORED). Colorless: its
    `wait_readable` blocks a real thread without a scheduler and yields a fiber
    under one (exactly today's `fill_inbox`).
-3. `await(completion)` — drive `advance` until *this* completion is fulfilled,
-   then return its value (or raise its stored error).
+3. `await(completion)` — block (colorlessly) until the connection's reader
+   fulfils *this* completion, then return its value (or raise its stored error).
+   For a record stream the consumer instead blocks on the result's `RecordBuffer`
+   (`shift`), which the reader fills.
 
-"Synchronous" is just `enqueue(msg).then { await(it) }`. Every request is async;
-`await` is the thin, colorless blocking layer on top. No `async` gem; the only
-concurrency primitives are stdlib `Mutex`/`ConditionVariable`, which are
-scheduler-aware.
+The connection runs a **dedicated reader** (next section) that is the sole caller
+of `advance`; callers only ever `enqueue` and then block on a completion or a
+buffer. "Synchronous" is just `enqueue(msg).then { await(it) }`. Every request is
+async; `await`/`shift` are the thin, colorless blocking layer on top. No `async`
+gem; the only concurrency primitives are stdlib `Queue`/`Mutex`/
+`ConditionVariable`, which are scheduler-aware.
 
-### Single reader, many waiters (the crux)
+### One dedicated reader per active connection
 
-Responses are strictly ordered per socket, so there must be exactly **one reader
-at a time** — but any thread/fiber may be the one waiting. The rule: whoever
-needs a reply and finds no active reader *becomes* the reader and pumps for
-**everyone** (each reply lands in its own completion via the FIFO); everyone else
-parks until a reader fulfils them.
+Responses are strictly ordered per socket, so there is exactly **one reader**.
+Rather than have whichever caller is waiting drive the socket (a leader/follower
+hand-off that also only ever pulls when someone awaits), the connection owns a
+**dedicated reader** for the duration of its active use. The reader loops
+`advance`: read bytes → wire decodes → dispatch each reply to its FIFO handler,
+which either fulfils a completion (RUN/BEGIN/COMMIT/RESET/ROUTE) or pushes a
+record into the owning result's `RecordBuffer`. Callers never touch the socket;
+they block on their completion or buffer.
 
-```
-def await(completion)
-  @mutex.synchronize do
-    until completion.ready? || @reader.nil?
-      @cv.wait(@mutex)          # someone else is reading; park
-    end
-    return take(completion) if completion.ready?
-    @reader = Fiber.current     # claim the reader role
-  end
+This keeps **watermark-driven prefetch**: the reader fills each result's buffer
+toward its high-water mark ahead of demand, pauses that result's `PULL`s when it
+is full, and resumes when the consumer drains past the low-water mark — so the
+server fetch + decode overlap the consumer's own work. (The eager **first**
+`PULL` always rides with `RUN`; only `PULL` #2+ are watermark-gated — see
+*How the three behaviours collapse*.) Because there is exactly one reader and
+callers only consume buffers, there is **no leader/follower hand-off** and no
+thundering herd — the reader is just the #397 pump generalised from one stream to
+all of the connection's active results.
 
-  begin
-    until completion.ready?
-      advance                   # blocking read OUTSIDE @mutex (colorless)
-      @mutex.synchronize { @cv.broadcast }  # let parked waiters re-check
-    end
-  ensure
-    @mutex.synchronize { @reader = nil; @cv.broadcast }  # hand off the role
-  end
-  take(completion)
-end
-```
-
-The **leader hand-off** is the correctness keystone: on exit the reader clears
-the role and broadcasts, so a still-waiting fiber either finds its completion
-already fulfilled (returns) or becomes the next reader. There is never an
-unfulfilled completion with no reader and no one about to become one — so no
-deadlock, and no thundering herd (followers don't touch the socket). The
-blocking read happens *outside* `@mutex`, so under a scheduler the reader fiber
-yields and the followers' `@cv.wait` yields too.
-
-This is the #395 reactor's "reader fiber + handler FIFO + mailboxes" idea —
-minus the dedicated reactor thread and the `async` gem. The reactor is *whoever
-is currently awaiting*.
+This is the #395 reactor's "reader + handler FIFO + mailboxes" shape — but
+colorless (no `async` gem; the executor is a thread or a fiber, chosen to match
+the host — see *Connection & reader lifecycle*), which is the part that made
+#395 unusable on JRuby.
 
 ### Failure fan-out
 
@@ -112,16 +100,15 @@ error** — not just the one at the FIFO front. Two payoffs:
 
 ## How the three behaviours collapse
 
-- **On-demand**: `await(enqueue(pull))`. The consumer is the reader; it pumps
-  until its record arrives.
-- **Prefetch (keep-one-ahead)**: before processing batch *N*, enqueue the `PULL`
-  for batch *N+1* (when buffer capacity allows). Its round-trip overlaps the
-  consumer's work on batch *N*; the next `await` finds it already in flight or
-  arrived. **No background thread.** This alone removes `Bolt::Pump`,
-  `Bolt::Executor`, `RecordSource`, and the `Executor.reactor?` JRuby special
-  case. (A background filler that just calls `advance` for CPU-bound consumers
-  remains *possible* as an add-on — but it's another driver of the same pump, not
-  a separate path, and is deferred until a measured need.)
+- **On-demand**: the consumer `shift`s its buffer (or `await`s its completion)
+  and blocks until the reader delivers — there's no separate synchronous path,
+  just an empty buffer.
+- **Prefetch**: the dedicated reader fills each result's buffer toward its
+  high-water mark and refills past the low-water mark — *real* background
+  prefetch (server fetch + decode overlap the consumer's work), not just
+  round-trip hiding. The eager first `PULL` rides with `RUN`; `PULL` #2+ are
+  watermark-gated, so a result nobody reads is filled once and then **left alone**
+  — never force-drained, which is exactly the `tx_run prevent_*` fix.
 - **qid-multiplexing**: each open result holds its own completions and buffer;
   the FIFO routes replies by arrival order; `qid` rides only on the *outgoing*
   `PULL`/`DISCARD` to tell the server which result. `tx.run` stops force-draining
@@ -129,23 +116,78 @@ error** — not just the one at the FIFO front. Two payoffs:
   `DISCARD`s each by qid; termination fans out (above). This retires `tx_run`
   `prevent_pull_*` / `prevent_discard_*` and `iteration` `test_nested`.
 
+## Connection & reader lifecycle
+
+**One concurrency model per *active* connection — for free.** The pool hands a
+connection to one lessee at a time, and a session/transaction isn't safe to drive
+from multiple threads, so a checked-out connection is always used in exactly one
+concurrency context. We don't impose this as a contract — the pool's
+single-lessee semantics guarantee it. So the reader is chosen to **match the
+current window at acquire**, and within a window the reader and the consumer are
+always the *same color* (both threads, or both fibers on one thread). The
+cross-thread→fiber hand-off therefore never arises.
+
+**Executor by scheduler; lifetime by what that executor can safely outlive:**
+
+- **Threaded host (no `Fiber.scheduler`) → reader = a Thread, connection-lifetime.**
+  A thread has no reactor coupling, so it can live for the connection's pooled
+  life: spawned on the first thread-mode acquire, it fills buffers while checked
+  out and **parks on the idle socket between checkouts** (reused on the next
+  acquire — no per-checkout spawn). Parked on the socket it also sees a
+  server-side close as EOF, so it **retires the `broken?` peek** the on-demand
+  design needed.
+- **Reactor host (`Fiber.scheduler` present) → reader = a fiber, active-window.**
+  A fiber is reactor-lifetime-coupled: a forever-looping driver fiber would stop
+  the host's `Async{}`/request block from exiting (structured concurrency waits
+  for it) and would be orphaned across reactor contexts — with no way, through the
+  core scheduler interface, to detect teardown or mark it transient. So the fiber
+  reader is `Fiber.schedule`d at acquire and **completes at release**, always
+  inside the reactor context that spawned it. (Idle pooled connections under a
+  reactor thus have no reader and keep the `broken?` peek.)
+
+**Close and model-transition share one mechanism.** A parked reader blocks in
+`wait_readable`, so stopping it — at `connection.close` *or* when an acquire's
+model differs from the parked reader's — needs an out-of-band wakeup: the reader
+waits on the socket **and** a control pipe; close/stop writes the pipe. A
+transition is then *stop the old reader → spawn the matching one → same socket,
+same wire/FIFO state* — it **keeps the authenticated socket** (the expensive
+asset; reconnect costs a TCP + handshake + HELLO/LOGON round-trip set) and never
+reconnects. At acquire the connection is quiescent (no in-flight work), so the
+swap is clean.
+
+**One pool, no segregation.** A connection is one type with a swappable reader
+attachment — not a thread-class and a fiber-class — and the pool stays
+model-agnostic. Separate pools would double routing/auth/liveness bookkeeping and
+fragment capacity (a warm thread-connection couldn't serve a fiber acquire) to
+"help" only the rare mixed-model app, which the cheap in-place swap already
+covers. So a pooled connection is either *thread-reader-parked* or *bare* (its
+last fiber reader completed, or it was never used), and acquire adapts the reader
+to the caller. Single-model apps (the norm) never swap: Falcon runs all-fibers
+with no driver threads; Puma runs all-threads with a persistent per-connection
+reader and no `broken?` probe.
+
 ## What it retires / keeps
 
-- **Retire:** `Connection#fetch_response` + `@inbox`/`@collector`; `Bolt::Pump`;
-  `Bolt::Executor` (+ its JRuby reactor guard); `Bolt::RecordSource`;
-  `Result#promote` and the promote/buffer-shift dual path.
-- **Keep / evolve:** `Bolt::Wire` (already the FIFO router — gains completions);
-  `RecordBuffer` becomes a plain per-result record queue (backpressure via its
-  bound) fed by that result's completions; `Connection`'s colorless read
-  (`fill_inbox` → `advance`) and the single `@write_mutex` for `flush`.
+- **Retire:** `Connection#fetch_response` + `@inbox`/`@collector` (callers now
+  `enqueue`/`await`); `Result#promote` and the promote/buffer-shift dual path;
+  `Executor.reactor?`'s role as a *per-stream* mode switch.
+- **Generalise:** `Bolt::Pump` + `Bolt::Executor` + `Bolt::RecordSource` become
+  the connection's one dedicated reader (the pump, now filling *all* the
+  connection's result buffers; the executor choice moves to acquire-time per the
+  lifecycle above; the source's `pull(n)`/`discard(n)` gain a `qid`).
+- **Keep:** `Bolt::Wire` (already the FIFO router — gains completions);
+  `RecordBuffer` **with its watermarks** (the reader fills to high, refills past
+  low); the colorless read (`fill_inbox` → `advance`) and the single
+  `@write_mutex` for `flush`.
 - **Public API unchanged:** session / transaction / result / pool / providers
   keep their signatures; this is an internal rework of the connection's I/O core.
 
 ## Invariants / hazards
 
-- **One reader at a time, guarded writer.** The leader hand-off above enforces
-  the reader; `flush` stays behind `@write_mutex` (a follower may enqueue+flush a
-  new request while the leader reads). Never two readers.
+- **One reader, guarded writer.** The connection's dedicated reader is the sole
+  caller of `advance`; `flush` stays behind `@write_mutex` (a consumer may
+  enqueue+flush a new request while the reader reads). Never two readers — and at
+  acquire a model swap stops the old reader before starting the new one.
 - **Colorless throughout.** Blocking reads via `wait_readable`; waits via stdlib
   `ConditionVariable`. No `async`-gem types; the driver consumes a host
   `Fiber.scheduler` if present, never installs one. Preserves mri-on-jruby
@@ -165,11 +207,11 @@ error** — not just the one at the FIFO front. Two payoffs:
    `await` to `Connection`, implemented over the existing wire FIFO. Re-express
    `fetch_response` as `await` of a single-collector completion — behaviour
    identical, no caller changes. Full stub suite green (touches every op).
-2. **Cursor on completions.** `Result` reads via `await` of its result's
-   completions instead of `fetch_response`; keep-one-ahead pipelining replaces
-   `Pump`/promotion. Delete `Pump`/`Executor`/`RecordSource`. Re-validate
-   streaming + the prefetch reactor behaviour (now just pipelining under a host
-   scheduler).
+2. **Dedicated reader + cursor on buffers.** Generalise `Pump`/`Executor`/
+   `RecordSource` into the connection's one dedicated reader (chosen by scheduler,
+   lifetime per the lifecycle section); `Result` consumes its `RecordBuffer`
+   (watermark-filled by the reader) instead of `fetch_response`; drop
+   `Result#promote`. Re-validate streaming + the reactor (fiber-reader) path.
 3. **Failure fan-out.** A broken/terminated connection fails all outstanding
    completions; `Transaction` termination rides this. Picks up the `tx_run`
    `prevent_*` sibling-result cases.
