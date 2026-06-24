@@ -489,9 +489,10 @@ module Neo4j
         # so they're buffered in @inbox and handed out one at a time — same
         # contract as before (RECORDs individually, terminating in the
         # SUCCESS/FAILURE/IGNORED). Reads happen here, on demand: this is the
-        # default pump, on the consumer's thread, no background context.
+        # default pump, on the consumer's thread — it drives #advance (one read
+        # step) until the next message has landed.
         def fetch_response
-          fill_inbox while @inbox.empty?
+          advance while @inbox.empty?
           @inbox.shift
         end
 
@@ -539,35 +540,28 @@ module Neo4j
           @closed = false
         end
 
-        # On-demand read: pull bytes off the socket and feed the wire until it
-        # yields at least one message into @inbox. This is the default pump,
-        # running on the consumer's thread — a read happens only when a caller
-        # is actually awaiting (fetch_response found @inbox empty), so a
-        # recv-timeout here is unambiguously a stalled reply. NOOP keepalives
-        # decode to nothing, so we simply read again (resetting the per-read
-        # timeout, which is exactly the keepalive's intent).
-        def fill_inbox
-          loop do
-            # Non-blocking read + explicit wait so the timeout is honored
-            # (readpartial/read ignore IO#timeout for partial reads) and so the
-            # wait yields under a Fiber scheduler (wait_readable hooks io_wait)
-            # — the on-demand pump is colorless. read_nonblock(exception: false)
-            # returns the bytes, :wait_readable/:wait_writable when it would
-            # block, or nil on EOF.
-            case (chunk = @socket.read_nonblock(READ_CHUNK, exception: false))
-            when :wait_readable
-              @socket.wait_readable(current_read_timeout) or fail_broken(read_timeout_error)
-            when :wait_writable # SSL renegotiation mid-read
-              @socket.wait_writable(current_read_timeout) or fail_broken(read_timeout_error)
-            when nil
-              raise EOFError, 'end of file reached'
-            else
-              # receive routes decoded messages to the front handler
-              # (@collector), which fills @inbox. Loop until something landed
-              # (a chunk may be only partial data / a NOOP).
-              @wire.receive(chunk)
-              return unless @inbox.empty?
-            end
+        # One colorless pump step: pull whatever bytes are available off the
+        # socket and feed them to the wire, which routes any decoded messages to
+        # the front handler (today: @collector → @inbox). A step may land several
+        # messages, one, or none (a partial chunk or a NOOP keepalive) — callers
+        # loop until what they need has arrived (fetch_response: @inbox non-empty).
+        #
+        # read_nonblock(exception: false) returns the bytes, :wait_readable/
+        # :wait_writable when it would block, or nil on EOF. The explicit wait
+        # honors the recv timeout (readpartial/read ignore IO#timeout for partial
+        # reads) and yields under a Fiber scheduler (wait_readable hooks io_wait),
+        # so the pump is colorless. This is the seam step 2's dedicated reader
+        # will loop; for now the consumer drives it on demand.
+        def advance
+          case (chunk = @socket.read_nonblock(READ_CHUNK, exception: false))
+          when :wait_readable
+            @socket.wait_readable(current_read_timeout) or fail_broken(read_timeout_error)
+          when :wait_writable # SSL renegotiation mid-read
+            @socket.wait_writable(current_read_timeout) or fail_broken(read_timeout_error)
+          when nil
+            raise EOFError, 'end of file reached'
+          else
+            @wire.receive(chunk)
           end
         rescue IOError, SystemCallError => e
           fail_broken(Exceptions::ServiceUnavailableException.new(
