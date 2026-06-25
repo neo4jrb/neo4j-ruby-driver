@@ -50,10 +50,13 @@ module Neo4j
         end
 
         # Connection failure fan-out (see Connection#fan_out / Wire#fail_pending):
-        # surface the error to a consumer parked in buffer.shift. The current
-        # partial batch is incomplete, so drop it — only the error matters.
+        # surface the error to a consumer parked in buffer.shift. Records that
+        # arrived before the break are valid Bolt replies, so deliver them first
+        # (the consumer reads them, then hits the error) — e.g. a PULL that
+        # streamed a RECORD then the connection dropped before the SUCCESS must
+        # still yield that record, then fail on the next read.
         def fail(error)
-          @buffer.fail(error)
+          @buffer.fail(error, take_batch)
         end
 
         private

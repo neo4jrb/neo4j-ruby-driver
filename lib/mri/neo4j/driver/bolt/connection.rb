@@ -509,13 +509,24 @@ module Neo4j
           bytes = @wire.take_outbound
           return if bytes.empty?
 
-          @write_mutex.synchronize do
-            @socket.write(bytes)
-            @socket.flush
+          begin
+            @write_mutex.synchronize do
+              @socket.write(bytes)
+              @socket.flush
+            end
+          rescue Errno::EPIPE, Errno::ECONNRESET, IOError
+            # Peer-closed (EPIPE/ECONNRESET) or the reader closed the socket
+            # out from under this write mid-flight (IOError "stream closed in
+            # another thread", EBADF). Deferred (not raised) so a server FAILURE
+            # buffered before the close is still read by the paired
+            # fetch_response — see method comment.
+          ensure
+            # Always wake the reader, even on a failed write: a reply may be
+            # expected, OR the socket is dead and the reader must run #advance to
+            # hit EOF and fan the failure out — otherwise a parked reader never
+            # discovers the break and a drainer in #wait_quiescent hangs.
+            wake_reader
           end
-          wake_reader # a reply is now expected; wake the reader if it's parked
-        rescue Errno::EPIPE, Errno::ECONNRESET
-          # peer-closed — see method comment
         end
 
         # Return the next sync reply in request order. The dedicated reader fills
@@ -681,14 +692,19 @@ module Neo4j
 
         # Failure fan-out: a dead/timed-out connection must wake every waiter,
         # not just the front one. Record the classified error, close @inbox so
-        # sync poppers (fetch_response) return nil → re-raise it, and fail each
+        # sync poppers (fetch_response) return nil → re-raise it, fail each
         # outstanding stream buffer (via its handler) so a consumer parked in
-        # buffer.shift re-raises too. Idempotent.
+        # buffer.shift re-raises too, and broadcast @quiescent_cv so a drainer
+        # parked in #wait_quiescent (reset!/fetch_all/alive?) wakes on the
+        # @broken_error condition instead of waiting forever for an in-flight
+        # reply that will never arrive. Idempotent; may run on the reader thread
+        # (reader_loop rescue) or the consumer thread (flush write failure).
         def fan_out(error)
           @broken_error ||= error
           @inbox.close
           @wire&.fail_pending(error)
           mark_closed_broken
+          @reader_mutex.synchronize { @quiescent_cv.broadcast }
         end
 
         # A read timeout or wire error means this connection is unusable: hang
