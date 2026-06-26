@@ -87,10 +87,12 @@ module Neo4j
         # this rescue placement, session.close's subsequent rollback
         # path takes the ROLLBACK-message branch (rather than
         # rollback_via_reset) and re-fails on the dead connection.
+        buffer = Bolt::RecordBuffer.new(fetch_size: fetch_size)
+        handler = Bolt::StreamHandler.new(buffer)
         run_response =
           begin
             @connection.send_message(@connection.protocol.build_run(query, parameters, {}))
-            @connection.send_message(@connection.protocol.build_pull(n: fetch_size))
+            @connection.send_message(@connection.protocol.build_pull(n: fetch_size), handler)
             @connection.flush
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
@@ -100,7 +102,8 @@ module Neo4j
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
 
-        @current_result = Result.new(@connection, keys, query_text: query, parameters: parameters,
+        @current_result = Result.new(@connection, keys, buffer: buffer, handler: handler,
+                                     query_text: query, parameters: parameters,
                                      run_metadata: run_response.metadata, fetch_size: fetch_size)
       end
 
