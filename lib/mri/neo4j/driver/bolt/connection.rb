@@ -587,6 +587,10 @@ module Neo4j
           # closed" and break address failover.
           @wire = nil
           @inbox = Thread::Queue.new
+          # Rebind the collector to the fresh inbox — it captured the old queue
+          # at init, so without this a retry's sync replies would land in the
+          # discarded queue while fetch_response waits on the new one.
+          @collector = ResponseCollector.new(@inbox)
           @reader_stopped = false
           @broken_error = nil
           @closed = false
@@ -683,7 +687,10 @@ module Neo4j
         def stop_reader
           reader = @reader
           @reader = nil
-          @reader_mutex.synchronize { @reader_stopped = true; @reader_cv.broadcast }
+          # Wake the parked reader (@reader_cv) and any drainer blocked in
+          # #wait_quiescent (@quiescent_cv) — stopping is a terminal transition
+          # they must observe, else a concurrent reset!/fetch_all/alive? hangs.
+          @reader_mutex.synchronize { @reader_stopped = true; @reader_cv.broadcast; @quiescent_cv.broadcast }
           return unless reader
 
           @socket&.close rescue nil
