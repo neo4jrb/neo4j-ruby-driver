@@ -73,11 +73,15 @@ module Neo4j
 
         connection = acquire_connection(session_access_mode)
         fetch_size = effective_fetch_size
+        # The result streams through this buffer, filled by the connection's
+        # reader via the StreamHandler we register for the RUN's PULL.
+        buffer = Bolt::RecordBuffer.new(fetch_size: fetch_size)
+        handler = Bolt::StreamHandler.new(buffer)
 
         run_response =
           begin
             connection.send_message(connection.protocol.build_run(query, parameters, run_extra))
-            connection.send_message(connection.protocol.build_pull(n: fetch_size))
+            connection.send_message(connection.protocol.build_pull(n: fetch_size), handler)
             connection.flush
             connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
@@ -104,7 +108,7 @@ module Neo4j
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
         @current_result = Result.new(
-          connection, keys,
+          connection, keys, buffer: buffer, handler: handler,
           query_text: query, parameters: parameters, run_metadata: run_response.metadata,
           fetch_size: fetch_size,
           on_summary: method(:harvest_auto_commit_bookmark),

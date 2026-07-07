@@ -34,15 +34,25 @@ module Neo4j
           @protocol = protocol
           @packer = PackStream::Packer.new
           @protocol.configure_packer(@packer)
-          @outbound = binary_string
-          @inbound = binary_string   # received bytes not yet parsed into messages
-          @message = binary_string   # chunks of the in-progress inbound message
+          @outbound = binary_string  # consumer-only (enqueue/take_outbound)
+          @inbound = binary_string   # reader-only: received bytes not yet parsed
+          @message = binary_string   # reader-only: chunks of the in-progress message
           # Response-ordering FIFO. Bolt replies in request order, so each sent
           # request pushes the handler that will receive its response(s); the
           # front handler always owns the next reply. A handler is any response
           # visitor (responds to on_record/on_success/on_failure/on_ignored —
           # the same interface Message#accept dispatches to).
+          #
+          # This FIFO is the one piece of wire state touched by two threads: the
+          # consumer pushes (enqueue) while the dedicated reader shifts/dispatches
+          # (receive) and may clear it on failure (fail_pending). @mutex serialises
+          # those — without it JRuby (no GVL) races the Array and loses handlers,
+          # which strands a consumer parked on a buffer that never fills. Handler
+          # delivery is non-blocking (records/replies land on unbounded queues —
+          # flow control is the cursor's watermark, not a bounded buffer), so
+          # dispatching under the lock can't stall the reader.
           @handlers = []
+          @mutex = Mutex.new
         end
 
         # Pack + chunk-frame `message` into the outbound buffer and register the
@@ -61,14 +71,14 @@ module Neo4j
             offset += size
           end
           @outbound << END_MARKER
-          @handlers.push(handler)
+          @mutex.synchronize { @handlers.push(handler) }
           self
         end
 
         def pending_outbound? = !@outbound.empty?
 
         # Requests still awaiting their terminal reply.
-        def in_flight = @handlers.size
+        def in_flight = @mutex.synchronize { @handlers.size }
 
         # Hand over (and clear) the framed bytes to write to the socket.
         def take_outbound
@@ -84,11 +94,29 @@ module Neo4j
         # message and are skipped. Partial bytes are retained for the next call.
         def receive(bytes)
           @inbound << bytes
-          while (message = next_message)
-            next if message == :noop || @handlers.empty?
+          # @inbound/@message/next_message are reader-only; only the @handlers
+          # touch needs the lock. Dispatch (accept) happens under it too — that's
+          # safe because delivery is non-blocking — and shifting after accept keeps
+          # in_flight from hitting zero until the terminal has actually been
+          # delivered (the quiescence contract reset!/drain_quiesced rely on).
+          @mutex.synchronize do
+            while (message = next_message)
+              next if message == :noop || @handlers.empty?
 
-            message.accept(@handlers.first)
-            @handlers.shift if message.terminal?
+              message.accept(@handlers.first)
+              @handlers.shift if message.terminal?
+            end
+          end
+        end
+
+        # Connection failure fan-out: tell every outstanding request's handler
+        # the connection died, so a consumer parked on that handler's buffer
+        # (or completion) wakes and re-raises rather than hanging. Drops them
+        # from the FIFO — the wire is done.
+        def fail_pending(error)
+          @mutex.synchronize do
+            @handlers.each { |handler| handler.fail(error) }
+            @handlers.clear
           end
         end
 
