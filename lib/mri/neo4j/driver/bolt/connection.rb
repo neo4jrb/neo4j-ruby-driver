@@ -700,8 +700,8 @@ module Neo4j
         # Failure fan-out: a dead/timed-out connection must wake every waiter,
         # not just the front one. Record the classified error, close @inbox so
         # sync poppers (fetch_response) return nil → re-raise it, fail each
-        # outstanding stream buffer (via its handler) so a consumer parked in
-        # buffer.shift re-raises too, and broadcast @quiescent_cv so a drainer
+        # outstanding stream buffer (via its handler) so a cursor parked in
+        # buffer.await wakes and re-raises too, and broadcast @quiescent_cv so a drainer
         # parked in #wait_quiescent (reset!/fetch_all/alive?) wakes on the
         # @broken_error condition instead of waiting forever for an in-flight
         # reply that will never arrive. Idempotent; may run on the reader thread
