@@ -74,8 +74,10 @@ RSpec.describe Neo4j::Driver::Bolt::RecordBuffer do
       expect(buffer.pull_ready?).to be(true)
     end
 
-    it 'withholds further pulls after the server says no has_more' do
-      buffer.batch_complete(has_more: false)
+    it 'withholds further pulls once the stream finishes (the no-has_more path)' do
+      # A terminal SUCCESS without has_more goes through #finish, not
+      # batch_complete — StreamHandler only ever calls batch_complete(has_more: true).
+      buffer.finish
       expect(buffer.pull_ready?).to be(false)
     end
   end
