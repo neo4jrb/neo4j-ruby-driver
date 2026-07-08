@@ -14,7 +14,8 @@ module Neo4j
       include Enumerable
 
       def initialize(connection, keys = [], buffer:, handler:, query_text: nil, parameters: {},
-                     run_metadata: {}, fetch_size: 1000, on_summary: nil, on_release: nil)
+                     run_metadata: {}, fetch_size: 1000, qid: nil, terminated_error: nil,
+                     on_summary: nil, on_release: nil)
         @connection = connection
         @keys = keys
         @buffer = buffer          # Bolt::RecordBuffer, filled by the reader
@@ -23,6 +24,18 @@ module Neo4j
         @parameters = parameters
         @run_metadata = run_metadata
         @fetch_size = fetch_size
+        # Bolt query id (explicit-tx RUN reply). A PULL/DISCARD targets the *last*
+        # opened query when qid is omitted, so we only send it once this result is
+        # no longer the transaction's current one — see #demote! and #request_more.
+        @qid = qid
+        @demoted = false
+        # Callable returning the error that terminated the owning transaction
+        # (a failure in a *sibling* result or a tx method), or nil. Once set,
+        # this result must raise it on access rather than pull — a terminated tx
+        # leaves the connection FAILED, so more wire traffic is invalid. nil for
+        # auto-commit results (no enclosing transaction).
+        @terminated_error = terminated_error
+        @failure = nil    # this result's own classified stream failure, if any
         @on_summary = on_summary  # called with the built Summary when the stream ends in SUCCESS
         @on_release = on_release  # called once when the connection is no longer needed
         @records = []       # records pulled into memory by #buffer (not by iteration)
@@ -140,6 +153,15 @@ module Neo4j
         @failed
       end
 
+      # This result's own classified stream failure (nil unless it failed). The
+      # transaction reads it to surface the terminating error to sibling results.
+      attr_reader :failure
+
+      # A later RUN in the same transaction made another query current; from now
+      # on this result's PULL/DISCARD must name its qid explicitly (see
+      # #request_more). Called by Transaction#run when it opens the next result.
+      def demote! = @demoted = true
+
       # Mark this result as released without touching the wire — the connection is
       # being returned/reset by the caller. Callers drain (consume/buffer) or RESET
       # before this, so the stream is already finished; further access raises.
@@ -161,6 +183,7 @@ module Neo4j
       # try_shift — classified (routing's ServiceUnavailable→SessionExpired etc.)
       # and marked @failed so the caller RESETs.
       def next_record
+        raise_if_terminated
         loop do
           record = take_from_buffer
           case record
@@ -186,7 +209,17 @@ module Neo4j
         @failed = true
         @consumed = true
         finalize({})
-        raise @connection.classify_failure(e)
+        raise(@failure = @connection.classify_failure(e))
+      end
+
+      # A sibling result or a tx method failed, terminating the transaction: the
+      # connection is now FAILED, so raise that error instead of pulling. Our own
+      # failure (@failed) surfaces through take_from_buffer, not here.
+      def raise_if_terminated
+        return if @failed
+
+        error = @terminated_error&.call
+        raise error if error
       end
 
       # Watermark autopull: once the buffer has drained to/below the low watermark
@@ -198,7 +231,13 @@ module Neo4j
         return unless @buffer.pull_ready?
 
         @buffer.note_pull_issued
-        message = @cancelling ? @connection.protocol.build_discard(n: -1) : @connection.protocol.build_pull(n: @fetch_size)
+        # Omit qid while this is the transaction's current query (the server
+        # defaults to the last opened one); include it explicitly once a later
+        # RUN has demoted us, so the pull still targets *this* stream. Auto-commit
+        # and single-result transactions never demote, so they keep sending the
+        # bare {n} the stub scripts expect (qid is optional there).
+        extra = @demoted && @qid ? { qid: @qid } : {}
+        message = @cancelling ? @connection.protocol.build_discard(extra) : @connection.protocol.build_pull(extra.merge(n: @fetch_size))
         @connection.send_message(message, @handler)
         @connection.flush
       end

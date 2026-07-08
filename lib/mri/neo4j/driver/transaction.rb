@@ -15,7 +15,13 @@ module Neo4j
         @committed = false
         @rolled_back = false
         @failed = false
+        @terminating_error = nil  # the classified error that terminated this tx (a RUN/commit failure)
         @current_result = nil
+        # Every result opened in this tx, in order. Bolt lets multiple stay open
+        # and streaming concurrently (qid multiplexing); a new RUN no longer
+        # force-buffers the previous one, so we track them all here to discard
+        # any still-open at commit/rollback and to spot a mid-stream failure.
+        @open_results = []
 
         # Begin the transaction
         # Drop blank values so the serialised BEGIN map matches what
@@ -73,7 +79,11 @@ module Neo4j
                 "Cannot run more queries in this transaction, it has been #{@committed ? 'committed' : 'rolled back'}"
         end
 
-        consume_current_result
+        # A new query becomes current; the previous result must now name its qid
+        # explicitly on further PULL/DISCARD (the server defaults them to the last
+        # opened query). We keep it open and streaming rather than buffering it —
+        # that's the qid multiplexing the nested-result tests exercise.
+        @current_result&.demote!
 
         fetch_size = effective_fetch_size
 
@@ -97,14 +107,20 @@ module Neo4j
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
             @failed = true
-            raise @connection.classify_failure(e)
+            # Remember the terminating error: sibling results still open must
+            # raise it (not pull) once this RUN fails — the connection is FAILED.
+            raise(@terminating_error = @connection.classify_failure(e))
           end
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
 
         @current_result = Result.new(@connection, keys, buffer: buffer, handler: handler,
                                      query_text: query, parameters: parameters,
-                                     run_metadata: run_response.metadata, fetch_size: fetch_size)
+                                     run_metadata: run_response.metadata, fetch_size: fetch_size,
+                                     qid: run_response.metadata[:qid],
+                                     terminated_error: method(:terminating_error))
+        @open_results << @current_result
+        @current_result
       end
 
       def commit
@@ -120,7 +136,7 @@ module Neo4j
         end
 
         begin
-          consume_current_result(discard: true)
+          discard_open_results
         rescue Exceptions::Neo4jException
           rollback_via_reset
           raise
@@ -153,8 +169,15 @@ module Neo4j
       def rollback
         raise Exceptions::ClientException, 'Transaction is already closed' unless @open
 
+        # A terminated tx left the connection FAILED: don't drain open results
+        # (that would send PULL/DISCARD the server rejects) — just RESET.
+        if terminated?
+          rollback_via_reset
+          return
+        end
+
         begin
-          consume_current_result(discard: true)
+          discard_open_results
         rescue Exceptions::Neo4jException
           # Failures surfaced while draining a pending result are expected
           # during rollback — the tx is being discarded anyway. @failed is
@@ -205,9 +228,15 @@ module Neo4j
       private
 
       # The transaction is terminated once a server failure has hit it — either
-      # a tx method caught it (@failed) or the current result failed during the
+      # a tx method caught it (@failed) or any open result failed during the
       # user's own iteration (its failure hasn't passed through a tx method).
-      def terminated? = @failed || @current_result&.failed?
+      def terminated? = @failed || @open_results.any?(&:failed?)
+
+      # The error that terminated this tx, or nil. A RUN/commit failure records
+      # it directly; a result that failed mid-iteration (the user's own PULL)
+      # carries it on the result. Passed to each result as its terminated_error
+      # so a sibling raises it instead of pulling on a FAILED connection.
+      def terminating_error = @terminating_error || @open_results.find(&:failed?)&.failure
 
       # See Session#effective_fetch_size. Transactions inherit the session
       # options at open, so the same default rules apply.
@@ -216,31 +245,29 @@ module Neo4j
         size.nil? ? 1000 : size
       end
 
-      # On a new RUN in the same tx the previous result is buffered so it
-      # stays accessible; at tx end (commit/rollback) it goes out of
-      # scope, so discard it instead — DISCARD abandons remaining records
-      # (essential when the result is unbounded) rather than streaming
-      # them all into memory, and leaves it raising ResultConsumedException
-      # on later access.
-      def consume_current_result(discard: false)
-        return unless @current_result
+      # At tx end (commit/rollback) every still-open result goes out of scope,
+      # so discard each — DISCARD abandons remaining records (essential when a
+      # result is unbounded) rather than streaming them into memory, and leaves
+      # each raising ResultConsumedException on later access. Demoted results
+      # DISCARD by their qid; the current one omits it (targets the last query).
+      def discard_open_results
+        @open_results.each do |result|
+          begin
+            result.consume
+          rescue Exceptions::Neo4jException => e
+            @failed = true
+            # A wire error during PULL streaming (e.g. a reader connection
+            # interrupted mid-stream) raises ServiceUnavailable straight from
+            # fetch_response, not via Result#on_failure — so it never saw the
+            # routing classifier. Run it through here so a routed connection
+            # failure surfaces as SessionExpired (idempotent if already classified).
+            raise @connection.classify_failure(e)
+          end
 
-        begin
-          discard ? @current_result.consume : @current_result.buffer
-        rescue Exceptions::Neo4jException => e
-          @failed = true
-          # A wire error during PULL streaming (e.g. a reader connection
-          # interrupted mid-stream) raises ServiceUnavailable straight
-          # from fetch_response, not via Result#on_failure — so it never
-          # saw the routing classifier. Run it through here so a routed
-          # connection failure surfaces as SessionExpired (idempotent if
-          # already classified).
-          raise @connection.classify_failure(e)
+          # consume is a no-op when the result was already drained by the user;
+          # surface any stored failure so callers can react.
+          @failed = true if result.failed?
         end
-
-        # buffer is a no-op when the result was already consumed by the
-        # user; surface any stored failure so callers can react.
-        @failed = true if @current_result.failed?
       end
 
       # Recover a failed transaction by asking the server to RESET the
