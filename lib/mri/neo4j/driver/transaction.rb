@@ -6,7 +6,7 @@ module Neo4j
     class Transaction
       attr_reader :connection
 
-      def initialize(connection, session, bookmarks = [], options = {}, on_release: nil)
+      def initialize(connection, session, bookmarks = [], options = {}, telemetry_api: nil, telemetry_ack: nil, on_release: nil)
         @connection = connection
         @session = session
         @options = options
@@ -37,9 +37,18 @@ module Neo4j
         }
         begin_extra.reject!(&Internal::Extras::BLANK)
 
+        # TELEMETRY (api = 0 managed / 1 explicit) pipelined ahead of BEGIN when
+        # the server opted in and the driver didn't disable it; its SUCCESS is
+        # read first.
+        telemetry_sent = @connection.telemetry(telemetry_api, disabled: options[:telemetry_disabled])
         @connection.send_message(@connection.protocol.build_begin(begin_extra))
         @connection.flush
 
+        if telemetry_sent
+          @connection.fetch_response.assert_success!
+          # The server acknowledged telemetry; a managed-tx retry won't re-send it.
+          telemetry_ack&.call
+        end
         @connection.fetch_response.assert_success!
       rescue Exceptions::Neo4jException => e
         # Classify first so the auth-token manager is notified and the

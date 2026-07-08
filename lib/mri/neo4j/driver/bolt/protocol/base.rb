@@ -77,9 +77,15 @@ module Neo4j
             Message.discard(extra)
           end
 
+          def build_telemetry(api)
+            Message.telemetry(api)
+          end
+
           def supports_re_auth? = false
           def supports_multiple_databases? = false
           def supports_notification_filtering? = false
+          # TELEMETRY (driver-API usage reporting) arrived with Bolt 5.4.
+          def supports_telemetry? = version >= BoltVersion::V5_4
           # Impersonation (imp_user on RUN/BEGIN/ROUTE) arrived with Bolt 4.4.
           def supports_impersonation? = version >= BoltVersion::V4_4
 

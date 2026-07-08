@@ -384,6 +384,17 @@ module Neo4j
           flush
         end
 
+        # Enqueue a TELEMETRY report for the API about to open a tx/query, unless
+        # the caller disabled it, the server didn't advertise telemetry, or the
+        # negotiated protocol predates it (5.4). Returns whether one was sent so
+        # the caller reads its (extra, pipelined) SUCCESS before the op's reply.
+        def telemetry(api, disabled:)
+          return false if api.nil? || disabled || !@telemetry_enabled || !@protocol.supports_telemetry?
+
+          send_message(@protocol.build_telemetry(api))
+          true
+        end
+
         # Fetch the cluster routing table. Bolt 4.3+ uses the dedicated
         # ROUTE message; older versions have no ROUTE and call a
         # server-side procedure instead (route_via_procedure). Either
@@ -906,6 +917,9 @@ module Neo4j
           # SUCCESS hints; from now a steady-state read that exceeds it is a
           # broken connection (ConnectionReadTimeoutException).
           apply_recv_timeout_hint(hello.metadata[:hints])
+          # `telemetry.enabled` hint (Bolt 5.4+) opts the server into receiving
+          # TELEMETRY reports; without it the driver stays silent.
+          @telemetry_enabled = hello.metadata.dig(:hints, :'telemetry.enabled') == true
 
           fetch_response.assert_success! if logon_msg
         end

@@ -49,7 +49,7 @@ module Neo4j
         def_delegators :@inner,
                        :address, :server_agent, :server_version, :protocol,
                        :closed?, :close, :pending_responses?,
-                       :send_message, :send_all, :flush,
+                       :send_message, :send_all, :flush, :telemetry,
                        :fetch_response, :fetch_all,
                        :reset!, :route,
                        :auth, :driver_auth, :authenticate,
