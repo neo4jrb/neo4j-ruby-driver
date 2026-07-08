@@ -152,31 +152,41 @@ module Neo4j
       private
 
       # Next record from the buffer (reader-filled), or nil at end of stream.
-      # Drives the next PULL once the buffer drains past the low watermark. At end,
-      # finalizes from the terminal summary and releases. A stream FAILURE surfaces
-      # as a raise from shift — classified (routing's ServiceUnavailable→
-      # SessionExpired etc.) and marked @failed so the caller RESETs.
+      # Records arrive incrementally, so take one the moment it's buffered and
+      # prefetch (request_more) once we drain past the low watermark. When the
+      # buffer is momentarily empty but the stream is still open, issue any due
+      # PULL then #await — a single wait that wakes on the next record (mid-batch)
+      # or the batch promise resolving (batch-end, so we PULL the next batch
+      # rather than block forever). A stream FAILURE surfaces as a raise from
+      # try_shift — classified (routing's ServiceUnavailable→SessionExpired etc.)
+      # and marked @failed so the caller RESETs.
       def next_record
-        record =
-          begin
-            @buffer.shift
-          rescue StandardError => e
-            @failed = true
-            @consumed = true
-            # A FAILURE carries no summary counters, but the run metadata still
-            # yields a meaningful summary (query text, zero counters) — build it
-            # so a subsequent #consume returns it after re-raising the failure
-            # once (matches main's on_failure, which finalized on the failure).
-            finalize({})
-            raise @connection.classify_failure(e)
+        loop do
+          record = take_from_buffer
+          case record
+          when :empty
+            request_more
+            @buffer.await
+          when :ended
+            finalize_stream
+            return nil
+          else
+            request_more
+            return build_record(record)
           end
-        if record.nil?
-          finalize_stream
-          return nil
         end
+      end
 
-        request_more
-        build_record(record)
+      # try_shift, but turn a stream failure into the classified exception and
+      # finalize a summary from run metadata so a later #consume still returns it
+      # (matches main's on_failure, which finalized on the failure).
+      def take_from_buffer
+        @buffer.try_shift
+      rescue StandardError => e
+        @failed = true
+        @consumed = true
+        finalize({})
+        raise @connection.classify_failure(e)
       end
 
       # Watermark autopull: once the buffer has drained to/below the low watermark

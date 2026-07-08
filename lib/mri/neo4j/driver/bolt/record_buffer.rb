@@ -5,80 +5,87 @@ module Neo4j
     module Bolt
       # Record buffer for one streaming result, with a high/low watermark autopull
       # policy. Sits between the connection's reader (producer) and the cursor
-      # (consumer). Server→driver flow control *is* the backpressure: the cursor
-      # checks `pull_ready?` as it drains and, when the buffer has fallen to/below
-      # the low watermark and the server has said `has_more`, issues the next
-      # `PULL {n: fetch_size}` (marking it via `note_pull_issued`). Hysteresis
-      # (high ≈ 2× fetch_size, low a fraction) keeps PULLs from thrashing. Because
-      # the cursor only ever requests what it will drain, at most ~one batch sits
-      # unread, so the queue is unbounded — `deliver_batch` never blocks. That
-      # matters: the reader dispatches under the wire lock, so a blocking enqueue
-      # could stall every request on the connection (docs/unified-pipeline.md).
+      # (consumer), and unifies two things under one mutex + condition variable:
+      # the record queue *and* the batch's "has_more promise".
       #
-      # All sync primitives are stdlib + scheduler-aware, so a consumer running as
-      # a fiber under a host reactor yields rather than blocking the thread.
+      # Records are delivered incrementally — pushed the instant the reader decodes
+      # them — so the cursor sees record 1 without waiting for the whole batch. The
+      # batch's terminating SUCCESS resolves the promise (`batch_complete`), which
+      # says whether the server has more. The cursor drives flow control:
+      #
+      #   * after each record, once drained to/below the low watermark, it checks
+      #     the promise (`pull_ready?`, non-blocking) and, if fulfilled with
+      #     has_more, issues the next `PULL {n: fetch_size}` — prefetch overlap;
+      #   * when it drains the buffer empty mid-stream, it `await`s — one wait that
+      #     wakes on *either* the next record *or* the promise resolving. That
+      #     shared wait is the crux: mid-batch it wakes on a record (incremental
+      #     delivery preserved), at batch-end it wakes on the promise (so it PULLs
+      #     the next batch instead of blocking forever on a record that, the SUCCESS
+      #     having no payload, will never come).
+      #
+      # The cursor is the sole writer (issues every PULL/DISCARD); the reader only
+      # ever fills. All sync primitives are stdlib + scheduler-aware, so a cursor
+      # running as a fiber under a host reactor yields rather than blocking the
+      # thread. See docs/unified-pipeline.md.
       class RecordBuffer
         attr_reader :fetch_size, :high_watermark, :low_watermark
 
         def initialize(fetch_size:, high_watermark: nil, low_watermark: nil)
           @fetch_size = fetch_size
-          # Defaults: hold ~2 batches, refill under half a batch. fetch_size -1
-          # ("pull all in one batch") never paginates, so just size the bound for
-          # a steady single-batch handoff.
+          # Defaults: refill under half of ~2 batches held. fetch_size -1 ("pull
+          # all in one batch") never paginates, so just size the watermarks for a
+          # steady single-batch handoff.
           @high_watermark = high_watermark || (fetch_size.positive? ? fetch_size * 2 : 1000)
           @low_watermark = low_watermark || [@high_watermark / 2, 1].max
-          # Unbounded: the watermark gates how much the cursor pulls, so this never
-          # grows past ~one batch of unread records. deliver_batch must not block —
-          # the reader enqueues while holding the wire lock.
-          @queue = Thread::Queue.new
           @mutex = Mutex.new
+          @cv = ConditionVariable.new
+          @records = []           # incrementally filled by the reader, drained by the cursor
           @has_more = true        # server may have more records for this stream
-          @pull_in_flight = true  # the first PULL is pipelined with RUN by the cursor
-          @ended = false          # final SUCCESS/IGNORED seen → no more records
-          @error = nil            # stream failed; re-raised to the consumer
+          @pull_in_flight = true  # the first PULL is pipelined with RUN — promise unfulfilled
+          @ended = false          # terminal SUCCESS/IGNORED seen → no more records
+          @error = nil            # stream failed; re-raised to the cursor after buffered records
           @summary = nil          # terminating SUCCESS metadata
         end
 
         # --- Producer (reader) side -----------------------------------------
 
-        # Deliver a whole batch atomically: enqueue its records *and* clear the
-        # pull-in-flight flag (recording whether the server has more) in one
-        # synchronized step. The atomicity is the crux — a consumer that pops any
-        # of these records and then checks the autopull policy is guaranteed to
-        # see the matching has_more/pull-in-flight state, so it issues the next
-        # PULL at the right time instead of parking on a stale "in flight" flag.
-        # Never blocks (unbounded queue); the cursor's watermark bounds how much
-        # the server ships.
-        def deliver_batch(records, has_more:)
-          @mutex.synchronize do
-            records.each { |record| @queue.push(record) }
-            @has_more = has_more
-            @pull_in_flight = false
-          end
+        # Append a decoded record and wake a cursor parked in #await. Never blocks
+        # (unbounded); the cursor's watermark bounds how much the server ships.
+        def push_record(record)
+          @mutex.synchronize { @records.push(record); @cv.broadcast }
         end
 
-        # Final batch: deliver its records, stash the terminating SUCCESS metadata,
-        # and close the queue so a consumer parked in shift wakes with nil.
-        def finish(records = [], summary = nil)
+        # The current batch's terminal SUCCESS arrived — resolve the promise.
+        # `has_more` says whether to keep paging; either way no PULL is in flight,
+        # so the cursor may issue the next once it drains past the low watermark.
+        # Wake a cursor parked in #await waiting for exactly this.
+        def batch_complete(has_more:)
+          @mutex.synchronize { @has_more = has_more; @pull_in_flight = false; @cv.broadcast }
+        end
+
+        # Final batch (terminating SUCCESS without has_more, or IGNORED): stash the
+        # summary, mark ended, and wake the cursor.
+        def finish(summary = nil)
           @mutex.synchronize do
-            records.each { |record| @queue.push(record) }
             @summary = summary
             @ended = true
             @has_more = false
+            @pull_in_flight = false
+            @cv.broadcast
           end
-          @queue.close
         end
 
-        # The stream failed: deliver any records that preceded the failure in this
-        # batch, then arm the error the consumer re-raises once the queue drains.
-        def fail(error, records = [])
+        # The stream failed: arm the error the cursor re-raises *after* it drains
+        # the records already delivered (records that preceded the failure are
+        # valid), and wake it.
+        def fail(error)
           @mutex.synchronize do
-            records.each { |record| @queue.push(record) }
             @error ||= error
             @ended = true
             @has_more = false
+            @pull_in_flight = false
+            @cv.broadcast
           end
-          @queue.close
         end
 
         # The terminating SUCCESS's metadata (nil until finished / on failure).
@@ -86,28 +93,42 @@ module Neo4j
 
         # --- Consumer (cursor) side -----------------------------------------
 
-        # Next record, or nil when the stream is exhausted. Blocks (yields under a
-        # scheduler) until a record arrives or the stream ends. Re-raises a
-        # stream failure.
-        def shift
-          record = @queue.pop # nil once closed and drained
-          raise @error if record.nil? && @error
+        # Non-blocking: the next buffered record, or :empty when none is buffered
+        # yet, or :ended once the stream is drained and terminal. Buffered records
+        # are handed out before a stream failure is raised (they preceded it).
+        def try_shift
+          @mutex.synchronize do
+            return @records.shift unless @records.empty?
+            raise @error if @error
 
-          record
+            @ended ? :ended : :empty
+          end
         end
 
-        def empty? = @queue.empty?
-        def size = @queue.size
+        # Block (colorlessly) until there's something to re-evaluate: a record was
+        # delivered, the batch completed (promise resolved), or the stream
+        # ended/failed. Called only when the cursor has drained the buffer empty
+        # and a PULL is still outstanding (records coming, or its SUCCESS pending).
+        def await
+          @mutex.synchronize do
+            @cv.wait(@mutex) while @records.empty? && !@ended && @error.nil? && @pull_in_flight
+          end
+        end
+
+        def empty? = @mutex.synchronize { @records.empty? }
+        def size = @mutex.synchronize { @records.size }
         def ended? = @mutex.synchronize { @ended }
         def has_more? = @mutex.synchronize { @has_more }
 
         # --- Autopull policy (cursor side) ----------------------------------
 
-        # True when the cursor should issue the next PULL: the server has more,
-        # none is in flight, and the buffer has drained to/below the low watermark.
-        def pull_ready? = @mutex.synchronize { @has_more && !@pull_in_flight && @queue.size <= @low_watermark }
+        # True when the cursor should issue the next PULL: the batch promise is
+        # fulfilled (none in flight) with has_more, and the buffer has drained
+        # to/below the low watermark.
+        def pull_ready? = @mutex.synchronize { @has_more && !@pull_in_flight && @records.size <= @low_watermark }
 
-        # The cursor issued the next PULL; don't issue another until it completes.
+        # The cursor issued the next PULL — the promise is unfulfilled again; don't
+        # issue another until this batch completes.
         def note_pull_issued = @mutex.synchronize { @pull_in_flight = true }
       end
     end
