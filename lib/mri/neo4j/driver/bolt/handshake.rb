@@ -180,7 +180,7 @@ module Neo4j
         def remaining_budget
           return nil unless @deadline
 
-          [@deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC), 0.0].max
+          [@deadline - Internal::Clock.monotonic, 0.0].max
         end
 
         # Same as read_int32 but raises a ServiceUnavailableException

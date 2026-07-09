@@ -183,7 +183,7 @@ module Neo4j
         end
 
         def current_monotonic
-          Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          Internal::Clock.monotonic
         end
       end
     end

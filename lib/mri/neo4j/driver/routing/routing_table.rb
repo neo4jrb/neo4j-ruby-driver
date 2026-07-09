@@ -45,7 +45,7 @@ module Neo4j
           @readers = readers.to_set
           @writers = writers.to_set
           @ttl = ttl
-          @last_updated = Time.now
+          @last_updated = Internal::Clock.realtime
           @initialized_without_writers = @writers.empty?
         end
 
@@ -53,14 +53,14 @@ module Neo4j
         # for the requested access mode. An empty writers list is acceptable
         # for read-only acquires (initialized_without_writers state), but a
         # write-mode acquire needs a writer.
-        def fresh?(readonly:, now: Time.now)
+        def fresh?(readonly:, now: Internal::Clock.realtime)
           return false if expired?(now)
           return false if @routers.empty?
 
           readonly ? @readers.any? : @writers.any?
         end
 
-        def expired?(now = Time.now)
+        def expired?(now = Internal::Clock.realtime)
           now >= @last_updated + @ttl
         end
 
@@ -73,7 +73,7 @@ module Neo4j
 
         # Past the cache grace period? Used by LoadBalancer to drop tables
         # for databases nobody is touching anymore.
-        def purge?(grace:, now: Time.now)
+        def purge?(grace:, now: Internal::Clock.realtime)
           now >= @last_updated + @ttl + grace
         end
 
@@ -85,7 +85,7 @@ module Neo4j
           @readers = other.readers.dup
           @writers = other.writers.dup
           @ttl = other.ttl
-          @last_updated = Time.now
+          @last_updated = Internal::Clock.realtime
           @initialized_without_writers = @writers.empty?
         end
 

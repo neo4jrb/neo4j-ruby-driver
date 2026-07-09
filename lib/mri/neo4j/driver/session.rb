@@ -373,7 +373,7 @@ module Neo4j
         # the old/no leader, so the managed-tx retry must keep rediscovering
         # (with exponential backoff) well past a second or two.
         max_retry_time = @options[:max_transaction_retry_time] || 30
-        start_time = Time.now
+        start_time = Internal::Clock.realtime
         errors = []
         # TELEMETRY 0 (managed tx) is reported until the server acknowledges it:
         # re-sent on each attempt whose telemetry never landed (e.g. the
@@ -407,7 +407,7 @@ module Neo4j
                  Exceptions::AuthorizationExpiredException, Exceptions::SecurityRetryableException => e
             errors << e
 
-            if Time.now - start_time >= max_retry_time
+            if Internal::Clock.realtime - start_time >= max_retry_time
               # Retries exhausted — re-raise the LAST error with its real
               # type (SessionExpired / Transient / ServiceUnavailable)
               # rather than flattening everything to ServiceUnavailable;

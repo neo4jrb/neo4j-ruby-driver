@@ -126,7 +126,7 @@ module TestkitBackend
         'Optimization:ResultListFetchAll'                   => 'ja',
 
         # --- Backend / detail ------------------------------------------------
-        'Backend:MockTime'                                  => 'ja',
+        'Backend:MockTime'                                  => 'jar',
         # Both impls answer via Driver#routing_table(db) (returns a
         # RoutingTable — Java's on JRuby, Routing::RoutingTable on MRI);
         # how each reaches it is the driver's business, not testkit's.

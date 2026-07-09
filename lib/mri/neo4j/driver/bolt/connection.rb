@@ -215,10 +215,11 @@ module Neo4j
           true
         end
 
-        # Monotonic seconds — immune to wall-clock jumps, which is
-        # what every age / idle calculation here needs.
+        # Monotonic seconds — immune to wall-clock jumps, which is what every
+        # age / idle calculation here needs. Through the Clock seam so
+        # Backend:MockTime can freeze/advance it.
         def current_monotonic
-          Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          Internal::Clock.monotonic
         end
 
         def close

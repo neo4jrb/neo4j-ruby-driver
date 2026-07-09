@@ -35,9 +35,10 @@ module Neo4j
         # to this via `super`.
         def getDomainNameResolver = nil
 
-        def create_clock
-          raise NotImplementedError, 'MRI driver does not yet expose a custom clock hook'
-        end
+        # camelCase for the same reason as getDomainNameResolver — testkit's
+        # subclass overrides it (returning its mock TestkitClock) and the driver
+        # calls it back. Default nil = the real system clocks (see Internal::Clock).
+        def createClock = nil
 
         # `client_certificate_manager` is accepted for a uniform cross-impl
         # signature but ignored — MRI doesn't implement mutual-TLS client
@@ -54,6 +55,10 @@ module Neo4j
           # Retain the manager (not a frozen token): the provider consults it
           # for the current token on every acquire and on security failures,
           # so token refresh / re-auth works.
+          # Install the (optional) mock clock into the time seam so the pool /
+          # connection / routing / retry internals read it. nil in production =
+          # real system clocks; testkit's subclass supplies its TestkitClock.
+          Internal::Clock.mock = createClock
           provider = build_connection_provider(URI(uri), auth_token_manager, config)
           Driver.new(uri, config, provider)
         end
