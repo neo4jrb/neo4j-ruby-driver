@@ -66,6 +66,14 @@ module Neo4j
             PackStream::Structure.new(DISCARD, [extra])
           end
 
+          # Bolt 5.4+ TELEMETRY: reports which driver API opened the coming
+          # transaction/query (0 tx-function, 1 unmanaged tx, 2 auto-commit,
+          # 3 execute_query). Sent only when the server advertised
+          # `telemetry.enabled` and the driver didn't disable it.
+          def telemetry(api)
+            PackStream::Structure.new(TELEMETRY, [api])
+          end
+
           def reset
             PackStream::Structure.new(RESET, [])
           end

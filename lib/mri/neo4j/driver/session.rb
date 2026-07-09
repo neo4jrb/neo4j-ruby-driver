@@ -80,9 +80,13 @@ module Neo4j
 
         run_response =
           begin
+            # TELEMETRY 2 = auto-commit, pipelined ahead of RUN when the server
+            # opted in and the driver didn't disable it; its SUCCESS is read first.
+            telemetry_sent = connection.telemetry(2, disabled: @options[:telemetry_disabled])
             connection.send_message(connection.protocol.build_run(query, parameters, run_extra))
             connection.send_message(connection.protocol.build_pull(n: fetch_size), handler)
             connection.flush
+            connection.fetch_response.assert_success! if telemetry_sent
             connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
             # Classify first: this notifies the auth-token manager (and
@@ -140,7 +144,8 @@ module Neo4j
           access_mode: (session_access_mode == :read ? 'r' : nil)
         ).compact
 
-        @transaction = open_transaction(session_access_mode, tx_options)
+        # TELEMETRY 1 = unmanaged (explicit) transaction.
+        @transaction = open_transaction(session_access_mode, tx_options, telemetry_api: 1)
 
         if block_given?
           begin
@@ -370,6 +375,13 @@ module Neo4j
         max_retry_time = @options[:max_transaction_retry_time] || 30
         start_time = Time.now
         errors = []
+        # TELEMETRY 0 (managed tx) is reported until the server acknowledges it:
+        # re-sent on each attempt whose telemetry never landed (e.g. the
+        # connection died before its SUCCESS), but not once acked — matching the
+        # reference drivers and the retry stub script. The callback flips this
+        # the moment a Transaction reads the telemetry SUCCESS.
+        telemetry_acked = false
+        on_telemetry_ack = -> { telemetry_acked = true }
 
         op_mode = (access_mode == AccessMode::READ ? :read : :write)
         tx_options = @options.merge(
@@ -384,7 +396,8 @@ module Neo4j
 
         loop do
           begin
-            return run_managed_transaction(op_mode, tx_options, &block)
+            telemetry_api = telemetry_acked ? nil : 0
+            return run_managed_transaction(op_mode, tx_options, telemetry_api, on_telemetry_ack, &block)
           rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException,
                  Exceptions::TransientException,
                  # AuthorizationExpired (server authz-cache expiry) is always
@@ -413,13 +426,16 @@ module Neo4j
         end
       end
 
-      def run_managed_transaction(op_mode, tx_options, &block)
+      def run_managed_transaction(op_mode, tx_options, telemetry_api, on_telemetry_ack, &block)
         if @transaction&.open?
           raise Exceptions::ClientException,
                 "You cannot begin a transaction on a session with an open transaction"
         end
 
-        @transaction = open_transaction(op_mode, tx_options)
+        # TELEMETRY 0 = managed transaction function; api is nil once acked so a
+        # retry doesn't repeat it.
+        @transaction = open_transaction(op_mode, tx_options, telemetry_api: telemetry_api,
+                                        telemetry_ack: on_telemetry_ack)
 
         begin
           result = yield @transaction
@@ -433,7 +449,7 @@ module Neo4j
         end
       end
 
-      def open_transaction(op_mode, tx_options)
+      def open_transaction(op_mode, tx_options, telemetry_api:, telemetry_ack: nil)
         # Acquire first: acquire_connection drives routing discovery (which
         # resolves the home database), so by the time we read the BEGIN
         # snapshot below the routing table is fresh and operation_database
@@ -450,7 +466,8 @@ module Neo4j
         # explicit/managed-tx BEGIN carries the same `db` as the auto-commit
         # path. Dropped when nil via compact.
         tx_options = tx_options.merge(database: operation_database(bookmarks)).compact
-        Transaction.new(connection, self, bookmarks, tx_options,
+        Transaction.new(connection, self, bookmarks, tx_options, telemetry_api: telemetry_api,
+                        telemetry_ack: telemetry_ack,
                         on_release: -> { @connection_provider.release(connection) })
       end
     end
