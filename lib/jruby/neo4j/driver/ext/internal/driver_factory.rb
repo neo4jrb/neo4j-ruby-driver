@@ -9,7 +9,7 @@ module Neo4j
         # `Neo4j::Driver::Internal::DriverFactory`). Lets further Ruby
         # subclasses — testkit-backend's
         # `DriverFactoryWithDomainNameResolver` — override the
-        # `protected` `getDomainNameResolver` / `create_clock` seams
+        # `protected` `domain_name_resolver` / `create_clock` seams
         # without naming any Java type: testkit hands its Ruby Proc /
         # `TestkitClock` to the converter and gets back something the
         # Java driver consumes (a `DomainNameResolver` SAM /

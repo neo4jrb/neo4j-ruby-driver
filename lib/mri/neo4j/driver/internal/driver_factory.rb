@@ -11,7 +11,7 @@ module Neo4j
       # `StaticAuthTokenManager` and calls us.
       #
       # The factory is also the single owner of the driver's non-public
-      # extension hooks: `getDomainNameResolver` (nil by default = system DNS)
+      # extension hooks: `domain_name_resolver` (nil by default = system DNS)
       # and `create_clock` (the real system clock by default). testkit's
       # subclass overrides them. Rather than leaking these into the
       # user-facing config, new_instance threads them as their own parameters
@@ -32,12 +32,10 @@ module Neo4j
           Internal::ClockAdapter.new(clock)
         end
 
-        # camelCase to match the name Java's DriverFactory exposes and that
-        # subclasses (testkit's DriverFactoryWithDomainNameResolver) call
-        # `super` on. Default: no custom resolver (system DNS is used). The
+        # Default: no custom resolver (system DNS is used). testkit's
         # subclass returns its proc when one is registered, else falls through
         # to this via `super`.
-        def getDomainNameResolver = nil
+        def domain_name_resolver = nil
 
         # The clock the driver's internals run on. Default is the real system
         # clock; testkit's subclass overrides this (returning `to_clock` of its
@@ -75,7 +73,7 @@ module Neo4j
 
         def build_connection_provider(uri, auth_manager, options, clock)
           klass = uri.scheme.start_with?('neo4j') ? Routing::LoadBalancer : Direct::ConnectionProvider
-          klass.new(uri, auth_manager, options, domain_name_resolver: getDomainNameResolver, clock: clock)
+          klass.new(uri, auth_manager, options, domain_name_resolver: domain_name_resolver, clock: clock)
         end
 
         def validate_uri(uri)

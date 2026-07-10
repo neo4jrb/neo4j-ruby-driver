@@ -40,7 +40,7 @@ module TestkitBackend
         }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         # Build via testkit's own DriverFactory subclass so the
-        # `getDomainNameResolver` / `create_clock` hooks point at our
+        # `domain_name_resolver` / `create_clock` hooks point at our
         # Ruby resolver proc / TestkitClock — no Java refs on this
         # side, the production-side base class handles the conversion.
         resolver = method(:domain_name_resolver) if domain_name_resolver_registered
