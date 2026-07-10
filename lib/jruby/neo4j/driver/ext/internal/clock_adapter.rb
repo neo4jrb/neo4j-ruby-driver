@@ -8,7 +8,7 @@ module Neo4j
         # `clock` object responding to `#now_millis`. Used by
         # `Internal::DriverFactory#to_clock` so testkit-backend's
         # pure-Ruby `TestkitClock` can plug straight into Java's
-        # `DriverFactory#createClock` seam.
+        # `DriverFactory#create_clock` seam.
         class ClockAdapter < java.time.Clock
           def initialize(ruby_clock)
             super()

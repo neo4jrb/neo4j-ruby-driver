@@ -42,10 +42,8 @@ module Neo4j
         # The clock the driver's internals run on. Default is the real system
         # clock; testkit's subclass overrides this (returning `to_clock` of its
         # own time source) so its tests can freeze/advance time — the driver
-        # stays agnostic. camelCase for the same override reason as
-        # getDomainNameResolver; `create_clock` is the rubyish alias.
-        def createClock = Internal::Clock.new
-        def create_clock = createClock
+        # stays agnostic.
+        def create_clock = Internal::Clock.new
 
         # `client_certificate_manager` is accepted for a uniform cross-impl
         # signature but ignored — MRI doesn't implement mutual-TLS client
@@ -54,8 +52,8 @@ module Neo4j
         def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
           validate_uri(uri)
           # The factory is the single place that knows about the non-public
-          # extension hooks (the domain-name resolver today; createClock and
-          # others later). It assembles a fully-wired ConnectionProvider with
+          # extension hooks (the domain-name resolver and the clock). It
+          # assembles a fully-wired ConnectionProvider with
           # those baked in and hands it to the Driver, so the Driver and the
           # user-facing `config` never carry these hooks.
           #

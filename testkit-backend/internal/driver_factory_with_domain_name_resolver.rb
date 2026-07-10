@@ -24,17 +24,20 @@ module TestkitBackend
 
       # NOTE: Java can only call a Ruby method by the name it knows
       # (the camelCase one). JRuby's snake_case auto-mapping is for
-      # the other direction — Ruby callers reaching into Java. So
-      # any Ruby method that exists to be invoked back from Java
-      # (here, `DriverFactory`'s `getDomainNameResolver` and
-      # `createClock` hooks) must keep its camelCase name.
+      # the other direction — Ruby callers reaching into Java. So a
+      # Ruby method invoked back from Java must be reachable under its
+      # camelCase name. `getDomainNameResolver` keeps that name
+      # outright; `create_clock` is the rubyish name the MRI base
+      # calls, exposed to Java via `alias createClock` — an aliased
+      # name overrides an inherited Java method just as a defined one.
       def getDomainNameResolver
         to_domain_name_resolver(@resolver_proc) || super
       end
 
-      def createClock
+      def create_clock
         to_clock(TestkitClock::INSTANCE)
       end
+      alias createClock create_clock
     end
   end
 end
