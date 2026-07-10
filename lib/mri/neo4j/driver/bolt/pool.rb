@@ -30,8 +30,9 @@ module Neo4j
         # Bolt::Connection. Wrapped, not inherited, because TimedStack
         # owns the threading + size-cap primitive and doesn't expose
         # hooks for "decide whether to hand out the popped item".
-        def initialize(size:, options:, connect_factory:)
+        def initialize(size:, options:, connect_factory:, clock: Internal::Clock.new)
           @options = options
+          @clock = clock
           # connect_factory takes the auth token a fresh connection should
           # authenticate with. pop hands it to the create block via a
           # thread-local: the create block runs synchronously inside
@@ -183,7 +184,7 @@ module Neo4j
         end
 
         def current_monotonic
-          Internal::Clock.monotonic
+          @clock.monotonic
         end
       end
     end

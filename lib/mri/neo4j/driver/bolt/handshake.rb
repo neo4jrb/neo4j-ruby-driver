@@ -67,9 +67,10 @@ module Neo4j
         # We read via wait_readable + read_nonblock rather than read(n)+IO#timeout
         # because IO#timeout is honored for read() only on CRuby, not JRuby —
         # wait_readable times out on both, so the bound works on every flavor.
-        def initialize(socket, deadline: nil)
+        def initialize(socket, deadline: nil, clock: Internal::Clock.new)
           @socket = socket
           @deadline = deadline
+          @clock = clock
         end
 
         # Run the handshake to completion. Returns the negotiated
@@ -180,7 +181,7 @@ module Neo4j
         def remaining_budget
           return nil unless @deadline
 
-          [@deadline - Internal::Clock.monotonic, 0.0].max
+          [@deadline - @clock.monotonic, 0.0].max
         end
 
         # Same as read_int32 but raises a ServiceUnavailableException

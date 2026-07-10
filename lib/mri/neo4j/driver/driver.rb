@@ -17,9 +17,10 @@ module Neo4j
       # The ConnectionProvider is assembled by the DriverFactory (which wires
       # in non-public hooks like the domain-name resolver), so the Driver
       # itself never sees those extension points — it just uses the provider.
-      def initialize(uri, options, connection_provider)
+      def initialize(uri, options, connection_provider, clock: Internal::Clock.new)
         @uri = URI(uri)
         @options = options
+        @clock = clock
         @closed = false
         @connection_provider = connection_provider
       end
@@ -28,7 +29,7 @@ module Neo4j
         raise Exceptions::ClientException, 'Driver is closed' if @closed
 
         merged_options = @options.merge(options)
-        session = Session.new(@connection_provider, merged_options)
+        session = Session.new(@connection_provider, merged_options, clock: @clock)
 
         return session unless block_given?
 

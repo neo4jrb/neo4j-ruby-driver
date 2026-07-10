@@ -12,11 +12,13 @@ module Neo4j
       #
       # The factory is also the single owner of the driver's non-public
       # extension hooks: `getDomainNameResolver` (nil by default = system DNS)
-      # and `create_clock` (still raises — no MRI clock hook yet). testkit's
+      # and `create_clock` (the real system clock by default). testkit's
       # subclass overrides them. Rather than leaking these into the
-      # user-facing config, new_instance bakes them into the ConnectionProvider
-      # it assembles, so the Driver never sees them. The `to_*` converters are
-      # identity (MRI doesn't bridge any types).
+      # user-facing config, new_instance threads them as their own parameters
+      # into the ConnectionProvider it assembles, so the Driver and the
+      # user-facing `config` never carry them. `to_domain_name_resolver` is
+      # identity (MRI doesn't bridge resolver types); `to_clock` wraps a
+      # `#now_millis` source in Internal::ClockAdapter.
       class DriverFactory
         VALID_SCHEMES = %w[bolt bolt+s bolt+ssc neo4j neo4j+s neo4j+ssc].freeze
 
@@ -24,8 +26,10 @@ module Neo4j
           resolver_proc
         end
 
+        # Wrap a `#now_millis` time source in the driver's Clock interface. The
+        # jruby flavour wraps it in a java.time.Clock adapter instead.
         def to_clock(clock)
-          clock
+          Internal::ClockAdapter.new(clock)
         end
 
         # camelCase to match the name Java's DriverFactory exposes and that
@@ -35,10 +39,13 @@ module Neo4j
         # to this via `super`.
         def getDomainNameResolver = nil
 
-        # camelCase for the same reason as getDomainNameResolver — testkit's
-        # subclass overrides it (returning its mock TestkitClock) and the driver
-        # calls it back. Default nil = the real system clocks (see Internal::Clock).
-        def createClock = nil
+        # The clock the driver's internals run on. Default is the real system
+        # clock; testkit's subclass overrides this (returning `to_clock` of its
+        # own time source) so its tests can freeze/advance time — the driver
+        # stays agnostic. camelCase for the same override reason as
+        # getDomainNameResolver; `create_clock` is the rubyish alias.
+        def createClock = Internal::Clock.new
+        def create_clock = createClock
 
         # `client_certificate_manager` is accepted for a uniform cross-impl
         # signature but ignored — MRI doesn't implement mutual-TLS client
@@ -55,19 +62,22 @@ module Neo4j
           # Retain the manager (not a frozen token): the provider consults it
           # for the current token on every acquire and on security failures,
           # so token refresh / re-auth works.
-          # Install the (optional) mock clock into the time seam so the pool /
-          # connection / routing / retry internals read it. nil in production =
-          # real system clocks; testkit's subclass supplies its TestkitClock.
-          Internal::Clock.mock = createClock
-          provider = build_connection_provider(URI(uri), auth_token_manager, config)
-          Driver.new(uri, config, provider)
+          #
+          # The clock the internals run on (default real, testkit's own
+          # otherwise) is an internal extension hook like the domain-name
+          # resolver — threaded as its own parameter to the provider / pool /
+          # connection / routing / session, never mixed into the user-facing
+          # `config`.
+          clock = create_clock
+          provider = build_connection_provider(URI(uri), auth_token_manager, config, clock)
+          Driver.new(uri, config, provider, clock: clock)
         end
 
         private
 
-        def build_connection_provider(uri, auth_manager, options)
+        def build_connection_provider(uri, auth_manager, options, clock)
           klass = uri.scheme.start_with?('neo4j') ? Routing::LoadBalancer : Direct::ConnectionProvider
-          klass.new(uri, auth_manager, options, domain_name_resolver: getDomainNameResolver)
+          klass.new(uri, auth_manager, options, domain_name_resolver: getDomainNameResolver, clock: clock)
         end
 
         def validate_uri(uri)
