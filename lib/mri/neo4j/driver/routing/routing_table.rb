@@ -23,7 +23,7 @@ module Neo4j
 
         # Build a table from the `rt` map returned by the BOLT ROUTE message:
         #   {ttl: 1000, db: "homedb", servers: [{addresses: [...], role: "READ"}, ...]}
-        def self.from_response(rt, requested_database)
+        def self.from_response(rt, requested_database, clock: Internal::Clock.new)
           buckets = { readers: [], writers: [], routers: [] }
           (rt[:servers] || []).each do |server|
             key = ROLE_TO_KEY[server[:role]] or next
@@ -35,17 +35,19 @@ module Neo4j
             routers: buckets[:routers].uniq,
             readers: buckets[:readers].uniq,
             writers: buckets[:writers].uniq,
-            ttl: (rt[:ttl] || 0).to_f
+            ttl: (rt[:ttl] || 0).to_f,
+            clock: clock
           )
         end
 
-        def initialize(database:, routers: [], readers: [], writers: [], ttl: 0)
+        def initialize(database:, routers: [], readers: [], writers: [], ttl: 0, clock: Internal::Clock.new)
           @database = database
           @routers = routers.to_set
           @readers = readers.to_set
           @writers = writers.to_set
           @ttl = ttl
-          @last_updated = Time.now
+          @clock = clock
+          @last_updated = @clock.realtime
           @initialized_without_writers = @writers.empty?
         end
 
@@ -53,14 +55,14 @@ module Neo4j
         # for the requested access mode. An empty writers list is acceptable
         # for read-only acquires (initialized_without_writers state), but a
         # write-mode acquire needs a writer.
-        def fresh?(readonly:, now: Time.now)
+        def fresh?(readonly:, now: @clock.realtime)
           return false if expired?(now)
           return false if @routers.empty?
 
           readonly ? @readers.any? : @writers.any?
         end
 
-        def expired?(now = Time.now)
+        def expired?(now = @clock.realtime)
           now >= @last_updated + @ttl
         end
 
@@ -73,7 +75,7 @@ module Neo4j
 
         # Past the cache grace period? Used by LoadBalancer to drop tables
         # for databases nobody is touching anymore.
-        def purge?(grace:, now: Time.now)
+        def purge?(grace:, now: @clock.realtime)
           now >= @last_updated + @ttl + grace
         end
 
@@ -85,7 +87,7 @@ module Neo4j
           @readers = other.readers.dup
           @writers = other.writers.dup
           @ttl = other.ttl
-          @last_updated = Time.now
+          @last_updated = @clock.realtime
           @initialized_without_writers = @writers.empty?
         end
 

@@ -3,7 +3,7 @@ module TestkitBackend
     # Freeze the testkit clock at zero — subsequent `FakeTimeTick`
     # requests advance it. The clock is consulted by the driver's
     # pool / retry / liveness internals via the `DriverFactory`'s
-    # `createClock` override (testkit's `Internal::DriverFactory`
+    # `create_clock` override (testkit's `Internal::DriverFactory`
     # returns the same `TestkitClock` singleton), and by testkit's
     # `ExpirationBasedAuthTokenManager` for bearer-token expiry.
     class FakeTimeInstall < Request

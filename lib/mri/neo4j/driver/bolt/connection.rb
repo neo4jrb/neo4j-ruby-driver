@@ -48,7 +48,7 @@ module Neo4j
         # DriverFactory wires in (default nil = system DNS). It's an explicit
         # dependency, not part of the user `options`, so factory-only
         # extension points never leak into the driver's public config.
-        def initialize(uri, auth, options = {}, domain_name_resolver: nil)
+        def initialize(uri, auth, options = {}, domain_name_resolver: nil, clock: Internal::Clock.new)
           @uri = URI(uri)
           # The driver's stored auth — the identity HELLO/LOGON
           # authenticated as on connect, and what Session restores via
@@ -57,6 +57,7 @@ module Neo4j
           @driver_auth = auth
           @auth = auth
           @options = options
+          @clock = clock
           @domain_name_resolver = domain_name_resolver
           @socket = nil
           # The sans-I/O core: framing + hydration, no socket. Built once the
@@ -215,10 +216,11 @@ module Neo4j
           true
         end
 
-        # Monotonic seconds — immune to wall-clock jumps, which is
-        # what every age / idle calculation here needs.
+        # Monotonic seconds — immune to wall-clock jumps, which is what every
+        # age / idle calculation here needs. Through the Clock seam so
+        # Backend:MockTime can freeze/advance it.
         def current_monotonic
-          Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          @clock.monotonic
         end
 
         def close
@@ -867,7 +869,7 @@ module Neo4j
           # deadline too, so a server that stalls the magic-byte exchange can't
           # outlast it. Handshake reads via wait_readable, so the bound fires on
           # JRuby as well as CRuby (read()+IO#timeout would not).
-          agreed_version = Handshake.new(@socket, deadline: @read_deadline).negotiate
+          agreed_version = Handshake.new(@socket, deadline: @read_deadline, clock: @clock).negotiate
           @server_version = agreed_version
           @bolt_version = BoltVersion.from_int(agreed_version)
           @protocol = ProtocolVersionHandler.for_version(self, agreed_version)

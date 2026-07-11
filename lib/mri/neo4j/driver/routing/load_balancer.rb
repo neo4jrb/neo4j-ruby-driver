@@ -33,10 +33,11 @@ module Neo4j
 
         # `domain_name_resolver` is the factory-injected hostname->IPs hook
         # (nil = system DNS); baked into every connection this balancer builds.
-        def initialize(uri, auth_manager, options = {}, domain_name_resolver: nil)
+        def initialize(uri, auth_manager, options = {}, domain_name_resolver: nil, clock: Internal::Clock.new)
           @uri = uri
           @auth_manager = auth_manager
           @options = options
+          @clock = clock
           @domain_name_resolver = domain_name_resolver
           @routing_context = parse_routing_context(uri)
           @pools = {}                      # ServerAddress => ConnectionPool::TimedStack
@@ -239,7 +240,7 @@ module Neo4j
         # (see test_should_fail_on_routing_table_with_no_reader).
         def routing_table_handler(database)
           @refresh_lock.synchronize do
-            Handler.new(@routing_tables[database] || RoutingTable.new(database: database))
+            Handler.new(@routing_tables[database] || RoutingTable.new(database: database, clock: @clock))
           end
         end
 
@@ -407,7 +408,7 @@ module Neo4j
             end
             rt = conn.route(database: database, bookmarks: Array(bookmarks),
                             imp_user: imp_user, routing_context: @routing_context)
-            new_table = RoutingTable.from_response(symbolize(rt), database)
+            new_table = RoutingTable.from_response(symbolize(rt), database, clock: @clock)
 
             if new_table.routers.empty? || new_table.readers.empty?
               errors << Exceptions::ServiceUnavailableException.new(
@@ -500,6 +501,7 @@ module Neo4j
             @pools[address] ||= Bolt::Pool.new(
               size: max_pool_size,
               options: @options,
+              clock: @clock,
               connect_factory: ->(auth) { open_connection(address, auth) }
             )
           end
@@ -520,7 +522,7 @@ module Neo4j
           # worker's resolved token). Fall back to the manager's current
           # token for acquires that don't carry one (verify_connectivity).
           conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts,
-                                      domain_name_resolver: @domain_name_resolver).connect
+                                      domain_name_resolver: @domain_name_resolver, clock: @clock).connect
           # Bind the security handler to this connection's server so an
           # AuthorizationExpired bumps the right per-address epoch.
           conn.security_exception_handler =

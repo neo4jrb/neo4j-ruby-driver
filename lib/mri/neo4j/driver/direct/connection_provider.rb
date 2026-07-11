@@ -17,10 +17,11 @@ module Neo4j
       class ConnectionProvider
         # `domain_name_resolver` is the factory-injected hostname->IPs hook
         # (nil = system DNS); baked into every connection this provider builds.
-        def initialize(uri, auth_manager, options = {}, domain_name_resolver: nil)
+        def initialize(uri, auth_manager, options = {}, domain_name_resolver: nil, clock: Internal::Clock.new)
           @uri = uri
           @auth_manager = auth_manager
           @options = options
+          @clock = clock
           @domain_name_resolver = domain_name_resolver
           # Authorization-expired generation counter (see Connection#auth_epoch).
           # Bumped when any connection reports AuthorizationExpired so every
@@ -201,12 +202,13 @@ module Neo4j
           @pool ||= Bolt::Pool.new(
             size: max_pool_size,
             options: @options,
+            clock: @clock,
             connect_factory: lambda { |auth|
               # `auth` is the per-acquire identity resolved in #acquire and
               # threaded through pool.pop. The `||` is a belt-and-braces
               # fallback for any future pop path that forgets to pass one.
               conn = Bolt::Connection.new(@uri, auth || @auth_manager.get_token, @options,
-                                          domain_name_resolver: @domain_name_resolver).connect
+                                          domain_name_resolver: @domain_name_resolver, clock: @clock).connect
               conn.security_exception_handler = method(:on_security_exception)
               # A freshly-authenticated connection belongs to the current
               # auth generation, so ensure_identity won't force-re-auth it.
