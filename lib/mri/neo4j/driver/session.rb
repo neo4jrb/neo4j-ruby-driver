@@ -267,7 +267,13 @@ module Neo4j
         # extra time for a redundant re-auth.
         @connection_provider.acquire(
           access_mode: access_mode,
-          database: @options[:database],
+          # Hand the provider the resolved database: for a home-db session
+          # (nil :database on a routing driver) operation_database runs
+          # discovery once and memoizes the resolved name, so the acquire
+          # reuses the table already cached under that name instead of
+          # re-routing. Explicit :database and the direct provider pass through
+          # unchanged (nil stays nil).
+          database: operation_database(current_bookmarks_for_extra),
           bookmarks: current_bookmarks_for_extra,
           # Threaded into routing discovery so the ROUTE call enforces
           # impersonation support (Bolt 4.4+) before sending; the direct

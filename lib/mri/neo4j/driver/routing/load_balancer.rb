@@ -82,11 +82,16 @@ module Neo4j
           # the RUN/BEGIN path — see Connection#route. `auth` is threaded so
           # the ROUTE connection authenticates as the session's identity
           # (per-session token) rather than always the manager's default.
-          ensure_routing_table_is_fresh(database, access_mode, bookmarks: bookmarks, imp_user: imp_user, auth: auth)
+          # Resolve to the concrete database name: for a home-db acquire
+          # (database == nil) discovery returns the resolved name, which keys
+          # the table and the address selection below.
+          resolved_database = ensure_routing_table_is_fresh(
+            database, access_mode, bookmarks: bookmarks, imp_user: imp_user, auth: auth
+          ).database
 
           last_error = nil
           loop do
-            address = select_address(database, access_mode)
+            address = select_address(resolved_database, access_mode)
             unless address
               # Routing table yielded no usable server for this mode —
               # a session-expired condition (the session can't be served,
@@ -97,7 +102,7 @@ module Neo4j
               # rescue, so $! would not auto-populate it. cause: nil is
               # fine when there was no connection-level failure.
               raise Exceptions::SessionExpiredException,
-                    "No #{access_mode} servers available for database #{database.inspect}",
+                    "No #{access_mode} servers available for database #{resolved_database.inspect}",
                     cause: last_error
             end
 
@@ -123,7 +128,7 @@ module Neo4j
                 discard(address, inner)
                 next
               end
-              return RoutedConnection.new(self, inner, address, access_mode, database)
+              return RoutedConnection.new(self, inner, address, access_mode, resolved_database)
             rescue Exceptions::ServiceUnavailableException => e
               # Server is unreachable (open_connection raised inside the
               # pool's create block). Drop the address from every table
@@ -307,8 +312,16 @@ module Neo4j
         # are threaded into the ROUTE payload.
         def ensure_routing_table_is_fresh(database, access_mode, bookmarks: nil, imp_user: nil, auth: nil)
           @refresh_lock.synchronize do
-            table = @routing_tables[database]
-            return table if table && table.fresh?(readonly: access_mode == :read)
+            # Home-database resolution (database == nil on a db-returning
+            # protocol) is never served from cache: the resolved name depends
+            # on the session's context (bookmarks, impersonation, auth), so
+            # each session re-runs discovery. The freshly fetched table is
+            # cached under its RESOLVED name (apply_routing_table) for the
+            # acquire that follows, never under nil.
+            unless database.nil?
+              table = @routing_tables[database]
+              return table if table && table.fresh?(readonly: access_mode == :read)
+            end
 
             update_routing_table(database, bookmarks: bookmarks, imp_user: imp_user, auth: auth)
           end
@@ -332,8 +345,8 @@ module Neo4j
             new_table = fetch_routing_table_from(router, database, bookmarks, errors, imp_user, auth)
             next unless new_table
 
-            apply_routing_table(database, new_table)
-            return @routing_tables[database]
+            apply_routing_table(new_table)
+            return @routing_tables[new_table.database]
           end
 
           last = errors.last
@@ -460,7 +473,12 @@ module Neo4j
             code != 'Neo.ClientError.Security.AuthorizationExpired'
         end
 
-        def apply_routing_table(database, new_table)
+        # Cache the fetched table under its resolved database name. For an
+        # explicit-database acquire the resolved name equals the request; for a
+        # home-db acquire (requested nil) it is the name the router resolved, so
+        # home-db tables are keyed by their real name, never under nil.
+        def apply_routing_table(new_table)
+          database = new_table.database
           existing = @routing_tables[database]
           if existing
             existing.update(new_table)
