@@ -132,9 +132,16 @@ module Neo4j
           # is actually exercised on the wire — matches Java's
           # verifyConnectivity and the routing LoadBalancer, and testkit's
           # test_direct_from_pool (which asserts one RESET on the pooled
-          # connection). release lands it back in the pool in a clean state.
+          # connection). `propagate: true` surfaces a failed probe (rather than
+          # reporting false success); a failed probe means a dead connection,
+          # so discard it instead of returning it to the pool.
           conn = acquire
-          conn.reset!
+          begin
+            conn.reset!(propagate: true)
+          rescue StandardError
+            pool.discard(conn)
+            raise
+          end
           release(conn)
         end
 

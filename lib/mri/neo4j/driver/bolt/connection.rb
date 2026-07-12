@@ -566,14 +566,18 @@ module Neo4j
         # failure — those routed to their handlers; this drains the sync @inbox).
         # Returns once the server has acknowledged the RESET and the connection is
         # quiescent.
-        def reset!
+        def reset!(propagate: false)
           send_message(Message.reset)
           flush
           drain_quiesced
         rescue StandardError
-          # If RESET itself fails the connection is likely dead; caller will
-          # discover this on next use. Swallow so recovery paths don't mask
-          # the original error.
+          # If RESET itself fails the connection is likely dead. Recovery paths
+          # (`propagate: false`, the default) swallow so they don't mask the
+          # original error and the caller discovers the break on next use.
+          # verify_connectivity passes `propagate: true`: the RESET *is* the
+          # probe, so a failure must surface (and the dead connection be
+          # discarded) rather than report false success.
+          raise if propagate
         end
 
         # True while the caller still owes a fetch: a request whose terminal the
