@@ -208,6 +208,17 @@ module Neo4j
           release(conn)
         end
 
+        # Per-server-address pool snapshots (driver.metrics). One entry per
+        # server we hold a pool for; the address key is the Routing::ServerAddress
+        # the pool was created under.
+        def connection_pool_metrics
+          @refresh_lock.synchronize do
+            @pools.map do |address, pool|
+              Internal::Metrics::ConnectionPoolMetrics.new(address, pool.in_use, pool.idle)
+            end
+          end
+        end
+
         # Routing requires Bolt 4.0+ (the ROUTE message and `CALL
         # dbms.routing.getRoutingTable` are 4.0+ features). If we got
         # this far the answer is always true.

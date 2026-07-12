@@ -145,6 +145,16 @@ module Neo4j
           release(conn)
         end
 
+        # Single-address pool snapshot (driver.metrics). Empty until the pool
+        # has been lazily built by the first acquire.
+        def connection_pool_metrics
+          return [] unless @pool
+
+          address = Routing::ServerAddress.new(host: @uri.host,
+                                               port: @uri.port || Routing::ServerAddress::DEFAULT_PORT)
+          [Internal::Metrics::ConnectionPoolMetrics.new(address, @pool.in_use, @pool.idle)]
+        end
+
         # True iff the negotiated Bolt protocol supports multi-database
         # routing (Bolt 4.0+). Acquires a connection to ensure HELLO has
         # happened.
