@@ -265,6 +265,11 @@ module Neo4j
         # manager exactly as many times as the path needs (once for direct,
         # once for discovery + once for the worker on routing) — never an
         # extra time for a redundant re-auth.
+        # Snapshot the bookmarks once: current_bookmarks_for_extra consults the
+        # BookmarkManager and records @bookmarks_used_on_begin, so a second call
+        # could take a different snapshot — home-db discovery must route with the
+        # same bookmarks the acquire threads on the wire.
+        bookmarks = current_bookmarks_for_extra
         @connection_provider.acquire(
           access_mode: access_mode,
           # Hand the provider the resolved database: for a home-db session
@@ -273,8 +278,8 @@ module Neo4j
           # reuses the table already cached under that name instead of
           # re-routing. Explicit :database and the direct provider pass through
           # unchanged (nil stays nil).
-          database: operation_database(current_bookmarks_for_extra),
-          bookmarks: current_bookmarks_for_extra,
+          database: operation_database(bookmarks),
+          bookmarks: bookmarks,
           # Threaded into routing discovery so the ROUTE call enforces
           # impersonation support (Bolt 4.4+) before sending; the direct
           # provider ignores it (RUN/BEGIN enforce it instead).

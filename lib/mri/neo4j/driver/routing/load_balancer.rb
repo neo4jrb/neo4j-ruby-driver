@@ -312,16 +312,8 @@ module Neo4j
         # are threaded into the ROUTE payload.
         def ensure_routing_table_is_fresh(database, access_mode, bookmarks: nil, imp_user: nil, auth: nil)
           @refresh_lock.synchronize do
-            # Home-database resolution (database == nil on a db-returning
-            # protocol) is never served from cache: the resolved name depends
-            # on the session's context (bookmarks, impersonation, auth), so
-            # each session re-runs discovery. The freshly fetched table is
-            # cached under its RESOLVED name (apply_routing_table) for the
-            # acquire that follows, never under nil.
-            unless database.nil?
-              table = @routing_tables[database]
-              return table if table && table.fresh?(readonly: access_mode == :read)
-            end
+            table = @routing_tables[database]
+            return table if table && table.fresh?(readonly: access_mode == :read)
 
             update_routing_table(database, bookmarks: bookmarks, imp_user: imp_user, auth: auth)
           end
