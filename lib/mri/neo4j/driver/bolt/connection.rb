@@ -824,7 +824,14 @@ module Neo4j
         def open_socket(host, port)
           timeout = @options[:connection_timeout]
           bare_host = strip_brackets(host)
-          tcp_socket = timeout ? Socket.tcp(bare_host, port, connect_timeout: timeout) : TCPSocket.new(bare_host, port)
+          # Bound the TCP connect by the smaller of the connection timeout and
+          # the connection-acquisition timeout, so acquisition_timeout caps a
+          # connect to a non-responsive/non-routable address — not just the
+          # handshake reads (testkit
+          # test_should_fail_when_acquisition_timeout_is_reached_first, where
+          # acquisition 2s < connection 720s).
+          connect_timeout = [timeout&.to_f, @options[:connection_acquisition_timeout]&.to_f].compact.min
+          tcp_socket = connect_timeout ? Socket.tcp(bare_host, port, connect_timeout: connect_timeout) : TCPSocket.new(bare_host, port)
         rescue SystemCallError, SocketError => e
           raise Exceptions::ServiceUnavailableException,
                 "Unable to connect to #{format_address(host, port)}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
