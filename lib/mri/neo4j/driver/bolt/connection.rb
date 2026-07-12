@@ -110,16 +110,18 @@ module Neo4j
 
         def connect
           last_error = nil
+          # One monotonic acquisition deadline for the whole connect, shared by
+          # every resolved-address attempt AND the handshake/HELLO reads: a
+          # server stalling the handshake — or a series of stalled addresses —
+          # can't collectively outlast the acquisition timeout. Each attempt
+          # gets only the *remaining* budget (open_socket / bounded reads). A
+          # total deadline (not a per-read timeout) so interleaved NOOP
+          # keepalives can't reset the clock. Cleared once the connection is
+          # ready and steady-state reads use the recv-timeout hint instead.
+          @read_deadline = acquisition_deadline
           resolved_addresses.each do |host, port|
             begin
               open_socket(host, port)
-              # Bound the whole connection acquisition (negotiation + HELLO/
-              # LOGON) by the acquisition timeout — a server stalling the
-              # handshake can't outlast it. A monotonic *total* deadline (not a
-              # per-read timeout) so interleaved NOOP keepalives can't reset the
-              # clock. Cleared once the connection is ready and steady-state
-              # reads use the recv-timeout hint instead.
-              @read_deadline = acquisition_deadline
               perform_handshake
               perform_hello
               @read_deadline = nil
@@ -780,6 +782,13 @@ module Neo4j
           acq && current_monotonic + acq
         end
 
+        # Seconds left until the shared acquisition deadline (@read_deadline),
+        # clamped at 0; nil when the acquisition timeout is unconfigured. Used
+        # to give each connect attempt only the remaining budget.
+        def remaining_read_budget
+          @read_deadline && [@read_deadline - current_monotonic, 0.0].max
+        end
+
         # Resolve the URI's host:port into a list of [host, port] pairs to try
         # in order. Hosts are kept in their native form — IPv6 stays bracketed
         # ("[::1]") so address strings re-parse unambiguously; brackets are
@@ -825,12 +834,13 @@ module Neo4j
           timeout = @options[:connection_timeout]
           bare_host = strip_brackets(host)
           # Bound the TCP connect by the smaller of the connection timeout and
-          # the connection-acquisition timeout, so acquisition_timeout caps a
-          # connect to a non-responsive/non-routable address — not just the
-          # handshake reads (testkit
+          # the REMAINING acquisition budget (the shared @read_deadline), so
+          # acquisition_timeout caps a connect to a non-responsive/non-routable
+          # address — not just the handshake reads — and retries across
+          # addresses can't collectively exceed it (testkit
           # test_should_fail_when_acquisition_timeout_is_reached_first, where
           # acquisition 2s < connection 720s).
-          connect_timeout = [timeout&.to_f, @options[:connection_acquisition_timeout]&.to_f].compact.min
+          connect_timeout = [timeout&.to_f, remaining_read_budget].compact.min
           tcp_socket = connect_timeout ? Socket.tcp(bare_host, port, connect_timeout: connect_timeout) : TCPSocket.new(bare_host, port)
         rescue SystemCallError, SocketError => e
           raise Exceptions::ServiceUnavailableException,
