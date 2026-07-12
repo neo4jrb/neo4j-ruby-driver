@@ -195,7 +195,16 @@ module Neo4j
         def verify_connectivity
           invalidate_routing_table(nil)
           conn = acquire(access_mode: :read)
-          conn.reset!
+          begin
+            # propagate: a failed probe means a dead reader — surface it and
+            # discard the connection rather than pooling it (see
+            # Direct::ConnectionProvider#verify_connectivity).
+            conn.reset!(propagate: true)
+          rescue StandardError
+            conn.discard_on_release = true
+            release(conn)
+            raise
+          end
           release(conn)
         end
 

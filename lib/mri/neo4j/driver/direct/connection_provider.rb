@@ -128,7 +128,21 @@ module Neo4j
         end
 
         def verify_connectivity
-          release(acquire)
+          # Probe the connection with a RESET so a reused (pooled) connection
+          # is actually exercised on the wire — matches Java's
+          # verifyConnectivity and the routing LoadBalancer, and testkit's
+          # test_direct_from_pool (which asserts one RESET on the pooled
+          # connection). `propagate: true` surfaces a failed probe (rather than
+          # reporting false success); a failed probe means a dead connection,
+          # so discard it instead of returning it to the pool.
+          conn = acquire
+          begin
+            conn.reset!(propagate: true)
+          rescue StandardError
+            pool.discard(conn)
+            raise
+          end
+          release(conn)
         end
 
         # True iff the negotiated Bolt protocol supports multi-database
