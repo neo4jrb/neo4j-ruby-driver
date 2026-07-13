@@ -28,6 +28,18 @@ module Neo4j
             [%r{^Neo\.DatabaseError},                               Exceptions::DatabaseException]
           ].freeze
 
+          # Two `TransientError` codes the server may send that are actually
+          # non-retryable: the driver rewrites them to their `ClientError` form
+          # (so they map to a non-retryable ClientException, not a retryable
+          # TransientException) and surfaces the rewritten code. Mirrors the
+          # Java driver's ErrorUtil special-case; testkit's
+          # test_should_not_retry_non_retryable_tx_failures asserts both the
+          # rewritten code and that the managed-tx executor does not retry.
+          CODE_REWRITES = {
+            'Neo.TransientError.Transaction.Terminated' => 'Neo.ClientError.Transaction.Terminated',
+            'Neo.TransientError.Transaction.LockClientStopped' => 'Neo.ClientError.Transaction.LockClientStopped'
+          }.freeze
+
           # GQL diagnostic-record keys the server may omit; filled with these
           # defaults so the record is always complete (mirrors the Java driver).
           DEFAULT_DIAGNOSTIC_RECORD = { OPERATION: '', OPERATION_CODE: '0', CURRENT_SCHEMA: '/' }.freeze
@@ -80,6 +92,10 @@ module Neo4j
               Exceptions::Neo4jException
           end
 
+          # A handful of TransientError codes are non-retryable and surface
+          # under their ClientError code (see CODE_REWRITES).
+          def rewrite_code(code) = CODE_REWRITES[code] || code
+
           # Bolt 5.7+ GQL failure: read the fields straight off the wire, fill the
           # diagnostic-record defaults, and recurse into the cause chain.
           def build_gql(meta)
@@ -87,9 +103,10 @@ module Neo4j
             raw_classification = diagnostic_record[:_classification]
             raw_classification = nil unless raw_classification.is_a?(String)
 
-            exception_class(meta[:neo4j_code]).new(
+            code = rewrite_code(meta[:neo4j_code])
+            exception_class(code).new(
               meta[:message],
-              code: meta[:neo4j_code],
+              code: code,
               gql_status: meta[:gql_status],
               status_description: meta[:description],
               diagnostic_record: diagnostic_record,
@@ -102,9 +119,10 @@ module Neo4j
           # Legacy { code:, message: } failure — synthesise the GQL shape so the
           # exception carries the same fields a 5.7 server would have sent.
           def build_legacy(meta)
-            exception_class(meta[:code]).new(
+            code = rewrite_code(meta[:code])
+            exception_class(code).new(
               meta[:message],
-              code: meta[:code],
+              code: code,
               gql_status: DEFAULT_GQL_STATUS,
               status_description: "#{DEFAULT_STATUS_DESCRIPTION_PREFIX}#{meta[:message]}",
               diagnostic_record: DEFAULT_DIAGNOSTIC_RECORD.dup
