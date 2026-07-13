@@ -214,7 +214,8 @@ module Neo4j
         def connection_pool_metrics
           @refresh_lock.synchronize do
             @pools.map do |address, pool|
-              Internal::Metrics::ConnectionPoolMetrics.new(address, pool.in_use, pool.idle)
+              in_use, idle = pool.metrics_snapshot
+              Internal::Metrics::ConnectionPoolMetrics.new(address, in_use, idle)
             end
           end
         end

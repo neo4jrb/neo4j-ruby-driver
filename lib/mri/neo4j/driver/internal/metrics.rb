@@ -11,8 +11,12 @@ module Neo4j
       # owns the pools, so it produces the per-address snapshots.
       class Metrics
         # Per-server-address snapshot. `address` is a Routing::ServerAddress
-        # (responds to #host/#port so the testkit handler can match it).
-        ConnectionPoolMetrics = Struct.new(:address, :in_use, :idle)
+        # (responds to #host/#port so the testkit handler can match it). `#id`
+        # is the "host:port" string form, the forward-compatible duck-typed key
+        # DECISIONS.md (2026-06-05) describes for a future metrics contract.
+        ConnectionPoolMetrics = Struct.new(:address, :in_use, :idle) do
+          def id = address.to_s
+        end
 
         def initialize(connection_provider)
           @connection_provider = connection_provider

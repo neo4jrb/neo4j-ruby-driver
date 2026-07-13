@@ -56,15 +56,16 @@ module Neo4j
           @created = 0
           @leased = 0
           @stack = ConnectionPool::TimedStack.new(size: size) do
-            @connect_factory.call(Thread.current[@auth_key]).tap { bump(:@created, +1) }
+            @connect_factory.call(Thread.current[@auth_key]).tap { bump(created: 1) }
           end
         end
 
-        # Connections currently checked out of this pool.
-        def in_use = @metrics_lock.synchronize { @leased }
-
-        # Connections built but sitting idle in the pool (created - in use).
-        def idle = @metrics_lock.synchronize { @created - @leased }
+        # A consistent [in_use, idle] snapshot read under one lock — both
+        # counters move together on discard, so reading them separately could
+        # observe an intermediate (e.g. negative idle) state.
+        def metrics_snapshot
+          @metrics_lock.synchronize { [@leased, @created - @leased] }
+        end
 
         # Pop a connection that's young enough and confirmed alive.
         # Loops until a usable one is found or the acquisition-timeout
@@ -98,7 +99,7 @@ module Neo4j
 
           connection.idle_since = current_monotonic
           @stack.push(connection)
-          bump(:@leased, -1) # returned to the pool, now idle
+          bump(leased: -1) # returned to the pool, now idle
         end
 
         # Close a checked-out connection without putting it back.
@@ -112,12 +113,14 @@ module Neo4j
           @stack.decrement_created
           # A checked-out connection removed for good: no longer created, no
           # longer leased.
-          bump(:@created, -1)
-          bump(:@leased, -1)
+          bump(created: -1, leased: -1)
         end
 
         def shutdown(&block)
           @stack.shutdown(&block)
+          # Every connection is closed now — keep the metrics truthful so a
+          # post-close snapshot reports nothing live.
+          @metrics_lock.synchronize { @created = @leased = 0 }
         end
 
         private
@@ -142,12 +145,17 @@ module Neo4j
 
         def prepare(conn)
           conn.idle_since = nil
-          bump(:@leased, +1) # checked out of the pool
+          bump(leased: 1) # checked out of the pool
           conn
         end
 
-        def bump(ivar, delta)
-          @metrics_lock.synchronize { instance_variable_set(ivar, instance_variable_get(ivar) + delta) }
+        # Move both counters under a single lock so a concurrent
+        # metrics_snapshot never sees a half-applied discard (created < leased).
+        def bump(created: 0, leased: 0)
+          @metrics_lock.synchronize do
+            @created += created
+            @leased += leased
+          end
         end
 
         # Replacement-on-acquire close: TimedStack already counted
@@ -161,7 +169,7 @@ module Neo4j
           @stack.decrement_created
           # Popped but never handed out (unusable) — drop from created; it was
           # never counted as leased.
-          bump(:@created, -1)
+          bump(created: -1)
         end
 
         def close_quietly(conn)

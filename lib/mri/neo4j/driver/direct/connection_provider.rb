@@ -152,7 +152,8 @@ module Neo4j
 
           address = Routing::ServerAddress.new(host: @uri.host,
                                                port: @uri.port || Routing::ServerAddress::DEFAULT_PORT)
-          [Internal::Metrics::ConnectionPoolMetrics.new(address, @pool.in_use, @pool.idle)]
+          in_use, idle = @pool.metrics_snapshot
+          [Internal::Metrics::ConnectionPoolMetrics.new(address, in_use, idle)]
         end
 
         # True iff the negotiated Bolt protocol supports multi-database
