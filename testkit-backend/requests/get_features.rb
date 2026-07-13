@@ -77,7 +77,7 @@ module TestkitBackend
         'Feature:API:Driver.ExecuteQuery:WithAuth'          => 'ja',
         'Feature:API:Driver:GetServerInfo'                  => '',
         'Feature:API:Driver.IsEncrypted'                    => 'jar',
-        'Feature:API:Driver:NotificationsConfig'            => 'ja',
+        'Feature:API:Driver:NotificationsConfig'            => 'jar',
         'Feature:API:Driver.VerifyAuthentication'           => 'jar',
         # JRuby's verifyConnectivity routes for the system database (the
         # bundled Java driver hardcodes it in RoutedBoltConnectionSource),

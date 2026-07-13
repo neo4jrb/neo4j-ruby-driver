@@ -924,7 +924,10 @@ module Neo4j
           hello_msg = @protocol.build_hello_message(
             user_agent: @options[:user_agent] || "neo4j-ruby-driver/#{Neo4j::Driver::VERSION}",
             auth: auth_hash,
-            routing: @options[:routing_context]
+            routing: @options[:routing_context],
+            # Driver-level NotificationsConfig; only reaches the wire on Bolt
+            # 5.2+ (older protocols return {} from notification_config_extra).
+            notification_config: @options[:notification_config]
           )
 
           # Pipeline HELLO and (on 5.1+) LOGON: enqueue both, flush once, then
