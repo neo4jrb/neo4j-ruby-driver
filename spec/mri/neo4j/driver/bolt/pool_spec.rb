@@ -36,6 +36,9 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
         @close_calls += 1
         @closed = true
       end
+
+      # Pool RESETs a connection on return; a no-op here.
+      def reset!(**) = nil
     end
   end
 
@@ -192,6 +195,66 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
     it 'is a no-op for nil (mirrors Direct provider tolerance)' do
       pool = build_pool([])
       expect { pool.push(nil) }.not_to raise_error
+    end
+  end
+
+  describe '#metrics_snapshot' do
+    it 'starts at zero in_use and idle' do
+      expect(build_pool([]).metrics_snapshot).to eq([0, 0])
+    end
+
+    it 'counts a popped connection as in use, then idle after push' do
+      conn = connection_class.new
+      conn.created_at = monotonic
+      pool = build_pool([conn])
+
+      pool.pop
+      expect(pool.metrics_snapshot).to eq([1, 0]) # in use, none idle
+
+      pool.push(conn)
+      expect(pool.metrics_snapshot).to eq([0, 1]) # returned, now idle
+
+      pool.pop
+      expect(pool.metrics_snapshot).to eq([1, 0]) # re-checked-out, not double-counted
+    end
+
+    it 'drops a checked-out connection from both counters on discard' do
+      conn = connection_class.new
+      conn.created_at = monotonic
+      pool = build_pool([conn])
+      pool.pop
+
+      pool.discard(conn)
+      expect(pool.metrics_snapshot).to eq([0, 0])
+    end
+
+    it 'drops a connection replaced during pop (liveness) from created' do
+      dead = connection_class.new(alive: false)
+      dead.created_at = monotonic
+      fresh = connection_class.new
+      fresh.created_at = monotonic
+      sequence = [dead, fresh].each
+      pool = described_class.new(
+        size: 2,
+        options: { connection_liveness_check_timeout: 0.001 },
+        connect_factory: ->(_auth) { sequence.next }
+      )
+      pool.pop                     # factory builds `dead` (fresh, no probe) -> in use
+      pool.push(dead)              # back to the pool, idle
+      dead.idle_since = monotonic - 1
+
+      pool.pop                     # dead fails liveness -> discard_on_pop; factory builds `fresh`
+      expect(pool.metrics_snapshot).to eq([1, 0]) # only fresh, in use; dead dropped from created
+    end
+
+    it 'reports nothing live after shutdown' do
+      conn = connection_class.new
+      conn.created_at = monotonic
+      pool = build_pool([conn])
+      pool.pop
+
+      pool.shutdown { |c| c.close }
+      expect(pool.metrics_snapshot).to eq([0, 0])
     end
   end
 

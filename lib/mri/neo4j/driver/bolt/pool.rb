@@ -46,7 +46,25 @@ module Neo4j
           # instead of connecting as the manager and re-authing.
           @connect_factory = connect_factory
           @auth_key = :"bolt_pool_next_auth_#{object_id}"
-          @stack = ConnectionPool::TimedStack.new(size: size) { @connect_factory.call(Thread.current[@auth_key]) }
+          # Metrics counters (driver.metrics / testkit GetConnectionPoolMetrics):
+          # @created = live connections this pool has built (idle + in use),
+          # @leased = currently checked out. idle = created - leased. Guarded by
+          # @metrics_lock since pop/push/discard run on many session threads.
+          # @created is bumped inside the create block (only on a successful
+          # factory call — TimedStack rolls back its own count if it raises).
+          @metrics_lock = Mutex.new
+          @created = 0
+          @leased = 0
+          @stack = ConnectionPool::TimedStack.new(size: size) do
+            @connect_factory.call(Thread.current[@auth_key]).tap { bump(created: 1) }
+          end
+        end
+
+        # A consistent [in_use, idle] snapshot read under one lock — both
+        # counters move together on discard, so reading them separately could
+        # observe an intermediate (e.g. negative idle) state.
+        def metrics_snapshot
+          @metrics_lock.synchronize { [@leased, @created - @leased] }
         end
 
         # Pop a connection that's young enough and confirmed alive.
@@ -79,8 +97,17 @@ module Neo4j
         def push(connection)
           return unless connection
 
+          # RESET on return to the pool, clearing any residual server-side state
+          # so the next lessee gets a clean connection. Reference drivers do this
+          # unless they advertise Optimization:MinimalResets (MRI doesn't), and
+          # testkit's scripts encode the expectation (#RESET_ON_POOL_RETURN#).
+          # It also keeps the liveness probe distinct from the return-RESET, so a
+          # silently-dead connection is actually detected on re-acquire
+          # (test_should_drop_connections_failing_liveness_check).
+          connection.reset!
           connection.idle_since = current_monotonic
           @stack.push(connection)
+          bump(leased: -1) # returned to the pool, now idle
         end
 
         # Close a checked-out connection without putting it back.
@@ -92,10 +119,16 @@ module Neo4j
         def discard(connection)
           close_quietly(connection)
           @stack.decrement_created
+          # A checked-out connection removed for good: no longer created, no
+          # longer leased.
+          bump(created: -1, leased: -1)
         end
 
         def shutdown(&block)
           @stack.shutdown(&block)
+          # Every connection is closed now — keep the metrics truthful so a
+          # post-close snapshot reports nothing live.
+          @metrics_lock.synchronize { @created = @leased = 0 }
         end
 
         private
@@ -120,7 +153,17 @@ module Neo4j
 
         def prepare(conn)
           conn.idle_since = nil
+          bump(leased: 1) # checked out of the pool
           conn
+        end
+
+        # Move both counters under a single lock so a concurrent
+        # metrics_snapshot never sees a half-applied discard (created < leased).
+        def bump(created: 0, leased: 0)
+          @metrics_lock.synchronize do
+            @created += created
+            @leased += leased
+          end
         end
 
         # Replacement-on-acquire close: TimedStack already counted
@@ -132,6 +175,9 @@ module Neo4j
         def discard_on_pop(conn)
           close_quietly(conn)
           @stack.decrement_created
+          # Popped but never handed out (unusable) — drop from created; it was
+          # never counted as leased.
+          bump(created: -1)
         end
 
         def close_quietly(conn)
