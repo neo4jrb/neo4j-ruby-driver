@@ -70,13 +70,16 @@ module Neo4j
 
           access_mode = access_mode.to_sym
           # `auth` is the per-session override (nil = manager's current
-          # token). Resolve the worker identity once — this is the worker's
-          # single manager consult. Discovery resolves its own identity
-          # independently (below), so a routed acquire with the default token
-          # consults the manager twice (get_auth_count == 2): once for the
-          # ROUTE connection, once for the worker. A session-carried token
-          # short-circuits both (count 0).
-          effective = auth || @auth_manager.get_token
+          # token). The worker identity is resolved per turn inside the loop
+          # below, not once here: on Bolt 5.0 an acquire that discards a
+          # token-rotated connection must re-consult the manager so the
+          # replacement issues its own get_token (mirrors
+          # Direct::ConnectionProvider — one extra get_auth per rotation).
+          # Discovery resolves its own identity independently, so a routed
+          # acquire with the default token consults the manager twice
+          # (get_auth_count == 2): once for the ROUTE connection, once for the
+          # worker. A session-carried token short-circuits both (count 0).
+          #
           # imp_user is threaded into discovery so the ROUTE call enforces
           # impersonation support (Bolt 4.4+) against the router, matching
           # the RUN/BEGIN path — see Connection#route. `auth` is threaded so
@@ -109,6 +112,9 @@ module Neo4j
             pool = pool_for(address)
             begin
               epoch = auth_epoch_for(address)
+              # Re-resolve per turn (see acquire header): a discard-and-retry
+              # on Bolt 5.0 token rotation must issue its own get_token.
+              effective = auth || @auth_manager.get_token
               inner = pool.pop(auth: effective)
               begin
                 ensure_identity(inner, effective, session_auth: auth, address: address, epoch: epoch)
@@ -404,14 +410,15 @@ module Neo4j
           pool = pool_for(router)
           conn = nil
           begin
-            # Resolve discovery's identity once — its single, independent
-            # manager consult (per-session token short-circuits it). Used for
+            # Discovery's identity is resolved per turn inside the loop below
+            # (per-session token short-circuits the manager consult). It sets
             # BOTH the fresh-connection token and the re-auth of a reused
             # router connection: pool.pop(auth:) only sets a *fresh*
             # connection's identity, so without ensure_identity a reused
             # ROUTE connection would run under the previous lessee's user
-            # (and skip the Bolt 5.1 gate for per-session auth).
-            effective = auth || @auth_manager.get_token
+            # (and skip the Bolt 5.1 gate for per-session auth). Re-resolving
+            # each turn means a Bolt 5.0 discard-and-rebuild on token rotation
+            # issues its own get_token, matching the worker path in #acquire.
             # pop is inside the begin block on purpose: open_connection
             # is the pool's create block and can raise ServiceUnavailable
             # (router unreachable). If that escaped the method,
@@ -424,6 +431,7 @@ module Neo4j
             # and rebuilt rather than ROUTEing under a stale identity.
             loop do
               epoch = auth_epoch_for(router)
+              effective = auth || @auth_manager.get_token
               conn = pool.pop(auth: effective)
               ensure_identity(conn, effective, session_auth: auth, address: router, epoch: epoch)
               break if conn.protocol.supports_re_auth? ||
