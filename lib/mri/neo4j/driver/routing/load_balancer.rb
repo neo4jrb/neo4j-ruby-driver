@@ -149,6 +149,15 @@ module Neo4j
         # op. nil on the procedure path (3.0/4.0-4.2 have no db in the reply),
         # where the server resolves the home db from a null `db` itself.
         def home_database(bookmarks, imp_user = nil, auth = nil)
+          # Same use-after-close guard as #acquire: home-db resolution routes
+          # too, so a closed driver must fast-fail with IllegalStateException
+          # rather than re-routing into a Connection-refused
+          # ServiceUnavailableException. This is the ONLY routing entry for the
+          # single-database path (Bolt 3.0, database == nil) — it never reaches
+          # #acquire's guard — so without this a post-close session.run on a 3.0
+          # routing driver surfaced the wrong error type.
+          raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
+
           ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks, imp_user: imp_user, auth: auth).database
         end
 
