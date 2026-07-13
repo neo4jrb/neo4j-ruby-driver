@@ -914,6 +914,8 @@ Stub tests::test_timeout (tests.stub.driver_parameters.test_liveness_check.TestL
 Stub tests::test_timeout (tests.stub.driver_parameters.test_liveness_check.TestLivenessCheckRouting.test_timeout)
 Stub tests::test_timeout (tests.stub.session_run_parameters.test_session_run_parameters.TestSessionRunParameters.test_timeout)
 Stub tests::test_timeout (tests.stub.tx_begin_parameters.test_tx_begin_parameters.TestTxBeginParameters.test_timeout)
+Stub tests::test_timeout_recv_timeout (tests.stub.driver_parameters.test_liveness_check.TestLivenessCheck.test_timeout_recv_timeout)
+Stub tests::test_timeout_recv_timeout (tests.stub.driver_parameters.test_liveness_check.TestLivenessCheckRouting.test_timeout_recv_timeout)
 Stub tests::test_timeout_with_re_auth (tests.stub.driver_parameters.test_liveness_check.TestLivenessCheck.test_timeout_with_re_auth)
 Stub tests::test_timeout_with_re_auth (tests.stub.driver_parameters.test_liveness_check.TestLivenessCheckRouting.test_timeout_with_re_auth)
 Stub tests::test_times (tests.stub.summary.test_summary.TestSummaryBasicInfo.test_times)
