@@ -19,10 +19,14 @@ module Neo4j
 
           # Top-level HELLO builder. The shape is fixed (one map argument);
           # subclasses override `hello_extra` to change which keys it
-          # carries at their version.
-          def build_hello_message(user_agent:, auth:, routing: nil)
-            PackStream::Structure.new(Message::HELLO,
-                                      [hello_extra(user_agent:, auth:, routing:).compact])
+          # carries at their version. `notification_config` (the driver's
+          # NotificationsConfig, a `{minimum_severity:, disabled_categories:}`
+          # hash or nil) only lands on the wire from V5_2 on — older versions
+          # return an empty map from `notification_config_extra`.
+          def build_hello_message(user_agent:, auth:, routing: nil, notification_config: nil)
+            extra = hello_extra(user_agent:, auth:, routing:)
+                    .merge(notification_config_extra(notification_config))
+            PackStream::Structure.new(Message::HELLO, [extra.compact])
           end
 
           # Subclasses override this to add / remove fields from the
@@ -31,6 +35,10 @@ module Neo4j
           def hello_extra(user_agent:, auth:, routing:)
             raise NotImplementedError, "#{self.class} must implement hello_extra"
           end
+
+          # Notification-filtering keys for the HELLO map. Empty until V5_2,
+          # the first version whose server honours them (V5_2 overrides this).
+          def notification_config_extra(_notification_config) = {}
 
           # Hook for V5_1+ (HELLO/LOGON split): the LOGON message the connection
           # pipelines right after HELLO. nil here — older versions carry auth in
