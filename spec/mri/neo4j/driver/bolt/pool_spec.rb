@@ -36,6 +36,9 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
         @close_calls += 1
         @closed = true
       end
+
+      # Pool RESETs a connection on return; a no-op here.
+      def reset!(**) = nil
     end
   end
 

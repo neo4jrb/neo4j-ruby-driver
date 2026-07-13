@@ -97,6 +97,14 @@ module Neo4j
         def push(connection)
           return unless connection
 
+          # RESET on return to the pool, clearing any residual server-side state
+          # so the next lessee gets a clean connection. Reference drivers do this
+          # unless they advertise Optimization:MinimalResets (MRI doesn't), and
+          # testkit's scripts encode the expectation (#RESET_ON_POOL_RETURN#).
+          # It also keeps the liveness probe distinct from the return-RESET, so a
+          # silently-dead connection is actually detected on re-acquire
+          # (test_should_drop_connections_failing_liveness_check).
+          connection.reset!
           connection.idle_since = current_monotonic
           @stack.push(connection)
           bump(leased: -1) # returned to the pool, now idle
