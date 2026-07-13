@@ -178,14 +178,25 @@ runs:
         #     OK | OK (skipped=S) | FAILED (failures=F, errors=E, skipped=S)
         # Pass = Ran - failures - errors - skipped, matching unittest's
         # own arithmetic.
+        #
+        # Accumulate each token wherever it appears rather than gating on a
+        # line that STARTS with OK/FAILED: an interleaved stderr warning
+        # (nutkit prints UserWarnings with no trailing newline) can glue
+        # onto "FAILED" and shove its "(failures=.., errors=.., skipped=..)"
+        # tail onto a separate later line. The old /^(OK|FAILED)/ guard then
+        # matched a bare "FAILED<warning>" with no numbers and counted zero
+        # failures — so a run with real failures rendered as all-green (seen
+        # on the mri stub job while mri-on-jruby, whose output interleaved
+        # differently, read correctly). failures= / errors= / skipped= only
+        # ever occur in unittest's summary group(s), so matching anywhere is
+        # safe; `Ran [0-9]+ tests` likewise (substr+coerce tolerates a glued
+        # prefix that would break `$2`).
         read -r PASS FAIL ERROR SKIP < <(awk '
-          /^Ran [0-9]+ tests?/ { ran += $2 }
           # No \b — POSIX awk (the CI runner default) does not support it.
-          /^(OK|FAILED)/ {
-            if (match($0, /failures=[0-9]+/)) fail += substr($0, RSTART+9, RLENGTH-9)
-            if (match($0, /errors=[0-9]+/))   err  += substr($0, RSTART+7, RLENGTH-7)
-            if (match($0, /skipped=[0-9]+/))  skip += substr($0, RSTART+8, RLENGTH-8)
-          }
+          match($0, /Ran [0-9]+ tests?/) { ran += substr($0, RSTART + 4) + 0 }
+          match($0, /failures=[0-9]+/)   { fail += substr($0, RSTART + 9, RLENGTH - 9) }
+          match($0, /errors=[0-9]+/)     { err  += substr($0, RSTART + 7, RLENGTH - 7) }
+          match($0, /skipped=[0-9]+/)    { skip += substr($0, RSTART + 8, RLENGTH - 8) }
           END { printf "%d %d %d %d\n", ran-fail-err-skip, fail, err, skip }
         ' "$LOG")
         {
