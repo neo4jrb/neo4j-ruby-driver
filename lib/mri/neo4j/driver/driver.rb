@@ -29,6 +29,12 @@ module Neo4j
         raise Exceptions::ClientException, 'Driver is closed' if @closed
 
         merged_options = @options.merge(options)
+        # A nil session fetch_size means "inherit the driver default", so it
+        # must not clobber a driver-level value the plain merge just overwrote
+        # (callers — the testkit backend included — may pass fetch_size: nil
+        # when the session didn't set one). Mirrors Java's SessionConfig
+        # falling back to Config#fetchSize.
+        merged_options[:fetch_size] ||= @options[:fetch_size]
         session = Session.new(@connection_provider, merged_options, clock: @clock)
 
         return session unless block_given?
