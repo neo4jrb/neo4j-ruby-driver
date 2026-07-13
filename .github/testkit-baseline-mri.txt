@@ -2,10 +2,10 @@
 # CI fails if any of these stops passing (regression).
 # Add lines as we fix more; remove with reason in commit msg.
 # Sorted alphabetically. Refresh with bin/refresh-testkit-baseline neo4j (running on mri).
-
 Integration tests 4.4-enterprise-neo4j::test_address (tests.neo4j.test_summary.TestSummary.test_address)
 Integration tests 4.4-enterprise-neo4j::test_agent_string (tests.neo4j.test_summary.TestSummary.test_agent_string)
 Integration tests 4.4-enterprise-neo4j::test_autocommit_transactions_should_support_metadata (tests.neo4j.test_session_run.TestSessionRun.test_autocommit_transactions_should_support_metadata)
+Integration tests 4.4-enterprise-neo4j::test_autocommit_transactions_should_support_timeout (tests.neo4j.test_session_run.TestSessionRun.test_autocommit_transactions_should_support_timeout)
 Integration tests 4.4-enterprise-neo4j::test_broken_transaction_should_not_break_session (tests.neo4j.test_tx_run.TestTxRun.test_broken_transaction_should_not_break_session)
 Integration tests 4.4-enterprise-neo4j::test_can_commit_transaction (tests.neo4j.test_tx_run.TestTxRun.test_can_commit_transaction)
 Integration tests 4.4-enterprise-neo4j::test_can_handle_multiple_bookmarks (tests.neo4j.test_bookmarks.TestBookmarks.test_can_handle_multiple_bookmarks)
@@ -85,6 +85,8 @@ Integration tests 4.4-enterprise-neo4j::test_summary_counters_case_1 (tests.neo4
 Integration tests 4.4-enterprise-neo4j::test_summary_counters_case_2 (tests.neo4j.test_summary.TestSummary.test_summary_counters_case_2)
 Integration tests 4.4-enterprise-neo4j::test_tx_configuration (tests.neo4j.test_tx_run.TestTxRun.test_tx_configuration)
 Integration tests 4.4-enterprise-neo4j::test_tx_func_configuration (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_tx_func_configuration)
+Integration tests 4.4-enterprise-neo4j::test_tx_timeout (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_tx_timeout)
+Integration tests 4.4-enterprise-neo4j::test_tx_timeout (tests.neo4j.test_tx_run.TestTxRun.test_tx_timeout)
 Integration tests 4.4-enterprise-neo4j::test_unconsumed_result (tests.neo4j.test_tx_run.TestTxRun.test_unconsumed_result)
 Integration tests 4.4-enterprise-neo4j::test_updates_last_bookmark (tests.neo4j.test_session_run.TestSessionRun.test_updates_last_bookmark)
 Integration tests 4.4-enterprise-neo4j::test_updates_last_bookmark_on_commit (tests.neo4j.test_tx_func_run.TestTxFuncRun.test_updates_last_bookmark_on_commit)
