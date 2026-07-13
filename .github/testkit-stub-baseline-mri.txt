@@ -118,6 +118,7 @@ Stub tests::test_execute_write_retry (tests.stub.driver_parameters.telemetry.tes
 Stub tests::test_execute_write_retry (tests.stub.driver_parameters.telemetry.test_telemetry.TestTelemetryRouting.test_execute_write_retry)
 Stub tests::test_expiring_token_deadline (tests.stub.authorization.test_bearer_auth_manager.TestBearerAuthManager5x0.test_expiring_token_deadline)
 Stub tests::test_expiring_token_deadline (tests.stub.authorization.test_bearer_auth_manager.TestBearerAuthManager5x1.test_expiring_token_deadline)
+Stub tests::test_fail_on_reset (tests.stub.disconnects.test_disconnects.TestDisconnects.test_fail_on_reset)
 Stub tests::test_failed_tx_run_allows_rollback (tests.stub.tx_run.test_tx_run.TestTxRun.test_failed_tx_run_allows_rollback)
 Stub tests::test_failed_tx_run_allows_skipping_rollback (tests.stub.tx_run.test_tx_run.TestTxRun.test_failed_tx_run_allows_skipping_rollback)
 Stub tests::test_fill_diagnostic_record_values (tests.stub.summary.test_summary.TestSummaryGqlStatusObjects5x6.test_fill_diagnostic_record_values)
