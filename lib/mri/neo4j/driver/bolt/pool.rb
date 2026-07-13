@@ -104,7 +104,15 @@ module Neo4j
           # It also keeps the liveness probe distinct from the return-RESET, so a
           # silently-dead connection is actually detected on re-acquire
           # (test_should_drop_connections_failing_liveness_check).
-          connection.reset!
+          #
+          # If that RESET fails the connection is dead — discard it (closing the
+          # socket) rather than pooling a broken connection (test_fail_on_reset).
+          begin
+            connection.reset!(propagate: true)
+          rescue StandardError
+            discard(connection)
+            return
+          end
           connection.idle_since = current_monotonic
           @stack.push(connection)
           bump(leased: -1) # returned to the pool, now idle

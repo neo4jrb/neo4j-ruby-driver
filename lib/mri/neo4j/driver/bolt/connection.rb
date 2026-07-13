@@ -571,7 +571,11 @@ module Neo4j
         def reset!(propagate: false)
           send_message(Message.reset)
           flush
-          drain_quiesced
+          messages = drain_quiesced
+          # When propagating (verify_connectivity, pool-return) the RESET is a
+          # real check: a server FAILURE reply (not just a dead socket) must
+          # surface too, so assert success on the drained responses.
+          messages.each(&:assert_success!) if propagate
         rescue StandardError
           # If RESET itself fails the connection is likely dead. Recovery paths
           # (`propagate: false`, the default) swallow so they don't mask the
