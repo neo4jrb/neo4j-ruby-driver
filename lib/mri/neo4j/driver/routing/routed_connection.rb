@@ -60,9 +60,11 @@ module Neo4j
         #   the connection discardable; return the same exception.
         # - TransientException with DatabaseUnavailable → same.
         # - ClientException with NotALeader / ForbiddenOnReadOnly on
-        #   a WRITE → on_write_failure(address, database); mark
-        #   discardable; return a SessionExpiredException (so session
-        #   retry catches it) with the original error code preserved.
+        #   a WRITE → on_write_failure(address, database) to forget the
+        #   writer (forces a re-route); the connection is NOT discarded
+        #   (the node is fine, just not the leader) — RESET on release
+        #   makes it reusable. Returns a SessionExpiredException (so
+        #   session retry catches it) with the original error code preserved.
         # - Anything else → return the same exception unchanged.
         #
         # Callers: session.rb (RUN-response rescue), transaction.rb
