@@ -58,9 +58,6 @@ jobs:
       # expected (we have a per-test baseline gate); we want the full
       # run regardless.
       TEST_RUN_ALL_TESTS: 'true'
-      # mri-on-jruby uses the MRI baseline because it runs MRI code
-      # (just under the JRuby runtime); the other two map directly.
-      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
 
     steps:
       - uses: actions/checkout@v4
@@ -106,7 +103,6 @@ jobs:
         if: always()
         with:
           target_label: stub
-          baseline_path: ${{ env.BASELINE }}
           log_path: ${{ runner.temp }}/run.log
 
       - name: Upload run log

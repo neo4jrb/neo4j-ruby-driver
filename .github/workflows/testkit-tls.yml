@@ -38,10 +38,9 @@ jobs:
       TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE: ${{ matrix.base_image }}
       TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
       # Without this, testkit's run_fail_wrapper short-circuits on the
-      # first failing suite. We have a per-test baseline gate downstream
-      # and want the full run regardless.
+      # first failing suite. The require-green gate runs on the full log,
+      # so we want every suite to run regardless of an earlier failure.
       TEST_RUN_ALL_TESTS: 'true'
-      BASELINE: ${{ github.workspace }}/.github/testkit-tls-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
 
     steps:
       - uses: actions/checkout@v4
@@ -80,7 +79,6 @@ jobs:
         if: always()
         with:
           target_label: tls
-          baseline_path: ${{ env.BASELINE }}
           log_path: ${{ runner.temp }}/run.log
 
       - name: Upload run log

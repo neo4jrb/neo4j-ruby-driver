@@ -207,3 +207,28 @@ use — `test_should_successfully_acquire_rt_when_router_ip_changes` (which the
 reactor's background reader caught). Not a regression vs main; regain it later
 via the pool liveness probe or the single-selector escalation. The two designs
 are parallel branches; this one is the no-async, JRuby-compatible alternative.
+
+## 2026-07-13 — Testkit CI: require-green, delete the baseline
+
+Replaced the per-flavour testkit baseline gate (`.github/testkit-*-baseline-
+{mri,jruby}.txt` + `bin/refresh-testkit-baseline` + the fold ritual) with a
+**require-green** gate: `.github/actions/testkit-postprocess` reads unittest's
+own end-of-run summary and fails when `failures + errors > 0` (or when no
+summary was produced). Applied to stub, TLS, and integration (`testkit.yml`);
+`mri` blocks, `jruby`/`mri-on-jruby` stay `continue-on-error` (flakes visible,
+non-blocking). Deleted the never-used `testkit-full.yml`.
+
+Why: at this point every per-PR suite × flavour is genuinely green (verified
+from CI's own accounting, not the gate), so the baseline protected nothing —
+it was pure overhead plus two latent blind spots. The baseline-diff gate keyed
+on inline ` ... FAIL` tokens, which unittest does NOT emit for `subTest`
+failures (they surface only in the end-of-run `FAILED (failures=..)` summary),
+so a red subtest passed the gate as green (this masked the #419 auth
+regression); docstring-bearing passes were likewise untrackable and couldn't be
+folded. Delegating the verdict to unittest's own accounting eliminates both by
+construction. Feature gating still comes from `get_features.rb` (unadvertised →
+skipped → green); advertising a feature makes its now-unskipped tests mandatory,
+so "one feature, fully green, one PR" is enforced by CI rather than a manual
+fold. No automatic retry for now — we want genuine flakes to surface; a
+confirmed flaky/environment-dependent test gets an explicit `skip` with a
+reason, never silent omission.

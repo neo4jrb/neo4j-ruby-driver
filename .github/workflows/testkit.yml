@@ -39,7 +39,6 @@ jobs:
       TEST_DRIVER_REPO: ${{ github.workspace }}
       TESTKIT_DRIVER_BUILD_ARG_BASE_IMAGE: ${{ matrix.base_image }}
       TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
-      BASELINE: ${{ github.workspace }}/.github/testkit-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
       # Without this, testkit's run_fail_wrapper re-raises on the first
       # config that has any test failure, so main.py never reaches the
       # rest of the matrix. Test failures are expected (we have a per-
@@ -110,7 +109,6 @@ jobs:
         if: always()
         with:
           target_label: integration
-          baseline_path: ${{ env.BASELINE }}
           log_path: ${{ runner.temp }}/run.log
 
       - name: Upload run log
