@@ -104,7 +104,12 @@ module Neo4j
             error
           when Exceptions::ClientException
             if @access_mode == :write && WRITE_FAILURE_CODES.include?(error.code)
-              @discard_on_release = true
+              # NotALeader / ForbiddenOnReadOnlyDatabase: the node is no longer
+              # the leader, but the connection itself is fine. Forget it as a
+              # writer (forces a re-route) but DON'T discard it — RESET on
+              # release (Bolt::Pool#push) clears the FAILED state so the retry
+              # can reuse it (matches Java's onWriteFailure, which keeps the
+              # connection; testkit's retry_with_fail_after_pull reuses it).
               @pool.on_write_failure(@address_obj, @database)
               # Original ClientException chained as `cause` at re-raise.
               Exceptions::SessionExpiredException.new(
