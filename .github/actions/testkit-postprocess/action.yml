@@ -86,12 +86,17 @@ runs:
         # run is actionable straight from the step summary.
         FAILS=$(grep -E '^(FAIL|ERROR): ' "$LOG" || true)
 
+        # Pass = executed-and-passed, i.e. excludes skips (unittest's "Ran N"
+        # counts skipped tests, so report Pass separately — matches the old
+        # Summarise-counts table).
+        PASS=$((RAN - FAIL - ERROR - SKIP))
+
         {
           echo "## Testkit (${{ inputs.target_label }}) — require green"
           echo ""
-          echo "| Ran | Fail | Error | Skip |"
-          echo "|----:|-----:|------:|-----:|"
-          echo "| $RAN | $FAIL | $ERROR | $SKIP |"
+          echo "| Pass | Fail | Error | Skip |"
+          echo "|-----:|-----:|------:|-----:|"
+          echo "| $PASS | $FAIL | $ERROR | $SKIP |"
           if [ -n "$FAILS" ]; then
             echo ""
             echo "### ❌ Failing tests"
@@ -127,4 +132,4 @@ runs:
           echo "::error::testkit ${{ inputs.target_label }} run step exited non-zero even though the parsed summary showed no failures — a config likely crashed before reporting; inspect the run log"
           exit 1
         fi
-        echo "Green: $((RAN - SKIP)) executed test(s) passed, $SKIP skipped."
+        echo "Green: $PASS executed test(s) passed, $SKIP skipped (ran=$RAN)."
