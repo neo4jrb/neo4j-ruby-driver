@@ -84,7 +84,10 @@ module Neo4j
             # TELEMETRY 2 = auto-commit, pipelined ahead of RUN when the server
             # opted in and the driver didn't disable it; its SUCCESS is read first.
             telemetry_sent = connection.telemetry(2, disabled: @options[:telemetry_disabled])
-            connection.send_message(connection.protocol.build_run(query, parameters, run_extra))
+            # Auto-commit RUN carries this session's NotificationsConfig (5.2+);
+            # the tx path puts it on BEGIN instead. nil / non-5.2 => absent.
+            connection.send_message(connection.protocol.build_run(query, parameters, run_extra,
+                                                                  notification_config: @options[:notification_config]))
             connection.send_message(connection.protocol.build_pull(n: fetch_size), handler)
             connection.flush
             connection.fetch_response.assert_success! if telemetry_sent

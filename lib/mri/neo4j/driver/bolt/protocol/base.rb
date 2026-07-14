@@ -64,14 +64,19 @@ module Neo4j
           # no `db` (3.0 is single-database). The `db` strip is keyed on
           # supports_multiple_databases? so it is automatic for V3.
 
-          def build_run(query, parameters, extra)
+          # `notification_config` is the SESSION's NotificationsConfig (the
+          # driver's rides on HELLO). It reaches the wire only on V5_2+, where
+          # notification_config_extra emits the keys; `.compact` there drops an
+          # unset severity while keeping an explicit `disabled_categories: []`.
+          def build_run(query, parameters, extra, notification_config: nil)
             enforce_impersonation_support!(extra[:imp_user])
-            Message.run(query, parameters, strip_db(extra))
+            Message.run(query, parameters,
+                        strip_db(extra).merge(notification_config_extra(notification_config).compact))
           end
 
-          def build_begin(extra)
+          def build_begin(extra, notification_config: nil)
             enforce_impersonation_support!(extra[:imp_user])
-            Message.begin_transaction(strip_db(extra))
+            Message.begin_transaction(strip_db(extra).merge(notification_config_extra(notification_config).compact))
           end
 
           # 4.0+ PULL carries `{n, qid}`. V3 overrides to the
