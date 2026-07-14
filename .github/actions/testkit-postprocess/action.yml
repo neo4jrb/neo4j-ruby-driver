@@ -1,16 +1,14 @@
 name: Testkit postprocess
 description: >
-  Shared post-run steps for both testkit workflows: locate the run log,
-  extract the passing-tests list, summarise counts, and run the
-  regression gate. Centralises the log-parsing format so the stub and
-  integration workflows can't drift.
+  Shared post-run gate for the testkit workflows: locate the run log and
+  require the suite to be green. The verdict uses two independent signals —
+  unittest's own end-of-run summary (which counts subTest failures
+  correctly), and the run step's exit code (which catches a config that
+  crashed before printing a summary) — not a baseline diff or inline scan.
 
 inputs:
   target_label:
     description: Short label for step summaries (e.g. "stub" or "integration").
-    required: true
-  baseline_path:
-    description: Absolute path to the impl-specific baseline file.
     required: true
   log_path:
     description: >
@@ -20,14 +18,22 @@ inputs:
       `bin/run-testkit`, which writes under `/tmp/testkit-run-*`.
     required: false
     default: ''
+  run_outcome:
+    description: >
+      The `outcome` of the testkit run step (pass the run step's
+      steps.<id>.outcome expression; the step is `continue-on-error`, so its
+      true result survives). When it is "failure" the gate goes red even if the
+      parsed summary shows no failures — this catches a config that crashed
+      before emitting any unittest summary (a partial infra/boot failure the
+      counts can't see). Empty (the default) skips the check, so local callers
+      need not set it.
+    required: false
+    default: ''
 
 outputs:
   log:
     description: Path to the testkit run.log.
     value: ${{ steps.log.outputs.path }}
-  pass_list:
-    description: Path to a sorted file of unique passing test ids.
-    value: ${{ steps.pass.outputs.path }}
 
 runs:
   using: composite
@@ -49,283 +55,81 @@ runs:
         fi
         echo "path=$path" >> "$GITHUB_OUTPUT"
 
-    # One place to define the "passing" log line format. Everything
-    # downstream (counts, gate) consumes this file, so a future testkit
-    # format tweak only needs an update here.
-    # `sort -u` because testkit can list a single test id more than
-    # once (parametrised cases shared between v3/v4 suites); duplicates
-    # would otherwise surface as phantom "new passes" against the
-    # baseline.
-    # The awk handles two unittest output shapes:
-    #   1) "<header> ... ok"                          — clean pass
-    #   2) "<header> ... /path:N: UserWarning: ..."   — header split
-    #      "  warnings.warn(...)"                       by a Python
-    #      "ok"                                         warning, with
-    #                                                   a bare "ok"
-    #                                                   on its own line
-    # Shape 2 surfaces whenever testkit's nutkit protocol code emits a
-    # UserWarning during a test (e.g. backend-compat checks). A naive
-    # ` \.\.\. ok$` grep silently drops those passes, which then look
-    # like regressions against the baseline.
-    - name: Extract pass list
-      id: pass
-      if: always()
-      shell: bash
-      run: |
-        path=/tmp/testkit-pass-list.txt
-        # Normalise headers to the canonical form
-        #     test_x (module.Class.test_x)
-        # The "inside the parens" piece changed across Python versions:
-        #   Python 3.10-: "test_x (module.Class.test_x)" (with method)
-        #   Python 3.11+: "test_x (module.Class)"        (no method)
-        # Our baselines were generated with the older shape, and the
-        # runner container that testkit's main.py spins up uses the
-        # newer one. Appending ".<method>" when it's missing canonicalises
-        # both shapes so the gate compares apples to apples regardless of
-        # which Python ran the suite.
-        awk '
-          # POSIX awk only (gawk match-with-array form is not portable).
-          # Local var "cl" instead of "close" — macOS awk reserves close.
-          function canon(s,    op, cl, head, inner, suffix) {
-            op = index(s, " (")
-            if (!op) return s
-            cl = length(s)
-            if (substr(s, cl, 1) != ")") return s
-            head = substr(s, 1, op - 1)
-            inner = substr(s, op + 2, cl - op - 2)
-            suffix = "." head
-            if (length(inner) < length(suffix) ||
-                substr(inner, length(inner) - length(suffix) + 1) != suffix) {
-              return head " (" inner suffix ")"
-            }
-            return s
-          }
-          # Every result line is prefixed with the active testkit suite
-          # name ("<suite>::<test_id>") so multi-config integration runs
-          # can distinguish "passed under config A, failed under config B"
-          # in the baseline file. Suite names come from the testkit
-          # markers ("Stub tests", "TLS tests",
-          # "Integration tests 4.4-enterprise-neo4j", …). Single-config
-          # workflows look slightly noisier but the format is uniform.
-          # No-suite lines (rare; should not occur in practice) drop the
-          # "::" prefix.
-          # No apostrophes in this comment block — the whole awk script
-          # is in a bash single-quoted string and an embedded apostrophe
-          # closes the string prematurely.
-          function tag(s) { return suite ? suite "::" s : s }
-          # When unittest emits multiple tests on one line (output buffer
-          # race: "test_a (id1) ... test_b (id2) ... ok"), the trailing
-          # result belongs to the LAST segment; the others completed
-          # silently — and since the inline format only drops the result
-          # token for passing tests that get merged this way, treat them
-          # all as passes.
-          # Filter to segments ending in ")" so that warning-text suffixes
-          # ("/path:N: UserWarning: …" attached after the last " ... ")
-          # are skipped without leaking into the pass list.
-          function emit_pass(s,    n, parts, i) {
-            n = split(s, parts, / \.\.\. /)
-            for (i = 1; i <= n; i++)
-              if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
-          }
-          # For inline FAIL/ERROR/skipped: only the LAST test-header
-          # segment is the failure / skip; merged earlier headers still
-          # passed.
-          function emit_pre_pass(s,    n, parts, i, last_idx) {
-            n = split(s, parts, / \.\.\. /)
-            last_idx = 0
-            for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) last_idx = i
-            for (i = 1; i < last_idx; i++)
-              if (parts[i] ~ /\)$/) print tag(canon(parts[i]))
-          }
-          # Match the marker anywhere on the line — the testkit print
-          # order sometimes glues it onto the tail of a preceding
-          # subprocess line (no trailing newline on the prior write,
-          # e.g. the docker run command list for a second cluster
-          # core). Take everything after the marker as the suite name.
-          # (No apostrophes here — see line ~112 above for why.)
-          match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
-          match($0, />>> End test suite: /)   { suite = ""; next }
-          / \.\.\. ok$/      { sub(/ \.\.\. ok$/, ""); emit_pass($0); pending=""; next }
-          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); emit_pre_pass($0); pending=""; next }
-          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); emit_pre_pass($0); pending=""; next }
-          / \.\.\. skipped/  { sub(/ \.\.\. skipped.*/, ""); emit_pre_pass($0); pending=""; next }
-          # Warning-split / unfinished line: keep the WHOLE line as pending
-          # so that on the eventual bare "ok"/"FAIL"/"ERROR" we can
-          # recover every merged segment. emit_pass/emit_pre_pass drop
-          # the warning-text tail via the ")"-suffix filter.
-          / \.\.\. /         { pending=$0; next }
-          /^ok$/             { if (pending) { emit_pass(pending); pending="" } }
-          /^FAIL$/           { if (pending) { emit_pre_pass(pending); pending="" } }
-          /^ERROR$/          { if (pending) { emit_pre_pass(pending); pending="" } }
-        ' "${{ steps.log.outputs.path }}" | sort -u > "$path"
-        echo "path=$path" >> "$GITHUB_OUTPUT"
-        echo "$(wc -l < "$path") unique passing tests."
-
-    - name: Summarise counts
+    # Require green: trust unittest's own accounting. It prints, once per
+    # run (and the integration suite runs once per Neo4j config, so we SUM):
+    #     Ran N tests in T
+    #     OK | OK (skipped=S) | FAILED (failures=F, errors=E, skipped=S)
+    # A subTest failure is counted in that summary (it is NOT emitted as an
+    # inline " ... FAIL"), so summing failures= / errors= here catches the
+    # subtest failures the old inline-token gate was blind to. Tokens are
+    # matched anywhere on the line, not only after "^(OK|FAILED)", because an
+    # interleaved stderr UserWarning (no trailing newline) can glue onto
+    # "FAILED" and push its "(failures=..)" tail onto a later line. `Ran`
+    # likewise (substr+coerce tolerates a glued prefix that would break $2).
+    - name: Require green
       if: always()
       shell: bash
       run: |
         LOG="${{ steps.log.outputs.path }}"
-        # Parse unittest's own end-of-run summary lines rather than the
-        # inline " ... ok/FAIL/ERROR" tokens. With subTests (the TLS
-        # suite runs each test per scheme= subtest), a failing subtest
-        # does NOT print " ... FAIL" inline — the method still prints
-        # "ok" and the failures surface as end-of-run "FAIL:" / "ERROR:"
-        # blocks, so the old inline-token count reported Fail 0 / Error 0
-        # even with 20 failures. unittest prints, once per run (and the
-        # integration suite runs once per Neo4j config, so we SUM):
-        #     Ran N tests in T
-        #     OK | OK (skipped=S) | FAILED (failures=F, errors=E, skipped=S)
-        # Pass = Ran - failures - errors - skipped, matching unittest's
-        # own arithmetic.
-        #
-        # Accumulate each token wherever it appears rather than gating on a
-        # line that STARTS with OK/FAILED: an interleaved stderr warning
-        # (nutkit prints UserWarnings with no trailing newline) can glue
-        # onto "FAILED" and shove its "(failures=.., errors=.., skipped=..)"
-        # tail onto a separate later line. The old /^(OK|FAILED)/ guard then
-        # matched a bare "FAILED<warning>" with no numbers and counted zero
-        # failures — so a run with real failures rendered as all-green (seen
-        # on the mri stub job while mri-on-jruby, whose output interleaved
-        # differently, read correctly). failures= / errors= / skipped= only
-        # ever occur in unittest's summary group(s), so matching anywhere is
-        # safe; `Ran [0-9]+ tests` likewise (substr+coerce tolerates a glued
-        # prefix that would break `$2`).
-        read -r PASS FAIL ERROR SKIP < <(awk '
+        RUN_OUTCOME="${{ inputs.run_outcome }}"
+        read -r RAN FAIL ERROR SKIP < <(awk '
           # No \b — POSIX awk (the CI runner default) does not support it.
           match($0, /Ran [0-9]+ tests?/) { ran += substr($0, RSTART + 4) + 0 }
           match($0, /failures=[0-9]+/)   { fail += substr($0, RSTART + 9, RLENGTH - 9) }
           match($0, /errors=[0-9]+/)     { err  += substr($0, RSTART + 7, RLENGTH - 7) }
           match($0, /skipped=[0-9]+/)    { skip += substr($0, RSTART + 8, RLENGTH - 8) }
-          END { printf "%d %d %d %d\n", ran-fail-err-skip, fail, err, skip }
+          END { printf "%d %d %d %d\n", ran, fail, err, skip }
         ' "$LOG")
+
+        # unittest prints each failing/erroring test (incl. the subTest
+        # params) as a "FAIL:"/"ERROR:" block header — list them so a red
+        # run is actionable straight from the step summary.
+        FAILS=$(grep -E '^(FAIL|ERROR): ' "$LOG" || true)
+
+        # Pass = executed-and-passed, i.e. excludes skips (unittest's "Ran N"
+        # counts skipped tests, so report Pass separately — matches the old
+        # Summarise-counts table).
+        PASS=$((RAN - FAIL - ERROR - SKIP))
+
         {
-          echo "## Testkit (${{ inputs.target_label }}) results"
+          echo "## Testkit (${{ inputs.target_label }}) — require green"
           echo ""
           echo "| Pass | Fail | Error | Skip |"
           echo "|-----:|-----:|------:|-----:|"
           echo "| $PASS | $FAIL | $ERROR | $SKIP |"
-        } >> "$GITHUB_STEP_SUMMARY"
-
-    # Mandatory gate. A baseline test regresses if:
-    # - its test_id isn't in the current pass set, OR
-    # - any parametrised occurrence of it failed (even if another
-    #   occurrence passed). That second case catches "3 of 4 params
-    #   ok + 1 FAIL" which the dedup'd pass set would otherwise hide.
-    - name: Regression gate (baseline diff)
-      if: always()
-      shell: bash
-      run: |
-        LOG="${{ steps.log.outputs.path }}"
-        # `set -e -o pipefail` (GH Actions default) treats `grep -v` with
-        # zero matches as a pipeline failure. A baseline of only comments
-        # and blank lines (legitimate state when no tests pass yet, e.g.
-        # MRI's empty TLS baseline) would kill the whole gate before it
-        # got a chance to compare. `|| true` makes the empty-input case
-        # well-formed; the comm below still does the right thing with an
-        # empty baseline.txt.
-        { grep -vE '^[[:space:]]*(#|$)' "${{ inputs.baseline_path }}" || true; } \
-          | sort -u > /tmp/baseline.txt
-        # Same warning-split awareness as Extract pass list, plus the
-        # canon() normalisation so Python 3.11+ output (no .test_method
-        # inside the parens) matches baselines recorded under older
-        # Python (which kept it).
-        awk '
-          # POSIX awk only (see Extract pass list for the same canon).
-          function canon(s,    op, cl, head, inner, suffix) {
-            op = index(s, " (")
-            if (!op) return s
-            cl = length(s)
-            if (substr(s, cl, 1) != ")") return s
-            head = substr(s, 1, op - 1)
-            inner = substr(s, op + 2, cl - op - 2)
-            suffix = "." head
-            if (length(inner) < length(suffix) ||
-                substr(inner, length(inner) - length(suffix) + 1) != suffix) {
-              return head " (" inner suffix ")"
-            }
-            return s
-          }
-          # On a merged "test_a (id1) ... test_b (id2) ... FAIL" line, only
-          # the LAST test-header segment is the failure — the earlier ones
-          # passed. Find the rightmost segment ending in ")" so trailing
-          # warning text (which never ends in ")") gets ignored.
-          function last_paren_segment(s,    n, parts, i, last) {
-            n = split(s, parts, / \.\.\. /)
-            for (i = 1; i <= n; i++) if (parts[i] ~ /\)$/) last = parts[i]
-            return last
-          }
-          # Suite-name prefix — matches Extract pass list above. The
-          # baseline file is in "<suite>::<test_id>" form, so the fail
-          # set must use the same form for `comm` to intersect.
-          function tag(s) { return suite ? suite "::" s : s }
-          # See Extract pass list comment above — same reason.
-          match($0, />>> Start test suite: /) { suite = substr($0, RSTART + RLENGTH); next }
-          match($0, />>> End test suite: /)   { suite = ""; next }
-          / \.\.\. FAIL$/    { sub(/ \.\.\. FAIL$/, ""); print tag(canon(last_paren_segment($0))); pending=""; next }
-          / \.\.\. ERROR$/   { sub(/ \.\.\. ERROR$/, ""); print tag(canon(last_paren_segment($0))); pending=""; next }
-          / \.\.\. ok$/      { pending=""; next }
-          / \.\.\. skipped/  { pending=""; next }
-          # Warning-split line: keep WHOLE line as pending so we can
-          # recover the right header on the eventual bare result.
-          / \.\.\. /         { pending=$0; next }
-          /^FAIL$/           { if (pending) { print tag(canon(last_paren_segment(pending))); pending="" } }
-          /^ERROR$/          { if (pending) { print tag(canon(last_paren_segment(pending))); pending="" } }
-          /^ok$/             { pending="" }
-        ' "$LOG" | sort -u > /tmp/current-fail.txt
-
-        MISSING=$(comm -23 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
-        FAILED=$(comm -12 /tmp/baseline.txt /tmp/current-fail.txt)
-        # awk 'NF' to drop empty lines without grep — grep -vE '^$'
-        # returns 1 when nothing matches, and bash 4.4+ propagates that
-        # through `$(...)` under `set -e`, killing the script silently.
-        REGRESSED=$( { echo "$MISSING"; echo "$FAILED"; } | awk 'NF' | sort -u )
-        NEW=$(comm -13 /tmp/baseline.txt "${{ steps.pass.outputs.path }}")
-
-        # Echo gate stats to stdout so the job log is self-explanatory
-        # (step summary is in a different tab and easy to miss).
-        echo "baseline entries:  $(wc -l < /tmp/baseline.txt | tr -d ' ')"
-        echo "current passes:    $(wc -l < '${{ steps.pass.outputs.path }}' | tr -d ' ')"
-        echo "current failures:  $(wc -l < /tmp/current-fail.txt | tr -d ' ')"
-        echo "MISSING (baseline minus passes):    $({ echo "$MISSING" | awk 'NF'; } | wc -l | tr -d ' ')"
-        echo "FAILED  (baseline AND failures):    $({ echo "$FAILED"  | awk 'NF'; } | wc -l | tr -d ' ')"
-        echo "NEW     (passes minus baseline):    $({ echo "$NEW"     | awk 'NF'; } | wc -l | tr -d ' ')"
-
-        {
-          echo ""
-          if [ -n "$NEW" ]; then
-            echo "### ✅ New passing tests (not yet in baseline)"
+          if [ -n "$FAILS" ]; then
             echo ""
-            # target_label is the workflow label ('stub' / 'integration' / 'tls').
-            # bin/refresh-testkit-baseline's arg names are ('stub' / 'neo4j' / 'tls')
-            # — same word everywhere except 'integration' maps to 'neo4j'.
-            echo "Run \`bin/refresh-testkit-baseline ${{ inputs.target_label == 'integration' && 'neo4j' || inputs.target_label }}\` locally and commit to fold these in."
+            echo "### ❌ Failing tests"
             echo '```'
-            echo "$NEW"
-            echo '```'
-          fi
-          if [ -n "$REGRESSED" ]; then
-            echo "### ❌ Regressed tests (previously in baseline, now not passing or failed for at least one parameter set)"
-            echo '```'
-            echo "$REGRESSED"
+            echo "$FAILS"
             echo '```'
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 
-        # Fail the gate on EITHER situation — both need the same
-        # action (refresh the baseline so it folds in new passes or
-        # reflects the genuine regression), so a single red state
-        # forces attention. Green means the baseline matches exactly.
-        if [ -n "$REGRESSED" ]; then
-          echo "::error::$(echo "$REGRESSED" | wc -l | tr -d ' ') baseline test(s) regressed"
-          echo "$REGRESSED" | sed 's/^/::error::regressed: /'
+        echo "ran=$RAN failures=$FAIL errors=$ERROR skipped=$SKIP run_outcome=${RUN_OUTCOME:-<unset>}"
+
+        # RAN == 0 means either no unittest summary was produced (the suite
+        # crashed before reporting — infra / backend failure) or unittest ran
+        # but selected 0 tests ("Ran 0 tests" — bad discovery / misconfig).
+        # Both are red: a suite that executed nothing is never a pass.
+        if [ "$RAN" -eq 0 ]; then
+          echo "::error::0 tests executed — the suite crashed before reporting, or selected no tests (discovery/config error)"
           exit 1
         fi
-        if [ -n "$NEW" ]; then
-          refresh_target="${{ inputs.target_label }}"
-          [ "$refresh_target" = "integration" ] && refresh_target="neo4j"
-          echo "::error::$(echo "$NEW" | wc -l | tr -d ' ') new passing tests not in baseline — run bin/refresh-testkit-baseline ${refresh_target} to fold them in"
-          echo "$NEW" | sed 's/^/::error::new-pass: /'
+        if [ "$FAIL" -gt 0 ] || [ "$ERROR" -gt 0 ]; then
+          echo "::error::testkit ${{ inputs.target_label }} not green: $FAIL failure(s), $ERROR error(s)"
+          echo "$FAILS" | sed 's/^/::error::/'
           exit 1
         fi
-        echo "Baseline matches current pass set exactly."
+        # Second, independent signal: the run step's own exit code. The counts
+        # above can read green if ONE config (e.g. an integration matrix entry)
+        # crashes before printing a unittest summary while the others pass —
+        # its failure adds nothing to failures= and, with the others reporting,
+        # RAN stays > 0. testkit exiting non-zero catches exactly that. Only
+        # enforced when the caller passes run_outcome (CI does; local runs
+        # leave it empty).
+        if [ "$RUN_OUTCOME" = "failure" ]; then
+          echo "::error::testkit ${{ inputs.target_label }} run step exited non-zero even though the parsed summary showed no failures — a config likely crashed before reporting; inspect the run log"
+          exit 1
+        fi
+        echo "Green: $PASS executed test(s) passed, $SKIP skipped (ran=$RAN)."

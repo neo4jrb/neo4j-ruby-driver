@@ -9,9 +9,8 @@ jobs:
   testkit-stub:
     name: testkit-stub (${{ matrix.flavor }})
     runs-on: ubuntu-latest
-    # JRuby-based rows are still incubating; let the matrix surface
-    # their results without blocking the merge.
-    continue-on-error: ${{ matrix.base_image != 'ruby:4.0-slim' }}
+    # All flavors are gated: the require-green postprocess step must pass
+    # for every flavor for the PR to merge.
 
     strategy:
       fail-fast: false
@@ -54,13 +53,10 @@ jobs:
       # 2-3× speedup on stub tests.
       TEST_RUSTY_STUB: 'true'
       # Without this, testkit's run_fail_wrapper re-raises on the first
-      # failing suite and short-circuits the rest. Test failures are
-      # expected (we have a per-test baseline gate); we want the full
-      # run regardless.
+      # failing suite and short-circuits the rest. We want the full run so
+      # the require-green postprocess step sees every suite's result (a
+      # green run has 0 failures anyway; this matters when diagnosing a red).
       TEST_RUN_ALL_TESTS: 'true'
-      # mri-on-jruby uses the MRI baseline because it runs MRI code
-      # (just under the JRuby runtime); the other two map directly.
-      BASELINE: ${{ github.workspace }}/.github/testkit-stub-baseline-${{ matrix.force_mri == '1' && 'mri' || matrix.flavor }}.txt
 
     steps:
       - uses: actions/checkout@v4
@@ -106,8 +102,8 @@ jobs:
         if: always()
         with:
           target_label: stub
-          baseline_path: ${{ env.BASELINE }}
           log_path: ${{ runner.temp }}/run.log
+          run_outcome: ${{ steps.testkit.outcome }}
 
       - name: Upload run log
         if: always()

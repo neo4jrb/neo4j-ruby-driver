@@ -42,9 +42,9 @@ Should print `400 examples, 0 failures`.
 ./bin/run-testkit stub
 ```
 
-Uses testkit's bundled `boltstub` for protocol-level testing. ~93
-should pass; failures/errors past the baseline are the CI gate. The
-stub baseline lives at `.github/testkit-stub-baseline-mri.txt`.
+Uses testkit's bundled `boltstub` for protocol-level testing. The CI
+gate requires a green run: `failures + errors == 0` (tests for features
+we don't advertise skip and stay green). There is no baseline file.
 
 ### Testkit neo4j suite (needs a running Neo4j)
 
@@ -66,18 +66,8 @@ TEST_NEO4J_VERSION=5.26 \
 ./bin/run-testkit neo4j
 ```
 
-Stop and remove with `docker rm -f neo4j-test` when done. The neo4j
-baseline lives at `.github/testkit-baseline-mri.txt`.
-
-### Refreshing a baseline
-
-```bash
-bin/refresh-testkit-baseline stub      # writes -mri/-jruby suffix automatically
-bin/refresh-testkit-baseline neo4j     # needs Neo4j running (see above)
-```
-
-The script detects the active Ruby and writes to the matching baseline
-file. Review the diff and commit.
+Stop and remove with `docker rm -f neo4j-test` when done. Like the stub
+suite, the integration gate requires a green run — no baseline file.
 
 ## Switching between MRI and JRuby
 

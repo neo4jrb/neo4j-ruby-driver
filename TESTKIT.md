@@ -9,23 +9,33 @@ Run:
 
 See `testkit-backend/README.md` for full setup notes.
 
-Two CI gates, one per target. Each gate is split per impl, since
-MRI and JRuby flavors progress independently:
-- `.github/testkit-baseline-{mri,jruby}.txt` ↔ `.github/workflows/testkit.yml`
-- `.github/testkit-stub-baseline-{mri,jruby}.txt` ↔ `.github/workflows/testkit-stub.yml`
+## CI gate: require green (no baseline)
 
-The workflow picks the right file based on `matrix.ruby`. JRuby
-baselines are empty until `lib/jruby/` has code; the JRuby row stays
-`continue-on-error` so the empty baseline isn't a blocker.
+Three workflows — `testkit.yml` (integration), `testkit-stub.yml`,
+`testkit-tls.yml` — each a matrix of `mri` / `jruby` / `mri-on-jruby`.
+The gate is **require-green**: the shared `.github/actions/testkit-postprocess`
+action reads unittest's own end-of-run summary and fails the job when
+`failures + errors > 0` (or when no summary was produced at all). unittest
+counts `subTest` failures correctly, so nothing hides — there is no baseline
+file, no fold step, no `bin/refresh-testkit-baseline`.
 
-Each is a sorted list of tests that must keep passing. After moving
-the numbers, **also update the baseline file** (add lines for new
-passers; remove with reason in the commit message if a test
-legitimately stops being expected to pass). Refresh either with
-`bin/refresh-testkit-baseline [neo4j|stub]` — the script auto-detects
-the impl from the running Ruby and writes to the matching file.
+Feature gating still comes from `testkit-backend/requests/get_features.rb`:
+a test whose required feature we don't advertise **skips** (counted as
+`skipped=`, which keeps the run green). Advertising a new feature un-skips
+its tests, and they must then pass for the PR to merge — so "one advertised
+feature, made fully green in one PR" is enforced by CI, not a manual fold.
 
-## Current baseline
+All three flavors block: a red `mri`, `jruby`, or `mri-on-jruby` fails the PR
+(no job-level `continue-on-error`). This never hides errors — the run step is
+`continue-on-error: true` with `TEST_RUN_ALL_TESTS`, so the full suite runs and
+the gate lists every failure, and `strategy.fail-fast: false` keeps the other
+flavors running when one goes red. All three are currently green.
+
+## Historical baseline log
+
+The table below is a **historical record** of the walk-down under the old
+per-test baseline gate (removed once every suite reached full green). It is
+kept for context; it is no longer updated.
 
 | Date       | Target | Tests | Pass | Fail | Error | Skip | Notes |
 | ---------- | ------ | ----: | ---: | ---: | ----: | ---: | ----- |
@@ -104,10 +114,14 @@ Roughly decreasing return-per-effort:
 After each change that moves numbers:
 
 1. Re-run the affected target(s): `./bin/run-testkit neo4j` and/or `./bin/run-testkit stub`.
-2. Append a new row to **Current baseline** with the date, target, and delta.
-3. Update the matching `tests/<target>` cluster section if the shape changed, not just the counts.
-4. Refresh the baseline file: `bin/refresh-testkit-baseline [neo4j|stub]`.
-5. Mention the cluster (or size delta) and the affected target in the commit message.
+2. Confirm the run is green — the CI gate requires `failures + errors == 0`; a
+   newly-advertised feature must have **all** its now-unskipped tests passing.
+3. Update the matching `tests/<target>` cluster section if the shape changed.
+4. Mention the feature / affected target in the commit message.
+
+There is no baseline to update: green is green. If a genuinely flaky or
+environment-dependent test blocks a run, skip it explicitly with a reason
+(`@skipif`/`skip`) rather than tolerating it silently.
 
 ## Protocol coverage
 
@@ -161,6 +175,7 @@ Feature flags advertised by `GetFeatures` gate which testkit tests actually run.
 
 1. Verify the underlying driver method does the right thing (no longer raises `NotImplementedError`).
 2. Add the flag to `testkit-backend/requests/get_features.rb`.
-3. Run `./bin/run-testkit stub` (or `neo4j`); update the baseline if the new tests pass cleanly.
+3. Run `./bin/run-testkit stub` (or `neo4j`); every test the flag un-skips must
+   pass, since the CI gate requires a fully green run (no baseline to defer into).
 
 Conservative default: each driver method's `raise NotImplementedError` keeps testkit's gated tests skipping until the flag is advertised AND the implementation is real.

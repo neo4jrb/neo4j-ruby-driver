@@ -207,3 +207,35 @@ use — `test_should_successfully_acquire_rt_when_router_ip_changes` (which the
 reactor's background reader caught). Not a regression vs main; regain it later
 via the pool liveness probe or the single-selector escalation. The two designs
 are parallel branches; this one is the no-async, JRuby-compatible alternative.
+
+## 2026-07-13 — Testkit CI: require-green, delete the baseline
+
+Replaced the per-flavour testkit baseline gate (`.github/testkit-*-baseline-
+{mri,jruby}.txt` + `bin/refresh-testkit-baseline` + the fold ritual) with a
+**require-green** gate: `.github/actions/testkit-postprocess` fails on two
+independent signals — unittest's own end-of-run summary (`failures + errors > 0`,
+or no summary at all) and the run step's exit code (`run_outcome == failure`,
+which catches a config that crashed before printing any summary — the counts
+can't see it). Applied to stub, TLS, and integration (`testkit.yml`).
+All three flavors (`mri`, `jruby`, `mri-on-jruby`) block — job-level
+`continue-on-error` is removed from every workflow, so a red flavor fails the
+PR. Full error visibility is preserved regardless: the run step keeps
+step-level `continue-on-error: true` and `TEST_RUN_ALL_TESTS`, so the whole
+suite runs and the require-green step lists every failure; `strategy.fail-fast:
+false` keeps the other flavors running when one fails. Deleted the never-used
+`testkit-full.yml`.
+
+Why: at this point every per-PR suite × flavour is genuinely green (verified
+from CI's own accounting, not the gate), so the baseline protected nothing —
+it was pure overhead plus two latent blind spots. The baseline-diff gate keyed
+on inline ` ... FAIL` tokens, which unittest does NOT emit for `subTest`
+failures (they surface only in the end-of-run `FAILED (failures=..)` summary),
+so a red subtest passed the gate as green (this masked the #419 auth
+regression); docstring-bearing passes were likewise untrackable and couldn't be
+folded. Delegating the verdict to unittest's own accounting eliminates both by
+construction. Feature gating still comes from `get_features.rb` (unadvertised →
+skipped → green); advertising a feature makes its now-unskipped tests mandatory,
+so "one feature, fully green, one PR" is enforced by CI rather than a manual
+fold. No automatic retry for now — we want genuine flakes to surface; a
+confirmed flaky/environment-dependent test gets an explicit `skip` with a
+reason, never silent omission.
