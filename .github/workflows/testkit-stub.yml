@@ -103,6 +103,7 @@ jobs:
         with:
           target_label: stub
           log_path: ${{ runner.temp }}/run.log
+          run_outcome: ${{ steps.testkit.outcome }}
 
       - name: Upload run log
         if: always()

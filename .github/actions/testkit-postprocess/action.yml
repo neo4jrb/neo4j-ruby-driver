@@ -1,9 +1,10 @@
 name: Testkit postprocess
 description: >
   Shared post-run gate for the testkit workflows: locate the run log and
-  require the suite to be green. The pass/fail verdict comes from
+  require the suite to be green. The verdict uses two independent signals —
   unittest's own end-of-run summary (which counts subTest failures
-  correctly), not a hand-rolled inline-token scan or a baseline diff.
+  correctly), and the run step's exit code (which catches a config that
+  crashed before printing a summary) — not a baseline diff or inline scan.
 
 inputs:
   target_label:
@@ -15,6 +16,17 @@ inputs:
       already knows where it wrote the log (e.g. `tee /tmp/run.log`).
       Empty default preserves the legacy auto-discovery for
       `bin/run-testkit`, which writes under `/tmp/testkit-run-*`.
+    required: false
+    default: ''
+  run_outcome:
+    description: >
+      The `outcome` of the testkit run step (pass the run step's
+      steps.<id>.outcome expression; the step is `continue-on-error`, so its
+      true result survives). When it is "failure" the gate goes red even if the
+      parsed summary shows no failures — this catches a config that crashed
+      before emitting any unittest summary (a partial infra/boot failure the
+      counts can't see). Empty (the default) skips the check, so local callers
+      need not set it.
     required: false
     default: ''
 
@@ -59,6 +71,7 @@ runs:
       shell: bash
       run: |
         LOG="${{ steps.log.outputs.path }}"
+        RUN_OUTCOME="${{ inputs.run_outcome }}"
         read -r RAN FAIL ERROR SKIP < <(awk '
           # No \b — POSIX awk (the CI runner default) does not support it.
           match($0, /Ran [0-9]+ tests?/) { ran += substr($0, RSTART + 4) + 0 }
@@ -88,7 +101,7 @@ runs:
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 
-        echo "ran=$RAN failures=$FAIL errors=$ERROR skipped=$SKIP"
+        echo "ran=$RAN failures=$FAIL errors=$ERROR skipped=$SKIP run_outcome=${RUN_OUTCOME:-<unset>}"
 
         # RAN == 0 means either no unittest summary was produced (the suite
         # crashed before reporting — infra / backend failure) or unittest ran
@@ -101,6 +114,17 @@ runs:
         if [ "$FAIL" -gt 0 ] || [ "$ERROR" -gt 0 ]; then
           echo "::error::testkit ${{ inputs.target_label }} not green: $FAIL failure(s), $ERROR error(s)"
           echo "$FAILS" | sed 's/^/::error::/'
+          exit 1
+        fi
+        # Second, independent signal: the run step's own exit code. The counts
+        # above can read green if ONE config (e.g. an integration matrix entry)
+        # crashes before printing a unittest summary while the others pass —
+        # its failure adds nothing to failures= and, with the others reporting,
+        # RAN stays > 0. testkit exiting non-zero catches exactly that. Only
+        # enforced when the caller passes run_outcome (CI does; local runs
+        # leave it empty).
+        if [ "$RUN_OUTCOME" = "failure" ]; then
+          echo "::error::testkit ${{ inputs.target_label }} run step exited non-zero even though the parsed summary showed no failures — a config likely crashed before reporting; inspect the run log"
           exit 1
         fi
         echo "Green: $((RAN - SKIP)) executed test(s) passed, $SKIP skipped."

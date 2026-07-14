@@ -212,9 +212,11 @@ are parallel branches; this one is the no-async, JRuby-compatible alternative.
 
 Replaced the per-flavour testkit baseline gate (`.github/testkit-*-baseline-
 {mri,jruby}.txt` + `bin/refresh-testkit-baseline` + the fold ritual) with a
-**require-green** gate: `.github/actions/testkit-postprocess` reads unittest's
-own end-of-run summary and fails when `failures + errors > 0` (or when no
-summary was produced). Applied to stub, TLS, and integration (`testkit.yml`).
+**require-green** gate: `.github/actions/testkit-postprocess` fails on two
+independent signals — unittest's own end-of-run summary (`failures + errors > 0`,
+or no summary at all) and the run step's exit code (`run_outcome == failure`,
+which catches a config that crashed before printing any summary — the counts
+can't see it). Applied to stub, TLS, and integration (`testkit.yml`).
 All three flavors (`mri`, `jruby`, `mri-on-jruby`) block — job-level
 `continue-on-error` is removed from every workflow, so a red flavor fails the
 PR. Full error visibility is preserved regardless: the run step keeps
