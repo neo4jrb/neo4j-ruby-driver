@@ -9,7 +9,7 @@ module Neo4j
         # (`statuses`). Hydration-side: ResultSummary#notifications
         # already falls back to `statuses` when the legacy key is
         # absent, so there's nothing version-specific to override here.
-        class V5_5 < V5_4
+        class V55 < V54
         end
       end
     end

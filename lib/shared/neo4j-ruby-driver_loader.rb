@@ -25,13 +25,6 @@ module Neo4j
           loader.tag = 'neo4j-ruby-driver'
           loader.inflector = Zeitwerk::GemInflector.new(File.expand_path('neo4j/driver', __dir__))
           loader.inflector.inflect('packstream' => 'PackStream')
-          # Per-minor Bolt protocol files use the `V<major>_<minor>` form
-          # (mirroring Java's BoltProtocolVxY). Zeitwerk's default
-          # camelize would collapse `v5_0` to `V50`, so map each one
-          # explicitly. Keep this in sync with lib/mri/neo4j/driver/bolt/protocol/.
-          %w[5_0 5_1 5_2 5_3 5_4 5_5 5_6 5_7 5_8 6_0].each do |v|
-            loader.inflector.inflect("v#{v}" => "V#{v}")
-          end
           loader.push_dir(shared_root)
           loader.push_dir(impl_root) if File.directory?(impl_root)
           yield loader if block_given?

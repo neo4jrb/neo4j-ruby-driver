@@ -18,7 +18,7 @@ module Neo4j
         # surface them as plain hashes. The goal here is "don't crash
         # at hydration"; the proper type wrapping lands when there's a
         # public API to wire it to.
-        class V6_0 < V5_8
+        class V6 < V58
           VECTOR_SIGNATURE = 0x56
           UNSUPPORTED_SIGNATURE = 0x3F
 
