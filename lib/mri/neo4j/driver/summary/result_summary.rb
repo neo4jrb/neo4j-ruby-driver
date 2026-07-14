@@ -29,7 +29,12 @@ module Neo4j
           return nil unless @metadata.key?(:type)
 
           case @metadata[:type]
-          when 'r' then QueryType::READ_ONLY
+          # !!! DELIBERATE BUG — DO NOT MERGE (PR #NNN gate-validation) !!!
+          # Maps read summaries to WRITE_ONLY so the query_type="r" subTest of
+          # test_can_obtain_summary_type fails. Proves the require-green gate
+          # catches a subTest failure (the exact blind spot the old baseline
+          # gate missed). Revert = restore `QueryType::READ_ONLY`.
+          when 'r' then QueryType::WRITE_ONLY
           when 'w' then QueryType::WRITE_ONLY
           when 'rw' then QueryType::READ_WRITE
           when 's' then QueryType::SCHEMA_WRITE
