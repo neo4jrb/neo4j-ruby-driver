@@ -73,7 +73,7 @@ module TestkitBackend
         # --- Public API surface ----------------------------------------------
         'Feature:API:BookmarkManager'                       => 'jar',
         'Feature:API:ConnectionAcquisitionTimeout'          => 'jar',
-        'Feature:API:Driver.ExecuteQuery'                   => 'ja',
+        'Feature:API:Driver.ExecuteQuery'                   => 'jar',
         'Feature:API:Driver.ExecuteQuery:WithAuth'          => 'ja',
         'Feature:API:Driver:GetServerInfo'                  => '',
         'Feature:API:Driver.IsEncrypted'                    => 'jar',

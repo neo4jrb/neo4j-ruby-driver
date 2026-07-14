@@ -143,7 +143,12 @@ module Neo4j
           default_access_mode: routing,
           impersonated_user: config[:impersonated_user]
         }.compact
-        session_opts[:bookmark_manager] = config[:bookmark_manager] if config.key?(:bookmark_manager)
+        # execute_query chains bookmarks across successive calls via a
+        # driver-wide default BookmarkManager, so a read after a write sees
+        # the write (matches Java's Driver.executeQuery). A caller can override
+        # per call; `bookmark_manager: nil` explicitly disables the chaining.
+        session_opts[:bookmark_manager] =
+          config.key?(:bookmark_manager) ? config[:bookmark_manager] : query_bookmark_manager
 
         # Forwarded to the managed-tx call below — the BEGIN extras
         # honour metadata/timeout per-tx, not session-wide.
@@ -167,6 +172,14 @@ module Neo4j
         end
 
         EagerResult.new(keys, records, summary)
+      end
+
+      # Driver-wide default BookmarkManager for execute_query (lazily built,
+      # shared across calls so they're causally chained). Distinct from any
+      # per-session bookmark manager. Mirrors Java's default query bookmark
+      # manager on the driver.
+      def query_bookmark_manager
+        @query_bookmark_manager ||= Internal::DefaultBookmarkManager.new
       end
 
       # Verify that the supplied auth token would succeed against the
