@@ -6,7 +6,7 @@ module Neo4j
       module Protocol
         # Bolt 5.3. HELLO grows a required `bolt_agent` map identifying
         # the driver (product is required; the rest is informational).
-        class V5_3 < V5_2
+        class V53 < V52
           def hello_extra(user_agent:, auth:, routing:)
             super.merge(bolt_agent: bolt_agent)
           end

@@ -12,7 +12,7 @@ module Neo4j
         # `build_hello_message.compact` drops an unset severity while keeping
         # an explicit empty `disabled_categories: []` (which the server reads
         # as "re-enable every category").
-        class V5_2 < V5_1
+        class V52 < V51
           def supports_notification_filtering? = true
 
           def notification_config_extra(config)

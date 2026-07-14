@@ -15,7 +15,7 @@ module Neo4j
         # 5.7+ is also where HandshakeManifestV1 negotiation becomes
         # mandatory on the server side; that's handled in Bolt::Handshake,
         # not here.
-        class V5_7 < V5_6
+        class V57 < V56
           def customize_hydration(unpacker)
             super
             unpacker.register_hydration_handler(Message::FAILURE) do |fields|

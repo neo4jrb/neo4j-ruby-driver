@@ -21,7 +21,7 @@ module Neo4j
           # subclasses override `hello_extra` to change which keys it
           # carries at their version. `notification_config` (the driver's
           # NotificationsConfig, a `{minimum_severity:, disabled_categories:}`
-          # hash or nil) only lands on the wire from V5_2 on — older versions
+          # hash or nil) only lands on the wire from V52 on — older versions
           # return an empty map from `notification_config_extra`.
           def build_hello_message(user_agent:, auth:, routing: nil, notification_config: nil)
             extra = hello_extra(user_agent:, auth:, routing:)
@@ -36,23 +36,23 @@ module Neo4j
             raise NotImplementedError, "#{self.class} must implement hello_extra"
           end
 
-          # Notification-filtering keys for the HELLO map. Empty until V5_2,
-          # the first version whose server honours them (V5_2 overrides this).
+          # Notification-filtering keys for the HELLO map. Empty until V52,
+          # the first version whose server honours them (V52 overrides this).
           def notification_config_extra(_notification_config) = {}
 
-          # Hook for V5_1+ (HELLO/LOGON split): the LOGON message the connection
+          # Hook for V51+ (HELLO/LOGON split): the LOGON message the connection
           # pipelines right after HELLO. nil here — older versions carry auth in
           # the HELLO map and send no separate LOGON.
           def build_logon_message(_auth) = nil
 
-          # Hook for V5_0+: lets the protocol flip the packer's UTC
+          # Hook for V5+: lets the protocol flip the packer's UTC
           # datetime flag (0x49 / 0x69 vs legacy 0x46 / 0x66).
           def configure_packer(_packer); end
 
           # Hook for per-version unpacker customisation — re-registering
           # handlers for messages whose shape changed at this version
-          # (V5_7 FAILURE) or adding handlers for new struct types
-          # (V6_0 VECTOR / UNSUPPORTED). Called after Connection
+          # (V57 FAILURE) or adding handlers for new struct types
+          # (V6 VECTOR / UNSUPPORTED). Called after Connection
           # registers the common ones, so an override here wins.
           def customize_hydration(_unpacker); end
 
@@ -97,10 +97,12 @@ module Neo4j
           def supports_re_auth? = false
           def supports_multiple_databases? = false
           def supports_notification_filtering? = false
-          # TELEMETRY (driver-API usage reporting) arrived with Bolt 5.4.
-          def supports_telemetry? = version >= BoltVersion::V5_4
-          # Impersonation (imp_user on RUN/BEGIN/ROUTE) arrived with Bolt 4.4.
-          def supports_impersonation? = version >= BoltVersion::V4_4
+          # TELEMETRY (driver-API usage reporting) arrived with Bolt 5.4;
+          # V54 flips this to true.
+          def supports_telemetry? = false
+          # Impersonation (imp_user on RUN/BEGIN/ROUTE) arrived with Bolt 4.4;
+          # V44 flips this to true.
+          def supports_impersonation? = false
 
           # Fail fast when a caller asks to impersonate over a protocol
           # that can't carry imp_user (Bolt < 4.4) — otherwise the field

@@ -9,7 +9,7 @@ module Neo4j
         # re-authentication on a live connection (`LOGOFF` + `LOGON`),
         # which the public driver doesn't expose yet but the protocol
         # supports from here on.
-        class V5_1 < V5_0
+        class V51 < V5
           def hello_extra(user_agent:, auth:, routing:)
             { user_agent:, routing: }
           end
