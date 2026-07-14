@@ -12,7 +12,7 @@ module Neo4j
           def supports_impersonation? = true
 
           def build_route(routing_context, bookmarks, database, imp_user)
-            Message.route(routing_context, bookmarks, { db: database, imp_user: imp_user }.compact)
+            Message.route(routing_context, bookmarks, { db: database, imp_user: }.compact)
           end
         end
       end

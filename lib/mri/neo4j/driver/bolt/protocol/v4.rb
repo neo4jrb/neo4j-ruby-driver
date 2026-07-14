@@ -4,10 +4,10 @@ module Neo4j
   module Driver
     module Bolt
       module Protocol
-        # Bolt 4.0–4.3 protocol handler. HELLO is unchanged across the
-        # 4.x minors, so this class covers 4.2/4.3; 4.4's wire additions
-        # (imp_user, the ROUTE map form) live in the V44 subclass, which
-        # every 5.x handler descends from.
+        # Bolt 4.x handler for the pre-4.4 wire form. The driver
+        # negotiates it for 4.2 and 4.3 (see ProtocolVersionHandler);
+        # 4.4's wire additions (imp_user, the ROUTE map form) live in
+        # the V44 subclass, which every 5.x handler descends from.
         class V4 < Base
           def hello_extra(user_agent:, auth:, routing:)
             { user_agent:, routing:, **auth }
