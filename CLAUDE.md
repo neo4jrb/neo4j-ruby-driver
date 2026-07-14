@@ -79,7 +79,7 @@ standard offset doubled equals the DST offset.
 - Ruby 3.4+ idioms: hash value omission (`metadata:`), method references (`&Bookmark.method(:new)`), `it` block parameter (`hash.transform_values { it.foo }`), `&.then { ... }` pipelines over guard-and-statement, `Array()`, `.compact` over nil-skipping conditionals.
 - Polymorphism over `is_a?` / `case/when` on type. Tell, don't ask.
 - Explicit over clever. Separate parameters from config rather than extracting from merged kwargs.
-- Extract duplication at the third occurrence, not the second.
+- Remove duplication at the second occurrence. An abstract class earns its keep only through reuse.
 - Zeitwerk one-class-per-file. Namespace modules are autovivified from directory names — do **not** create `<namespace>.rb` stubs that just declare `module Foo; end`.
 - All stdlib/gem `require`s live in `lib/neo4j/driver.rb`. Never scatter them in internal files.
 - Error messages: helpful and contextual (`"Transaction is already closed"`, not `"Invalid state"`). Map to Neo4j error codes where applicable.

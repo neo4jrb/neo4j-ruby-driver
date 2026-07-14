@@ -20,12 +20,11 @@ module Neo4j
         #     DISCARD_ALL (0x2F) take no fields, unlike the 4.0+
         #     PULL / DISCARD which carry `{n, qid}`.
         class V3 < Base
-          def hello_extra(user_agent:, auth:, routing:)
-            # `routing` is the routing context for a neo4j:// driver, nil for
-            # bolt:// — build_hello_message compacts the nil away, so a direct
-            # 3.0 connection still sends no routing key.
-            { user_agent:, routing:, **auth }
-          end
+          # HELLO is the inherited auth-in-HELLO form. On 3.0, `routing`
+          # is the context for a neo4j:// driver and nil for bolt://
+          # (compacted away), so a direct 3.0 connection sends no routing
+          # key — matching the Java driver, which testkit gates on driver
+          # name for the 3.0 HELLO.
 
           # PULL_ALL: no metadata map. The caller still passes `{n:}` for
           # the 4.0+ path; on 3.0 we discard it and send the bare struct.
