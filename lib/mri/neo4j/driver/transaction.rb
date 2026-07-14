@@ -41,7 +41,10 @@ module Neo4j
         # the server opted in and the driver didn't disable it; its SUCCESS is
         # read first.
         telemetry_sent = @connection.telemetry(telemetry_api, disabled: options[:telemetry_disabled])
-        @connection.send_message(@connection.protocol.build_begin(begin_extra))
+        # Session-level NotificationsConfig rides on BEGIN (5.2+); the tx's own
+        # RUNs carry none. nil / pre-5.2 => no notification keys on the wire.
+        @connection.send_message(@connection.protocol.build_begin(begin_extra,
+                                                                  notification_config: options[:notification_config]))
         @connection.flush
 
         if telemetry_sent
