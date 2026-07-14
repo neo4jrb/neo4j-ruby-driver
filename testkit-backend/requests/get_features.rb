@@ -122,7 +122,7 @@ module TestkitBackend
         'Optimization:MinimalBookmarksSet'                  => '',
         'Optimization:MinimalResets'                        => '',  # disabled in Java too
         'Optimization:MinimalVerifyAuthentication'          => '',
-        'Optimization:PullPipelining'                       => 'ja',
+        'Optimization:PullPipelining'                       => 'jar',
         'Optimization:ResultListFetchAll'                   => 'ja',
 
         # --- Backend / detail ------------------------------------------------
