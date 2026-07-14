@@ -411,7 +411,9 @@ module Neo4j
 
         loop do
           begin
-            telemetry_api = telemetry_acked ? nil : 0
+            # api 0 = managed tx; execute_query's session overrides it to 3
+            # (DRIVER_EXECUTE_QUERY). nil once the server has acked the report.
+            telemetry_api = telemetry_acked ? nil : (@options[:telemetry_api] || 0)
             return run_managed_transaction(op_mode, tx_options, telemetry_api, on_telemetry_ack, &block)
           rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException,
                  Exceptions::TransientException,

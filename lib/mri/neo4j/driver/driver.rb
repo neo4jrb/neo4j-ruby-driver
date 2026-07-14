@@ -23,6 +23,11 @@ module Neo4j
         @clock = clock
         @closed = false
         @connection_provider = connection_provider
+        # Driver-wide default BookmarkManager for execute_query: shared across
+        # calls so they're causally chained (a read after a write sees it).
+        # Built once here rather than lazily so concurrent first calls can't
+        # race into two managers. Mirrors Java's default query bookmark manager.
+        @query_bookmark_manager = BookmarkManagers.default_manager
       end
 
       def session(**options)
@@ -143,7 +148,17 @@ module Neo4j
           default_access_mode: routing,
           impersonated_user: config[:impersonated_user]
         }.compact
-        session_opts[:bookmark_manager] = config[:bookmark_manager] if config.key?(:bookmark_manager)
+        # execute_query chains bookmarks across successive calls via a
+        # driver-wide default BookmarkManager, so a read after a write sees
+        # the write (matches Java's Driver.executeQuery). A caller can override
+        # per call; `bookmark_manager: nil` explicitly disables the chaining.
+        session_opts[:bookmark_manager] =
+          config.key?(:bookmark_manager) ? config[:bookmark_manager] : @query_bookmark_manager
+        # The managed tx this session runs reports TELEMETRY api = 3
+        # (DRIVER_EXECUTE_QUERY), not a plain managed transaction (api 0).
+        # Carried on the session since execute_query drives it through
+        # execute_read/write.
+        session_opts[:telemetry_api] = 3
 
         # Forwarded to the managed-tx call below — the BEGIN extras
         # honour metadata/timeout per-tx, not session-wide.
