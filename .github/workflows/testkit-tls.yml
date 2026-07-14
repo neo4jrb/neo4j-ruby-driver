@@ -9,12 +9,9 @@ jobs:
   testkit-tls:
     name: testkit-tls (${{ matrix.flavor }})
     runs-on: ubuntu-latest
-    # Every row is informational right now: JRuby-based rows are still
-    # incubating, and MRI's pure-Ruby Bolt has no TLS implementation
-    # yet — so the row will surface 0 passes (intended signal, not a
-    # failure to gate on). Simplify back to a plain `true` rather than
-    # a matrix expression that's always true and reads as if it isn't.
-    continue-on-error: true
+    # All flavors are gated: the require-green postprocess step must pass
+    # for the job (and so the PR) to be green. (Historically informational
+    # while MRI TLS / the JRuby rows were incubating — both are green now.)
 
     strategy:
       fail-fast: false

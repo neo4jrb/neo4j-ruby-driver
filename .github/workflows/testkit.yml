@@ -9,10 +9,8 @@ jobs:
   testkit:
     name: testkit (${{ matrix.flavor }})
     runs-on: ubuntu-latest
-    # JRuby-based rows are still incubating; surface results without
-    # blocking the merge — same pattern as testkit-stub.yml and
-    # testkit-tls.yml.
-    continue-on-error: ${{ matrix.base_image != 'ruby:4.0-slim' }}
+    # All flavors are gated: the require-green postprocess step must pass
+    # for every flavor for the PR to merge.
     # The full testkit config matrix (3 single instances + 7 3-node
     # clusters) spends most of its wall-clock on per-config Neo4j
     # startup. Cap generously so a hung job can't burn the full
@@ -41,8 +39,8 @@ jobs:
       TESTKIT_DRIVER_BUILD_ARG_NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri }}
       # Without this, testkit's run_fail_wrapper re-raises on the first
       # config that has any test failure, so main.py never reaches the
-      # rest of the matrix. Test failures are expected (we have a per-
-      # test baseline gate downstream); we want every config to run.
+      # rest of the matrix. We want every config to run so the require-green
+      # postprocess step sees the whole matrix (green = 0 failures across all).
       TEST_RUN_ALL_TESTS: 'true'
 
     steps:
@@ -84,8 +82,8 @@ jobs:
       #
       # Configs whose required Bolt version the driver can't negotiate
       # are still cheap-skipped by tests.neo4j.version_check; the
-      # per-test baseline gate (suite-prefixed entries) keeps each
-      # (config, test) regression explicit.
+      # require-green gate sums failures across every config, so a
+      # regression under any one config fails the job.
       - name: Run testkit integration suite
         id: testkit
         continue-on-error: true

@@ -25,9 +25,11 @@ a test whose required feature we don't advertise **skips** (counted as
 its tests, and they must then pass for the PR to merge — so "one advertised
 feature, made fully green in one PR" is enforced by CI, not a manual fold.
 
-`mri` is the blocking gate (`continue-on-error: false`); `jruby` and
-`mri-on-jruby` run `continue-on-error` so a flake there is visible (red job)
-without blocking merges. All three are currently green.
+All three flavors block: a red `mri`, `jruby`, or `mri-on-jruby` fails the PR
+(no job-level `continue-on-error`). This never hides errors — the run step is
+`continue-on-error: true` with `TEST_RUN_ALL_TESTS`, so the full suite runs and
+the gate lists every failure, and `strategy.fail-fast: false` keeps the other
+flavors running when one goes red. All three are currently green.
 
 ## Historical baseline log
 

@@ -90,10 +90,12 @@ runs:
 
         echo "ran=$RAN failures=$FAIL errors=$ERROR skipped=$SKIP"
 
-        # No summary at all => the suite crashed before reporting (infra /
-        # backend failure). Treat as red, not a vacuous pass.
+        # RAN == 0 means either no unittest summary was produced (the suite
+        # crashed before reporting — infra / backend failure) or unittest ran
+        # but selected 0 tests ("Ran 0 tests" — bad discovery / misconfig).
+        # Both are red: a suite that executed nothing is never a pass.
         if [ "$RAN" -eq 0 ]; then
-          echo "::error::no tests ran — the suite produced no unittest summary (crash / infra failure)"
+          echo "::error::0 tests executed — the suite crashed before reporting, or selected no tests (discovery/config error)"
           exit 1
         fi
         if [ "$FAIL" -gt 0 ] || [ "$ERROR" -gt 0 ]; then

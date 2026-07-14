@@ -5,8 +5,6 @@
       "Bash(bundle exec rspec *)",
       "Bash(./bin/run-testkit)",
       "Bash(./bin/run-testkit *)",
-      "Bash(./bin/refresh-testkit-baseline)",
-      "Bash(./bin/refresh-testkit-baseline *)",
       "Bash(curl https://raw.githubusercontent.com/*)",
       "Bash(curl https://api.github.com/*)",
       "Bash(curl -s https://raw.githubusercontent.com/*)",

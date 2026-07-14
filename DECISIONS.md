@@ -214,9 +214,14 @@ Replaced the per-flavour testkit baseline gate (`.github/testkit-*-baseline-
 {mri,jruby}.txt` + `bin/refresh-testkit-baseline` + the fold ritual) with a
 **require-green** gate: `.github/actions/testkit-postprocess` reads unittest's
 own end-of-run summary and fails when `failures + errors > 0` (or when no
-summary was produced). Applied to stub, TLS, and integration (`testkit.yml`);
-`mri` blocks, `jruby`/`mri-on-jruby` stay `continue-on-error` (flakes visible,
-non-blocking). Deleted the never-used `testkit-full.yml`.
+summary was produced). Applied to stub, TLS, and integration (`testkit.yml`).
+All three flavors (`mri`, `jruby`, `mri-on-jruby`) block — job-level
+`continue-on-error` is removed from every workflow, so a red flavor fails the
+PR. Full error visibility is preserved regardless: the run step keeps
+step-level `continue-on-error: true` and `TEST_RUN_ALL_TESTS`, so the whole
+suite runs and the require-green step lists every failure; `strategy.fail-fast:
+false` keeps the other flavors running when one fails. Deleted the never-used
+`testkit-full.yml`.
 
 Why: at this point every per-PR suite × flavour is genuinely green (verified
 from CI's own accounting, not the gate), so the baseline protected nothing —
