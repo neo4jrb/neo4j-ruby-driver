@@ -53,14 +53,15 @@ module TestkitBackend
                          startNodeElementId: to_testkit(object.start_node_element_id),
                          endNodeElementId: to_testkit(object.end_node_element_id),
                          type: to_testkit(object.type), props: to_testkit(object.properties))
-          when ->(o) { defined?(Java::OrgNeo4jDriverTypes::UnsupportedType) &&
-                       Java::OrgNeo4jDriverTypes::UnsupportedType === o }
-            # A value of a type newer than this driver understands; the Java
-            # driver keeps its name + the bolt version that introduced it.
-            # JRuby-only type, so guard the Java constant (absent on MRI).
+          when Neo4j::Driver::Types::UnsupportedType
+            # A value whose type is newer than the driver understands (name +
+            # the protocol version that introduced it + optional server note).
+            # One case for both flavours: MRI's pure-Ruby type and, aliased in
+            # lib/jruby, the Java type — whose #message is unwrapped to a plain
+            # nilable there (ext/unsupported_type.rb) so both APIs match.
             named_entity('CypherUnsupportedType', name: object.name,
                          minimumProtocol: object.min_protocol_version,
-                         message: object.message.or_else(nil))
+                         message: object.message)
           when Neo4j::Driver::Types::UnresolvableZonedDateTime
             # A datetime whose zone id the driver couldn't resolve — using it
             # raises the driver error (naming the zone), which the request

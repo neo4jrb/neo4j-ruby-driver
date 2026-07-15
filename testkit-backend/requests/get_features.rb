@@ -103,7 +103,7 @@ module TestkitBackend
         'Feature:API:Summary:Profile:OptionalStats'         => '',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
-        'Feature:API:Type.UnsupportedType'                  => 'ja',
+        'Feature:API:Type.UnsupportedType'                  => 'jar',
         'Feature:API:Type.UUID'                             => '',
         'Feature:API:Type.Vector'                           => '',
 
