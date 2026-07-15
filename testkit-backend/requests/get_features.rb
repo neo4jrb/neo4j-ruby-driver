@@ -99,7 +99,7 @@ module TestkitBackend
         'Feature:API:SSLClientCertificate'                  => 'ja', # JRuby: ClientCertificateManager via DriverFactory; MRI mTLS not wired
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
-        'Feature:API:Summary:GqlStatusObjects'              => 'ja',
+        'Feature:API:Summary:GqlStatusObjects'              => 'jar',
         'Feature:API:Summary:Profile:OptionalStats'         => '',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)

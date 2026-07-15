@@ -39,6 +39,7 @@ module Neo4j
         @on_summary = on_summary  # called with the built Summary when the stream ends in SUCCESS
         @on_release = on_release  # called once when the connection is no longer needed
         @records = []       # records pulled into memory by #buffer (not by iteration)
+        @had_record = false # any RECORD arrived on this stream — drives the GQL outcome status
         @summary = nil
         @consumed = false   # stream fully drained (terminal seen)
         @discarded = false  # records explicitly released; further access raises
@@ -255,11 +256,13 @@ module Neo4j
       end
 
       def build_record(msg)
+        @had_record = true
         Record.new(@keys, msg.fields)
       end
 
       def finalize(metadata)
-        @summary = Summary::ResultSummary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection)
+        @summary = Summary::ResultSummary.new(@run_metadata.merge(metadata), @query_text, @parameters, @connection,
+                                              had_record: @had_record)
         @consumed = true
       end
 

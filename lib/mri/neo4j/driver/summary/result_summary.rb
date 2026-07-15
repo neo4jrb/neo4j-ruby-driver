@@ -8,11 +8,12 @@ module Neo4j
       # the namespace; no public `metadata` accessor, no Bolt-wire-format
       # leakage.
       class ResultSummary
-        def initialize(metadata, query_text = nil, parameters = {}, connection = nil)
+        def initialize(metadata, query_text = nil, parameters = {}, connection = nil, had_record: false)
           @metadata = metadata
           @query_text = query_text
           @parameters = parameters
           @connection = connection
+          @had_record = had_record
         end
 
         def query
@@ -105,20 +106,73 @@ module Neo4j
             .map { |n| Notification.new(n) }
         end
 
-        # GQL status objects, as reported natively by Bolt 5.6+ servers in
-        # the summary `statuses` list (preserving server order — the driver
-        # must not reorder them). A status carrying a `neo4j_code` is also a
-        # notification (GqlNotification); the rest are plain status objects.
-        # The pre-5.6 backfill (Feature:API:Summary:GqlStatusObjects, which
-        # synthesises statuses from notifications) isn't implemented, so it
-        # stays unadvertised.
+        # GQL status objects. Bolt 5.6+ servers report them natively in the
+        # summary `statuses` list, which we preserve verbatim (server order —
+        # the driver must not reorder them). Older servers (or any SUCCESS
+        # without `statuses`) don't, so we synthesise the list from the legacy
+        # `notifications` plus a mandatory outcome status — the pre-5.6
+        # backfill. A status carrying a `neo4j_code` is also a notification
+        # (GqlNotification); the rest are plain status objects.
         def gql_status_objects
-          (@metadata[:statuses] || []).map do |status|
+          (@metadata[:statuses] || polyfilled_statuses).map do |status|
             (status[:neo4j_code] ? GqlNotification : GqlStatusObject).new(status)
           end
         end
 
         private
+
+        # Synthesise `statuses` from the legacy `notifications` list plus a
+        # single outcome status, mirroring the Java driver's MetadataExtractor.
+        # The whole set is ordered by GQL status class (02 no-data, 01 warning,
+        # 00 success, 03 info, then everything else); the sort is stable so
+        # same-class notifications keep their server order.
+        def polyfilled_statuses
+          statuses = (@metadata[:notifications] || []).map { notification_as_status(it) }
+          statuses << outcome_status
+          statuses.each_with_index.sort_by { |status, i| [gql_status_class(status), i] }.map(&:first)
+        end
+
+        # The mandatory outcome status. The driver reached the summary having
+        # streamed the whole result (eager pull), so it knows whether a record
+        # arrived: yes -> successful completion; no -> "no data", or "omitted
+        # result" when the query produced no fields at all (e.g. a write).
+        def outcome_status
+          if @had_record
+            { gql_status: '00000', status_description: 'note: successful completion' }
+          elsif Array(@metadata[:fields]).empty?
+            { gql_status: '00001', status_description: 'note: successful completion - omitted result' }
+          else
+            { gql_status: '02000', status_description: 'note: no data' }
+          end
+        end
+
+        # Reshape one legacy notification into a `statuses`-list entry so it
+        # flows through GqlNotification unchanged. WARNING -> 01N42, everything
+        # else -> 03N42; the notification facets move into the diagnostic
+        # record under `_severity` / `_classification` / `_position`.
+        def notification_as_status(notification)
+          warning = notification[:severity] == 'WARNING'
+          description = notification[:description] unless notification[:description] == 'null'
+          {
+            gql_status: warning ? '01N42' : '03N42',
+            status_description: description || (warning ? 'warn: unknown warning' : 'info: unknown notification'),
+            neo4j_code: notification[:code],
+            title: notification[:title],
+            diagnostic_record: { _severity: notification[:severity], _classification: notification[:category],
+                                 _position: notification[:position] }.compact
+          }
+        end
+
+        # Sort key from the GQL status class (first two chars of the code).
+        def gql_status_class(status)
+          case status[:gql_status]
+          when /\A02/ then 0
+          when /\A01/ then 1
+          when /\A00/ then 2
+          when /\A03/ then 3
+          else 4
+          end
+        end
 
         def statuses_as_notifications
           (@metadata[:statuses] || []).filter_map do |s|
