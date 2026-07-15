@@ -151,9 +151,10 @@ module Neo4j
         # else -> 03N42; the notification facets move into the diagnostic
         # record under `_severity` / `_classification` / `_position`.
         def notification_as_status(notification)
-          # Old wire format carries :severity, newer :severityLevel — read both,
-          # matching Summary::Notification.
-          severity = notification[:severityLevel] || notification[:severity]
+          # Legacy notifications carry severity under :severity — the only key
+          # the Java driver's MetadataExtractor reads here; :severityLevel never
+          # appears on this wire structure.
+          severity = notification[:severity]
           warning = severity == 'WARNING'
           description = notification[:description] unless notification[:description] == 'null'
           {
