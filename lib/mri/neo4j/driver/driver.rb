@@ -133,20 +133,24 @@ module Neo4j
       #                          query-log / monitoring tooling.
       #   :timeout             — seconds (or ActiveSupport::Duration);
       #                          server-side transaction timeout.
-      #   :auth_token          — accepted but not yet honoured —
-      #                          per-call auth is its own slice
-      #                          (Bolt 5.1+ LOGOFF/LOGON).
+      #   :auth_token          — run this query under a specific identity
+      #                          (Bolt 5.1+ re-auths the connection via
+      #                          LOGOFF/LOGON); omit to use the driver's.
       def execute_query(cypher, params = {}, config = {})
         routing = config[:routing] || RoutingControl::WRITE
 
         # `bookmark_manager: nil` is meaningful (explicitly disables the
         # manager) and differs from omitting the key, so it's added
         # conditionally rather than via .compact. `:database` /
-        # `:impersonated_user` keep .compact semantics (nil == omitted).
+        # `:impersonated_user` / `:auth_token` keep .compact semantics
+        # (nil == omitted). A per-query `:auth_token` pins the session (and so
+        # its connection) to that identity — the provider re-auths on Bolt 5.1+
+        # (Feature:API:Driver.ExecuteQuery:WithAuth).
         session_opts = {
           database: config[:database],
           default_access_mode: routing,
-          impersonated_user: config[:impersonated_user]
+          impersonated_user: config[:impersonated_user],
+          auth_token: config[:auth_token]
         }.compact
         # execute_query chains bookmarks across successive calls via a
         # driver-wide default BookmarkManager, so a read after a write sees

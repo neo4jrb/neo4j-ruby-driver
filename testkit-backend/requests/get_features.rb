@@ -74,7 +74,7 @@ module TestkitBackend
         'Feature:API:BookmarkManager'                       => 'jar',
         'Feature:API:ConnectionAcquisitionTimeout'          => 'jar',
         'Feature:API:Driver.ExecuteQuery'                   => 'jar',
-        'Feature:API:Driver.ExecuteQuery:WithAuth'          => 'ja',
+        'Feature:API:Driver.ExecuteQuery:WithAuth'          => 'jar',
         'Feature:API:Driver:GetServerInfo'                  => '',
         'Feature:API:Driver.IsEncrypted'                    => 'jar',
         'Feature:API:Driver:NotificationsConfig'            => 'jar',
