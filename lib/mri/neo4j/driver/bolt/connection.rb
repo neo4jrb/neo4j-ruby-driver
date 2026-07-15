@@ -943,6 +943,10 @@ module Neo4j
 
           hello = fetch_response.assert_success!
           @server_agent = hello.metadata[:server]
+          # Bolt 4.3/4.4 UTC patch: if the server confirmed `patch_bolt: ["utc"]`
+          # (we advertised it in HELLO), switch datetime packing to UTC-seconds
+          # (0x49/0x69). Native on 5.0+, so this only ever fires on 4.3/4.4.
+          @wire.enable_utc_datetime if Array(hello.metadata[:patch_bolt]).include?('utc')
           # The server may advertise connection.recv_timeout_seconds in HELLO's
           # SUCCESS hints; from now a steady-state read that exceeds it is a
           # broken connection (ConnectionReadTimeoutException).
