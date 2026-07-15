@@ -9,10 +9,6 @@ module Neo4j
         # 4.4's wire additions (imp_user, the ROUTE map form) live in
         # the V44 subclass, which every 5.x handler descends from.
         class V4 < Base
-          def hello_extra(user_agent:, auth:, routing:)
-            { user_agent:, routing:, **auth }
-          end
-
           def supports_multiple_databases? = true
 
           # ROUTE's third field is the target database as a bare string

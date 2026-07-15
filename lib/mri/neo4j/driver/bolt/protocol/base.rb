@@ -29,11 +29,13 @@ module Neo4j
             PackStream::Structure.new(Message::HELLO, [extra.compact])
           end
 
-          # Subclasses override this to add / remove fields from the
-          # HELLO map. The defaults here are deliberately empty; V4 is
-          # the first concrete protocol that fills them in.
+          # The HELLO map. Auth lives inside HELLO through Bolt 5.0;
+          # `routing` is the routing context (nil for a direct bolt://
+          # connection, compacted away by build_hello_message). V51
+          # overrides this to drop `**auth` once auth splits out into a
+          # separate LOGON message.
           def hello_extra(user_agent:, auth:, routing:)
-            raise NotImplementedError, "#{self.class} must implement hello_extra"
+            { user_agent:, routing:, **auth }
           end
 
           # Notification-filtering keys for the HELLO map. Empty until V52,
