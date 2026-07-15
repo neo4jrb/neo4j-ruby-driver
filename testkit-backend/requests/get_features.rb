@@ -93,7 +93,7 @@ module TestkitBackend
         'Feature:API:Result.Peek'                           => 'jar',
         'Feature:API:Result.Single'                         => 'jar',
         'Feature:API:Result.SingleOptional'                 => '',
-        'Feature:API:RetryableExceptions'                   => 'ja',
+        'Feature:API:RetryableExceptions'                   => 'jar',
         'Feature:API:Session:AuthConfig'                    => 'jar',
         'Feature:API:Session:NotificationsConfig'           => 'jar',
         'Feature:API:SSLClientCertificate'                  => 'ja', # JRuby: ClientCertificateManager via DriverFactory; MRI mTLS not wired
