@@ -55,6 +55,11 @@ module Neo4j
           @mutex = Mutex.new
         end
 
+        # Switch datetime packing to UTC-seconds (0x49/0x69). Connection calls
+        # this when the Bolt 4.3/4.4 HELLO confirms `patch_bolt: ["utc"]`; on
+        # 5.0+ configure_packer already set it, so this only fires on 4.x.
+        def enable_utc_datetime = @packer.use_utc_datetime = true
+
         # Pack + chunk-frame `message` into the outbound buffer and register the
         # handler for its reply. Several enqueues before a take_outbound are
         # exactly the pipelining Bolt expects (HELLO+LOGON, RUN+PULL); the FIFO
@@ -283,16 +288,33 @@ module Neo4j
         def hydrate_named_zone(instant, zone_name, local_seconds:)
           if defined?(ActiveSupport::TimeZone)
             tz = ActiveSupport::TimeZone[zone_name]
+            # A nil lookup is an unknown zone id — defer it (see below).
+            return unresolvable_zone(zone_name) if tz.nil?
+
             utc_instant = local_seconds ? tz.tzinfo.local_to_utc(instant) : instant
             tz.at(utc_instant)
           else
-            tz = TZInfo::Timezone.get(zone_name)
+            tz = TZInfo::Timezone.get(zone_name) # raises InvalidTimezoneIdentifier if unknown
             utc_instant = local_seconds ? tz.local_to_utc(instant) : instant
             utc_instant.getlocal(tz.period_for_utc(utc_instant).utc_total_offset)
           end
+        rescue TZInfo::InvalidTimezoneIdentifier
+          unresolvable_zone(zone_name)
         rescue StandardError
+          # The zone id IS known, but the local->UTC mapping failed (a DST gap /
+          # overlap: TZInfo::PeriodNotFound / AmbiguousTime, or similar). Keep
+          # the prior lenient fallback — returning the raw instant — rather than
+          # misreport it as an unknown zone.
           instant
         end
+
+        # Placeholder for a zone id this runtime's tz database doesn't know (the
+        # server sent a name we can't resolve). We're on the reader thread
+        # mid-record; raising here would break the connection and strand the
+        # whole result, so defer it — the value raises (naming the zone) only
+        # when a consumer uses it, leaving the record + connection intact so an
+        # open transaction can still roll back.
+        def unresolvable_zone(zone_name) = Types::UnresolvableZonedDateTime.new(zone_name)
       end
     end
   end

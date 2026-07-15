@@ -20,7 +20,7 @@ module Neo4j
           BoltVersion::V5_1.to_i => Protocol::V51,
           BoltVersion::V5_0.to_i => Protocol::V5,
           BoltVersion::V4_4.to_i => Protocol::V44,
-          BoltVersion::V4_3.to_i => Protocol::V4,
+          BoltVersion::V4_3.to_i => Protocol::V43,
           BoltVersion::V4_2.to_i => Protocol::V4,
           BoltVersion::V3_0.to_i => Protocol::V3
         }.freeze

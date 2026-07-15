@@ -15,6 +15,11 @@ module Neo4j
           def configure_packer(packer)
             packer.use_utc_datetime = true
           end
+
+          # 5.0+ makes UTC-seconds datetimes native, so drop the "utc" HELLO
+          # patch V43 added — V43#hello_extra (inherited via V44) merges this
+          # empty map, so 5.0 sends no patch_bolt.
+          def patch_bolt_extra = {}
         end
       end
     end

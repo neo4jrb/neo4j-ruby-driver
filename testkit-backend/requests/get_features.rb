@@ -44,7 +44,7 @@ module TestkitBackend
         'Feature:Bolt:6.0'                                  => 'jar',
         'Feature:Bolt:6.1'                                  => '',
         'Feature:Bolt:HandshakeManifestV1'                  => 'jar',
-        'Feature:Bolt:Patch:UTC'                            => 'ja',
+        'Feature:Bolt:Patch:UTC'                            => 'jar',
 
         # --- TLS -------------------------------------------------------------
         # Bolt::TlsConfig pins the client to a min of TLS 1.2 — so
@@ -102,7 +102,7 @@ module TestkitBackend
         'Feature:API:Summary:GqlStatusObjects'              => 'ja',
         'Feature:API:Summary:Profile:OptionalStats'         => '',
         'Feature:API:Type.Spatial'                          => '',
-        'Feature:API:Type.Temporal'                         => 'ja',  # jruby: wraps Java's temporal types directly; MRI ('r') still has subtest gating gaps
+        'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
         'Feature:API:Type.UnsupportedType'                  => 'ja',
         'Feature:API:Type.UUID'                             => '',
         'Feature:API:Type.Vector'                           => '',

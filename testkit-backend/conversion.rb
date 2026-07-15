@@ -61,6 +61,12 @@ module TestkitBackend
             named_entity('CypherUnsupportedType', name: object.name,
                          minimumProtocol: object.min_protocol_version,
                          message: object.message.or_else(nil))
+          when Neo4j::Driver::Types::UnresolvableZonedDateTime
+            # A datetime whose zone id the driver couldn't resolve — using it
+            # raises the driver error (naming the zone), which the request
+            # rescue maps to a DriverError for the client. Deferred to here so
+            # the connection survived hydration and the tx can roll back.
+            raise object.error
           else
             raise "Not implemented #{object.class.name}:#{object.inspect}"
           end
