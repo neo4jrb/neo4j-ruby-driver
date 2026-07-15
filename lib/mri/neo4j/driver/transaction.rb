@@ -6,10 +6,14 @@ module Neo4j
     class Transaction
       attr_reader :connection
 
-      def initialize(connection, session, bookmarks = [], options = {}, telemetry_api: nil, telemetry_ack: nil, on_release: nil)
+      def initialize(connection, session, bookmarks = [], options = {}, telemetry_api: nil, telemetry_ack: nil,
+                     pipelined: false, on_release: nil)
         @connection = connection
         @session = session
         @options = options
+        # executeQuery pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining):
+        # BEGIN's reply is read only after the first RUN+PULL are flushed, not eagerly.
+        @pipelined = pipelined
         @on_release = on_release  # called once when the connection is no longer needed
         @open = true
         @committed = false
@@ -37,22 +41,23 @@ module Neo4j
         }
         begin_extra.reject!(&Internal::Extras::BLANK)
 
-        # TELEMETRY (api = 0 managed / 1 explicit) pipelined ahead of BEGIN when
-        # the server opted in and the driver didn't disable it; its SUCCESS is
-        # read first.
-        telemetry_sent = @connection.telemetry(telemetry_api, disabled: options[:telemetry_disabled])
+        # TELEMETRY (api = 0 managed / 1 explicit / 3 executeQuery) pipelined
+        # ahead of BEGIN when the server opted in and the driver didn't disable
+        # it; its SUCCESS is read first (see #ack_begin!).
+        @telemetry_sent = @connection.telemetry(telemetry_api, disabled: options[:telemetry_disabled])
+        @telemetry_ack = telemetry_ack
         # Session-level NotificationsConfig rides on BEGIN (5.2+); the tx's own
         # RUNs carry none. nil / pre-5.2 => no notification keys on the wire.
         @connection.send_message(@connection.protocol.build_begin(begin_extra,
                                                                   notification_config: options[:notification_config]))
         @connection.flush
 
-        if telemetry_sent
-          @connection.fetch_response.assert_success!
-          # The server acknowledged telemetry; a managed-tx retry won't re-send it.
-          telemetry_ack&.call
-        end
-        @connection.fetch_response.assert_success!
+        # Non-pipelined: read BEGIN's reply now, a plain round-trip (unchanged).
+        # Pipelined (executeQuery): defer it so the first #run can flush RUN+PULL
+        # before we block — a pipelining server withholds BEGIN's SUCCESS until it
+        # has all three. #ack_begin! drains it after that flush.
+        @begin_acked = false
+        ack_begin! unless @pipelined
       rescue Exceptions::Neo4jException => e
         # Classify first so the auth-token manager is notified and the
         # connection is flagged for discard on an auth failure (the server
@@ -116,6 +121,11 @@ module Neo4j
             @connection.send_message(@connection.protocol.build_run(query, parameters, {}))
             @connection.send_message(@connection.protocol.build_pull(n: fetch_size), handler)
             @connection.flush
+            # Drain the pipelined BEGIN (+telemetry) reply now that RUN+PULL are on
+            # the wire — no-op unless this is the pipelined first run. A BEGIN that
+            # failed surfaces here and is handled as a run failure below; the tx
+            # then rolls back on its way out, resetting the connection.
+            ack_begin!
             @connection.fetch_response.assert_success!
           rescue Exceptions::Neo4jException => e
             @failed = true
@@ -181,6 +191,18 @@ module Neo4j
       def rollback
         raise Exceptions::ClientException, 'Transaction is already closed' unless @open
 
+        # A pipelined executeQuery tx whose query never ran (e.g. failed local
+        # validation) left BEGIN's reply unread; drain it so it isn't mistaken for
+        # the ROLLBACK reply. A BEGIN that actually failed leaves the connection
+        # FAILED — mark it so the reset path below cleans up.
+        unless @begin_acked
+          begin
+            ack_begin!
+          rescue Exceptions::Neo4jException
+            @failed = true
+          end
+        end
+
         # A terminated tx left the connection FAILED: don't drain open results
         # (that would send PULL/DISCARD the server rejects) — just RESET.
         if terminated?
@@ -238,6 +260,22 @@ module Neo4j
       end
 
       private
+
+      # Read the deferred BEGIN acknowledgement (and the telemetry SUCCESS
+      # pipelined ahead of it). Idempotent: called once — eagerly in #initialize
+      # for a normal tx, or after the first RUN+PULL flush for a pipelined
+      # executeQuery (and defensively before ROLLBACK if that query never ran).
+      def ack_begin!
+        return if @begin_acked
+        @begin_acked = true
+
+        if @telemetry_sent
+          @connection.fetch_response.assert_success!
+          # The server acknowledged telemetry; a managed-tx retry won't re-send it.
+          @telemetry_ack&.call
+        end
+        @connection.fetch_response.assert_success!
+      end
 
       # The transaction is terminated once a server failure has hit it — either
       # a tx method caught it (@failed) or any open result failed during the
