@@ -37,10 +37,12 @@ module Neo4j
           when Hash
             # Check Hash before Enumerable since Hash is also Enumerable
             pack_map(value)
-          when Types::Node, Types::Relationship, Types::Path
-            # Graph types are not valid query parameters. Reject before the
-            # Enumerable branch since Path includes Enumerable.
-            raise Exceptions::ClientException, "Unable to convert #{value.class} to Neo4j Value."
+          when Types::Node, Types::Relationship, Types::Path, Types::UnsupportedType
+            # Graph types are not valid query parameters; neither is an
+            # UnsupportedType (a value the driver couldn't materialise — it
+            # must not be sent back to the server). Reject before the Enumerable
+            # branch since Path includes Enumerable.
+            Exceptions::ClientException.unable_to_convert(value)
           when Array, Set, Range
             # Known sized collections — pack_list uses #size, which is O(1) here.
             pack_list(value)
@@ -66,7 +68,7 @@ module Neo4j
           when Types::Duration
             pack_duration(value)
           else
-            raise Exceptions::ClientException, "Unable to convert #{value.class} to Neo4j Value."
+            Exceptions::ClientException.unable_to_convert(value)
           end
           self
         end

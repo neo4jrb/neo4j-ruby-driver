@@ -41,6 +41,10 @@ module Neo4j
       Node = Java::OrgNeo4jDriverInternal::InternalNode
       Path = Java::OrgNeo4jDriverInternal::InternalPath
       Relationship = Java::OrgNeo4jDriverInternal::InternalRelationship
+      # Bolt 6.0 forward-compat marker. Aliasing the Java type here lets the
+      # testkit backend match it with the same `Neo4j::Driver::Types::
+      # UnsupportedType` case MRI uses (which has its own pure-Ruby class).
+      UnsupportedType = Java::OrgNeo4jDriverTypes::UnsupportedType
     end
   end
 end
@@ -61,6 +65,7 @@ Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::StartEndN
 Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
 Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::InternalRelationship
+Java::OrgNeo4jDriverInternal::InternalUnsupportedType.prepend Neo4j::Driver::Ext::UnsupportedType
 Java::OrgNeo4jDriverInternal::InternalResult.prepend Neo4j::Driver::Ext::InternalResult
 Java::OrgNeo4jDriverInternal::InternalSession.prepend Neo4j::Driver::Ext::InternalSession
 Java::OrgNeo4jDriverInternal::InternalTransaction.prepend Neo4j::Driver::Ext::InternalTransaction
