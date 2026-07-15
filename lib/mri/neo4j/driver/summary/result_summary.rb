@@ -151,14 +151,17 @@ module Neo4j
         # else -> 03N42; the notification facets move into the diagnostic
         # record under `_severity` / `_classification` / `_position`.
         def notification_as_status(notification)
-          warning = notification[:severity] == 'WARNING'
+          # Old wire format carries :severity, newer :severityLevel — read both,
+          # matching Summary::Notification.
+          severity = notification[:severityLevel] || notification[:severity]
+          warning = severity == 'WARNING'
           description = notification[:description] unless notification[:description] == 'null'
           {
             gql_status: warning ? '01N42' : '03N42',
             status_description: description || (warning ? 'warn: unknown warning' : 'info: unknown notification'),
             neo4j_code: notification[:code],
             title: notification[:title],
-            diagnostic_record: { _severity: notification[:severity], _classification: notification[:category],
+            diagnostic_record: { _severity: severity, _classification: notification[:category],
                                  _position: notification[:position] }.compact
           }
         end
