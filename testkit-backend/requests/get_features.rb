@@ -123,7 +123,7 @@ module TestkitBackend
         'Optimization:MinimalResets'                        => '',  # disabled in Java too
         'Optimization:MinimalVerifyAuthentication'          => '',
         'Optimization:PullPipelining'                       => 'jar',
-        'Optimization:ResultListFetchAll'                   => 'ja',
+        'Optimization:ResultListFetchAll'                   => 'jar',
 
         # --- Backend / detail ------------------------------------------------
         'Backend:MockTime'                                  => 'jar',
