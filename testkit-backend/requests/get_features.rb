@@ -115,7 +115,7 @@ module TestkitBackend
         'Optimization:AuthPipelining'                       => 'ja',
         'Optimization:ConnectionReuse'                      => '',  # disabled in Java too
         'Optimization:EagerTransactionBegin'                => 'jar',
-        'Optimization:ExecuteQueryPipelining'               => 'ja',
+        'Optimization:ExecuteQueryPipelining'               => 'jar',
         'Optimization:HomeDatabaseCache'                    => 'ja',
         'Optimization:HomeDbCacheBasicPrincipalIsImpersonatedUser'  => '',
         'Optimization:ImplicitDefaultArguments'             => 'ja',

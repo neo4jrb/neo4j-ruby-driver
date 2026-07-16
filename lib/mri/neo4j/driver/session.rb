@@ -485,6 +485,9 @@ module Neo4j
         tx_options = tx_options.merge(database: operation_database(bookmarks)).compact
         Transaction.new(connection, self, bookmarks, tx_options, telemetry_api: telemetry_api,
                         telemetry_ack: telemetry_ack,
+                        # executeQuery's session reports telemetry api 3 (DRIVER_EXECUTE_QUERY);
+                        # only that path pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining).
+                        pipelined: @options[:telemetry_api] == 3,
                         on_release: -> { @connection_provider.release(connection) })
       end
     end
