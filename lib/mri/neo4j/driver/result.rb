@@ -45,6 +45,7 @@ module Neo4j
         @discarded = false  # records explicitly released; further access raises
         @failed = false     # stream ended with a server FAILURE; connection needs RESET
         @cancelling = false # consume(): abandon the rest — DISCARD the next batch instead of PULL
+        @list_mode = false  # to_a/list: pull all remaining in one PULL {n: -1}, ignoring fetch_size
         @peeked_record = nil
       end
 
@@ -107,6 +108,10 @@ module Neo4j
       def to_a
         raise Exceptions::ResultConsumedException if @discarded
 
+        # Result.list ignores the configured fetch size: pull everything still on
+        # the server in a single PULL {n: -1} instead of paging (Optimization:
+        # ResultListFetchAll). The next watermark pull picks this up.
+        @list_mode = true
         records = []
         records << self.next while has_next?
         records
@@ -238,7 +243,9 @@ module Neo4j
         # and single-result transactions never demote, so they keep sending the
         # bare {n} the stub scripts expect (qid is optional there).
         extra = @demoted && @qid ? { qid: @qid } : {}
-        message = @cancelling ? @connection.protocol.build_discard(extra) : @connection.protocol.build_pull(extra.merge(n: @fetch_size))
+        # list mode pulls all remaining records at once (n: -1); otherwise page by fetch_size.
+        n = @list_mode ? -1 : @fetch_size
+        message = @cancelling ? @connection.protocol.build_discard(extra) : @connection.protocol.build_pull(extra.merge(n:))
         @connection.send_message(message, @handler)
         @connection.flush
       end
