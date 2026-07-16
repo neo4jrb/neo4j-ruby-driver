@@ -191,17 +191,12 @@ module Neo4j
       def rollback
         raise Exceptions::ClientException, 'Transaction is already closed' unless @open
 
-        # A pipelined executeQuery tx whose query never ran (e.g. failed local
-        # validation) left BEGIN's reply unread; drain it so it isn't mistaken for
-        # the ROLLBACK reply. A BEGIN that actually failed leaves the connection
-        # FAILED — mark it so the reset path below cleans up.
-        unless @begin_acked
-          begin
-            ack_begin!
-          rescue Exceptions::Neo4jException
-            @failed = true
-          end
-        end
+        # A pipelined executeQuery tx whose query never ran (e.g. local validation
+        # failed before RUN/PULL were sent) left BEGIN's reply unread — and a
+        # pipelining server may withhold it until RUN/PULL arrive, which now never
+        # will. RESET rolls the tx back and drains any pending reply without a
+        # blocking read that could deadlock; there are no open results to discard.
+        return rollback_via_reset unless @begin_acked
 
         # A terminated tx left the connection FAILED: don't drain open results
         # (that would send PULL/DISCARD the server rejects) — just RESET.
