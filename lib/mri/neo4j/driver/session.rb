@@ -74,10 +74,6 @@ module Neo4j
 
         connection = acquire_connection(session_access_mode)
         fetch_size = effective_fetch_size
-        # TELEMETRY 2 = auto-commit, pipelined ahead of RUN once (not resent on an
-        # idempotent retry) when the server opted in and the driver didn't disable
-        # it; its SUCCESS is read before the RUN reply.
-        telemetry_pending = connection.telemetry(2, disabled: @options[:telemetry_disabled])
         # Feature:IdempotentRetries — an auto-commit RUN whose failure the server
         # flags `_idempotent` may be retried once: RESET clears the FAILED state
         # (and drains the pipelined PULL's IGNORED), then RUN+PULL are re-sent
@@ -86,6 +82,8 @@ module Neo4j
         retries_left = auto_commit_retries_enabled? ? 1 : 0
 
         buffer = handler = run_response = nil
+        telemetry_sent = false    # TELEMETRY 2 = auto-commit; sent once, never resent on a retry
+        telemetry_pending = false # its (opted-in) SUCCESS is still owed
         loop do
           # A fresh stream per attempt — a prior attempt's buffer saw the IGNORED.
           buffer = Bolt::RecordBuffer.new(fetch_size: fetch_size)
@@ -96,6 +94,12 @@ module Neo4j
           stage = nil
           run_response =
             begin
+              # TELEMETRY is pipelined ahead of the first RUN when the server opted
+              # in; kept inside this block so a send failure still releases the lease.
+              unless telemetry_sent
+                telemetry_sent = true
+                telemetry_pending = connection.telemetry(2, disabled: @options[:telemetry_disabled])
+              end
               # Auto-commit RUN carries this session's NotificationsConfig (5.2+);
               # the tx path puts it on BEGIN instead. nil / non-5.2 => absent.
               connection.send_message(connection.protocol.build_run(query, parameters, run_extra,
@@ -110,6 +114,13 @@ module Neo4j
               stage = :run
               connection.fetch_response.assert_success!
             rescue Exceptions::Neo4jException => e
+              # Classify first: this notifies the auth-token manager (and, for a
+              # security failure, sets auth_failed so the guards below hold) and,
+              # for routed connections, fires on_write_failure / deactivate and
+              # swaps NotALeader for SessionExpired. assert_success! raises
+              # *outside* RoutedConnection's wrapper, so this is the only place the
+              # classifier sees FAILURE responses to RUN.
+              classified = connection.classify_failure(e)
               if stage == :run && retries_left.positive? && idempotent_error?(e) && !connection.auth_failed
                 retries_left -= 1
                 # RESET clears FAILED and drains the abandoned RUN/PULL replies.
@@ -117,13 +128,6 @@ module Neo4j
                 retry_run = true
                 nil
               else
-                # Classify first: this notifies the auth-token manager (and may
-                # flag the connection for discard on an auth failure) and, for
-                # routed connections, fires on_write_failure / deactivate and
-                # swaps NotALeader for SessionExpired. assert_success! raises
-                # *outside* RoutedConnection's wrapper, so this is the only place
-                # the classifier sees FAILURE responses to RUN.
-                classified = connection.classify_failure(e)
                 # Server is in FAILED state; RESET so the connection is immediately
                 # reusable — but not if it's being discarded (auth failure: the
                 # server closes it, RESET would just error).
