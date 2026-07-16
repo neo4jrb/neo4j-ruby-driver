@@ -6,9 +6,9 @@ module Neo4j
     # (Feature:IdempotentRetries) — the MRI counterpart of the Java driver's
     # org.neo4j.driver.AutoCommitRetriesMode enum. Same constant names, MRI's
     # own (symbol) values, mirroring how AccessMode/RoutingControl are defined
-    # here. Defined so the shared testkit-backend can name the mode
-    # flavor-agnostically; the pure-Ruby Bolt 6.0 retry path is not yet
-    # implemented, so MRI does not act on it.
+    # here. Session#run acts on it (together with the driver-level
+    # `auto_commit_retries_disabled` default) to retry an idempotent auto-commit
+    # RUN once — see Session#auto_commit_retries_enabled?.
     module AutoCommitRetriesMode
       ENABLED = :enabled
       DISABLED = :disabled

@@ -109,7 +109,7 @@ module TestkitBackend
 
         # --- Other features --------------------------------------------------
         'Feature:Impersonation'                             => 'jar',
-        'Feature:IdempotentRetries'                         => 'ja',
+        'Feature:IdempotentRetries'                         => 'jar',
 
         # --- Optimizations ---------------------------------------------------
         'Optimization:AuthPipelining'                       => 'ja',
