@@ -136,7 +136,7 @@ module TestkitBackend
         # ClusterComposition parameters not yet wired from Ruby), so only
         # MRI advertises it.
         'Backend:RTForceUpdate'                             => 'r',
-        'ConfHint:connection.recv_timeout_seconds'          => 'ja',
+        'ConfHint:connection.recv_timeout_seconds'          => 'jar',
         'Detail:ClosedDriverIsEncrypted'                    => '',
         'Detail:DefaultSecurityConfigValueEquality'         => 'ja',
         'Detail:NumberIsNumber'                             => 'jr'
