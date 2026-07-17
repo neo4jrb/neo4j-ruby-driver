@@ -18,6 +18,10 @@ module Neo4j
         @open = true
         @last_bookmarks = Set.new
         @current_result = nil
+        # The home database this session pinned after its first resolution
+        # (Optimization:HomeDatabaseCache); nil until then / for explicit-db sessions.
+        @pinned_database = nil
+        @used_guess = false  # whether an operation optimistically guessed the home db
         @bookmark_manager = options[:bookmark_manager]
         # The bookmark snapshot we sent on the most recent BEGIN — used
         # as `previous_bookmarks` when forwarding to the manager so it
@@ -62,8 +66,13 @@ module Neo4j
         # the named user had issued it — auth as the session's user,
         # authz as the impersonated one.
         bookmarks = current_bookmarks_for_extra
+        # Acquire (with its own bookmark snapshot) so the home-db cache can pick
+        # the routing table: on a cache guess the RUN sends db=nil (server
+        # re-resolves), otherwise it pins the discovered name. run_db carries
+        # whichever applies; run_extra keeps this operation's bookmark snapshot.
+        connection, run_db = acquire_for_operation(session_access_mode)
         run_extra = {
-          db: operation_database(bookmarks),
+          db: run_db,
           mode: (session_access_mode == :read ? 'r' : nil),
           tx_timeout: timeout_to_milliseconds(timeout),
           tx_metadata:,
@@ -72,7 +81,6 @@ module Neo4j
         }
         run_extra.reject!(&Internal::Extras::BLANK)
 
-        connection = acquire_connection(session_access_mode)
         fetch_size = effective_fetch_size
         # Feature:IdempotentRetries — an auto-commit RUN whose failure the server
         # flags `_idempotent` may be retried once: RESET clears the FAILED state
@@ -144,6 +152,10 @@ module Neo4j
             end
           break unless retry_run
         end
+
+        # A home-db RUN that sent db=nil comes back with the server's resolved
+        # home database — cache it so the next same-identity session can guess.
+        cache_home_db_from(run_response)
 
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
         @current_result = Result.new(
@@ -272,56 +284,81 @@ module Neo4j
       # `bookmarks` is the snapshot the caller is already using for this
       # operation's wire `bookmarks` — passed in (not recomputed) so a single
       # operation never takes two different BookmarkManager snapshots.
-      def operation_database(bookmarks)
-        return @options[:database] if @options[:database]
-        return @home_database if defined?(@home_database)
-
-        # Resolution goes through discovery, so it must carry the same
-        # identity/impersonation context as the operation's own acquire —
-        # otherwise a per-session token or a pre-4.4 impersonation attempt
-        # would be evaluated under the wrong identity (session-auth routing)
-        # or surface as a discovery ServiceUnavailable instead of the
-        # ClientException the caller expects.
-        @home_database = @connection_provider.home_database(
-          bookmarks, @options[:impersonated_user], @options[:auth_token]
-        )
-      end
-
-      def acquire_connection(access_mode)
-        # The identity is resolved and applied by the connection provider
-        # (it owns the pool, so it knows whether a popped connection is fresh
-        # — built with the right token already — or a reused one that must be
-        # re-authed). We only hand it the per-session override: a non-nil
-        # `:auth_token` pins this session to that identity (matches Java's
-        # SessionConfig.withAuthToken so the JRuby ConfigConverter delegates
-        # via with_auth_token without special-casing). nil means "use the
-        # auth-token manager's current token", and the provider consults the
-        # manager exactly as many times as the path needs (once for direct,
-        # once for discovery + once for the worker on routing) — never an
-        # extra time for a redundant re-auth.
-        # Snapshot the bookmarks once: current_bookmarks_for_extra consults the
-        # BookmarkManager and records @bookmarks_used_on_begin, so a second call
-        # could take a different snapshot — home-db discovery must route with the
-        # same bookmarks the acquire threads on the wire.
+      # Acquire the operation's connection and decide the db it should send
+      # (Optimization:HomeDatabaseCache). Returns [connection, run_db]:
+      #   - explicit :database  -> acquire against it, send it.
+      #   - home-db + cache guess (SSR pool) -> acquire against the guessed home
+      #     db (reuses its routing table, no discovery) but send db=nil so the
+      #     server re-resolves; unless the acquired connection turns out non-SSR
+      #     (a mixed cluster can't re-route), in which case fall back to explicit
+      #     discovery and pin the resolved name.
+      #   - home-db, no guess -> discover, pin, send the resolved name.
+      def acquire_for_operation(access_mode)
+        # Its own bookmark snapshot for discovery/acquire — distinct from the
+        # RUN/BEGIN extra's snapshot, so a BookmarkManager supplier is consulted
+        # once per acquire (matching the reference drivers / the bookmark-manager
+        # tests), and home-db discovery routes with a fresh set.
         bookmarks = current_bookmarks_for_extra
-        @connection_provider.acquire(
-          access_mode: access_mode,
-          # Hand the provider the resolved database: for a home-db session
-          # (nil :database on a routing driver) operation_database runs
-          # discovery once and memoizes the resolved name, so the acquire
-          # reuses the table already cached under that name instead of
-          # re-routing. Explicit :database and the direct provider pass through
-          # unchanged (nil stays nil).
-          database: operation_database(bookmarks),
-          bookmarks: bookmarks,
-          # Threaded into routing discovery so the ROUTE call enforces
-          # impersonation support (Bolt 4.4+) before sending; the direct
-          # provider ignores it (RUN/BEGIN enforce it instead).
-          imp_user: @options[:impersonated_user],
-          auth: @options[:auth_token]
-        )
+        explicit = @options[:database]
+        return [do_acquire(access_mode, explicit, bookmarks), explicit] if explicit
+        # Once this session has resolved its home db, pin it for the rest of the
+        # session — later runs send it explicitly so a re-resolving server can't
+        # move the session to a different database mid-flight.
+        return [do_acquire(access_mode, @pinned_database, bookmarks), @pinned_database] if @pinned_database
+
+        imp_user = @options[:impersonated_user]
+        auth = @options[:auth_token]
+        # Guess only pays off when we already hold a fresh routing table for it:
+        # acquire against that table and send db=nil so the server resolves the
+        # real home db. If its table is stale (or the connection turns out
+        # non-SSR), fall through to explicit discovery — a ROUTE with db=nil that
+        # authoritatively resolves and pins the home db. The optimistic acquire
+        # and the fallback share one acquisition-timeout deadline.
+        guess = @connection_provider.home_db_guess(imp_user, auth)
+        if guess && @connection_provider.routing_table_fresh?(guess, access_mode)
+          deadline = acquisition_deadline
+          connection = do_acquire(access_mode, guess, bookmarks, deadline)
+          if connection.ssr_enabled?
+            # A real guess: the reply's db will pin the session (cache_home_db_from).
+            @used_guess = true
+            return [connection, nil]
+          end
+
+          @connection_provider.release(connection)
+          resolved = @connection_provider.home_database(bookmarks, imp_user, auth)
+          @pinned_database = resolved
+          return [do_acquire(access_mode, resolved, bookmarks, deadline), resolved]
+        end
+        resolved = @connection_provider.home_database(bookmarks, imp_user, auth)
+        @pinned_database = resolved
+        [do_acquire(access_mode, resolved, bookmarks), resolved]
       end
 
+      def do_acquire(access_mode, database, bookmarks, deadline = nil)
+        @connection_provider.acquire(access_mode: access_mode, database: database, bookmarks: bookmarks,
+                                     imp_user: @options[:impersonated_user], auth: @options[:auth_token],
+                                     deadline: deadline)
+      end
+
+      # A single acquisition-timeout deadline (monotonic seconds) so a guessed
+      # acquire and its fallback share one budget, matching the reference drivers.
+      def acquisition_deadline
+        @clock.monotonic + (@options[:connection_acquisition_timeout]&.to_f || 60)
+      end
+
+      # Record the server's resolved home database from a RUN/BEGIN reply, so a
+      # later same-identity session guesses it. No-op for explicit-db sessions
+      # (their reply omits db) and the direct provider (cache_home_db is a no-op).
+      def cache_home_db_from(response)
+        db = response.metadata[:db]
+        return if db.nil? || @options[:database]
+
+        # First guess-based run learns the real home db from the reply — pin it
+        # for the session (only when we actually guessed; direct drivers never
+        # pin) and remember it for the driver-wide cache.
+        @pinned_database ||= db if @used_guess
+        @connection_provider.cache_home_db(@options[:impersonated_user], @options[:auth_token], db)
+      end
 
       # Current bookmark snapshot as a plain array of strings, ready
       # for the wire. Returns nil when empty so the BEGIN/RUN extras
@@ -515,27 +552,22 @@ module Neo4j
       end
 
       def open_transaction(op_mode, tx_options, telemetry_api:, telemetry_ack: nil)
-        # Acquire first: acquire_connection drives routing discovery (which
-        # resolves the home database), so by the time we read the BEGIN
-        # snapshot below the routing table is fresh and operation_database
-        # needs no extra round-trip.
-        connection = acquire_connection(op_mode)
-        # Take the BEGIN bookmark snapshot once — after acquire so it reflects
-        # the latest BookmarkManager state — and reuse it for the home-db
-        # resolution, so a single transaction never takes two different
-        # snapshots. current_bookmarks_for_extra also records
-        # @bookmarks_used_on_begin so the commit-time update_bookmarks reports
-        # the right `previous` set.
+        # Acquire and decide the BEGIN db together (Optimization:HomeDatabaseCache):
+        # a cache guess picks the routing table and sends db=nil; otherwise the
+        # discovered/pinned name is sent. It takes its own bookmark snapshot for
+        # discovery. begin_db is dropped when nil via compact.
+        connection, begin_db = acquire_for_operation(op_mode)
+        # The BEGIN's own snapshot, taken last so current_bookmarks_for_extra
+        # records @bookmarks_used_on_begin as the set actually sent on BEGIN (the
+        # commit-time update_bookmarks reports it as `previous`).
         bookmarks = current_bookmarks_for_extra
-        # Resolved home database (nil = let the server resolve it), so the
-        # explicit/managed-tx BEGIN carries the same `db` as the auto-commit
-        # path. Dropped when nil via compact.
-        tx_options = tx_options.merge(database: operation_database(bookmarks)).compact
+        tx_options = tx_options.merge(database: begin_db).compact
         Transaction.new(connection, self, bookmarks, tx_options, telemetry_api: telemetry_api,
                         telemetry_ack: telemetry_ack,
                         # executeQuery's session reports telemetry api 3 (DRIVER_EXECUTE_QUERY);
                         # only that path pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining).
                         pipelined: @options[:telemetry_api] == 3,
+                        on_begin: method(:cache_home_db_from),
                         on_release: -> { @connection_provider.release(connection) })
       end
     end

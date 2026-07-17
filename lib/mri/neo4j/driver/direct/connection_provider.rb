@@ -41,6 +41,12 @@ module Neo4j
         # unset (matches Java's DirectConnectionProvider).
         def home_database(_bookmarks, _imp_user = nil, _auth = nil) = nil
 
+        # No home-db cache on the direct path (one server, no discovery to skip):
+        # never guess, never track SSR. Keeps Session polymorphic across providers.
+        def ssr_enabled? = false
+        def home_db_guess(_imp_user, _auth) = nil
+        def cache_home_db(_imp_user, _auth, _database) = nil
+
         # The current default identity, sourced from the auth-token
         # manager (which refreshes / re-fetches as needed). Sessions
         # re-auth pooled connections to this on acquire unless they carry
@@ -68,7 +74,7 @@ module Neo4j
         # Routing::LoadBalancer#acquire but unused here: the direct path
         # has no discovery, so impersonation is enforced on RUN/BEGIN by
         # the protocol handler (Bolt::Protocol::Base#enforce_impersonation_support!).
-        def acquire(access_mode: nil, database: nil, bookmarks: nil, imp_user: nil, auth: nil)
+        def acquire(access_mode: nil, database: nil, bookmarks: nil, imp_user: nil, auth: nil, deadline: nil)
           # See Routing::LoadBalancer#acquire for the rationale.
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
@@ -92,7 +98,7 @@ module Neo4j
             # connection's stamp (in ensure_identity) use one consistent value.
             epoch = auth_epoch
             effective = auth || @auth_manager.get_token
-            conn = pool.pop(auth: effective)
+            conn = pool.pop(auth: effective, deadline: deadline)
             begin
               ensure_identity(conn, effective, session_auth: auth, epoch: epoch)
             rescue StandardError
@@ -228,12 +234,12 @@ module Neo4j
             size: max_pool_size,
             options: @options,
             clock: @clock,
-            connect_factory: lambda { |auth|
+            connect_factory: lambda { |auth, deadline = nil|
               # `auth` is the per-acquire identity resolved in #acquire and
               # threaded through pool.pop. The `||` is a belt-and-braces
               # fallback for any future pop path that forgets to pass one.
               conn = Bolt::Connection.new(@uri, auth || @auth_manager.get_token, @options,
-                                          domain_name_resolver: @domain_name_resolver, clock: @clock).connect
+                                          domain_name_resolver: @domain_name_resolver, clock: @clock).connect(deadline: deadline)
               conn.security_exception_handler = method(:on_security_exception)
               # A freshly-authenticated connection belongs to the current
               # auth generation, so ensure_identity won't force-re-auth it.

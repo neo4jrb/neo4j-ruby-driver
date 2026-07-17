@@ -53,7 +53,7 @@ module Neo4j
                        :fetch_response, :fetch_all,
                        :reset!, :route,
                        :auth, :driver_auth, :authenticate,
-                       :auth_failed, :notify_security_exception
+                       :auth_failed, :notify_security_exception, :ssr_enabled?
 
         # Run a caught exception through the routing classifier:
         # - ServiceUnavailableException → deactivate(address); mark
