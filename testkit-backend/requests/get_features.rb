@@ -118,7 +118,7 @@ module TestkitBackend
         'Optimization:ExecuteQueryPipelining'               => 'jar',
         'Optimization:HomeDatabaseCache'                    => 'ja',
         'Optimization:HomeDbCacheBasicPrincipalIsImpersonatedUser'  => '',
-        'Optimization:ImplicitDefaultArguments'             => 'ja',
+        'Optimization:ImplicitDefaultArguments'             => 'jar',
         'Optimization:MinimalBookmarksSet'                  => '',
         'Optimization:MinimalResets'                        => '',  # disabled in Java too
         'Optimization:MinimalVerifyAuthentication'          => '',
