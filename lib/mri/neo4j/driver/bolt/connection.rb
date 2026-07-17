@@ -78,6 +78,9 @@ module Neo4j
           # pops, both colorless (yields under a Fiber scheduler).
           @inbox = Thread::Queue.new
           @collector = ResponseCollector.new(@inbox)
+          # LOGOFF/LOGON replies pipelined ahead of the next operation and not yet
+          # consumed (Optimization:AuthPipelining).
+          @pending_auth_acks = 0
           @recv_timeout = nil # server's connection.recv_timeout_seconds hint
           @read_deadline = nil # monotonic bound for acquisition-phase reads
           # Writes go behind a mutex: the reader writes watermark follow-up
@@ -271,7 +274,7 @@ module Neo4j
         # connection already holds the target identity — unless `force`
         # (an AuthorizationExpired-driven refresh re-auths to the *same*
         # token to refresh the server's authorization cache).
-        def authenticate(new_auth, force: false)
+        def authenticate(new_auth, force: false, pipelined: true)
           return if !force && @auth == new_auth
           unless @protocol&.supports_re_auth?
             raise Exceptions::UnsupportedFeatureException,
@@ -280,10 +283,25 @@ module Neo4j
 
           send_message(Message.logoff)
           send_message(Message.logon(new_auth || {}))
-          flush
-          fetch_response.assert_success!
-          fetch_response.assert_success!
           @auth = new_auth
+          # AuthPipelining: enqueue LOGOFF + LOGON but don't flush or read their
+          # replies — they ride out with the next operation's messages and are
+          # consumed (via #drain_pending_auth_acks, from the next #fetch_response)
+          # just before that operation reads its own reply, saving a round-trip.
+          # A rejected LOGON surfaces there as the auth failure (the operation's
+          # own message is IGNORED). @auth is set optimistically; a failed re-auth
+          # discards the connection, so a stale value never gets reused.
+          #
+          # pipelined: false forces the synchronous round-trip — verify_authentication
+          # re-auths then discards the connection with no operation to carry (and
+          # drain) the replies, and must see the LOGON's success/failure itself.
+          if pipelined
+            @pending_auth_acks += 2
+          else
+            flush
+            fetch_response.assert_success!
+            fetch_response.assert_success!
+          end
         end
 
         # True when the connection's current identity came from a per-session
@@ -550,13 +568,33 @@ module Neo4j
         # records @broken_error, so a blocked pop wakes with nil and re-raises the
         # classified error rather than hanging.
         def fetch_response
-          # Acquisition phase (no reader yet): drive the reads ourselves. Steady
-          # state: the reader fills @inbox; block on pop until it delivers.
+          # A pipelined re-auth's LOGOFF/LOGON replies sit ahead of this
+          # operation's own reply — consume them first (AuthPipelining).
+          drain_pending_auth_acks
+          pop_inbox
+        end
+
+        # Pop the next sync reply. Acquisition phase (no reader yet): drive the
+        # reads ourselves. Steady state: the reader fills @inbox; block on pop
+        # until it delivers. On a connection failure the reader closes @inbox and
+        # records @broken_error, so a blocked pop wakes with nil and re-raises.
+        def pop_inbox
           advance while @reader.nil? && @inbox.empty?
           message = @inbox.pop
           raise @broken_error if message.nil? && @broken_error
 
           message
+        end
+
+        # Consume the replies to a pipelined re-auth's LOGOFF + LOGON before the
+        # next operation reads its own reply. A rejected LOGON raises the auth
+        # failure here (its follow-on messages come back IGNORED).
+        def drain_pending_auth_acks
+          return if @pending_auth_acks.zero?
+
+          pending = @pending_auth_acks
+          @pending_auth_acks = 0
+          pending.times { pop_inbox.assert_success! }
         end
 
         def fetch_all
@@ -584,6 +622,9 @@ module Neo4j
           # probe, so a failure must surface (and the dead connection be
           # discarded) rather than report false success.
           raise if propagate
+        ensure
+          # RESET flushed and drained any pipelined re-auth replies with it.
+          @pending_auth_acks = 0
         end
 
         # True while the caller still owes a fetch: a request whose terminal the

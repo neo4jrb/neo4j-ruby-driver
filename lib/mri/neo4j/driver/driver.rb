@@ -227,8 +227,10 @@ module Neo4j
           # verification has to actually round-trip the credentials to the
           # server, not trust a cached auth state. On a freshly built
           # connection this is a redundant re-auth the scripts tolerate; on a
-          # reused one it's the whole point.
-          connection.authenticate(auth_token, force: true)
+          # reused one it's the whole point. Synchronous (pipelined: false): verify
+          # discards the connection with no operation to carry and drain the
+          # LOGOFF/LOGON replies, so it must read the LOGON result itself.
+          connection.authenticate(auth_token, force: true, pipelined: false)
         ensure
           connection.discard_on_release = true
           @connection_provider.release(connection)

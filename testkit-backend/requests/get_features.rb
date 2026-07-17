@@ -112,7 +112,7 @@ module TestkitBackend
         'Feature:IdempotentRetries'                         => 'jar',
 
         # --- Optimizations ---------------------------------------------------
-        'Optimization:AuthPipelining'                       => 'ja',
+        'Optimization:AuthPipelining'                       => 'jar',
         'Optimization:ConnectionReuse'                      => '',  # disabled in Java too
         'Optimization:EagerTransactionBegin'                => 'jar',
         'Optimization:ExecuteQueryPipelining'               => 'jar',
