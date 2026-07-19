@@ -50,7 +50,7 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
     described_class.new(
       size: 8,
       options: options,
-      connect_factory: ->(_auth) { queue.shift || raise('factory exhausted') }
+      connect_factory: ->(_auth, _deadline = nil) { queue.shift || raise('factory exhausted') }
     )
   end
 
@@ -146,7 +146,7 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       pool = described_class.new(
         size: 1,
         options: { connection_acquisition_timeout: 0.05 },
-        connect_factory: ->(_auth) { connection_class.new.tap { |c| c.created_at = monotonic } }
+        connect_factory: ->(_auth, _deadline = nil) { connection_class.new.tap { |c| c.created_at = monotonic } }
       )
       pool.pop # exhaust the single slot
 
@@ -169,7 +169,7 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       pool = described_class.new(
         size: 1,
         options: { connection_acquisition_timeout: 0.5 },
-        connect_factory: ->(_auth) { sequence.next }
+        connect_factory: ->(_auth, _deadline = nil) { sequence.next }
       )
       pool.pop # `bad` is now the checked-out one
       pool.discard(bad)
@@ -237,7 +237,7 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       pool = described_class.new(
         size: 2,
         options: { connection_liveness_check_timeout: 0.001 },
-        connect_factory: ->(_auth) { sequence.next }
+        connect_factory: ->(_auth, _deadline = nil) { sequence.next }
       )
       pool.pop                     # factory builds `dead` (fresh, no probe) -> in use
       pool.push(dead)              # back to the pool, idle

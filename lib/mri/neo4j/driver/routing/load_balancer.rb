@@ -54,6 +54,35 @@ module Neo4j
           # Monitor (reentrant) because ensure_routing_table_is_fresh holds
           # the lock while it goes through pool_for, which also locks.
           @refresh_lock = Monitor.new
+          # Optimization:HomeDatabaseCache — a driver-wide identity->home-db
+          # cache, consulted only when every open pooled connection advertises
+          # server-side routing (@ssr_with/@ssr_without track that tally, kept
+          # current by track_ssr_open/close as connections open and tear down).
+          @home_db_cache = Internal::HomeDbCache.new
+          @ssr_with = 0
+          @ssr_without = 0
+          @ssr_lock = Mutex.new
+        end
+
+        attr_reader :home_db_cache
+
+        # Home-db cache gate: true when there is at least one open pooled
+        # connection and every one advertised `ssr.enabled`, so the server will
+        # re-route an optimistically guessed home database.
+        def ssr_enabled? = @ssr_lock.synchronize { @ssr_with.positive? && @ssr_without.zero? }
+
+        def track_ssr_open(conn)
+          @ssr_lock.synchronize { conn.ssr_enabled? ? @ssr_with += 1 : @ssr_without += 1 }
+        end
+
+        def track_ssr_close(conn)
+          @ssr_lock.synchronize do
+            if conn.ssr_enabled?
+              @ssr_with -= 1 if @ssr_with.positive?
+            else
+              @ssr_without -= 1 if @ssr_without.positive?
+            end
+          end
         end
 
         # Open (or pop) a connection appropriate for `access_mode` against
@@ -61,7 +90,7 @@ module Neo4j
         # acquire, deactivate on connection failure and try again. Raises
         # ServiceUnavailableException only when the role bucket has been
         # exhausted by deactivations.
-        def acquire(access_mode: :write, database: nil, bookmarks: nil, imp_user: nil, auth: nil)
+        def acquire(access_mode: :write, database: nil, bookmarks: nil, imp_user: nil, auth: nil, deadline: nil)
           # Fast-fail with IllegalStateException for use-after-close.
           # Otherwise the next routing fetch would propagate a generic
           # Connection-refused ServiceUnavailableException, masking the
@@ -115,7 +144,7 @@ module Neo4j
               # Re-resolve per turn (see acquire header): a discard-and-retry
               # on Bolt 5.0 token rotation must issue its own get_token.
               effective = auth || @auth_manager.get_token
-              inner = pool.pop(auth: effective)
+              inner = pool.pop(auth: effective, deadline: deadline)
               begin
                 ensure_identity(inner, effective, session_auth: auth, address: address, epoch: epoch)
               rescue StandardError
@@ -164,7 +193,39 @@ module Neo4j
           # routing driver surfaced the wrong error type.
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
-          ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks, imp_user: imp_user, auth: auth).database
+          resolved = ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks, imp_user: imp_user, auth: auth).database
+          # Remember the authoritative name (Optimization:HomeDatabaseCache) so a
+          # later same-identity session can guess it and skip discovery.
+          cache_home_db(imp_user, auth, resolved)
+          resolved
+        end
+
+        # Optimization:HomeDatabaseCache — this identity's last resolved home
+        # database, or nil when we can't optimistically guess it: no cache entry,
+        # or not every open connection does server-side routing (so the server
+        # might not re-route a stale guess). Used only to pick the routing table
+        # to acquire against — the operation still sends db=null so the server
+        # resolves the real home db.
+        def home_db_guess(imp_user, auth)
+          return nil unless ssr_enabled?
+
+          @home_db_cache.get(@home_db_cache.compute_key(imp_user, auth))
+        end
+
+        # Record the server's resolved home database for this identity.
+        def cache_home_db(imp_user, auth, database)
+          @home_db_cache.set(@home_db_cache.compute_key(imp_user, auth), database)
+        end
+
+        # Whether a usable table for `database` is already cached — so acquiring
+        # against it won't ROUTE. The home-db cache uses this to decide whether a
+        # guessed db can be sent as db=nil (table fresh, server resolves) or must
+        # be pinned (a ROUTE will run and authoritatively resolve it).
+        def routing_table_fresh?(database, access_mode = :read)
+          @refresh_lock.synchronize do
+            table = @routing_tables[database]
+            !!table&.fresh?(readonly: access_mode == :read)
+          end
         end
 
         def current_auth_token = @auth_manager.get_token
@@ -550,12 +611,12 @@ module Neo4j
               size: max_pool_size,
               options: @options,
               clock: @clock,
-              connect_factory: ->(auth) { open_connection(address, auth) }
+              connect_factory: ->(auth, deadline = nil) { open_connection(address, auth, deadline) }
             )
           end
         end
 
-        def open_connection(address, auth = nil)
+        def open_connection(address, auth = nil, deadline = nil)
           # Preserve the encryption suffix: neo4j+s → bolt+s,
           # neo4j+ssc → bolt+ssc, neo4j → bolt. Otherwise routing
           # connections to a TLS cluster would open plaintext and the
@@ -570,7 +631,7 @@ module Neo4j
           # worker's resolved token). Fall back to the manager's current
           # token for acquires that don't carry one (verify_connectivity).
           conn = Bolt::Connection.new(uri, auth || @auth_manager.get_token, opts,
-                                      domain_name_resolver: @domain_name_resolver, clock: @clock).connect
+                                      domain_name_resolver: @domain_name_resolver, clock: @clock).connect(deadline: deadline)
           # Bind the security handler to this connection's server so an
           # AuthorizationExpired bumps the right per-address epoch.
           conn.security_exception_handler =
@@ -578,6 +639,10 @@ module Neo4j
           # A freshly-authenticated connection belongs to the current auth
           # generation for its server, so ensure_identity won't force-re-auth it.
           conn.auth_epoch = auth_epoch_for(address)
+          # Fold this connection into the pool-wide SSR tally (and out of it when
+          # it tears down) so the home-db cache gate reflects live connections.
+          track_ssr_open(conn)
+          conn.on_close = method(:track_ssr_close)
           conn
         end
 

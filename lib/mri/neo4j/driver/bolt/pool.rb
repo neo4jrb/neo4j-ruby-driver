@@ -46,6 +46,10 @@ module Neo4j
           # instead of connecting as the manager and re-authing.
           @connect_factory = connect_factory
           @auth_key = :"bolt_pool_next_auth_#{object_id}"
+          # Companion thread-local (same pattern as @auth_key) carrying the
+          # acquisition deadline a freshly-built connection's handshake must
+          # honour — so one budget spans the home-db guess + fallback.
+          @deadline_key = :"bolt_pool_next_deadline_#{object_id}"
           # Metrics counters (driver.metrics / testkit GetConnectionPoolMetrics):
           # @created = live connections this pool has built (idle + in use),
           # @leased = currently checked out. idle = created - leased. Guarded by
@@ -56,7 +60,7 @@ module Neo4j
           @created = 0
           @leased = 0
           @stack = ConnectionPool::TimedStack.new(size: size) do
-            @connect_factory.call(Thread.current[@auth_key]).tap { bump(created: 1) }
+            @connect_factory.call(Thread.current[@auth_key], Thread.current[@deadline_key]).tap { bump(created: 1) }
           end
         end
 
@@ -71,13 +75,17 @@ module Neo4j
         # Loops until a usable one is found or the acquisition-timeout
         # budget runs out — every discarded slot opens room for the
         # factory to make a fresh one.
-        def pop(auth: nil)
+        def pop(auth: nil, deadline: nil)
           # The token a freshly-built connection should authenticate with,
           # handed to the create block via a thread-local that lives only
           # for this pop (see #initialize). Cleared in `ensure` so it never
           # leaks into a later create on the same thread.
           Thread.current[@auth_key] = auth
-          deadline = current_monotonic + acquisition_timeout
+          # A caller-supplied deadline lets one acquisition-timeout budget span
+          # several pops (the home-db optimistic acquire + its fallback), and
+          # bounds a freshly-built connection's handshake via the create block.
+          deadline ||= current_monotonic + acquisition_timeout
+          Thread.current[@deadline_key] = deadline
           loop do
             timeout = [deadline - current_monotonic, 0].max
             conn = @stack.pop(timeout: timeout)
@@ -92,6 +100,7 @@ module Neo4j
                 "Unable to acquire connection from the pool within configured maximum time of #{format_acquisition_timeout}"
         ensure
           Thread.current[@auth_key] = nil
+          Thread.current[@deadline_key] = nil
         end
 
         def push(connection)

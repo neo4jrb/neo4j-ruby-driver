@@ -81,6 +81,10 @@ module Neo4j
           # LOGOFF/LOGON replies pipelined ahead of the next operation and not yet
           # consumed (Optimization:AuthPipelining).
           @pending_auth_acks = 0
+          # Guards the one-shot #on_close swap: close (caller thread) and
+          # mark_closed_broken (reader thread) can race, and firing the callback
+          # twice would double-decrement the routing SSR tally.
+          @on_close_mutex = Mutex.new
           @recv_timeout = nil # server's connection.recv_timeout_seconds hint
           @read_deadline = nil # monotonic bound for acquisition-phase reads
           # Writes go behind a mutex: the reader writes watermark follow-up
@@ -111,7 +115,7 @@ module Neo4j
           @auth_epoch = 0
         end
 
-        def connect
+        def connect(deadline: nil)
           last_error = nil
           # One monotonic acquisition deadline for the whole connect, shared by
           # every resolved-address attempt AND the handshake/HELLO reads: a
@@ -120,8 +124,10 @@ module Neo4j
           # gets only the *remaining* budget (open_socket / bounded reads). A
           # total deadline (not a per-read timeout) so interleaved NOOP
           # keepalives can't reset the clock. Cleared once the connection is
-          # ready and steady-state reads use the recv-timeout hint instead.
-          @read_deadline = acquisition_deadline
+          # ready and steady-state reads use the recv-timeout hint instead. A
+          # caller-supplied deadline (home-db optimistic acquire + fallback
+          # sharing one budget) wins over this connection's own.
+          @read_deadline = deadline || acquisition_deadline
           resolved_addresses.each do |host, port|
             begin
               open_socket(host, port)
@@ -189,6 +195,7 @@ module Neo4j
         rescue StandardError
           discard_socket
           @closed = true
+          fire_on_close
           false
         end
 
@@ -232,6 +239,7 @@ module Neo4j
           return if @closed
 
           @closed = true
+          fire_on_close
           # Best-effort GOODBYE before we tear down. Frame+write directly rather
           # than via send_message (which would re-arm the reader) / fetch (GOODBYE
           # has no reply). Then stop the reader and close the socket.
@@ -258,6 +266,23 @@ module Neo4j
         # auth-bleed problem disappear without needing connection-pin
         # bookkeeping.
         attr_reader :auth, :driver_auth
+
+        # Whether the server advertised `ssr.enabled` in its HELLO hints
+        # (Bolt 5.8+ server-side routing). Gates the optimistic home-db cache.
+        def ssr_enabled? = @ssr_enabled == true
+
+        # Fired once, the first time this connection tears down (clean GOODBYE,
+        # broken read, or a failed RESET). The routing provider uses it to keep
+        # its pool-wide SSR tally current. nil for the direct provider.
+        attr_reader :on_close
+
+        # Register the teardown callback. If the connection already tore down
+        # (the reader could break it between build and this assignment), fire it
+        # right away so the SSR tally can't miss this connection's decrement.
+        def on_close=(callback)
+          @on_close_mutex.synchronize { @on_close = callback }
+          fire_on_close if closed?
+        end
 
         # The auth "generation" this connection last authenticated at.
         # The provider bumps its own counter on an AuthorizationExpired
@@ -791,6 +816,21 @@ module Neo4j
         def mark_closed_broken
           @socket&.close rescue nil
           @closed = true
+          fire_on_close
+        end
+
+        # Invoke the teardown callback exactly once (nilled after firing, so the
+        # several @closed transitions can each call it safely).
+        def fire_on_close
+          # Atomically claim the callback so concurrent teardown paths (close vs
+          # the reader's mark_closed_broken) fire it exactly once; call outside
+          # the lock — the callback re-enters the load balancer's SSR mutex.
+          callback = @on_close_mutex.synchronize do
+            cb = @on_close
+            @on_close = nil
+            cb
+          end
+          callback&.call(self)
         end
 
         # The timeout the next read may take. During acquisition (handshake,
@@ -995,6 +1035,10 @@ module Neo4j
           # `telemetry.enabled` hint (Bolt 5.4+) opts the server into receiving
           # TELEMETRY reports; without it the driver stays silent.
           @telemetry_enabled = hello.metadata.dig(:hints, :'telemetry.enabled') == true
+          # `ssr.enabled` hint (Bolt 5.8+) means this server does server-side
+          # routing, so the driver may guess a home database optimistically (the
+          # server re-routes if the guess is wrong) — see the home-db cache.
+          @ssr_enabled = hello.metadata.dig(:hints, :'ssr.enabled') == true
 
           fetch_response.assert_success! if logon_msg
         end

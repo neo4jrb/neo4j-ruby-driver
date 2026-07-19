@@ -7,13 +7,14 @@ module Neo4j
       attr_reader :connection
 
       def initialize(connection, session, bookmarks = [], options = {}, telemetry_api: nil, telemetry_ack: nil,
-                     pipelined: false, on_release: nil)
+                     pipelined: false, on_begin: nil, on_release: nil)
         @connection = connection
         @session = session
         @options = options
         # executeQuery pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining):
         # BEGIN's reply is read only after the first RUN+PULL are flushed, not eagerly.
         @pipelined = pipelined
+        @on_begin = on_begin      # called with the BEGIN reply (home-db cache update)
         @on_release = on_release  # called once when the connection is no longer needed
         @open = true
         @committed = false
@@ -269,7 +270,10 @@ module Neo4j
           # The server acknowledged telemetry; a managed-tx retry won't re-send it.
           @telemetry_ack&.call
         end
-        @connection.fetch_response.assert_success!
+        begin_response = @connection.fetch_response.assert_success!
+        # A home-db BEGIN that sent db=nil comes back with the resolved name.
+        @on_begin&.call(begin_response)
+        begin_response
       end
 
       # The transaction is terminated once a server failure has hit it — either
