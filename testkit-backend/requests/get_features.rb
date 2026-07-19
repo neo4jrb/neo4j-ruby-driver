@@ -96,7 +96,7 @@ module TestkitBackend
         'Feature:API:RetryableExceptions'                   => 'jar',
         'Feature:API:Session:AuthConfig'                    => 'jar',
         'Feature:API:Session:NotificationsConfig'           => 'jar',
-        'Feature:API:SSLClientCertificate'                  => 'ja', # JRuby: ClientCertificateManager via DriverFactory; MRI mTLS not wired
+        'Feature:API:SSLClientCertificate'                  => 'jar', # ClientCertificateManager -> TlsConfig (MRI) / DriverFactory (JRuby)
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'jar',

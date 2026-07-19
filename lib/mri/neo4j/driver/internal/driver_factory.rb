@@ -45,12 +45,14 @@ module Neo4j
         # stays agnostic.
         def create_clock = Internal::Clock.new
 
-        # `client_certificate_manager` is accepted for a uniform cross-impl
-        # signature but ignored — MRI doesn't implement mutual-TLS client
-        # certificates (Feature:API:SSLClientCertificate is JRuby-only), and
-        # testkit never supplies one to the MRI flavour.
+        # Mutual-TLS client certificates (Feature:API:SSLClientCertificate): the
+        # ClientCertificateManager is threaded into the options every connection's
+        # TlsConfig reads, so each connection's SSL context presents the current
+        # (rotatable) client certificate. nil (the common case) leaves TLS
+        # unchanged.
         def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
           validate_uri(uri)
+          config = config.merge(client_certificate_manager: client_certificate_manager) if client_certificate_manager
           # The factory is the single place that knows about the non-public
           # extension hooks (the domain-name resolver and the clock). It
           # assembles a fully-wired ConnectionProvider with

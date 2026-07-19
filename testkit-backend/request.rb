@@ -12,6 +12,13 @@ module TestkitBackend
       from(request).to_object
     end
 
+    # Build a ClientCertificate (mutual TLS) from a testkit ClientCertificate's
+    # `data` map. Flavour-agnostic: ClientCertificates.of takes path strings on
+    # MRI and wraps them for the Java factory on JRuby.
+    def self.client_certificate_from(cert)
+      Neo4j::Driver::ClientCertificates.of(cert[:certfile], cert[:keyfile], cert[:password])
+    end
+
     def initialize(hash, command_processor)
       @data = hash
       @command_processor = command_processor
