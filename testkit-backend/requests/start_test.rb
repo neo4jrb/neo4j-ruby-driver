@@ -34,8 +34,6 @@ module TestkitBackend
           'Driver rejects empty query strings client-side (like Java/JS)',
         /\.TestAuthenticationSchemes[^.]+\.test_custom_scheme_empty\z/ =>
           'This test needs updating to implement expected behaviour',
-        /\.TestOptimizations\.test_uses_implicit_default_arguments(?:_multi_query(?:_nested)?)?\z/ =>
-          'Driver does not implement optimization for qid in explicit transaction',
         /\.TestResultSingle\.test_result_single_with_2_records\z/ =>
           'This test needs updating to implement expected behaviour',
         /\Astub\.routing\.test_routing_v[^.]*\.RoutingV[^.]*\.test_ipv6_read/ =>
@@ -88,7 +86,13 @@ module TestkitBackend
           # stays advertised (the TestLivenessCheck config tests pass). NOT
           # skipped on MRI — MRI must implement pool metrics.
           /\.test_should_drop_connections_failing_liveness_check\z/ =>
-            'get_connection_pool_metrics blocked on JRuby (shaded-jar ABI clash); deferred unshaded-jar migration'
+            'get_connection_pool_metrics blocked on JRuby (shaded-jar ABI clash); deferred unshaded-jar migration',
+          # The Java driver doesn't omit qid in an explicit transaction, so it
+          # fails these under Optimization:ImplicitDefaultArguments (testkit's
+          # Java backend skips them too). MRI does omit it — the current query's
+          # PULL/DISCARD carries no qid — so MRI runs and passes them.
+          /\.TestOptimizations\.test_uses_implicit_default_arguments(?:_multi_query(?:_nested)?)?\z/ =>
+            'Java driver does not omit qid in an explicit transaction; MRI does'
         }.freeze,
         mri: {}.freeze
       }.freeze
