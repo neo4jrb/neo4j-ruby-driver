@@ -28,14 +28,7 @@ module TestkitBackend
         return unless completed.has_update
 
         # The wire shape nests the cert fields under `data`.
-        cert = completed.client_certificate[:data]
-        cert_file = java.io.File.new(cert[:certfile])
-        key_file = java.io.File.new(cert[:keyfile])
-        if cert[:password]
-          Neo4j::Driver::ClientCertificates.of(cert_file, key_file, cert[:password])
-        else
-          Neo4j::Driver::ClientCertificates.of(cert_file, key_file)
-        end
+        Request.client_certificate_from(completed.client_certificate[:data])
       end
     end
   end

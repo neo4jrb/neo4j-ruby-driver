@@ -36,6 +36,7 @@ module Neo4j
           ctx = OpenSSL::SSL::SSLContext.new
           ctx.min_version = OpenSSL::SSL::TLS1_2_VERSION
           apply_trust(ctx)
+          apply_client_certificate(ctx)
           ctx
         end
 
@@ -50,6 +51,22 @@ module Neo4j
         end
 
         private
+
+        # Mutual TLS (Feature:API:SSLClientCertificate): present the client
+        # certificate the manager currently holds. Polled per connection so a
+        # rotated certificate takes effect on the next connect; nil manager or
+        # nil certificate leaves the context client-cert-free.
+        def apply_client_certificate(ctx)
+          certificate = @options[:client_certificate_manager]&.get_client_certificate
+          return unless certificate
+
+          ctx.cert = OpenSSL::X509::Certificate.new(File.read(certificate.certfile))
+          # PKey.read handles both encrypted (password used) and unencrypted
+          # (password ignored) PEM keys. Pass "" rather than nil for a missing
+          # password so an encrypted key raises PKeyError instead of blocking
+          # the thread on OpenSSL's interactive stdin passphrase prompt.
+          ctx.key = OpenSSL::PKey.read(File.read(certificate.keyfile), certificate.password || '')
+        end
 
         def apply_trust(ctx)
           case resolved_strategy

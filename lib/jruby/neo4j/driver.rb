@@ -52,6 +52,7 @@ end
 Java::JavaUtil::Map.include Neo4j::Driver::Ext::PlainMapConverter
 Java::OrgNeo4jDriver::AuthTokens.singleton_class.prepend Neo4j::Driver::Ext::AuthTokens
 Java::OrgNeo4jDriver::BookmarkManagers.singleton_class.prepend Neo4j::Driver::Ext::BookmarkManagers
+Java::OrgNeo4jDriver::ClientCertificates.singleton_class.prepend Neo4j::Driver::Ext::ClientCertificates
 Java::OrgNeo4jDriver::GraphDatabase.singleton_class.prepend Neo4j::Driver::Ext::GraphDatabase
 Java::OrgNeo4jDriver::Query.prepend Neo4j::Driver::Ext::Query
 Java::OrgNeo4jDriverInternal::DelegatingTransactionContext.prepend Neo4j::Driver::Ext::Internal::AbstractQueryRunner

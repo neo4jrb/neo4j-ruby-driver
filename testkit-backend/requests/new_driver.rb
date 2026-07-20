@@ -50,28 +50,19 @@ module TestkitBackend
 
       private
 
-      # Mutual-TLS client certificate (JRuby only — Feature:API:SSLClient-
-      # Certificate). testkit sends exactly one of `clientCertificate` (a
-      # static cert, wrapped in a rotating manager like Java's backend) or
-      # `clientCertificateProviderId` (a managed provider created earlier by
-      # NewClientCertificateProvider). nil on MRI, where neither is ever set.
+      # Mutual-TLS client certificate (Feature:API:SSLClientCertificate).
+      # testkit sends exactly one of `clientCertificate` (a static cert, wrapped
+      # in a rotating manager like Java's backend) or `clientCertificateProviderId`
+      # (a managed provider created earlier by NewClientCertificateProvider). nil
+      # when neither is set.
       def client_certificate_manager
         if client_certificate_provider_id
           fetch(client_certificate_provider_id)
         elsif client_certificate
           # The wire shape nests the fields under `data` (Java reads
           # ClientCertificate#getData()), so unwrap before building.
-          Neo4j::Driver::ClientCertificateManagers.rotating(to_client_certificate(client_certificate[:data]))
-        end
-      end
-
-      def to_client_certificate(cert)
-        cert_file = java.io.File.new(cert[:certfile])
-        key_file = java.io.File.new(cert[:keyfile])
-        if cert[:password]
-          Neo4j::Driver::ClientCertificates.of(cert_file, key_file, cert[:password])
-        else
-          Neo4j::Driver::ClientCertificates.of(cert_file, key_file)
+          Neo4j::Driver::ClientCertificateManagers.rotating(
+            Request.client_certificate_from(client_certificate[:data]))
         end
       end
 
