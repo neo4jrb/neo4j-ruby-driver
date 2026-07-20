@@ -51,7 +51,8 @@ module Neo4j
         # (rotatable) client certificate. nil (the common case) leaves TLS
         # unchanged.
         def new_instance(uri, auth_token_manager, client_certificate_manager: nil, **config)
-          validate_uri(uri)
+          parsed_uri = validate_uri(uri)
+          validate_security_settings(parsed_uri.scheme, config)
           config = config.merge(client_certificate_manager: client_certificate_manager) if client_certificate_manager
           # The factory is the single place that knows about the non-public
           # extension hooks (the domain-name resolver and the clock). It
@@ -69,7 +70,7 @@ module Neo4j
           # connection / routing / session, never mixed into the user-facing
           # `config`.
           clock = create_clock
-          provider = build_connection_provider(URI(uri), auth_token_manager, config, clock)
+          provider = build_connection_provider(parsed_uri, auth_token_manager, config, clock)
           Driver.new(uri, config, provider, clock: clock)
         end
 
@@ -94,8 +95,32 @@ module Neo4j
             raise ArgumentError,
                   "Routing parameters are not supported with scheme '#{parsed.scheme}'. Given URI: '#{uri}'"
           end
+          parsed
         rescue URI::InvalidURIError
           raise ArgumentError, 'Scheme must not be null'
+        end
+
+        # A +s/+ssc scheme already fixes the security plan (encrypted, plus
+        # trust-all for +ssc). Combining it with *manually configured*
+        # encryption or trust settings is a conflict — mirror Java's
+        # SecuritySettings.assertSecuritySettingsNotUserConfigured and raise.
+        #
+        # Value equality (Detail:DefaultSecurityConfigValueEquality): a setting
+        # whose value equals the driver default (encryption off; trust = system
+        # certificates) is treated as *not* configured, so it is not a conflict.
+        # That is why `encryption: false` / no trust strategy on a +s scheme is
+        # accepted while `encryption: true` or an explicit trust strategy raises.
+        def validate_security_settings(scheme, config)
+          return unless Driver::ENCRYPTED_SCHEMES.include?(scheme)
+          return unless security_settings_customized?(config)
+
+          raise Exceptions::ClientException,
+                "Scheme #{scheme} is not configurable with manual encryption and trust settings"
+        end
+
+        def security_settings_customized?(config)
+          config[:encryption] == true ||
+            ![nil, :trust_system_certificates].include?(config.dig(:trust_strategy, :strategy))
         end
       end
     end
