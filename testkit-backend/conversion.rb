@@ -31,6 +31,8 @@ module TestkitBackend
           when Neo4j::Driver::Types::Duration
             named_entity('CypherDuration', months: object.months, days: object.days,
                          seconds: object.seconds, nanoseconds: object.nanoseconds)
+          when Neo4j::Driver::Types::UUID
+            value_entity('CypherUUID', object.to_s)
           when Time
             # JRuby returns a Time whose `zone` is the TZInfo::Timezone for a
             # named zone (nil for offset-only) — `identifier` is the IANA id;

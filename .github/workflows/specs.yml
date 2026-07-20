@@ -23,8 +23,8 @@ jobs:
           - "jruby-10.1.0.0"
         neo4j:
           - "4.4.48"
-          - "5.26.25"
-          - "2026.04.0"
+          - "5.26.28"
+          - "2026.06.0"
         # Default value so the `include` below adds a new row rather
         # than merging into existing combinations (GH Actions semantics).
         force_mri: [false]
@@ -33,7 +33,7 @@ jobs:
           # NEO4J_DRIVER_FORCE_MRI=1 (the Gemfile's `gemspec name:` flip).
           # Single Neo4j version to keep CI minutes reasonable.
           - ruby: "jruby-10.1.0.0"
-            neo4j: "2026.04.0"
+            neo4j: "2026.06.0"
             force_mri: true
 
     services:

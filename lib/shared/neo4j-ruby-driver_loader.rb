@@ -24,7 +24,7 @@ module Neo4j
           loader = Zeitwerk::Loader.new
           loader.tag = 'neo4j-ruby-driver'
           loader.inflector = Zeitwerk::GemInflector.new(File.expand_path('neo4j/driver', __dir__))
-          loader.inflector.inflect('packstream' => 'PackStream')
+          loader.inflector.inflect('packstream' => 'PackStream', 'uuid' => 'UUID')
           loader.push_dir(shared_root)
           loader.push_dir(impl_root) if File.directory?(impl_root)
           yield loader if block_given?

@@ -19,6 +19,8 @@ module Neo4j
           when Types::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(object.months, object.days, object.seconds,
                                                                   object.nanoseconds)
+          when Types::UUID
+            Java::JavaUtil::UUID.from_string(object.to_s)
           when Types::Point
             Java::OrgNeo4jDriver::Values.point(object.srid, *object.coordinates)
           when Types::OffsetTime
