@@ -2,6 +2,6 @@
   "testkit": {
     "_comment": "Pinned testkit revision this driver is tested against (6.x). Bump to a newer 6.x SHA as needed.",
     "uri": "https://github.com/neo4j-drivers/testkit.git",
-    "ref": "ec48679f816bf4bff382b368367b3225afd70082"
+    "ref": "840cf46e109fb74b1c9e7b707a76d808477e9f56"
   }
 }

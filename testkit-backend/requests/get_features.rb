@@ -138,7 +138,7 @@ module TestkitBackend
         'Backend:RTForceUpdate'                             => 'r',
         'ConfHint:connection.recv_timeout_seconds'          => 'jar',
         'Detail:ClosedDriverIsEncrypted'                    => '',
-        'Detail:DefaultSecurityConfigValueEquality'         => 'ja',
+        'Detail:DefaultSecurityConfigValueEquality'         => 'jar',
         'Detail:NumberIsNumber'                             => 'jr'
       }.freeze
 
