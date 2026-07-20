@@ -78,8 +78,10 @@ module Neo4j
             if @metadata[:plan]
               Plan.new(@metadata[:plan])
             elsif @metadata[:profile]
-              # Profile is a superset of plan — return the same object.
-              profile
+              # A profiled query exposes both: `plan` is the plan-only view
+              # (no stats), `profile` adds them. Distinct objects, matching
+              # the Java driver 6.2 model.
+              Plan.new(@metadata[:profile])
             end
         end
 
