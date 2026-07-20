@@ -14,13 +14,13 @@ module Neo4j
             Exceptions::ClientException.unable_to_convert(object)
           when Enumerable
             object.map(&method(:to_neo))
+          when Types::UUID # before String: UUID is a String subclass
+            Java::JavaUtil::UUID.from_string(object.to_s)
           when String
             object.encoding == Encoding::BINARY ? object.to_java_bytes : object
           when Types::Duration
             Java::OrgNeo4jDriverInternal::InternalIsoDuration.new(object.months, object.days, object.seconds,
                                                                   object.nanoseconds)
-          when Types::UUID
-            Java::JavaUtil::UUID.from_string(object.to_s)
           when Types::Point
             Java::OrgNeo4jDriver::Values.point(object.srid, *object.coordinates)
           when Types::OffsetTime

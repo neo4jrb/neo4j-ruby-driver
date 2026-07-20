@@ -10,6 +10,8 @@ module TestkitBackend
             value_entity('CypherInt', object)
           when Float
             value_entity('CypherFloat', float_encode(object))
+          when Neo4j::Driver::Types::UUID # before String: UUID is a String subclass
+            value_entity('CypherUUID', object.to_s)
           when String
             if object.encoding == Encoding::BINARY
               value_entity('CypherBytes', object.bytes.map { |byte| "%02x" % byte }.join(' '))
@@ -31,8 +33,6 @@ module TestkitBackend
           when Neo4j::Driver::Types::Duration
             named_entity('CypherDuration', months: object.months, days: object.days,
                          seconds: object.seconds, nanoseconds: object.nanoseconds)
-          when Neo4j::Driver::Types::UUID
-            value_entity('CypherUUID', object.to_s)
           when Time
             # JRuby returns a Time whose `zone` is the TZInfo::Timezone for a
             # named zone (nil for offset-only) — `identifier` is the IANA id;
