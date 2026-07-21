@@ -103,7 +103,10 @@ module TestkitBackend
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'jar',
-        'Feature:API:Summary:Profile:OptionalStats'         => 'ja',  # jruby wraps Java's ProfiledPlan; summary.rb already walks the optional stat fields
+        # Optional profile stats (omit an absent stat rather than default it
+        # to 0) need stat-presence tracking the summary hydration doesn't do
+        # on either flavour yet — not advertised until that's implemented.
+        'Feature:API:Summary:Profile:OptionalStats'         => '',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
         'Feature:API:Type.UnsupportedType'                  => 'jar',
