@@ -75,7 +75,8 @@ module TestkitBackend
       # so no driver-side `to_h` is needed.
       def plan_to_h(plan, fields)
         to_map(plan, *fields)
-          .transform_keys(records: :rows) # testkit's profile shape names ProfiledPlan#records "rows"
+          .compact # omit absent optional profile stats (nil); a present 0 stays
+          .transform_keys(records: :rows) # testkit's profile shape names records "rows"
           .merge(children: plan.children&.map { plan_to_h(it, fields) })
       end
     end

@@ -78,6 +78,7 @@ Java::OrgNeo4jDriverInternalSummary::InternalGqlNotification.prepend Neo4j::Driv
 Java::OrgNeo4jDriverInternalSummary::InternalGqlStatusObject.prepend Neo4j::Driver::Ext::Internal::Summary::InternalGqlStatusObject
 Java::OrgNeo4jDriverInternalSummary::InternalNotification.prepend Neo4j::Driver::Ext::Internal::Summary::InternalNotification
 Java::OrgNeo4jDriverInternalSummary::InternalPlan.prepend Neo4j::Driver::Ext::Internal::Summary::InternalPlan
+Java::OrgNeo4jDriverInternalSummary::InternalQueryProfile.prepend Neo4j::Driver::Ext::Internal::Summary::InternalQueryProfile
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
 Java::OrgNeo4jDriverObservationMetricsInternal::InternalConnectionPoolMetrics.include Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics

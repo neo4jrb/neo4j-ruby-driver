@@ -103,11 +103,10 @@ module TestkitBackend
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'jar',
-        # Java advertises this ('a'), but neither flavour does yet: omitting an
-        # absent profile stat (rather than defaulting it to 0) needs
-        # stat-presence tracking the summary hydration doesn't do. The 'a'
-        # marks it a JRuby/MRI gap to close, not a Java gap.
-        'Feature:API:Summary:Profile:OptionalStats'         => 'a',
+        # jruby maps the 6.2 QueryProfile's Optional stats (empty -> nil ->
+        # omitted); MRI's summary hydration still defaults absent stats to 0,
+        # so it stays off there for now.
+        'Feature:API:Summary:Profile:OptionalStats'         => 'ja',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
         'Feature:API:Type.UnsupportedType'                  => 'jar',
