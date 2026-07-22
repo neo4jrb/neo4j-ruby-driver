@@ -14,19 +14,20 @@ module Neo4j
           # args / identifiers / children come from the InternalPlan
           # superclass unchanged.
           module InternalQueryProfile
-            def db_hits = scalar(dbHits)
-            def records = scalar(rows)
-            def page_cache_hits = scalar(pageCacheHits)
-            def page_cache_misses = scalar(pageCacheMisses)
-            def page_cache_hit_ratio = scalar(pageCacheHitRatio)
+            def db_hits = long(dbHits)
+            def records = long(rows)
+            def page_cache_hits = long(pageCacheHits)
+            def page_cache_misses = long(pageCacheMisses)
+            def page_cache_hit_ratio = double(pageCacheHitRatio)
             def time = super.or_else(nil)&.to_nanos
 
             private
 
             # OptionalLong / OptionalDouble -> Integer / Float, or nil when
-            # empty. Mirrors the Java backend's stream().boxed().findFirst()
-            # .orElse(null), which handles both without a type switch.
-            def scalar(optional) = optional.stream.boxed.find_first.or_else(nil)
+            # empty. or_else(nil) can't be used: their orElse takes a
+            # primitive default, not nil.
+            def long(optional) = optional.present? ? optional.as_long : nil
+            def double(optional) = optional.present? ? optional.as_double : nil
           end
         end
       end
