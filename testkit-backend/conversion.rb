@@ -10,7 +10,7 @@ module TestkitBackend
             value_entity('CypherInt', object)
           when Float
             value_entity('CypherFloat', float_encode(object))
-          when Neo4j::Driver::Types::UUID # before String: UUID is a String subclass
+          when Neo4j::Driver::Types::UUID
             value_entity('CypherUUID', object.to_s)
           when String
             if object.encoding == Encoding::BINARY

@@ -45,6 +45,10 @@ module Neo4j
       # testkit backend match it with the same `Neo4j::Driver::Types::
       # UnsupportedType` case MRI uses (which has its own pure-Ruby class).
       UnsupportedType = Java::OrgNeo4jDriverTypes::UnsupportedType
+      # Bolt 6.1 UUID. Native java.util.UUID (immutable, value-equal,
+      # fromString) — MRI has its own opaque Types::UUID with the same
+      # from_string / to_s surface.
+      UUID = Java::JavaUtil::UUID
     end
   end
 end

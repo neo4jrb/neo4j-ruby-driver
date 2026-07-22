@@ -32,10 +32,9 @@ module Neo4j
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE_TIME
             to_time
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::UUID
-            # Bolt 6.1 UUID. asObject raises Uncoercible (UUID is not a
-            # string), so map the java.util.UUID to the flavor-agnostic
-            # driver type via its canonical string.
-            Types::UUID.new(as_uuid.to_s)
+            # Bolt 6.1 UUID -> native java.util.UUID (Types::UUID on JRuby).
+            # asObject would raise Uncoercible (UUID is not a string).
+            as_uuid
           else
             as_object
           end

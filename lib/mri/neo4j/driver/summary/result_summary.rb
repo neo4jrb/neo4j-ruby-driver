@@ -90,6 +90,11 @@ module Neo4j
           @profile = @metadata[:profile] ? Profile.new(@metadata[:profile]) : nil
         end
 
+        # MRI has a single profile concept; the modern (JRuby 6.2) query_profile
+        # accessor maps to it. MRI doesn't advertise OptionalStats, so absent
+        # stats still default to 0 (testkit uses its strict-driver path).
+        def query_profile = profile
+
         def has_plan?
           !@metadata[:plan].nil? || !@metadata[:profile].nil?
         end

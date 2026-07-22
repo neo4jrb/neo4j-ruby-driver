@@ -12,13 +12,10 @@ module Neo4j
               end
             end
 
-            # Use the 6.2 QueryProfile (presence-aware Optional stats) rather
-            # than the deprecated ProfiledPlan, so absent profile stats are
-            # nil (omitted) instead of a defaulted 0. `plan` stays the plan
-            # (no stats).
-            def profile
-              query_profile.or_else(nil)
-            end
+            # Ruby-ify the 6.2 queryProfile() Optional -> the QueryProfile or
+            # nil. The presence-aware profile (Optional stats) the backend
+            # serializes; `profile` stays the deprecated ProfiledPlan.
+            def query_profile = super.or_else(nil)
 
             # Driver::Summary::QueryType is a Ruby module in lib/shared/.
             # include_package only fills missing constants on a module via

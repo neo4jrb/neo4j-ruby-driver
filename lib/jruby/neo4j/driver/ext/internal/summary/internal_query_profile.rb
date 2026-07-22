@@ -19,20 +19,14 @@ module Neo4j
             def page_cache_hits = scalar(pageCacheHits)
             def page_cache_misses = scalar(pageCacheMisses)
             def page_cache_hit_ratio = scalar(pageCacheHitRatio)
-
-            def time
-              duration = super # Optional<Duration>
-              duration.get.to_nanos if duration.present?
-            end
+            def time = super.or_else(nil)&.to_nanos
 
             private
 
-            # OptionalLong / OptionalDouble -> Integer / Float, or nil when empty.
-            def scalar(optional)
-              return unless optional.present?
-
-              optional.respond_to?(:as_double) ? optional.as_double : optional.as_long
-            end
+            # OptionalLong / OptionalDouble -> Integer / Float, or nil when
+            # empty. Mirrors the Java backend's stream().boxed().findFirst()
+            # .orElse(null), which handles both without a type switch.
+            def scalar(optional) = optional.stream.boxed.find_first.or_else(nil)
           end
         end
       end

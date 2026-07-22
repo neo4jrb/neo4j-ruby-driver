@@ -18,7 +18,7 @@ module TestkitBackend
           notifications: (notifications_to_h(notifications) if notifications&.any?),
           gqlStatusObjects: @object.gql_status_objects.map(&method(:gql_status_to_h)),
           plan: (plan_to_h(@object.plan, PLAN_FIELDS) if @object.has_plan?),
-          profile: (plan_to_h(@object.profile, PROFILE_FIELDS) if @object.has_profile?)
+          profile: (@object.query_profile&.then { plan_to_h(it, PROFILE_FIELDS) })
         }.merge!(to_map(@object, *%w[result_available_after result_consumed_after]))
       end
 
