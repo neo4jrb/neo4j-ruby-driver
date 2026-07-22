@@ -20,7 +20,6 @@ module TestkitBackend
           'Contains updates because value is over zero',
         /\.test_partial_summary_not_contains_updates\z/ =>
           'Contains updates because value is over zero',
-        /\.test_profile\z/ => 'Missing stats are reported with 0 value',
         /\.test_server_info\z/ => 'Address includes domain name',
         /\.test_partial_summary_contains_system_updates\z/ =>
           'Does not contain updates because value is zero',

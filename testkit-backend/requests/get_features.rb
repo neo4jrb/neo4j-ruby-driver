@@ -106,7 +106,7 @@ module TestkitBackend
         # jruby maps the 6.2 QueryProfile's Optional stats (empty -> nil ->
         # omitted); MRI's summary hydration still defaults absent stats to 0,
         # so it stays off there for now.
-        'Feature:API:Summary:Profile:OptionalStats'         => 'ja',
+        'Feature:API:Summary:Profile:OptionalStats'         => 'jar',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
         'Feature:API:Type.UnsupportedType'                  => 'jar',
