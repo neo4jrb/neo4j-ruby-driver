@@ -46,6 +46,7 @@ module Neo4j
         # Versions we'd accept from a manifest, highest-preference first.
         # Used to pick a winner from whatever the server advertises.
         SUPPORTED_VERSIONS = [
+          BoltVersion::V6_1,
           BoltVersion::V6_0,
           BoltVersion::V5_8,
           BoltVersion::V5_7,

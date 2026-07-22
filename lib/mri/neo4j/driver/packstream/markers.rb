@@ -39,6 +39,10 @@ module Neo4j
 
         STRUCT_8  = 0xDC
         STRUCT_16 = 0xDD
+
+        # PackStream V2 (Bolt 6.1+): a UUID is a top-level value — the marker
+        # 0xE0 followed by the 16 raw bytes (big-endian) — not a struct.
+        UUID = 0xE0
       end
     end
   end
