@@ -83,9 +83,11 @@ RSpec.describe 'Summary' do
       summary = session.run('PROFILE RETURN 1').consume
 
       expect(summary).to have_profile
-      # Profile is a superset of plan, so plan should be available as well if profile is available
+      # Profile is a superset of plan, so plan is available too — as a
+      # distinct plan-only view describing the same operator tree (the Java
+      # driver 6.2 model; earlier drivers returned the profile object itself).
       expect(summary).to have_plan
-      expect(summary.plan).to eq summary.profile
+      expect(summary.plan.operator_type).to eq summary.profile.operator_type
 
       profile = summary.profile
 

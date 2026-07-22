@@ -31,6 +31,10 @@ module Neo4j
                                      as_local_date_time.nano)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DATE_TIME
             to_time
+          when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::UUID
+            # Bolt 6.1 UUID -> native java.util.UUID (Types::UUID on JRuby).
+            # asObject would raise Uncoercible (UUID is not a string).
+            as_uuid
           else
             as_object
           end

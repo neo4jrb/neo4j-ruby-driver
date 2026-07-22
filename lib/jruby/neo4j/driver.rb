@@ -45,6 +45,10 @@ module Neo4j
       # testkit backend match it with the same `Neo4j::Driver::Types::
       # UnsupportedType` case MRI uses (which has its own pure-Ruby class).
       UnsupportedType = Java::OrgNeo4jDriverTypes::UnsupportedType
+      # Bolt 6.1 UUID. Native java.util.UUID (immutable, value-equal,
+      # fromString) — MRI has its own opaque Types::UUID with the same
+      # from_string / to_s surface.
+      UUID = Java::JavaUtil::UUID
     end
   end
 end
@@ -78,6 +82,7 @@ Java::OrgNeo4jDriverInternalSummary::InternalGqlNotification.prepend Neo4j::Driv
 Java::OrgNeo4jDriverInternalSummary::InternalGqlStatusObject.prepend Neo4j::Driver::Ext::Internal::Summary::InternalGqlStatusObject
 Java::OrgNeo4jDriverInternalSummary::InternalNotification.prepend Neo4j::Driver::Ext::Internal::Summary::InternalNotification
 Java::OrgNeo4jDriverInternalSummary::InternalPlan.prepend Neo4j::Driver::Ext::Internal::Summary::InternalPlan
+Java::OrgNeo4jDriverInternalSummary::InternalQueryProfile.prepend Neo4j::Driver::Ext::Internal::Summary::InternalQueryProfile
 Java::OrgNeo4jDriverInternalSummary::InternalResultSummary.prepend Neo4j::Driver::Ext::Internal::Summary::InternalResultSummary
 Java::OrgNeo4jDriverInternalValue::ValueAdapter.include Neo4j::Driver::Ext::RubyConverter
 Java::OrgNeo4jDriverObservationMetricsInternal::InternalConnectionPoolMetrics.include Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics

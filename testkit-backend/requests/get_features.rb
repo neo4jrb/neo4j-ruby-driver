@@ -42,7 +42,10 @@ module TestkitBackend
         'Feature:Bolt:5.7'                                  => 'jar',
         'Feature:Bolt:5.8'                                  => 'jar',
         'Feature:Bolt:6.0'                                  => 'jar',
-        'Feature:Bolt:6.1'                                  => '',
+        # Bolt 6.1 negotiation: the bundled Java driver (JRuby) advertises
+        # it, matching the Java backend's COMMON set; MRI's ladder tops out
+        # at 6.0, so it stays off there.
+        'Feature:Bolt:6.1'                                  => 'ja',
         'Feature:Bolt:HandshakeManifestV1'                  => 'jar',
         'Feature:Bolt:Patch:UTC'                            => 'jar',
 
@@ -100,11 +103,14 @@ module TestkitBackend
         'Feature:API:SSLConfig'                             => 'jar',
         'Feature:API:SSLSchemes'                            => 'jar',
         'Feature:API:Summary:GqlStatusObjects'              => 'jar',
-        'Feature:API:Summary:Profile:OptionalStats'         => '',
+        # jruby maps the 6.2 QueryProfile's Optional stats (empty -> nil ->
+        # omitted); MRI's summary hydration still defaults absent stats to 0,
+        # so it stays off there for now.
+        'Feature:API:Summary:Profile:OptionalStats'         => 'ja',
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
         'Feature:API:Type.UnsupportedType'                  => 'jar',
-        'Feature:API:Type.UUID'                             => '',
+        'Feature:API:Type.UUID'                             => 'ja',  # Bolt 6.1 UUID <-> Types::UUID; jruby maps java.util.UUID, MRI not yet on 6.1
         'Feature:API:Type.Vector'                           => '',
 
         # --- Other features --------------------------------------------------

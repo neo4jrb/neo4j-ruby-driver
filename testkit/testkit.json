@@ -1,7 +1,7 @@
 {
   "testkit": {
-    "_comment": "Pinned testkit revision this driver is tested against (6.x). Bump to a newer 6.x SHA as needed.",
-    "uri": "https://github.com/neo4j-drivers/testkit.git",
-    "ref": "840cf46e109fb74b1c9e7b707a76d808477e9f56"
+    "_comment": "Fork branch ruby-uuid-result-error = upstream 6.x (840cf46) + a ruby error assertion for test_rejects_uuid_result (UUID over Bolt 6.0). Rebase onto a newer 6.x SHA / upstream once merged.",
+    "uri": "https://github.com/klobuczek/testkit.git",
+    "ref": "2b49d1437beb8620664dade47586d5b02c6aaede"
   }
 }

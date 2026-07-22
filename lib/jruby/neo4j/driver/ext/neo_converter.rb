@@ -14,6 +14,8 @@ module Neo4j
             Exceptions::ClientException.unable_to_convert(object)
           when Enumerable
             object.map(&method(:to_neo))
+          when Types::UUID # native java.util.UUID; Values.value accepts it
+            object
           when String
             object.encoding == Encoding::BINARY ? object.to_java_bytes : object
           when Types::Duration

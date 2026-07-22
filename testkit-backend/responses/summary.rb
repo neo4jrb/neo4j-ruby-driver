@@ -18,7 +18,7 @@ module TestkitBackend
           notifications: (notifications_to_h(notifications) if notifications&.any?),
           gqlStatusObjects: @object.gql_status_objects.map(&method(:gql_status_to_h)),
           plan: (plan_to_h(@object.plan, PLAN_FIELDS) if @object.has_plan?),
-          profile: (plan_to_h(@object.profile, PROFILE_FIELDS) if @object.has_profile?)
+          profile: (@object.query_profile&.then { plan_to_h(it, PROFILE_FIELDS) })
         }.merge!(to_map(@object, *%w[result_available_after result_consumed_after]))
       end
 
@@ -75,7 +75,8 @@ module TestkitBackend
       # so no driver-side `to_h` is needed.
       def plan_to_h(plan, fields)
         to_map(plan, *fields)
-          .transform_keys(records: :rows) # testkit's profile shape names ProfiledPlan#records "rows"
+          .compact # omit absent optional profile stats (nil); a present 0 stays
+          .transform_keys(records: :rows) # testkit's profile shape names records "rows"
           .merge(children: plan.children&.map { plan_to_h(it, fields) })
       end
     end
