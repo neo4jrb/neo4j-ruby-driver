@@ -7,9 +7,10 @@ module Neo4j
       class Unpacker
         include Markers
 
-        def initialize(io)
+        def initialize(io, protocol)
           @io = io
           @hydration_handlers = {}
+          @protocol = protocol
         end
 
         def register_hydration_handler(signature, handler = nil, &block)
@@ -19,6 +20,27 @@ module Neo4j
         def unpack
           marker_byte = read_bytes(1).unpack1('C')
           unpack_value(marker_byte)
+        end
+
+        # PackStream V2 UUID (Bolt 6.1+): 16 raw bytes (big-endian) after the
+        # marker, rendered to the canonical hyphenated form for Types::UUID.
+        # Called by Protocol::V61#unpack_uuid — earlier protocols reject the
+        # marker instead, so this is only reached once 6.1 is negotiated.
+        def unpack_uuid_value
+          hex = read_bytes(16).unpack1('H*')
+          Types::UUID.from_string(
+            "#{hex[0, 8]}-#{hex[8, 4]}-#{hex[12, 4]}-#{hex[16, 4]}-#{hex[20, 12]}")
+        end
+
+        # A ProtocolException (not a bare RuntimeError) so the failure reaches
+        # the user as a DriverError. The wording carries "PackStream" and the
+        # zero-padded marker byte — e.g. a UUID (0xE0) received before Bolt 6.1,
+        # which Protocol::Base#unpack_uuid routes here. testkit's UUID-over-6.0
+        # assertion greps the lowercased message for "unknown packstream" and
+        # "e0", both of which this satisfies.
+        def raise_unknown_marker(marker)
+          raise Exceptions::ProtocolException,
+                format('Unknown PackStream type marker: 0x%02x', marker)
         end
 
         private
@@ -86,6 +108,11 @@ module Neo4j
           when STRUCT_16
             size = read_bytes(2).unpack1('S>')
             unpack_structure(size)
+          when UUID
+            # A PackStream V2 type: only the negotiated protocol decides whether
+            # the marker is known — V61 reads it, every earlier version rejects
+            # it as an unknown marker.
+            @protocol.unpack_uuid(self)
           else
             # Check for TINY types
             if (marker & 0xF0) == TINY_STRING
@@ -110,7 +137,7 @@ module Neo4j
                 marker
               end
             else
-              raise "Unknown marker: 0x#{marker.to_s(16)}"
+              raise_unknown_marker(marker)
             end
           end
         end

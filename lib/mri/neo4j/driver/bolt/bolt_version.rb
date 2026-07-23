@@ -54,6 +54,7 @@ module Neo4j
         V5_7 = new(5, 7)
         V5_8 = new(5, 8)
         V6_0 = new(6, 0)
+        V6_1 = new(6, 1)
 
         # Server agreement is a 32-bit big-endian: [reserved, 0, minor, major].
         # So the low byte is major, the next-lowest is minor.

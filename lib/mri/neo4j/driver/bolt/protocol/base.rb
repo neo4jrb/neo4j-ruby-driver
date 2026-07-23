@@ -58,6 +58,18 @@ module Neo4j
           # registers the common ones, so an override here wins.
           def customize_hydration(_unpacker); end
 
+          # PackStream V2 (Bolt 6.1+) UUID codec. UUID is a version-specific
+          # type: only Protocol::V61 packs/unpacks it — every earlier version
+          # rejects it. Packing raises a ClientException naming the type;
+          # unpacking treats the 0xE0 marker as unknown.
+          def pack_uuid(_packer, value)
+            Exceptions::ClientException.unable_to_convert(value)
+          end
+
+          def unpack_uuid(unpacker)
+            unpacker.raise_unknown_marker(PackStream::Markers::UUID)
+          end
+
           # --- Message builders -------------------------------------------
           # The protocol handler owns the wire shape of the streaming /
           # transaction messages, mirroring Java's BoltProtocolVxY. The

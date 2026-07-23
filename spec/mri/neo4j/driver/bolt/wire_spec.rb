@@ -31,7 +31,7 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
 
   # Frame a server message the way the wire reads it: chunk(s) + 0x00 0x00.
   def framed(structure)
-    packer = Neo4j::Driver::PackStream::Packer.new
+    packer = Neo4j::Driver::PackStream::Packer.new(protocol)
     packer.reset
     packer.pack_message(structure)
     data = packer.bytes
@@ -120,7 +120,7 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
       expect(bytes.bytesize).to eq(2 + size + 2)
       expect(bytes[-2..].bytes).to eq([0, 0])
 
-      packer = Neo4j::Driver::PackStream::Packer.new
+      packer = Neo4j::Driver::PackStream::Packer.new(protocol)
       packer.reset
       packer.pack_message(Message.run('RETURN 1', {}, {}))
       expect(payload).to eq(packer.bytes)

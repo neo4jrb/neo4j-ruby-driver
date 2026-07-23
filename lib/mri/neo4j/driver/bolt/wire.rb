@@ -32,7 +32,7 @@ module Neo4j
 
         def initialize(protocol)
           @protocol = protocol
-          @packer = PackStream::Packer.new
+          @packer = PackStream::Packer.new(@protocol)
           @protocol.configure_packer(@packer)
           @outbound = binary_string  # consumer-only (enqueue/take_outbound)
           @inbound = binary_string   # reader-only: received bytes not yet parsed
@@ -175,7 +175,7 @@ module Neo4j
         end
 
         def unpack(data)
-          unpacker = PackStream::Unpacker.new(StringIO.new(data))
+          unpacker = PackStream::Unpacker.new(StringIO.new(data), @protocol)
           register_hydration_handlers(unpacker)
           unpacker.unpack
         end

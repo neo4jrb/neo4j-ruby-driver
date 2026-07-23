@@ -42,10 +42,10 @@ module TestkitBackend
         'Feature:Bolt:5.7'                                  => 'jar',
         'Feature:Bolt:5.8'                                  => 'jar',
         'Feature:Bolt:6.0'                                  => 'jar',
-        # Bolt 6.1 negotiation: the bundled Java driver (JRuby) advertises
-        # it, matching the Java backend's COMMON set; MRI's ladder tops out
-        # at 6.0, so it stays off there.
-        'Feature:Bolt:6.1'                                  => 'ja',
+        # Bolt 6.1: MRI proposes it at the top of the manifest ladder and
+        # speaks PackStream V2 (the UUID type). JRuby gets it from the bundled
+        # Java driver.
+        'Feature:Bolt:6.1'                                  => 'jar',
         'Feature:Bolt:HandshakeManifestV1'                  => 'jar',
         'Feature:Bolt:Patch:UTC'                            => 'jar',
 
@@ -107,7 +107,7 @@ module TestkitBackend
         'Feature:API:Type.Spatial'                          => '',
         'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
         'Feature:API:Type.UnsupportedType'                  => 'jar',
-        'Feature:API:Type.UUID'                             => 'ja',  # Bolt 6.1 UUID <-> Types::UUID; jruby maps java.util.UUID, MRI not yet on 6.1
+        'Feature:API:Type.UUID'                             => 'jar',  # Bolt 6.1 UUID <-> Types::UUID (MRI: PackStream V2 marker 0xE0; JRuby: java.util.UUID)
         'Feature:API:Type.Vector'                           => '',
 
         # --- Other features --------------------------------------------------

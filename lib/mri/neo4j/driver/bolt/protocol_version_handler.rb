@@ -9,6 +9,7 @@ module Neo4j
       # server actually supports — so we don't need fuzzy matching.
       class ProtocolVersionHandler
         HANDLERS = {
+          BoltVersion::V6_1.to_i => Protocol::V61,
           BoltVersion::V6_0.to_i => Protocol::V6,
           BoltVersion::V5_8.to_i => Protocol::V58,
           BoltVersion::V5_7.to_i => Protocol::V57,

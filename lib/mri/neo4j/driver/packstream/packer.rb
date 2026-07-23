@@ -14,9 +14,10 @@ module Neo4j
         # successful handshake negotiates Bolt 5.0+; ignored on 4.x.
         attr_accessor :use_utc_datetime
 
-        def initialize
+        def initialize(protocol)
           @buffer = String.new(encoding: Encoding::BINARY)
           @use_utc_datetime = false
+          @protocol = protocol
         end
 
         def pack(value)
@@ -67,6 +68,10 @@ module Neo4j
             pack_point(value)
           when Types::Duration
             pack_duration(value)
+          when Types::UUID
+            # A PackStream V2 type: only the negotiated protocol decides whether
+            # it can be sent — V61 packs it, every earlier version rejects it.
+            @protocol.pack_uuid(self, value)
           else
             Exceptions::ClientException.unable_to_convert(value)
           end
@@ -88,6 +93,14 @@ module Neo4j
         def reset
           @buffer.clear
           self
+        end
+
+        # PackStream V2 UUID (Bolt 6.1+): marker 0xE0 + 16 raw bytes. Called by
+        # Protocol::V61#pack_uuid — every earlier protocol rejects a UUID
+        # instead, so this is only reached once 6.1 is negotiated.
+        def pack_uuid_value(value)
+          @buffer << [UUID].pack('C')
+          @buffer << [value.to_s.delete('-')].pack('H*')
         end
 
         private
