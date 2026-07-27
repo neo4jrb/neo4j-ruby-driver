@@ -5,7 +5,10 @@ require 'tempfile'
 
 RSpec.describe 'LoadCsv', csv: true do
   let(:iris_class_names) { %w[Iris-setosa Iris-versicolor Iris-virginica] }
-  let(:file) { Tempfile.new('', 'tmp') }
+  # Write into the directory the server exposes as its import dir so a
+  # `file://` LOAD CSV can read it. World-readable because the Neo4j process
+  # typically runs as a different user than the test writer.
+  let(:file) { Tempfile.new('', ENV.fetch('TEST_NEO4J_IMPORT_DIR')) }
   let(:file_path) { file.path }
   let(:iris_data) do
     %w[sepal_length,sepal_width,petal_length,petal_width,class_name
@@ -172,6 +175,7 @@ RSpec.describe 'LoadCsv', csv: true do
         csv << row.split(',')
       end
     end
+    File.chmod(0o644, file_path)
   end
 
   after do

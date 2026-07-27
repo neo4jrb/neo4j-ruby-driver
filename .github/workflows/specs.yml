@@ -42,20 +42,32 @@ jobs:
         env:
           NEO4J_AUTH: neo4j/password
           NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+          # Allow the LoadCsv spec's `file://` import. The default import dir
+          # (/var/lib/neo4j/import) is the same across the 4.4/5.x/2026 matrix,
+          # so we mount a shared host dir there instead of reconfiguring the
+          # import path (whose config key differs between 4.4 and 5.x).
+          NEO4J_dbms_security_allow__csv__import__from__file__urls: "true"
         ports:
           - 7687:7687
           - 7474:7474
+        # The host path is created by Docker at service start (before checkout);
+        # the "Prepare import dir" step below makes it writable by the runner.
         options: >-
           --health-cmd "cypher-shell -u neo4j -p password 'RETURN 1'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 20
           --health-start-period 30s
+          --volume /tmp/neo4j-import:/var/lib/neo4j/import
 
     env:
       TEST_NEO4J_URL: bolt://localhost:7687
       TEST_NEO4J_USER: neo4j
       TEST_NEO4J_PASS: password
+      # Shared host dir mounted into the neo4j service's import directory; the
+      # LoadCsv spec writes its file here and the server reads it via file://.
+      # Its presence is also what un-skips the csv-tagged example (see spec_helper).
+      TEST_NEO4J_IMPORT_DIR: /tmp/neo4j-import
       # Empty string when force_mri is false; '1' on the include row.
       # The Gemfile checks this and pins to the MRI gemspec when set.
       NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
@@ -76,6 +88,13 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+
+      # The bind-mounted import dir is root-owned (and the neo4j entrypoint may
+      # chown it to the in-container neo4j user); make it writable by the runner
+      # so the LoadCsv spec can drop its file there. The spec chmods the file
+      # itself world-readable so the neo4j process can read it back.
+      - name: Prepare Neo4j import dir (LOAD CSV file:// tests)
+        run: sudo mkdir -p /tmp/neo4j-import && sudo chmod 777 /tmp/neo4j-import
 
       - name: Run RSpec
         run: bundle exec rspec --format progress
