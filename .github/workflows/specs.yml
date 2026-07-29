@@ -94,7 +94,7 @@ jobs:
       # so the LoadCsv spec can drop its file there. The spec chmods the file
       # itself world-readable so the neo4j process can read it back.
       - name: Prepare Neo4j import dir (LOAD CSV file:// tests)
-        run: sudo mkdir -p /tmp/neo4j-import && sudo chmod 777 /tmp/neo4j-import
+        run: sudo mkdir -p /tmp/neo4j-import && sudo chmod 1777 /tmp/neo4j-import
 
       - name: Run RSpec
         run: bundle exec rspec --format progress

@@ -176,6 +176,9 @@ RSpec.describe 'LoadCsv', csv: true do
       end
     end
     File.chmod(0o644, file_path)
+    # Release the Tempfile's own descriptor (we wrote via the path above); the
+    # file stays on disk for the server to read and is removed in `after`.
+    file.close
   end
 
   after do
