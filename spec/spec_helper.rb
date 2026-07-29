@@ -51,7 +51,6 @@ RSpec.configure do |config|
   import_dir = ENV['TEST_NEO4J_IMPORT_DIR']
   usable_import_dir = import_dir && !import_dir.empty? && Dir.exist?(import_dir) && File.writable?(import_dir)
   config.filter_run_excluding csv: true unless usable_import_dir
-  config.filter_run_excluding jruby: true unless Neo4j::Driver::Loader.jruby?
   config.exclude_pattern = "#{Neo4j::Driver::Loader.jruby? ? 'mri' : 'jruby'}/**/*_spec.rb"
   Neo4j::Driver::Internal::Deprecator.deprecator.behavior = :silence
 end
