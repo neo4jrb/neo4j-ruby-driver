@@ -300,7 +300,7 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '5. Notification config', version: '>=5', jruby: true do
+  context '5. Notification config', version: '>=5' do
     subject do
       driver.session do |session|
         result = session.run(
@@ -309,6 +309,18 @@ RSpec.describe Neo4j::Driver do
           end: 'Bob'
         )
         result.consume.notifications.map(&:code)
+      end
+    end
+
+    # Create the Person nodes the query references so the only notification is
+    # the UnboundedVariableLengthPattern (INFORMATION/PERFORMANCE) from the
+    # `[*]` pattern. Without them the query also raises UnknownLabel /
+    # UnknownPropertyKey warnings (WARNING/UNRECOGNIZED) that the custom config
+    # below does not disable, so Example 5.2 would never be empty.
+    before do
+      driver.session do |session|
+        session.run("MERGE (a:Person {name: 'Alice'}) " \
+                    "MERGE (b:Person {name: 'Bob'}) MERGE (a)-[:KNOWS]->(b)").consume
       end
     end
 
