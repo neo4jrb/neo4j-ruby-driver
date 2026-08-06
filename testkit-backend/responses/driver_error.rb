@@ -18,11 +18,11 @@ module TestkitBackend
           rawClassification: @object.try(:raw_classification),
           cause: gql_error(@object.try(:gql_cause)),
           retryable: @object.is_a?(Neo4j::Driver::Exceptions::TransientException) ||
-                     @object.is_a?(Neo4j::Driver::Exceptions::ServiceUnavailableException) ||
-                     @object.is_a?(Neo4j::Driver::Exceptions::SecurityRetryableException) ||
-                     # AuthorizationExpired is always retryable: the driver
-                     # re-authenticates and replays (Java treats it the same).
-                     @object.is_a?(Neo4j::Driver::Exceptions::AuthorizationExpiredException)
+            @object.is_a?(Neo4j::Driver::Exceptions::ServiceUnavailableException) ||
+            @object.is_a?(Neo4j::Driver::Exceptions::SecurityRetryableException) ||
+            # AuthorizationExpired is always retryable: the driver
+            # re-authenticates and replays (Java treats it the same).
+            @object.is_a?(Neo4j::Driver::Exceptions::AuthorizationExpiredException)
         }.compact
       end
 

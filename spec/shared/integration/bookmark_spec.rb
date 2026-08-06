@@ -102,7 +102,8 @@ RSpec.describe 'Bookmark' do
 
   it 'creates session with AccessMode and initial bookmark' do
     bookmark = Neo4j::Driver::Bookmark.from('TheBookmark')
-    expect(driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: Set[bookmark], &:last_bookmarks))
+    expect(driver.session(default_access_mode: Neo4j::Driver::AccessMode::WRITE, bookmarks: Set[bookmark],
+      &:last_bookmarks))
       .to contain_exactly bookmark
   end
 end

@@ -11,4 +11,5 @@ Gem::Specification.new do |spec|
   spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 6.2.0'
   spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver-observation-metrics, 6.2.0'
   # spec.requirements << 'jar org.neo4j.bolt, neo4j-bolt-connection-pooled, 10.1.0'
+  spec.metadata['rubygems_mfa_required'] = 'true'
 end

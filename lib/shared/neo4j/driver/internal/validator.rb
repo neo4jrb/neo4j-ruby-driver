@@ -16,6 +16,7 @@ module Neo4j
 
         def self.require_non_nil!(obj, message = nil)
           raise ArgumentError, [message, "can't be nil"].compact.join(' ') if obj.nil?
+
           obj
         end
 
@@ -24,14 +25,17 @@ module Neo4j
         # object carries its own text, so only bare strings are checked.
         def self.require_query_text!(query)
           raise ArgumentError, 'Cypher query text should not be null' if query.nil?
-          raise ArgumentError, 'Cypher query text should not be an empty string' if query.is_a?(String) && query.strip.empty?
+          if query.is_a?(String) && query.strip.empty?
+            raise ArgumentError,
+                  'Cypher query text should not be an empty string'
+          end
 
           query
         end
 
         def self.require_non_nil_credentials!(username, password)
-          require_non_nil! username, "Username"
-          require_non_nil! password, "Password"
+          require_non_nil! username, 'Username'
+          require_non_nil! password, 'Password'
         end
       end
     end

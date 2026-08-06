@@ -16,7 +16,7 @@ module Neo4j
 
         # Alias args → arguments to match JRuby's InternalPlan#args helper,
         # so cross-flavour callers can use either name.
-        alias_method :args, :arguments
+        alias args arguments
       end
     end
   end

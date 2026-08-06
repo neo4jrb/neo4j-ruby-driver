@@ -6,7 +6,7 @@ module Neo4j
       class NoSuchRecordException < RuntimeError
         EMPTY = 'Cannot retrieve a single record, because this result is empty.'
         TOO_MANY = 'Expected a result with a single record, but this result ' \
-          'contains at least one more. Ensure your query returns only one record.'
+                   'contains at least one more. Ensure your query returns only one record.'
         NO_MORE = 'No more records'
         NO_PEEK_PAST = 'Cannot peek past the last record'
 

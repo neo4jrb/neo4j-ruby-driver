@@ -30,9 +30,9 @@ module Neo4j
             # would be to disambiguate this one method.
             def query_type
               case super
-              when Java::OrgNeo4jDriverSummary::QueryType::READ_ONLY    then Driver::Summary::QueryType::READ_ONLY
-              when Java::OrgNeo4jDriverSummary::QueryType::READ_WRITE   then Driver::Summary::QueryType::READ_WRITE
-              when Java::OrgNeo4jDriverSummary::QueryType::WRITE_ONLY   then Driver::Summary::QueryType::WRITE_ONLY
+              when Java::OrgNeo4jDriverSummary::QueryType::READ_ONLY then Driver::Summary::QueryType::READ_ONLY
+              when Java::OrgNeo4jDriverSummary::QueryType::READ_WRITE then Driver::Summary::QueryType::READ_WRITE
+              when Java::OrgNeo4jDriverSummary::QueryType::WRITE_ONLY then Driver::Summary::QueryType::WRITE_ONLY
               when Java::OrgNeo4jDriverSummary::QueryType::SCHEMA_WRITE then Driver::Summary::QueryType::SCHEMA_WRITE
               end
             end

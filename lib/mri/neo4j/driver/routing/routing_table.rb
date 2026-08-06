@@ -109,7 +109,7 @@ module Neo4j
 
         def servers_for(access_mode)
           case access_mode
-          when :read  then @readers
+          when :read then @readers
           when :write then @writers
           when :route then @routers
           else raise ArgumentError, "Unknown access mode: #{access_mode.inspect}"

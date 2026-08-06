@@ -13,8 +13,8 @@ module Neo4j
 
         NANOS_PER_SECOND = 1_000_000_000
         NANOS_PER_MINUTE = 60 * NANOS_PER_SECOND
-        NANOS_PER_HOUR   = 60 * NANOS_PER_MINUTE
-        NANOS_PER_DAY    = 24 * NANOS_PER_HOUR
+        NANOS_PER_HOUR = 60 * NANOS_PER_MINUTE
+        NANOS_PER_DAY = 24 * NANOS_PER_HOUR
 
         def self.significant_fields
           raise NotImplementedError, "#{self} must define .significant_fields"
@@ -26,6 +26,7 @@ module Neo4j
 
         def <=>(other)
           return nil unless other.is_a?(self.class)
+
           significant <=> other.significant
         end
 

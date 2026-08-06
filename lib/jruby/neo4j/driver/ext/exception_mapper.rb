@@ -152,8 +152,6 @@ module Neo4j
             Neo4j::Driver::Exceptions::TransientException
           when Neo4jException # base — catches plain GQL-cause exceptions (must be last)
             Neo4j::Driver::Exceptions::Neo4jException
-          else
-            nil
           end
         end
 
@@ -167,8 +165,6 @@ module Neo4j
             Neo4j::Driver::Exceptions::IllegalStateException
           when Java::JavaLang::IllegalArgumentException
             ArgumentError
-          else
-            nil
           end
         end
       end

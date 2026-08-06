@@ -2,7 +2,7 @@ module TestkitBackend
   module Requests
     class AuthorizationToken < Request
       def to_object
-        case (scheme)
+        case scheme
         when 'basic'
           Neo4j::Driver::AuthTokens.basic(principal, credentials, realm)
         when 'bearer', 'kerberos'

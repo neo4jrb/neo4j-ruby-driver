@@ -6,6 +6,7 @@ module Neo4j
       module Internal
         module InternalNotificationSeverity
           extend Forwardable
+
           delegate name: :type
         end
       end

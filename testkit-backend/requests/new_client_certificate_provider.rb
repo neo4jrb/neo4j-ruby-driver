@@ -24,7 +24,9 @@ module TestkitBackend
 
       def request_client_certificate(provider_id)
         completed = @command_processor.callback(
-          named_entity('ClientCertificateProviderRequest', id: provider_id, client_certificate_provider_id: provider_id))
+          named_entity('ClientCertificateProviderRequest', id: provider_id,
+                                                           client_certificate_provider_id: provider_id)
+        )
         return unless completed.has_update
 
         # The wire shape nests the cert fields under `data`.

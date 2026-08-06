@@ -7,7 +7,7 @@ RSpec.describe 'ScalarTypesSpec' do
     ["'hello'", 'hello'],
     true,
     false,
-    ["[1,2,3]", [1, 2, 3]],
+    ['[1,2,3]', [1, 2, 3]],
     ["['hello']", ['hello']],
     ['[]', []],
     ["{k:'hello'}", { k: 'hello' }]

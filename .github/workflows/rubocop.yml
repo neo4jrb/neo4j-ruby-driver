@@ -1,0 +1,24 @@
+name: RuboCop
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rubocop:
+    name: rubocop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      # --format github surfaces offenses as inline PR annotations. The
+      # .rubocop_todo.yml baseline keeps this green on existing code, so a
+      # failure here means a new offense was introduced.
+      - name: Run RuboCop
+        run: bundle exec rubocop --format github

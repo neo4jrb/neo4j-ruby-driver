@@ -14,8 +14,10 @@ module Neo4j
           # Check the sign before rounding: a tiny negative timeout
           # (e.g. -0.4ms) would otherwise round to 0 and slip through.
           ms = timeout.to_f * 1000
-          raise Exceptions::ClientException,
-                "Transaction timeout must not be negative, but was #{ms}ms" if ms.negative?
+          if ms.negative?
+            raise Exceptions::ClientException,
+                  "Transaction timeout must not be negative, but was #{ms}ms"
+          end
 
           ms.round
         end

@@ -98,7 +98,7 @@ RSpec.describe 'ResultStream' do
     driver.session do |session|
       seen = []
       expect { session.run('RETURN 10 / 0').each { |record| seen << record[0] } }
-        .to raise_error Neo4j::Driver::Exceptions::ClientException, /\/ by zero/
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, %r{/ by zero}
       expect(seen).to be_empty
     end
   end
@@ -107,7 +107,7 @@ RSpec.describe 'ResultStream' do
     driver.session do |session|
       seen = []
       expect { session.run('UNWIND range(5, 0, -1) AS x RETURN x / x').each { |record| seen << record[0] } }
-        .to raise_error Neo4j::Driver::Exceptions::ClientException, /\/ by zero/
+        .to raise_error Neo4j::Driver::Exceptions::ClientException, %r{/ by zero}
 
       # stream should manage to consume all elements except the last one, which produces an error
       expect(seen).to eq([1] * 5)

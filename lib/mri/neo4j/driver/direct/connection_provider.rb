@@ -183,7 +183,11 @@ module Neo4j
 
         def close
           @closed = true
-          @pool&.shutdown { |conn| conn.close rescue nil }
+          @pool&.shutdown do |conn|
+            conn.close
+          rescue StandardError
+            nil
+          end
         end
 
         private

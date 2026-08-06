@@ -17,7 +17,7 @@ module Neo4j::Driver::Ext
         condition = @condition
         @condition = nil
 
-        self.freeze
+        freeze
 
         condition.signal(value)
       end
@@ -28,17 +28,19 @@ module Neo4j::Driver::Ext
 
       def value
         @condition&.wait
-        return @value
+        @value
       end
 
       def wait
-        self.value
+        value
       end
     end
 
     def to_future(completion_stage)
       Concurrent::Promises.resolvable_future.tap do |future|
-        completion_stage.then_apply(&future.method(:fulfill)).exceptionally { |e| future.reject(mapped_exception_with_cause(e.cause)) }
+        completion_stage.then_apply(&future.method(:fulfill)).exceptionally do |e|
+          future.reject(mapped_exception_with_cause(e.cause))
+        end
       end
     end
 

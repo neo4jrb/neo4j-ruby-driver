@@ -21,7 +21,8 @@ module TestkitBackend
 
       def get_token(manager_id)
         reply = @command_processor.callback(
-          named_entity('AuthTokenManagerGetAuthRequest', id: manager_id, auth_token_manager_id: manager_id))
+          named_entity('AuthTokenManagerGetAuthRequest', id: manager_id, auth_token_manager_id: manager_id)
+        )
         Request.object_from(reply.auth)
       end
 
@@ -29,7 +30,8 @@ module TestkitBackend
         @command_processor.callback(
           named_entity('AuthTokenManagerHandleSecurityExceptionRequest',
                        id: manager_id, auth_token_manager_id: manager_id,
-                       auth: serialize_auth_token(token), error_code: exception.code)).handled
+                       auth: serialize_auth_token(token), error_code: exception.code)
+        ).handled
       end
 
       # Reverse of AuthorizationToken#to_object — AuthToken back to

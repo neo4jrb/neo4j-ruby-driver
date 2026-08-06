@@ -34,9 +34,9 @@ module Neo4j
           @protocol = protocol
           @packer = PackStream::Packer.new(@protocol)
           @protocol.configure_packer(@packer)
-          @outbound = binary_string  # consumer-only (enqueue/take_outbound)
-          @inbound = binary_string   # reader-only: received bytes not yet parsed
-          @message = binary_string   # reader-only: chunks of the in-progress message
+          @outbound = binary_string # consumer-only (enqueue/take_outbound)
+          @inbound = binary_string # reader-only: received bytes not yet parsed
+          @message = binary_string # reader-only: chunks of the in-progress message
           # Response-ordering FIFO. Bolt replies in request order, so each sent
           # request pushes the handler that will receive its response(s); the
           # front handler always owns the next reply. A handler is any response
@@ -187,7 +187,7 @@ module Neo4j
         def register_hydration_handlers(unpacker)
           unpacker.register_hydration_handler(Message::SUCCESS) { |fields| Message::Success.new(fields[0] || {}) }
           unpacker.register_hydration_handler(Message::FAILURE) { |fields| Message::Failure.new(fields[0] || {}) }
-          unpacker.register_hydration_handler(Message::RECORD)  { |fields| Message::Record.new(fields[0] || []) }
+          unpacker.register_hydration_handler(Message::RECORD) { |fields| Message::Record.new(fields[0] || []) }
           unpacker.register_hydration_handler(Message::IGNORED) { |_| Message::Ignored.new }
 
           # Signature 0x4E - Node

@@ -3,22 +3,23 @@ module TestkitBackend
     class Summary < Response
       PLAN_FIELDS = %w[operator_type args identifiers].freeze
       PROFILE_FIELDS = (PLAN_FIELDS + %w[db_hits records page_cache_hits
-                                        page_cache_misses page_cache_hit_ratio time]).freeze
+                                         page_cache_misses page_cache_hit_ratio time]).freeze
 
       def data
         notifications = @object.notifications
         {
           serverInfo: to_map(@object.server, :protocol_version, :address, :agent),
           counters: to_map(@object.counters, *%w[constraints_added constraints_removed contains_system_updates? contains_updates? indexes_added
-          indexes_removed labels_added labels_removed nodes_created nodes_deleted properties_set relationships_created
-          relationships_deleted system_updates]),
-          query: { text: @object.query.text, parameters: @object.query.parameters.transform_values(&self.class.method(:to_testkit)) },
+                                                 indexes_removed labels_added labels_removed nodes_created nodes_deleted properties_set relationships_created
+                                                 relationships_deleted system_updates]),
+          query: { text: @object.query.text,
+                   parameters: @object.query.parameters.transform_values(&self.class.method(:to_testkit)) },
           database: @object.database&.name,
           queryType: @object.query_type,
           notifications: (notifications_to_h(notifications) if notifications&.any?),
           gqlStatusObjects: @object.gql_status_objects.map(&method(:gql_status_to_h)),
           plan: (plan_to_h(@object.plan, PLAN_FIELDS) if @object.has_plan?),
-          profile: (@object.query_profile&.then { plan_to_h(it, PROFILE_FIELDS) })
+          profile: @object.query_profile&.then { plan_to_h(it, PROFILE_FIELDS) }
         }.merge!(to_map(@object, *%w[result_available_after result_consumed_after]))
       end
 
@@ -29,7 +30,7 @@ module TestkitBackend
       end
 
       def key(name)
-        name.to_s.gsub('?', '').camelize(:lower).to_sym
+        name.to_s.delete('?').camelize(:lower).to_sym
       end
 
       def map_entry(n, method, *methods)

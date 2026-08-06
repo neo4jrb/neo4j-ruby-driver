@@ -14,8 +14,8 @@ module Neo4j
           end
         end
 
-        def each(&block)
-          check { stream.for_each(&block) }
+        def each(&)
+          check { stream.for_each(&) }
         end
 
         def to_a

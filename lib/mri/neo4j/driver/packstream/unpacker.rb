@@ -29,7 +29,8 @@ module Neo4j
         def unpack_uuid_value
           hex = read_bytes(16).unpack1('H*')
           Types::UUID.from_string(
-            "#{hex[0, 8]}-#{hex[8, 4]}-#{hex[12, 4]}-#{hex[16, 4]}-#{hex[20, 12]}")
+            "#{hex[0, 8]}-#{hex[8, 4]}-#{hex[12, 4]}-#{hex[16, 4]}-#{hex[20, 12]}"
+          )
         end
 
         # A ProtocolException (not a bare RuntimeError) so the failure reaches
@@ -49,9 +50,9 @@ module Neo4j
           case marker
           when NULL
             nil
-          when FALSE
+          when BOOLEAN_FALSE
             false
-          when TRUE
+          when BOOLEAN_TRUE
             true
           when FLOAT_64
             read_bytes(8).unpack1('G')
@@ -159,7 +160,8 @@ module Neo4j
 
         def read_bytes(n)
           data = @io.read(n)
-          raise IOError, "Unexpected end of stream" if data.nil? || data.bytesize < n
+          raise IOError, 'Unexpected end of stream' if data.nil? || data.bytesize < n
+
           data
         end
       end

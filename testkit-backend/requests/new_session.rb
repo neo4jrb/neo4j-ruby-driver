@@ -19,7 +19,8 @@ module TestkitBackend
           # config (new_driver); overrides the driver's notification filters for
           # this session. Unset filters pass through as nil (no-op).
           notification_config: {
-            minimum_severity: notifications_min_severity, disabled_categories: notifications_disabled_categories }
+            minimum_severity: notifications_min_severity, disabled_categories: notifications_disabled_categories
+          }
         )
       end
 

@@ -20,12 +20,14 @@ else
 end
 
 group :development, :test do
-  gem 'rspec', '~> 3.12'
-  gem 'rspec-its', '~> 1.3'
-  gem 'async'
   gem 'activesupport'
+  gem 'async'
+  gem 'bigdecimal'
+  gem 'ffaker'
   gem 'nio4r'
   gem 'ostruct'
-  gem 'ffaker'
-  gem 'bigdecimal'
+  gem 'rspec', '~> 3.12'
+  gem 'rspec-its', '~> 1.3'
+  gem 'rubocop', '~> 1.89.0', require: false
+  gem 'rubocop-performance', '~> 1.26.0', require: false
 end

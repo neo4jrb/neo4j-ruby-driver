@@ -239,11 +239,11 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
         options: { connection_liveness_check_timeout: 0.001 },
         connect_factory: ->(_auth, _deadline = nil) { sequence.next }
       )
-      pool.pop                     # factory builds `dead` (fresh, no probe) -> in use
-      pool.push(dead)              # back to the pool, idle
+      pool.pop # factory builds `dead` (fresh, no probe) -> in use
+      pool.push(dead) # back to the pool, idle
       dead.idle_since = monotonic - 1
 
-      pool.pop                     # dead fails liveness -> discard_on_pop; factory builds `fresh`
+      pool.pop # dead fails liveness -> discard_on_pop; factory builds `fresh`
       expect(pool.metrics_snapshot).to eq([1, 0]) # only fresh, in use; dead dropped from created
     end
 

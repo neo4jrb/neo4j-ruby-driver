@@ -39,12 +39,12 @@ module Neo4j
           @low_watermark = low_watermark || [@high_watermark / 2, 1].max
           @mutex = Mutex.new
           @cv = ConditionVariable.new
-          @records = []           # incrementally filled by the reader, drained by the cursor
-          @has_more = true        # server may have more records for this stream
-          @pull_in_flight = true  # the first PULL is pipelined with RUN — promise unfulfilled
-          @ended = false          # terminal SUCCESS/IGNORED seen → no more records
-          @error = nil            # stream failed; re-raised to the cursor after buffered records
-          @summary = nil          # terminating SUCCESS metadata
+          @records = [] # incrementally filled by the reader, drained by the cursor
+          @has_more = true # server may have more records for this stream
+          @pull_in_flight = true # the first PULL is pipelined with RUN — promise unfulfilled
+          @ended = false # terminal SUCCESS/IGNORED seen → no more records
+          @error = nil # stream failed; re-raised to the cursor after buffered records
+          @summary = nil # terminating SUCCESS metadata
         end
 
         # --- Producer (reader) side -----------------------------------------
@@ -52,7 +52,10 @@ module Neo4j
         # Append a decoded record and wake a cursor parked in #await. Never blocks
         # (unbounded); the cursor's watermark bounds how much the server ships.
         def push_record(record)
-          @mutex.synchronize { @records.push(record); @cv.broadcast }
+          @mutex.synchronize do
+            @records.push(record)
+            @cv.broadcast
+          end
         end
 
         # The current batch's terminal SUCCESS arrived — resolve the promise.
@@ -60,7 +63,11 @@ module Neo4j
         # so the cursor may issue the next once it drains past the low watermark.
         # Wake a cursor parked in #await waiting for exactly this.
         def batch_complete(has_more:)
-          @mutex.synchronize { @has_more = has_more; @pull_in_flight = false; @cv.broadcast }
+          @mutex.synchronize do
+            @has_more = has_more
+            @pull_in_flight = false
+            @cv.broadcast
+          end
         end
 
         # Final batch (terminating SUCCESS without has_more, or IGNORED): stash the
