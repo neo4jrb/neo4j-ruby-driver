@@ -30,6 +30,10 @@ moved under a version heading when a release is cut.
   `close_async`, and the `AsyncConverter` bridge) — it had no callers. This
   drops **`concurrent-ruby-edge`** as a JRuby runtime dependency.
 
+### Fixed
+- **License** metadata corrected to **MIT** (the gemspec claimed `Apache-2.0`
+  and no `LICENSE.txt` was present); the project has always been MIT.
+
 ---
 
 ## Project capabilities (as of the current pre-release line)

@@ -182,4 +182,4 @@ and add coverage on both implementations. See `CHANGELOG.md` for recent changes.
 
 ## License
 
-Apache License 2.0
+Released under the [MIT License](LICENSE.txt).
