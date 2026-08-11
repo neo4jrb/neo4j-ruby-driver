@@ -41,6 +41,6 @@ def common_gemspec(spec, impl)
   spec.add_development_dependency 'csv'
   spec.add_development_dependency 'ffaker'
   spec.add_development_dependency 'rake', '~> 13.0'
-  spec.add_development_dependency 'rspec', '~> 3.12'
-  spec.add_development_dependency 'rspec-its', '~> 1.3'
+  spec.add_development_dependency 'rspec', '~> 3.13'
+  spec.add_development_dependency 'rspec-its', '~> 2.0'
 end
