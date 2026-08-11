@@ -74,8 +74,6 @@ Java::OrgNeo4jDriverInternal::InternalUnsupportedType.prepend Neo4j::Driver::Ext
 Java::OrgNeo4jDriverInternal::InternalResult.prepend Neo4j::Driver::Ext::InternalResult
 Java::OrgNeo4jDriverInternal::InternalSession.prepend Neo4j::Driver::Ext::InternalSession
 Java::OrgNeo4jDriverInternal::InternalTransaction.prepend Neo4j::Driver::Ext::InternalTransaction
-Java::OrgNeo4jDriverInternalAsync::InternalAsyncSession.prepend Neo4j::Driver::Ext::Internal::Async::InternalAsyncSession
-# Java::OrgNeo4jDriverInternalCursor::DisposableAsyncResultCursor.prepend Neo4j::Driver::Ext::Internal::Cursor::DisposableAsyncResultCursor
 Java::OrgNeo4jDriverInternalSecurity::InternalAuthToken.include Neo4j::Driver::Ext::AuthToken
 Java::OrgNeo4jDriverInternalShadedBoltConnectionRoutedImplCluster::RoutingTableRegistryImpl.include Neo4j::Driver::Ext::Internal::Cluster::RoutingTableRegistryImpl
 Java::OrgNeo4jDriverInternalSummary::InternalGqlNotification.prepend Neo4j::Driver::Ext::Internal::Summary::InternalGqlNotification

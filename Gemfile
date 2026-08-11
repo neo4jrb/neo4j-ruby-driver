@@ -25,4 +25,5 @@ group :development, :test do
   gem 'nio4r'
   gem 'ostruct'
   gem 'bigdecimal'
+  gem 'concurrent-ruby' # testkit-backend's fake clock uses its atomics
 end
