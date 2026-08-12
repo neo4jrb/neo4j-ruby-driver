@@ -30,10 +30,12 @@ On any `v*` tag:
 - Creates a **GitHub Release** whose notes are auto-generated from the pull
   requests merged since the previous tag. Tags with a suffix (`-alpha`/`-beta`/
   `-rc`/…) are marked **pre-release**.
-- Builds **both platform gems** (`rake build:mri` on CRuby, `rake build:jruby`
-  on JRuby) and, when the `RUBYGEMS_API_KEY` repository secret is set, pushes
-  them to RubyGems. Without the secret the gems are built but not pushed, so a
-  tag still smoke-tests the release build.
+- Builds **both platform gems** and, when the `RUBYGEMS_API_KEY` repository
+  secret is set, pushes them to RubyGems — **JRuby (`java`) first, then MRI
+  (`ruby`)**. The `ruby` gem is the universal fallback, so publishing it before
+  the `java` gem would let a JRuby user install the MRI implementation for that
+  version; JRuby-first closes that window. Without the secret the gems are built
+  but not pushed, so a tag still smoke-tests the release build.
 
 ## Rolling back a release
 

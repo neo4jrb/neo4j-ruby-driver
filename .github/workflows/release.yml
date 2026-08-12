@@ -47,31 +47,48 @@ jobs:
             gh release create "$tag" --title "$tag" --generate-notes $prerelease
           fi
 
-  publish-gems:
-    name: Build & push (${{ matrix.task }})
+  # Publish the JRuby (java platform) gem BEFORE the MRI (ruby platform) gem.
+  # The ruby-platform gem is the universal fallback: if it were on RubyGems for
+  # a version whose java gem wasn't published yet, a JRuby user resolving that
+  # version would install it — i.e. get the MRI implementation instead of the
+  # Java-driver wrapper. There is no symmetric risk (the java gem never installs
+  # on MRI), so publishing java first closes the window. If the java push fails,
+  # `needs` stops the ruby push, so the ruby gem is never the only variant.
+  publish-jruby:
+    name: Build & push (JRuby / java)
     needs: github-release
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - ruby: '3.4'
-            task: build:mri
-          - ruby: jruby-10.1.0.0
-            task: build:jruby
     env:
       GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-      # jar-dependencies' post_install hook races under parallel installs.
+      BUNDLE_JOBS: '1' # jar-dependencies' post_install hook races under parallel installs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: jruby-10.1.0.0
+          bundler-cache: true
+      - name: Build the JRuby gem
+        run: bundle exec rake build:jruby
+      - name: Push to RubyGems
+        # Skipped (build-only) when no RubyGems key is configured.
+        if: env.GEM_HOST_API_KEY != ''
+        run: gem push pkg/*.gem
+
+  publish-mri:
+    name: Build & push (MRI / ruby)
+    needs: publish-jruby # only after the java gem is on RubyGems
+    runs-on: ubuntu-latest
+    env:
+      GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
       BUNDLE_JOBS: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ${{ matrix.ruby }}
+          ruby-version: '3.4'
           bundler-cache: true
-      - name: Build the gem
-        run: bundle exec rake ${{ matrix.task }}
+      - name: Build the MRI gem
+        run: bundle exec rake build:mri
       - name: Push to RubyGems
-        # Skipped (build-only) when no RubyGems key is configured.
         if: env.GEM_HOST_API_KEY != ''
         run: gem push pkg/*.gem
