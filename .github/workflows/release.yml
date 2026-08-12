@@ -1,0 +1,69 @@
+name: Release
+
+# How to cut a release:
+#   1. Bump VERSION in lib/shared/neo4j/driver/version.rb and move the
+#      CHANGELOG's [Unreleased] entries under a new version heading.
+#   2. Commit, then tag and push:
+#        git tag v<version> && git push origin v<version>
+#
+# On a `v*` tag this workflow drafts a GitHub Release with notes generated from
+# the pull requests merged since the previous tag (marked pre-release for
+# versions carrying a suffix such as v6.2.1-beta.1), and — when a
+# RUBYGEMS_API_KEY secret is configured — builds and pushes both platform gems
+# (MRI + JRuby). Without that secret the gems are still built (a release smoke
+# test) but not pushed.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create the release with generated notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          # Pre-release for any tag with a suffix, e.g. v6.2.1-beta.1.
+          prerelease=
+          case "$tag" in *-*) prerelease=--prerelease ;; esac
+          gh release create "$tag" --title "$tag" --generate-notes $prerelease
+
+  publish-gems:
+    name: Build & push (${{ matrix.task }})
+    needs: github-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ruby: '3.4'
+            task: build:mri
+          - ruby: jruby-10.1.0.0
+            task: build:jruby
+    env:
+      GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+      # jar-dependencies' post_install hook races under parallel installs.
+      BUNDLE_JOBS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - name: Build the gem
+        run: bundle exec rake ${{ matrix.task }}
+      - name: Push to RubyGems
+        # Skipped (build-only) when no RubyGems key is configured.
+        if: env.GEM_HOST_API_KEY != ''
+        run: gem push pkg/*.gem
