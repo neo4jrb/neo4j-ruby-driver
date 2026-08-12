@@ -8,7 +8,7 @@ implementations behind one public Ruby API**:
   PackStream, with no Java dependency.
 - **JRuby** — a thin wrapper over the official
   [neo4j-java-driver](https://github.com/neo4j/neo4j-java-driver), whose jars
-  are bundled with the gem.
+  are managed by [jar-dependencies](https://github.com/mkristian/jar-dependencies).
 
 Bundler installs the implementation matching your platform automatically, and
 your code is identical either way. The gem version tracks the Java-driver
@@ -52,7 +52,7 @@ bundle install
 require 'neo4j/driver'
 
 Neo4j::Driver::GraphDatabase.driver(
-  'neo4j://localhost:7687',
+  'bolt://localhost:7687',
   Neo4j::Driver::AuthTokens.basic('neo4j', 'password')
 ) do |driver|
   driver.session do |session|
@@ -146,8 +146,8 @@ build (see `JRUBY.md`). See `CLAUDE.md` for the layout and conventions,
 
 - **MRI**: `tzinfo`, `zeitwerk`, `connection_pool` — no Java, no server-side
   components.
-- **JRuby**: the official `neo4j-java-driver` jars (vendored via
-  `jar-dependencies`); runs on a JVM (Java 17+).
+- **JRuby**: the official `neo4j-java-driver` jars, resolved by
+  `jar-dependencies`; runs on a JVM (Java 17+).
 
 ## Testing
 
