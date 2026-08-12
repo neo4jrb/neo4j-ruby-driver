@@ -21,6 +21,11 @@ on:
 permissions:
   contents: write
 
+env:
+  # A boolean, never the key itself — safe at workflow scope. Gates the gem-push
+  # steps; the key (GEM_HOST_API_KEY) is injected only on those steps.
+  HAS_RUBYGEMS_KEY: ${{ secrets.RUBYGEMS_API_KEY != '' }}
+
 jobs:
   github-release:
     name: GitHub release
@@ -59,9 +64,6 @@ jobs:
     needs: github-release
     runs-on: ubuntu-latest
     env:
-      # A boolean, never the key itself — safe at job scope, and used only to
-      # gate the push step. The key is injected on that step alone.
-      HAS_RUBYGEMS_KEY: ${{ secrets.RUBYGEMS_API_KEY != '' }}
       BUNDLE_JOBS: '1' # jar-dependencies' post_install hook races under parallel installs
     steps:
       - uses: actions/checkout@v4
@@ -83,7 +85,6 @@ jobs:
     needs: publish-jruby # only after the java gem is on RubyGems
     runs-on: ubuntu-latest
     env:
-      HAS_RUBYGEMS_KEY: ${{ secrets.RUBYGEMS_API_KEY != '' }}
       BUNDLE_JOBS: '1'
     steps:
       - uses: actions/checkout@v4
