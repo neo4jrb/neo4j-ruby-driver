@@ -59,7 +59,6 @@ jobs:
     needs: github-release
     runs-on: ubuntu-latest
     env:
-      GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
       BUNDLE_JOBS: '1' # jar-dependencies' post_install hook races under parallel installs
     steps:
       - uses: actions/checkout@v4
@@ -70,16 +69,19 @@ jobs:
       - name: Build the JRuby gem
         run: bundle exec rake build:jruby
       - name: Push to RubyGems
-        # Skipped (build-only) when no RubyGems key is configured.
-        if: env.GEM_HOST_API_KEY != ''
-        run: gem push pkg/*.gem
+        # Scope the secret to this step only (not checkout/setup/build). When
+        # it's unset, skip the push (build-only) rather than fail.
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: |
+          [ -n "$GEM_HOST_API_KEY" ] || { echo "No RUBYGEMS_API_KEY set — skipping push (build-only)."; exit 0; }
+          gem push pkg/*.gem
 
   publish-mri:
     name: Build & push (MRI / ruby)
     needs: publish-jruby # only after the java gem is on RubyGems
     runs-on: ubuntu-latest
     env:
-      GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
       BUNDLE_JOBS: '1'
     steps:
       - uses: actions/checkout@v4
@@ -90,5 +92,8 @@ jobs:
       - name: Build the MRI gem
         run: bundle exec rake build:mri
       - name: Push to RubyGems
-        if: env.GEM_HOST_API_KEY != ''
-        run: gem push pkg/*.gem
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: |
+          [ -n "$GEM_HOST_API_KEY" ] || { echo "No RUBYGEMS_API_KEY set — skipping push (build-only)."; exit 0; }
+          gem push pkg/*.gem
