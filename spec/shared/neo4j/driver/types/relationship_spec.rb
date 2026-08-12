@@ -9,6 +9,7 @@ RSpec.describe Neo4j::Driver::Types::Relationship do
   end
 
   it { is_expected.to be_a_kind_of described_class }
+  it { is_expected.to be_a_kind_of Neo4j::Driver::Types::Entity }
   its(:type) { is_expected.to eq :friend_of }
   its(:id) { is_expected.to be_a(Integer) }
   its(:start_node_id) { is_expected.to be_a(Integer) }

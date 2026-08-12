@@ -3,19 +3,14 @@
 module Neo4j
   module Driver
     module Types
-      # Represents an unbound relationship (used in paths before binding to nodes)
-      class UnboundRelationship
-        attr_reader :id, :type, :properties, :element_id
+      # Represents an unbound relationship (used in paths before binding to
+      # nodes). An Entity with a type but no start/end nodes yet.
+      class UnboundRelationship < Entity
+        attr_reader :type
 
         def initialize(id, type, properties, element_id = nil)
-          @id = id
+          super(id, properties, element_id)
           @type = type
-          @properties = properties
-          @element_id = element_id || id.to_s
-        end
-
-        def [](key)
-          @properties[key.to_s] || @properties[key.to_sym]
         end
 
         # Bind this relationship to specific start and end nodes
