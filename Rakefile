@@ -26,7 +26,7 @@ def stage_and_build(impl)
   FileUtils.cp_r(File.join(root, "lib/#{impl}/."), File.join(stage, 'lib'))
   FileUtils.mkdir_p(File.join(stage, 'build'))
   FileUtils.cp(File.join(root, 'build/gemspec_common.rb'), File.join(stage, 'build'))
-  [gemspec_file, 'README.md', 'LICENSE'].each do |f|
+  [gemspec_file, 'README.md', 'LICENSE.txt'].each do |f|
     src = File.join(root, f)
     FileUtils.cp(src, stage) if File.exist?(src)
   end

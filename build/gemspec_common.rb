@@ -16,18 +16,18 @@ def common_gemspec(spec, impl)
   spec.summary       = 'Clean Neo4j Bolt driver implementation for Ruby'
   spec.description   = 'A clean, modern implementation of the Neo4j Bolt protocol driver for Ruby'
   spec.homepage      = 'https://github.com/neo4jrb/neo4j-ruby-driver'
-  spec.license       = 'Apache-2.0'
+  spec.license       = 'MIT'
 
   spec.required_ruby_version = '>= 3.4.0'
 
   if ENV['STAGED_BUILD'] == '1'
     # Pattern 1 staged build (Rakefile): lib/shared/ and lib/<impl>/
     # have been merged into a flat lib/ inside pkg/stage-*/.
-    spec.files = Dir['lib/**/*', 'README.md', 'LICENSE']
+    spec.files = Dir['lib/**/*', 'README.md', 'LICENSE.txt']
     spec.require_paths = ['lib']
   else
     # Dev tree: lib/{shared, mri, jruby}/.
-    spec.files = Dir['lib/shared/**/*', "lib/#{impl}/**/*", 'README.md', 'LICENSE']
+    spec.files = Dir['lib/shared/**/*', "lib/#{impl}/**/*", 'README.md', 'LICENSE.txt']
     # Reverted order for jar_dependencies to vendor jars in jruby (the first entry)
     spec.require_paths = ["lib/#{impl}", 'lib/shared']
   end
