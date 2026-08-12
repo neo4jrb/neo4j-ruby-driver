@@ -104,7 +104,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Require the testkit-tls matrix to pass
-        if: ${{ needs.testkit-tls.result != 'success' }}
+        # Bracket notation: a hyphen in the job id is parsed as subtraction
+        # under dot access (needs.testkit-tls → needs.testkit - tls).
+        if: ${{ needs['testkit-tls'].result != 'success' }}
         run: |
-          echo "testkit-tls matrix result: ${{ needs.testkit-tls.result }}"
+          echo "testkit-tls matrix result: ${{ needs['testkit-tls'].result }}"
           exit 1

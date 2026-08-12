@@ -134,7 +134,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Require the testkit-stub matrix to pass
-        if: ${{ needs.testkit-stub.result != 'success' }}
+        # Bracket notation: a hyphen in the job id is parsed as subtraction
+        # under dot access (needs.testkit-stub → needs.testkit - stub).
+        if: ${{ needs['testkit-stub'].result != 'success' }}
         run: |
-          echo "testkit-stub matrix result: ${{ needs.testkit-stub.result }}"
+          echo "testkit-stub matrix result: ${{ needs['testkit-stub'].result }}"
           exit 1
