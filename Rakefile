@@ -71,6 +71,11 @@ task build: 'build:all'
 #   rake "changelog[v6.2.1.beta.1]"
 desc 'Regenerate CHANGELOG.md from commits (git-cliff)'
 task :changelog, [:tag] do |_task, args|
-  tag = args[:tag] ? " --tag #{args[:tag]}" : ''
-  sh "git cliff#{tag} -o CHANGELOG.md"
+  cmd = %w[git cliff]
+  if (tag = args[:tag])
+    tag.match?(/\Av\d[\w.-]*\z/) or raise "Invalid tag #{tag.inspect} (expected e.g. v6.2.1.beta.1)"
+    cmd += ['--tag', tag]
+  end
+  # Pass args to sh as an array — no shell, so the tag can't inject commands.
+  sh(*cmd, '-o', 'CHANGELOG.md')
 end

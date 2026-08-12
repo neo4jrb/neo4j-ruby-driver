@@ -18,8 +18,8 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
+# No permissions by default; each job grants only what it needs.
+permissions: {}
 
 env:
   # A boolean, never the key itself — safe at workflow scope. Gates the gem-push
@@ -30,10 +30,20 @@ jobs:
   github-release:
     name: GitHub release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+      - name: Verify the tag matches version.rb
+        run: |
+          expected="v$(ruby -r ./lib/shared/neo4j/driver/version -e 'print Neo4j::Driver::VERSION')"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version.rb ($expected) — bump version.rb or fix the tag."
+            exit 1
+          fi
       - name: Create the release with generated notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,10 +73,14 @@ jobs:
     name: Build & push (JRuby / java)
     needs: github-release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       BUNDLE_JOBS: '1' # jar-dependencies' post_install hook races under parallel installs
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: jruby-10.1.0.0
@@ -78,16 +92,30 @@ jobs:
         if: env.HAS_RUBYGEMS_KEY == 'true'
         env:
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-        run: gem push pkg/*.gem
+        # Retry-safe: a re-run after a partial release must not fail on an
+        # already-published version (RubyGems rejects a repush).
+        run: |
+          if out=$(gem push pkg/*.gem 2>&1); then
+            echo "$out"
+          else
+            echo "$out"
+            echo "$out" | grep -qiE "already been pushed|Repushing.*not allowed" \
+              && { echo "Version already on RubyGems — treating as success."; exit 0; }
+            exit 1
+          fi
 
   publish-mri:
     name: Build & push (MRI / ruby)
     needs: publish-jruby # only after the java gem is on RubyGems
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       BUNDLE_JOBS: '1'
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'
@@ -98,4 +126,12 @@ jobs:
         if: env.HAS_RUBYGEMS_KEY == 'true'
         env:
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-        run: gem push pkg/*.gem
+        run: |
+          if out=$(gem push pkg/*.gem 2>&1); then
+            echo "$out"
+          else
+            echo "$out"
+            echo "$out" | grep -qiE "already been pushed|Repushing.*not allowed" \
+              && { echo "Version already on RubyGems — treating as success."; exit 0; }
+            exit 1
+          fi

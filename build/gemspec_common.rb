@@ -8,8 +8,12 @@
 # `path:` source via standard platform matching; `bundle config set
 # --local force_ruby_platform true` forces the ruby variant on JRuby.
 def common_gemspec(spec, impl)
+  # Single source of truth for the version. In the staged build lib/ is flat
+  # (lib/neo4j/…); in the dev tree it's lib/shared/neo4j/….
+  require_relative(ENV['STAGED_BUILD'] == '1' ? '../lib/neo4j/driver/version' : '../lib/shared/neo4j/driver/version')
+
   spec.name          = 'neo4j-ruby-driver'
-  spec.version       = '0.1.0'
+  spec.version       = Neo4j::Driver::VERSION
   spec.authors       = ['Neo4j Driver Team']
   spec.email         = ['drivers@neo4j.com']
 
