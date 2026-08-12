@@ -61,17 +61,15 @@ filter_unconventional = true
 commit_preprocessors = [
   { pattern = '\(#(\d+)\)', replace = "([#${1}](https://github.com/neo4jrb/neo4j-ruby-driver/pull/${1}))" },
 ]
-# Group by conventional-commit TYPE (anchored to the subject) — keyword matching
-# on the whole message misclassifies (a body that says "drop…" isn't a removal).
-# First match wins; noise types are skipped.
+# Keep only the user-facing types — features, fixes, performance. Everything
+# else (refactor, chore, build, ci, docs, test, style, revert, and any
+# non-conventional commit) is skipped, so the changelog stays notable-only.
+# First match wins.
 commit_parsers = [
-  { message = "^chore\\((version|release|deps|dependencies)\\)", skip = true },
-  { message = "^(build|ci|docs|style|test)(\\(.*\\))?:", skip = true },
   { message = "^feat", group = "Added" },
   { message = "^fix", group = "Fixed" },
   { message = "^perf", group = "Performance" },
-  { message = "^revert", group = "Reverted" },
-  { message = "^.*", group = "Changed" },
+  { message = "^.*", skip = true },
 ]
 filter_commits = false
 topo_order = false
