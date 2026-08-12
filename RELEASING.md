@@ -35,6 +35,40 @@ On any `v*` tag:
   them to RubyGems. Without the secret the gems are built but not pushed, so a
   tag still smoke-tests the release build.
 
+## Rolling back a release
+
+Run these **manually** — unlike cutting a release, there is no tag or workflow
+trigger for a rollback. Yanking a version is permanent, so it stays a deliberate,
+hands-on step. You need RubyGems owner credentials and an authenticated `gh`.
+
+A yanked version number **can never be reused** on RubyGems, so a rollback is
+really "pull the bad release, then ship a *new* version".
+
+1. **Yank both platform gems** (MRI is the `ruby` platform, JRuby the `java`
+   platform — each is a separate published gem):
+
+   ```bash
+   gem yank neo4j-ruby-driver -v <version>
+   gem yank neo4j-ruby-driver -v <version> --platform java
+   ```
+
+   `yank` removes the version from the index so no new install/resolution picks
+   it up; it does not uninstall it for anyone who already fetched it.
+
+2. **Delete the GitHub Release and its tag**:
+
+   ```bash
+   gh release delete "v<version>" --yes --cleanup-tag
+   ```
+
+3. **Fix, then release a new version** — bump `version.rb` (e.g. the next
+   `.beta.N`), update the CHANGELOG, and tag/push as above. You cannot reuse the
+   yanked number.
+
+> Only need to re-run a *failed publish* (not a version change)? Re-push the same
+> tag — the release step is idempotent — but note the gem push will still fail on
+> a duplicate version, so anything version-affecting means a bump.
+
 ## One-time setup
 
 Add a **`RUBYGEMS_API_KEY`** repository secret (Settings → Secrets and variables
