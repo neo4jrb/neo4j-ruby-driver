@@ -36,9 +36,9 @@ module Neo4j
         # `rescue => e` block Ruby sets `.cause` to the Java exception
         # automatically (which reverse_check round-trips on via
         # `throwable(e.cause)`). At sites that hand the mapped exception
-        # off as a *value* (AuthTokenManager#handle_security_exception,
-        # AsyncConverter's reject/raise-outside-rescue) there is no such
-        # auto-set, so do it explicitly here. Ruby has no `cause=` setter;
+        # off as a *value* (AuthTokenManager#handle_security_exception)
+        # there is no such auto-set, so do it explicitly here. Ruby has no
+        # `cause=` setter;
         # `raise … cause:` is the only way to attach one.
         def mapped_exception_with_cause(exception)
           mapped = mapped_exception(exception)
