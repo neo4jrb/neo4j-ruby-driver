@@ -25,5 +25,5 @@ group :development, :test do
   gem 'nio4r'
   gem 'ostruct'
   gem 'bigdecimal'
-  gem 'concurrent-ruby' # testkit-backend's fake clock uses its atomics
+  gem 'concurrent-ruby' # concurrency specs (session_spec: Promises/latches) + testkit-backend fake clock
 end
