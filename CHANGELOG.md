@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The gem version tracks the [neo4j-java-driver](https://github.com/neo4j/neo4j-java-driver)
-version it targets, with a Ruby-side pre-release suffix (e.g. `6.2.1-beta.1`).
+version it targets, with a Ruby-side pre-release token (e.g. `6.2.1.beta.1`).
 
 This changelog was started partway through the project's life; for detailed
 per-change history before it, see the [git log](../../commits/main) and the

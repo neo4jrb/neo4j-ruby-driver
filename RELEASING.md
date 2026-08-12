@@ -4,7 +4,9 @@ Releases are cut by pushing a version tag; the
 [`release`](.github/workflows/release.yml) workflow does the rest.
 
 The gem version tracks the `neo4j-java-driver` version it targets, with a
-Ruby-side pre-release suffix (e.g. `6.2.1-beta.1`).
+Ruby-side pre-release token when applicable. Use RubyGems' dot form —
+`6.2.1.beta.1`, not the hyphenated `6.2.1-beta.1` (RubyGems rewrites the hyphen
+to `.pre.`). The progression is `alpha` → `beta` → `rc` → final.
 
 ## Steps
 
@@ -12,11 +14,13 @@ Ruby-side pre-release suffix (e.g. `6.2.1-beta.1`).
 2. **Update `CHANGELOG.md`**: move the entries under `## [Unreleased]` to a new
    `## [<version>]` heading, and leave a fresh empty `[Unreleased]`.
 3. **Commit** on `main` (via PR, as usual).
-4. **Tag and push**:
+4. **Tag and push just that tag** (not `--tags`, which would push any stray
+   local tags):
 
    ```bash
-   git tag "v$(ruby -r ./lib/shared/neo4j/driver/version -e 'print Neo4j::Driver::VERSION')"
-   git push origin --tags
+   version="$(ruby -r ./lib/shared/neo4j/driver/version -e 'print Neo4j::Driver::VERSION')"
+   git tag "v$version"
+   git push origin "v$version"
    ```
 
 ## What the workflow does

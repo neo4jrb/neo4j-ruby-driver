@@ -6,12 +6,12 @@ name: Release
 #   2. Commit, then tag and push:
 #        git tag v<version> && git push origin v<version>
 #
-# On a `v*` tag this workflow drafts a GitHub Release with notes generated from
-# the pull requests merged since the previous tag (marked pre-release for
-# versions carrying a suffix such as v6.2.1-beta.1), and — when a
-# RUBYGEMS_API_KEY secret is configured — builds and pushes both platform gems
-# (MRI + JRuby). Without that secret the gems are still built (a release smoke
-# test) but not pushed.
+# On a `v*` tag this workflow creates (publishes) a GitHub Release with notes
+# generated from the pull requests merged since the previous tag (marked
+# pre-release for versions carrying a prerelease token such as v6.2.1.beta.1),
+# and — when a RUBYGEMS_API_KEY secret is configured — builds and pushes both
+# platform gems (MRI + JRuby). Without that secret the gems are still built (a
+# release smoke test) but not pushed.
 
 on:
   push:
@@ -34,10 +34,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="$GITHUB_REF_NAME"
-          # Pre-release for any tag with a suffix, e.g. v6.2.1-beta.1.
+          # Pre-release when the version carries a prerelease token (a letter),
+          # e.g. v6.2.1.beta.1 or v6.2.1-rc.1. Strip the leading v first so the
+          # v itself isn't counted.
           prerelease=
-          case "$tag" in *-*) prerelease=--prerelease ;; esac
-          gh release create "$tag" --title "$tag" --generate-notes $prerelease
+          case "${tag#v}" in *[a-zA-Z]*) prerelease=--prerelease ;; esac
+          # Idempotent: skip creation if a release for this tag already exists,
+          # so re-running the workflow (e.g. after a publish hiccup) is safe.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists — skipping creation."
+          else
+            gh release create "$tag" --title "$tag" --generate-notes $prerelease
+          fi
 
   publish-gems:
     name: Build & push (${{ matrix.task }})
