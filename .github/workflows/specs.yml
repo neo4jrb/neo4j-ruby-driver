@@ -98,3 +98,19 @@ jobs:
 
       - name: Run RSpec
         run: bundle exec rspec --format progress
+
+  # Stable, version-free gate for branch protection. Requiring the matrix
+  # legs directly would embed the Ruby/Neo4j versions in the required-check
+  # names, so bumping the matrix would silently strip the requirement. This
+  # gate's name never changes; require `rspec-success` in the ruleset instead.
+  rspec-success:
+    name: rspec-success
+    needs: [rspec]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the rspec matrix to pass
+        if: ${{ needs.rspec.result != 'success' }}
+        run: |
+          echo "rspec matrix result: ${{ needs.rspec.result }}"
+          exit 1
