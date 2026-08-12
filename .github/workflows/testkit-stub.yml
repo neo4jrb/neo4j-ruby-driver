@@ -124,3 +124,19 @@ jobs:
           name: testkit-stub-artifacts-${{ matrix.flavor }}
           path: ${{ env.TESTKIT_PATH }}/artifacts/
           if-no-files-found: ignore
+
+  # Stable, version-free gate for branch protection (see specs.yml). Require
+  # `testkit-stub-success` in the ruleset rather than the per-flavor matrix legs.
+  testkit-stub-success:
+    name: testkit-stub-success
+    needs: [testkit-stub]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the testkit-stub matrix to pass
+        # Bracket notation: a hyphen in the job id is parsed as subtraction
+        # under dot access (needs.testkit-stub → needs.testkit - stub).
+        if: ${{ needs['testkit-stub'].result != 'success' }}
+        run: |
+          echo "testkit-stub matrix result: ${{ needs['testkit-stub'].result }}"
+          exit 1
