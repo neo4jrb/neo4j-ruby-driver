@@ -20,16 +20,20 @@ module Neo4j
           @element_id = element_id || id.to_s
         end
 
-        # Property lookup, string- or symbol-keyed.
-        def [](key)
-          @properties[key.to_s] || @properties[key.to_sym]
-        end
+        # Property lookup. PackStream hydration symbolizes every map key
+        # (Unpacker#unpack_map), so properties are symbol-keyed. Coerce the key
+        # so a string caller works too — the Java flavour accepts strings.
+        def [](key) = @properties[key.to_sym]
 
         # Entities compare by identity within their own type (a Node is never
-        # equal to a Relationship), matching the Java driver.
+        # equal to a Relationship), matching the Java driver. eql?/hash track
+        # == so entities work as Hash/Set keys.
         def ==(other)
           other.is_a?(self.class) && other.id == @id
         end
+        alias eql? ==
+
+        def hash = @id.hash
       end
     end
   end
