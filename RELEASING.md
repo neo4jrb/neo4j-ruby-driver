@@ -41,12 +41,13 @@ On any `v*` tag:
 - Creates a **GitHub Release** whose notes are auto-generated from the pull
   requests merged since the previous tag. Tags carrying a pre-release token
   (`.alpha`/`.beta`/`.rc`/…) are marked **pre-release**.
-- Builds **both platform gems** and, when the `RUBYGEMS_API_KEY` repository
-  secret is set, pushes them to RubyGems — **JRuby (`java`) first, then MRI
-  (`ruby`)**. The `ruby` gem is the universal fallback, so publishing it before
-  the `java` gem would let a JRuby user install the MRI implementation for that
-  version; JRuby-first closes that window. Without the secret the gems are built
-  but not pushed, so a tag still smoke-tests the release build.
+- Builds **both platform gems** and pushes them to RubyGems — **JRuby (`java`)
+  first, then MRI (`ruby`)**. The `ruby` gem is the universal fallback, so
+  publishing it before the `java` gem would let a JRuby user install the MRI
+  implementation for that version; JRuby-first closes that window. Publishing
+  authenticates via [RubyGems Trusted Publishing](https://guides.rubygems.org/trusted-publishing/)
+  (OIDC) — each publish job mints a short-lived token, so there is no API key
+  to store or rotate.
 
 ## Rolling back a release
 
@@ -84,7 +85,15 @@ really "pull the bad release, then ship a *new* version".
 
 ## One-time setup
 
-Add a **`RUBYGEMS_API_KEY`** repository secret (Settings → Secrets and variables
-→ Actions) with a RubyGems API key scoped to push `neo4j-ruby-driver`. Until
-then, `gem push` is skipped and you can publish manually with
-`rake build && gem push pkg/*.gem`.
+Register a **Trusted Publisher** on rubygems.org (per gem: RubyGems → the gem →
+_Trusted publishers_ → GitHub Actions) pointing at this repository and the
+`.github/workflows/release.yml` workflow. No repository secret is needed — the
+publish jobs authenticate over OIDC.
+
+- The gem name (`neo4j-ruby-driver`) is shared by both platforms, so a single
+  trusted-publisher entry covers the `ruby` and `java` pushes.
+- For a gem that doesn't exist on RubyGems yet, create a **pending** trusted
+  publisher (RubyGems → _Trusted publishers_ → _Register a new one_) so the first
+  release can push it.
+- If you bound the trusted publisher to a GitHub Actions **environment**, add a
+  matching `environment:` to the `publish-*` jobs; leave it out otherwise.

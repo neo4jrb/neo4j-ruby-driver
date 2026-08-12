@@ -9,9 +9,12 @@ name: Release
 # On a `v*` tag this workflow creates (publishes) a GitHub Release with notes
 # generated from the pull requests merged since the previous tag (marked
 # pre-release for versions carrying a prerelease token such as v6.2.1.beta.1),
-# and — when a RUBYGEMS_API_KEY secret is configured — builds and pushes both
-# platform gems (MRI + JRuby). Without that secret the gems are still built (a
-# release smoke test) but not pushed.
+# then builds and pushes both platform gems (MRI + JRuby) to RubyGems.
+#
+# Publishing uses RubyGems Trusted Publishing (OIDC) — no API-key secret. Each
+# publish job requests an `id-token` and exchanges it for a short-lived push
+# credential via rubygems/configure-rubygems-credentials. The trusted publisher
+# must be registered on rubygems.org for this repo/workflow (see RELEASING.md).
 
 on:
   push:
@@ -20,11 +23,6 @@ on:
 
 # No permissions by default; each job grants only what it needs.
 permissions: {}
-
-env:
-  # A boolean, never the key itself — safe at workflow scope. Gates the gem-push
-  # steps; the key (GEM_HOST_API_KEY) is injected only on those steps.
-  HAS_RUBYGEMS_KEY: ${{ secrets.RUBYGEMS_API_KEY != '' }}
 
 jobs:
   github-release:
@@ -75,6 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write # OIDC token for RubyGems trusted publishing
     env:
       BUNDLE_JOBS: '1' # jar-dependencies' post_install hook races under parallel installs
     steps:
@@ -87,11 +86,9 @@ jobs:
           bundler-cache: true
       - name: Build the JRuby gem
         run: bundle exec rake build:jruby
+      - name: Configure RubyGems trusted publishing (OIDC)
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
       - name: Push to RubyGems
-        # Skipped (build-only) when no RubyGems key is configured.
-        if: env.HAS_RUBYGEMS_KEY == 'true'
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
         # Retry-safe: a re-run after a partial release must not fail on an
         # already-published version (RubyGems rejects a repush).
         run: |
@@ -110,6 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write # OIDC token for RubyGems trusted publishing
     env:
       BUNDLE_JOBS: '1'
     steps:
@@ -122,10 +120,9 @@ jobs:
           bundler-cache: true
       - name: Build the MRI gem
         run: bundle exec rake build:mri
+      - name: Configure RubyGems trusted publishing (OIDC)
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
       - name: Push to RubyGems
-        if: env.HAS_RUBYGEMS_KEY == 'true'
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
         run: |
           if out=$(gem push pkg/*.gem 2>&1); then
             echo "$out"
