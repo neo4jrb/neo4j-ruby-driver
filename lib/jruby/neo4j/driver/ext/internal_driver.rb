@@ -7,7 +7,6 @@ module Neo4j
         extend AutoCloseable
         include ConfigConverter
         include ExceptionCheckable
-        include AsyncConverter
 
         auto_closeable :session
 
@@ -35,15 +34,6 @@ module Neo4j
             .call(org.neo4j.driver.Session.java_class,
                   to_java_config(Neo4j::Driver::SessionConfig, **session_config),
                   auth_token)
-        end
-
-        def async_session(**session_config)
-          java_method(:asyncSession, [org.neo4j.driver.SessionConfig])
-            .call(to_java_config(Neo4j::Driver::SessionConfig, **session_config))
-        end
-
-        def close_async
-          to_future(super)
         end
 
         def verify_connectivity

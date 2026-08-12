@@ -23,11 +23,7 @@ group :development, :test do
   gem 'activesupport'
   gem 'async'
   gem 'bigdecimal'
-  gem 'ffaker'
+  gem 'concurrent-ruby' # concurrency specs (session_spec: Promises/latches) + testkit-backend fake clock
   gem 'nio4r'
   gem 'ostruct'
-  gem 'rspec', '~> 3.12'
-  gem 'rspec-its', '~> 1.3'
-  gem 'rubocop', '~> 1.89.0', require: false
-  gem 'rubocop-performance', '~> 1.26.0', require: false
 end

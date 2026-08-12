@@ -1,0 +1,134 @@
+name: Release
+
+# How to cut a release:
+#   1. Bump VERSION in lib/shared/neo4j/driver/version.rb and move the
+#      CHANGELOG's [Unreleased] entries under a new version heading.
+#   2. Commit, then tag and push:
+#        git tag v<version> && git push origin v<version>
+#
+# On a `v*` tag this workflow creates (publishes) a GitHub Release with notes
+# generated from the pull requests merged since the previous tag (marked
+# pre-release for versions carrying a prerelease token such as v6.2.1.beta.1),
+# then builds and pushes both platform gems (MRI + JRuby) to RubyGems.
+#
+# Publishing uses RubyGems Trusted Publishing (OIDC) — no API-key secret. Each
+# publish job requests an `id-token` and exchanges it for a short-lived push
+# credential via rubygems/configure-rubygems-credentials. The trusted publisher
+# must be registered on rubygems.org for this repo/workflow (see RELEASING.md).
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# No permissions by default; each job grants only what it needs.
+permissions: {}
+
+jobs:
+  github-release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify the tag matches version.rb
+        run: |
+          expected="v$(ruby -r ./lib/shared/neo4j/driver/version -e 'print Neo4j::Driver::VERSION')"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version.rb ($expected) — bump version.rb or fix the tag."
+            exit 1
+          fi
+      - name: Create the release with generated notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          # Pre-release when the version carries a prerelease token (a letter),
+          # e.g. v6.2.1.beta.1 or v6.2.1-rc.1. Strip the leading v first so the
+          # v itself isn't counted.
+          prerelease=
+          case "${tag#v}" in *[a-zA-Z]*) prerelease=--prerelease ;; esac
+          # Idempotent: skip creation if a release for this tag already exists,
+          # so re-running the workflow (e.g. after a publish hiccup) is safe.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists — skipping creation."
+          else
+            gh release create "$tag" --title "$tag" --generate-notes $prerelease
+          fi
+
+  # Publish the JRuby (java platform) gem BEFORE the MRI (ruby platform) gem.
+  # The ruby-platform gem is the universal fallback: if it were on RubyGems for
+  # a version whose java gem wasn't published yet, a JRuby user resolving that
+  # version would install it — i.e. get the MRI implementation instead of the
+  # Java-driver wrapper. There is no symmetric risk (the java gem never installs
+  # on MRI), so publishing java first closes the window. If the java push fails,
+  # `needs` stops the ruby push, so the ruby gem is never the only variant.
+  publish-jruby:
+    name: Build & push (JRuby / java)
+    needs: github-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC token for RubyGems trusted publishing
+    env:
+      BUNDLE_JOBS: '1' # jar-dependencies' post_install hook races under parallel installs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: jruby-10.1.0.0
+          bundler-cache: true
+      - name: Build the JRuby gem
+        run: bundle exec rake build:jruby
+      - name: Configure RubyGems trusted publishing (OIDC)
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+      - name: Push to RubyGems
+        # Retry-safe: a re-run after a partial release must not fail on an
+        # already-published version (RubyGems rejects a repush).
+        run: |
+          if out=$(gem push pkg/*.gem 2>&1); then
+            echo "$out"
+          else
+            echo "$out"
+            echo "$out" | grep -qiE "already been pushed|Repushing.*not allowed" \
+              && { echo "Version already on RubyGems — treating as success."; exit 0; }
+            exit 1
+          fi
+
+  publish-mri:
+    name: Build & push (MRI / ruby)
+    needs: publish-jruby # only after the java gem is on RubyGems
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC token for RubyGems trusted publishing
+    env:
+      BUNDLE_JOBS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Build the MRI gem
+        run: bundle exec rake build:mri
+      - name: Configure RubyGems trusted publishing (OIDC)
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+      - name: Push to RubyGems
+        run: |
+          if out=$(gem push pkg/*.gem 2>&1); then
+            echo "$out"
+          else
+            echo "$out"
+            echo "$out" | grep -qiE "already been pushed|Repushing.*not allowed" \
+              && { echo "Version already on RubyGems — treating as success."; exit 0; }
+            exit 1
+          fi
