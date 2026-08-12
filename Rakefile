@@ -64,3 +64,13 @@ end
 
 desc 'Build both MRI and JRuby gems'
 task build: 'build:all'
+
+# Regenerate CHANGELOG.md from the commit history with git-cliff
+# (https://git-cliff.org; `brew install git-cliff`). Run after merging PRs to
+# refresh [Unreleased]; pass the release tag to finalize a version section:
+#   rake "changelog[v6.2.1.beta.1]"
+desc 'Regenerate CHANGELOG.md from commits (git-cliff)'
+task :changelog, [:tag] do |_task, args|
+  tag = args[:tag] ? " --tag #{args[:tag]}" : ''
+  sh "git cliff#{tag} -o CHANGELOG.md"
+end

@@ -8,20 +8,31 @@ Ruby-side pre-release token when applicable. Use RubyGems' dot form —
 `6.2.1.beta.1`, not the hyphenated `6.2.1-beta.1` (RubyGems rewrites the hyphen
 to `.pre.`). The progression is `alpha` → `beta` → `rc` → final.
 
+`CHANGELOG.md` is generated from the commit history with
+[git-cliff](https://git-cliff.org) — never hand-edited. Install it once
+(`brew install git-cliff`, or see the git-cliff docs).
+
 ## Steps
 
 1. **Bump the version** in `lib/shared/neo4j/driver/version.rb`.
-2. **Update `CHANGELOG.md`**: move the entries under `## [Unreleased]` to a new
-   `## [<version>]` heading, and leave a fresh empty `[Unreleased]`.
-3. **Commit** on `main` (via PR, as usual).
+2. **Regenerate the changelog**, finalizing the new version's section (this
+   moves `[Unreleased]` into a `[<version>]` heading):
+
+   ```bash
+   version="$(ruby -r ./lib/shared/neo4j/driver/version -e 'print Neo4j::Driver::VERSION')"
+   rake "changelog[v$version]"
+   ```
+
+3. **Commit** the version + changelog on `main` (via PR, as usual).
 4. **Tag and push just that tag** (not `--tags`, which would push any stray
    local tags):
 
    ```bash
-   version="$(ruby -r ./lib/shared/neo4j/driver/version -e 'print Neo4j::Driver::VERSION')"
    git tag "v$version"
    git push origin "v$version"
    ```
+
+(Between releases, `rake changelog` refreshes `[Unreleased]` from merged PRs.)
 
 ## What the workflow does
 
