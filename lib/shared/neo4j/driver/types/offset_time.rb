@@ -19,6 +19,12 @@ module Neo4j
 
         def self.from_nanos(nanoseconds, tz_offset_seconds) = new(nanoseconds, tz_offset_seconds)
 
+        # Build from a Ruby Time — its wall clock plus its UTC offset.
+        # Reuses LocalTime's field extraction. Mirrors LocalDateTime.from_time.
+        def self.from_time(time)
+          new(LocalTime.from_time(time).nanoseconds, time.utc_offset)
+        end
+
         # Accepts "12:34:56.123456789+01:00", "12:34:56Z", or any string
         # containing such a time-with-offset component.
         def self.parse(string)
