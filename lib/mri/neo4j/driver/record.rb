@@ -7,11 +7,11 @@ module Neo4j
       def initialize(keys, values)
         @keys = keys
         @values = values
-        # Create map with string keys for consistent lookup
-        @map = {}
-        @keys.each_with_index do |key, idx|
-          @map[key.to_s] = @values[idx]
-        end
+        # keys arrive already symbolized (Session/Transaction map the RUN
+        # response fields with &:to_sym), so the map is symbol-keyed — to_h
+        # then returns symbol keys, matching the JRuby flavour and the rest
+        # of the API (labels, rel types, property keys are all symbols).
+        @map = keys.zip(values).to_h
       end
 
       attr_reader :keys, :values
@@ -21,7 +21,7 @@ module Neo4j
         when Integer
           @values[key]
         when String, Symbol
-          @map[key.to_s]
+          @map[key.to_sym]
         else
           raise ArgumentError, "Invalid key type: #{key.class}"
         end
