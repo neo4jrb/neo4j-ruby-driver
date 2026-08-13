@@ -13,9 +13,11 @@ module TestkitBackend
         auth_token_manager = if auth_token_manager_id
                                fetch(auth_token_manager_id)
                              else
-                               token = authorization_token ?
-                                         Request.object_from(authorization_token) :
+                               token = if authorization_token
+                                         Request.object_from(authorization_token)
+                                       else
                                          Neo4j::Driver::AuthTokens.none
+                                       end
                                Neo4j::Driver::Internal::Security::StaticAuthTokenManager.new(token)
                              end
         config = {
@@ -36,7 +38,8 @@ module TestkitBackend
           telemetry_disabled: telemetry_disabled,
           trust_strategy: trust_strategy(trusted_certificates),
           notification_config: {
-            minimum_severity: notifications_min_severity, disabled_categories: notifications_disabled_categories }
+            minimum_severity: notifications_min_severity, disabled_categories: notifications_disabled_categories
+          }
         }.compact
         config = config.merge({ resolver: method(:callback_resolver) }) if resolver_registered
         # Build via testkit's own DriverFactory subclass so the
@@ -45,7 +48,7 @@ module TestkitBackend
         # side, the production-side base class handles the conversion.
         resolver = method(:domain_name_resolver) if domain_name_resolver_registered
         Internal::DriverFactoryWithDomainNameResolver.new(resolver)
-                .new_instance(uri, auth_token_manager, client_certificate_manager: client_certificate_manager, **config)
+                                                     .new_instance(uri, auth_token_manager, client_certificate_manager: client_certificate_manager, **config)
       end
 
       private
@@ -62,7 +65,8 @@ module TestkitBackend
           # The wire shape nests the fields under `data` (Java reads
           # ClientCertificate#getData()), so unwrap before building.
           Neo4j::Driver::ClientCertificateManagers.rotating(
-            Request.client_certificate_from(client_certificate[:data]))
+            Request.client_certificate_from(client_certificate[:data])
+          )
         end
       end
 
@@ -71,7 +75,8 @@ module TestkitBackend
       end
 
       def callback_resolver(address)
-        @command_processor.callback(named_entity('ResolverResolutionRequired', id: object_id, address: address)).addresses.map do |addr|
+        @command_processor.callback(named_entity('ResolverResolutionRequired', id: object_id,
+                                                                               address: address)).addresses.map do |addr|
           addr.rpartition(':').then { |host, _, port| Neo4j::Driver::Net::ServerAddress.of(host, port.to_i) }
         end
       end

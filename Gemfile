@@ -20,10 +20,21 @@ else
 end
 
 group :development, :test do
-  gem 'async'
   gem 'activesupport'
-  gem 'nio4r'
-  gem 'ostruct'
+  gem 'async'
   gem 'bigdecimal'
   gem 'concurrent-ruby' # concurrency specs (session_spec: Promises/latches) + testkit-backend fake clock
+  # csv was a default gem through Ruby 3.3 and a bundled gem in 3.4, so the
+  # load_csv_spec needs it declared to `require 'csv'`.
+  gem 'csv'
+  gem 'ffaker'
+  gem 'nio4r'
+  gem 'ostruct'
+  gem 'rake', '~> 13.0'
+  gem 'rspec', '~> 3.13'
+  gem 'rspec-its', '~> 2.0'
+  # Pinned to patch level: with a .rubocop_todo.yml baseline, a minor bump can
+  # add cops and turn CI red, so bump deliberately and re-run --auto-gen-config.
+  gem 'rubocop', '~> 1.89.0', require: false
+  gem 'rubocop-performance', '~> 1.26.0', require: false
 end

@@ -8,10 +8,10 @@ module Neo4j
         attr_reader :srid, :x, :y, :z
 
         # SRID constants for coordinate reference systems
-        WGS_84_2D = 4326        # Geographic 2D (longitude, latitude)
-        WGS_84_3D = 4979        # Geographic 3D (longitude, latitude, height)
-        CARTESIAN_2D = 7203     # Cartesian 2D (x, y)
-        CARTESIAN_3D = 9157     # Cartesian 3D (x, y, z)
+        WGS_84_2D = 4326 # Geographic 2D (longitude, latitude)
+        WGS_84_3D = 4979 # Geographic 3D (longitude, latitude, height)
+        CARTESIAN_2D = 7203 # Cartesian 2D (x, y)
+        CARTESIAN_3D = 9157 # Cartesian 3D (x, y, z)
 
         def initialize(srid: nil, x: nil, y: nil, z: nil, longitude: nil, latitude: nil, height: nil)
           # Handle longitude/latitude aliases for x/y

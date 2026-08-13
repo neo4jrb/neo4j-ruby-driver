@@ -50,7 +50,7 @@ module Neo4j
             value = ->(address) { to_java_set(proc.call(address), java.util.LinkedHashSet) }
           when 'bookmarks_supplier'
             proc = value
-            value = ->() { to_java_set(proc.call) }
+            value = -> { to_java_set(proc.call) }
           when 'bookmarks_consumer'
             proc = value
             value = ->(bookmarks) { proc.call(Set.new(bookmarks)) }
@@ -85,7 +85,7 @@ module Neo4j
             case strategy
             when :trust_custom_certificates
               Config::TrustStrategy
-                .trust_custom_certificate_signed_by(*config.delete(:cert_files).map(&java.io.File.method(:new)))
+            .trust_custom_certificate_signed_by(*config.delete(:cert_files).map(&java.io.File.method(:new)))
             else
               Config::TrustStrategy.send(strategy)
             end
@@ -97,7 +97,8 @@ module Neo4j
             value_of(org.neo4j.driver.internal.InternalNotificationSeverity, minimum_severity).or_else(nil),
             disabled_categories
               &.map { |value| value_of(org.neo4j.driver.NotificationClassification, value) }
-              &.then(&method(:to_java_set)))
+              &.then(&method(:to_java_set))
+          )
         end
 
         def value_of(klass, value)

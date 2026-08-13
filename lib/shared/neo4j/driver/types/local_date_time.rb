@@ -34,9 +34,14 @@ module Neo4j
 
         def self.parse(string)
           # Strip trailing timezone if present — naive datetime ignores it.
-          naive = string.sub(/[Z+\-]\d{2}:?\d{2}?$/, '')
-          time = PARSE_FORMATS.lazy.filter_map { |fmt| ::Time.strptime(naive, fmt) rescue nil }.first
+          naive = string.sub(/[Z+-]\d{2}:?\d{2}?$/, '')
+          time = PARSE_FORMATS.lazy.filter_map do |fmt|
+            ::Time.strptime(naive, fmt)
+          rescue StandardError
+            nil
+          end.first
           raise ArgumentError, "Invalid LocalDateTime format: #{string}" unless time
+
           from_time(::Time.utc(*time_components(time)))
         end
 
@@ -51,8 +56,8 @@ module Neo4j
 
         # Add a numeric or ActiveSupport::Duration. Sub-second precision
         # preserved by going through to_f.
-        def +(seconds)
-          self.class.from_time(to_time + seconds.to_f)
+        def +(other)
+          self.class.from_time(to_time + other.to_f)
         end
 
         def to_s

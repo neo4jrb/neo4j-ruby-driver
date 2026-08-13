@@ -1,0 +1,18 @@
+plugins:
+  - rubocop-performance
+
+inherit_from: .rubocop_todo.yml
+
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - 'testkit/**/*'   # external conformance suite, not our code
+    - 'tmp/**/*'
+    - 'vendor/**/*'
+
+# Standard arithmetic precedence is unambiguous; don't force parens around
+# `a * b + c` and friends.
+Lint/AmbiguousOperatorPrecedence:
+  Enabled: false

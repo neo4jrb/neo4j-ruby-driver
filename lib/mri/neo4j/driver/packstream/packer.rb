@@ -110,7 +110,7 @@ module Neo4j
         end
 
         def pack_boolean(value)
-          @buffer << [value ? TRUE : FALSE].pack('C')
+          @buffer << [value ? BOOLEAN_TRUE : BOOLEAN_FALSE].pack('C')
         end
 
         def pack_integer(value)
@@ -246,10 +246,12 @@ module Neo4j
           # matching hydration handlers in Bolt::Connection.
           if @use_utc_datetime
             epoch_seconds = value.to_i
-            offset_sig, zone_sig = 0x49, 0x69
+            offset_sig = 0x49
+            zone_sig = 0x69
           else
             epoch_seconds = value.to_i + tz_offset
-            offset_sig, zone_sig = 0x46, 0x66
+            offset_sig = 0x46
+            zone_sig = 0x66
           end
           zone_name = named_zone_for(value)
 

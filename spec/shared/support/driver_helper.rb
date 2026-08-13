@@ -31,15 +31,15 @@ module DriverHelper
       self.single_driver ||= Neo4j::Driver::GraphDatabase.driver(
         uri, basic_auth_token,
         max_transaction_retry_time: 2,
-        connection_timeout: 3,
-      # logger: ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG)
-      # logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::DEBUG)
-      # logger: ::Logger.new(STDOUT, level: :debug)
+        connection_timeout: 3
+        # logger: ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG)
+        # logger: ActiveSupport::Logger.new(STDOUT, level: ::Logger::DEBUG)
+        # logger: ::Logger.new(STDOUT, level: :debug)
       )
     end
 
     def version?(requirement)
-      Gem::Requirement.create(requirement).satisfied_by?(Gem::Version.new(ENV['NEO4J_VERSION']))
+      Gem::Requirement.create(requirement).satisfied_by?(Gem::Version.new(ENV.fetch('NEO4J_VERSION', nil)))
     end
 
     def not_version?(requirement)

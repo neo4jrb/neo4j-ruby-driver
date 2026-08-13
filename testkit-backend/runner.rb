@@ -32,7 +32,7 @@ module TestkitBackend
         # CommandProcessor#callback, so nothing but the reader touches the
         # socket for reads — concurrent routing callbacks can't race.
         cp.start_reader
-        while cp.process_next do
+        while cp.process_next
         end
       rescue StandardError => e
         warn "*** #{h}:#{p} handler crashed: #{e.class}: #{e.message}"

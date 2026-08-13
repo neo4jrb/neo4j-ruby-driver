@@ -81,6 +81,7 @@ RSpec.describe 'Session' do
     def execute(tx)
       result = tx.run(@query)
       raise Neo4j::Driver::Exceptions::ServiceUnavailableException if (@invoked += 1) <= @failures
+
       single = result.single
       # tx.commit
       single
@@ -291,7 +292,7 @@ RSpec.describe 'Session' do
   it 'write transaction function retries deadlocks', concurrency: true do
     node_id1 = 42
     node_id2 = 4242
-    node_id3 = 424242
+    node_id3 = 424_242
     new_node_id1 = 1
     new_node_id2 = 2
 
@@ -617,8 +618,8 @@ RSpec.describe 'Session' do
     driver.session do |session|
       tx = session.begin_transaction
       expect(tx).to be_truthy
-      error_message = 'You cannot begin a transaction on a session with an open transaction; either run' \
-        ' from within the transaction or use a different session.'
+      error_message = 'You cannot begin a transaction on a session with an open transaction; either run ' \
+                      'from within the transaction or use a different session.'
       3.times do
         expect { session.begin_transaction }.to raise_error Neo4j::Driver::Exceptions::ClientException, error_message
       end
@@ -889,6 +890,7 @@ RSpec.describe 'Session' do
         session.send(method_name) do |tx|
           val = tx.run('RETURN 42').single[0]
           raise Neo4j::Driver::Exceptions::IllegalStateException if val == 42
+
           1
         end
       end.to raise_error Neo4j::Driver::Exceptions::IllegalStateException
@@ -920,6 +922,7 @@ RSpec.describe 'Session' do
       session.send(method_name) do
         expect(Thread.current).to eq caller_thread
         raise Neo4j::Driver::Exceptions::ServiceUnavailableException, 'Oh no' if (failures += 1) < max_failures
+
         'Hello'
       end
     end

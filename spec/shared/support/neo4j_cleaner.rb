@@ -8,9 +8,9 @@ module Neo4jCleaner
   end
 
   def cleaning
-      start
-      yield
-      clean
+    start
+    yield
+    clean
   end
 
   def clean_with(*_args)

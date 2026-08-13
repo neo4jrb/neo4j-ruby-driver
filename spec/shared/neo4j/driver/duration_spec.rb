@@ -66,7 +66,7 @@ RSpec.describe Neo4j::Driver::Types::Duration do
     end
 
     context 'when 15 days 12 hours' do
-      let(:param) { described_class.new(0, 15, 43200, 0) }
+      let(:param) { described_class.new(0, 15, 43_200, 0) }
 
       it { is_expected.to eq param }
     end
@@ -132,7 +132,7 @@ RSpec.describe Neo4j::Driver::Types::Duration do
 
       # Neo4j normalizes 0.5 days to 43200 seconds (12 hours)
       it 'has 43200 seconds' do
-        expect(result.parts[:seconds]).to eq 43200
+        expect(result.parts[:seconds]).to eq 43_200
       end
     end
   end

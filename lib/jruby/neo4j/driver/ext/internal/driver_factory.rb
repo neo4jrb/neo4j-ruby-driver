@@ -26,7 +26,7 @@ module Neo4j
           def to_domain_name_resolver(resolver_proc)
             return nil unless resolver_proc
 
-            ->(name) do
+            lambda do |name|
               resolver_proc.call(name).map do |addr|
                 java.net.InetAddress.get_by_name(addr)
               rescue java.net.UnknownHostException => e

@@ -16,7 +16,11 @@ RSpec.describe 'Driver#close' do
 
   it 'close closed driver' do
     d = new_driver
-    expect { d.close; d.close; d.close }.not_to raise_error
+    expect do
+      d.close
+      d.close
+      d.close
+    end.not_to raise_error
   end
 
   it 'session throws for closed driver' do

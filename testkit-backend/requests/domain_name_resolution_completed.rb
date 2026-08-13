@@ -1,8 +1,7 @@
 module TestkitBackend
   module Requests
     class DomainNameResolutionCompleted < Request
-      def process
-      end
+      def process; end
     end
   end
 end

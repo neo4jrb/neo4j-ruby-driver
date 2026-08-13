@@ -88,7 +88,8 @@ module Neo4j
           source = Internal::Reflection.field(session_factory, 'connectionSource')
           until Internal::Reflection.field?(source, 'registry')
             unless Internal::Reflection.field?(source, 'delegate')
-              raise KeyError, "No routing-table registry in the connection-source chain (#{source.java_class.simple_name})"
+              raise KeyError,
+                    "No routing-table registry in the connection-source chain (#{source.java_class.simple_name})"
             end
 
             source = Internal::Reflection.field(source, 'delegate')

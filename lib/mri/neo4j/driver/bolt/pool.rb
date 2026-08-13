@@ -141,8 +141,8 @@ module Neo4j
           bump(created: -1, leased: -1)
         end
 
-        def shutdown(&block)
-          @stack.shutdown(&block)
+        def shutdown(&)
+          @stack.shutdown(&)
           # Every connection is closed now — keep the metrics truthful so a
           # post-close snapshot reports nothing live.
           @metrics_lock.synchronize { @created = @leased = 0 }

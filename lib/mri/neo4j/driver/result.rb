@@ -18,8 +18,8 @@ module Neo4j
                      on_summary: nil, on_release: nil)
         @connection = connection
         @keys = keys
-        @buffer = buffer          # Bolt::RecordBuffer, filled by the reader
-        @handler = handler        # the StreamHandler registered for this result's PULLs
+        @buffer = buffer # Bolt::RecordBuffer, filled by the reader
+        @handler = handler # the StreamHandler registered for this result's PULLs
         @query_text = query_text
         @parameters = parameters
         @run_metadata = run_metadata
@@ -35,17 +35,17 @@ module Neo4j
         # leaves the connection FAILED, so more wire traffic is invalid. nil for
         # auto-commit results (no enclosing transaction).
         @terminated_error = terminated_error
-        @failure = nil    # this result's own classified stream failure, if any
-        @on_summary = on_summary  # called with the built Summary when the stream ends in SUCCESS
-        @on_release = on_release  # called once when the connection is no longer needed
-        @records = []       # records pulled into memory by #buffer (not by iteration)
+        @failure = nil # this result's own classified stream failure, if any
+        @on_summary = on_summary # called with the built Summary when the stream ends in SUCCESS
+        @on_release = on_release # called once when the connection is no longer needed
+        @records = [] # records pulled into memory by #buffer (not by iteration)
         @had_record = false # any RECORD arrived on this stream — drives the GQL outcome status
         @summary = nil
-        @consumed = false   # stream fully drained (terminal seen)
-        @discarded = false  # records explicitly released; further access raises
-        @failed = false     # stream ended with a server FAILURE; connection needs RESET
+        @consumed = false # stream fully drained (terminal seen)
+        @discarded = false # records explicitly released; further access raises
+        @failed = false # stream ended with a server FAILURE; connection needs RESET
         @cancelling = false # consume(): abandon the rest — DISCARD the next batch instead of PULL
-        @list_mode = false  # to_a/list: pull all remaining in one PULL {n: -1}, ignoring fetch_size
+        @list_mode = false # to_a/list: pull all remaining in one PULL {n: -1}, ignoring fetch_size
         @peeked_record = nil
       end
 
@@ -98,11 +98,11 @@ module Neo4j
         record
       end
 
-      def each(&block)
+      def each(&)
         raise Exceptions::ResultConsumedException if @discarded
         return to_enum(:each) unless block_given?
 
-        block.call(self.next) while has_next?
+        yield(self.next) while has_next?
       end
 
       def to_a

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-impl = (RUBY_PLATFORM == 'java') ? 'jruby' : 'mri'
+impl = RUBY_PLATFORM == 'java' ? 'jruby' : 'mri'
 $LOAD_PATH.unshift File.expand_path('shared', __dir__),
                    File.expand_path(impl, __dir__)
 
@@ -31,6 +31,7 @@ RSpec.configure do |config|
   config.include DriverHelper::Helper
   include DriverHelper::Helper
   include Neo4jCleaner
+
   config.define_derived_metadata do |metadata|
     metadata[:timeout] = 9999
   end
@@ -48,7 +49,7 @@ RSpec.configure do |config|
   # not failed. Passes on both flavors when the import dir is provided. Require a
   # usable directory (present, non-empty, exists, writable) so a blank or stale
   # value skips the spec rather than running it into a Tempfile error.
-  import_dir = ENV['TEST_NEO4J_IMPORT_DIR']
+  import_dir = ENV.fetch('TEST_NEO4J_IMPORT_DIR', nil)
   usable_import_dir = import_dir && !import_dir.empty? && Dir.exist?(import_dir) && File.writable?(import_dir)
   config.filter_run_excluding csv: true unless usable_import_dir
   config.exclude_pattern = "#{Neo4j::Driver::Loader.jruby? ? 'mri' : 'jruby'}/**/*_spec.rb"

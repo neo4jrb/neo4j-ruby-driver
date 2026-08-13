@@ -13,7 +13,7 @@ RSpec.describe 'Parameters' do
     end
   end
 
-  context "is able to set and return property" do
+  context 'is able to set and return property' do
     let(:query) { 'CREATE (a {value: $value}) RETURN a.value' }
 
     def parameter_processor(value)
@@ -44,7 +44,7 @@ RSpec.describe 'Parameters' do
       bytes = ->(size) { Random.new.bytes(size, &proc) }
       test_property bytes.call(0)
       16.times do |i|
-        length = 2 ** i
+        length = 2**i
         test_property bytes.call(length)
         test_property bytes.call(length - 1)
       end
@@ -161,7 +161,7 @@ RSpec.describe 'Parameters' do
 
     context 'sends and receives long list of longs' do
       let(:value) do
-        MAX_INTEGER = 2 ** 63 - 1
+        MAX_INTEGER = 2**63 - 1
         Array.new(LONG_VALUE_SIZE) { rand(MAX_INTEGER) }
       end
 

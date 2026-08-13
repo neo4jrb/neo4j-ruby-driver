@@ -1,6 +1,7 @@
 module TestkitBackend
   class Request < OpenStruct
     include Conversion
+
     delegate :delete, :fetch, :store, to: TestkitBackend::ObjectCache
     attr_reader :data
 
@@ -30,13 +31,13 @@ module TestkitBackend
     rescue Neo4j::Driver::Exceptions::Neo4jException => e
       driver_error(e)
     rescue Neo4j::Driver::Exceptions::IllegalStateException, Neo4j::Driver::Exceptions::NoSuchRecordException,
-      Neo4j::Driver::Exceptions::NoSuchRecordException, Neo4j::Driver::Exceptions::UntrustedServerException,
-      ArgumentError => e
+           Neo4j::Driver::Exceptions::NoSuchRecordException, Neo4j::Driver::Exceptions::UntrustedServerException,
+           ArgumentError => e
       puts e
       puts trace_for(e)
       driver_error(e)
-    rescue TestkitBackend::Requests::RollbackException => e
-      named_entity('FrontendError', msg: "")
+    rescue TestkitBackend::Requests::RollbackException
+      named_entity('FrontendError', msg: '')
     rescue StandardError => e
       puts e.inspect
       puts trace_for(e)
@@ -69,7 +70,11 @@ module TestkitBackend
 
     def named_entity(name, **hash)
       { name: name }.tap do |entity|
-        entity[:data] = hash.transform_keys { |key| key.is_a?(String) ? key : key.to_s.camelize(:lower) } unless hash.empty?
+        unless hash.empty?
+          entity[:data] = hash.transform_keys do |key|
+            key.is_a?(String) ? key : key.to_s.camelize(:lower)
+          end
+        end
       end
     end
 
