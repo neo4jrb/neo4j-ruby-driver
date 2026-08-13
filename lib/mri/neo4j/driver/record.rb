@@ -7,10 +7,10 @@ module Neo4j
       def initialize(keys, values)
         @keys = keys
         @values = values
-        # keys arrive already symbolized (Session/Transaction map the RUN
-        # response fields with &:to_sym), so the map is symbol-keyed — to_h
-        # then returns symbol keys, matching the JRuby flavour and the rest
-        # of the API (labels, rel types, property keys are all symbols).
+        # Field keys arrive already symbolized (Session/Transaction map the
+        # RUN response fields with &:to_sym), so the map is symbol-keyed and
+        # to_h returns symbol keys like the JRuby flavour. Every key in the
+        # driver is stored as a symbol; retrieval by string is tolerated (#[]).
         @map = keys.zip(values).to_h
       end
 
