@@ -26,6 +26,41 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
     end
   end
 
+  describe '.from_time and components' do
+    # Force a non-UTC host zone to prove the wall clock is captured and read
+    # back zone-independently (regression: the old to_time rendered in the
+    # reader's local zone, so the same value showed different clocks).
+    around do |example|
+      original = ENV.fetch('TZ', nil)
+      ENV['TZ'] = 'America/New_York'
+      example.run
+    ensure
+      ENV['TZ'] = original
+    end
+
+    # Alaska (UTC-9) Monday 22:00 — a different instant *and* clock from NY.
+    let(:alaska_monday) { Time.new(2026, 1, 5, 22, 0, 0, '-09:00') }
+
+    it 'captures the displayed wall clock, not the absolute instant' do
+      ldt = described_class.from_time(alaska_monday)
+      expect([ldt.year, ldt.month, ldt.day, ldt.hour, ldt.minute, ldt.second])
+        .to eq [2026, 1, 5, 22, 0, 0]
+    end
+
+    it 'renders the same wall clock regardless of host TZ' do
+      expect(described_class.from_time(alaska_monday).to_s).to eq '2026-01-05 22:00:00.000000000'
+    end
+
+    it 'preserves nanosecond precision' do
+      time = alaska_monday + Rational(123_456_789, 1_000_000_000)
+      expect(described_class.from_time(time).nanosecond).to eq 123_456_789
+    end
+
+    it 'agrees with parse of the same clock face' do
+      expect(described_class.from_time(alaska_monday)).to eql described_class.parse('2026-01-05T22:00:00')
+    end
+  end
+
   describe 'cypher functions' do
     subject do
       driver.session do |session|

@@ -16,6 +16,14 @@ module Neo4j
 
         def self.from_nanos(nanoseconds) = new(nanoseconds)
 
+        # Build from a Ruby Time, taking its displayed wall clock (so the
+        # host zone / .utc of the Time decides which time-of-day is captured).
+        # Mirrors LocalDateTime.from_time.
+        def self.from_time(time)
+          new(time.hour * NANOS_PER_HOUR + time.min * NANOS_PER_MINUTE +
+              time.sec * NANOS_PER_SECOND + time.nsec)
+        end
+
         # Accepts "12:34:56.123456789" or any string containing such a
         # time component (so a full datetime works too — we just take the
         # time fields).
