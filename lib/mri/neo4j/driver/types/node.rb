@@ -3,23 +3,14 @@
 module Neo4j
   module Driver
     module Types
-      # Represents a Node in the Neo4j graph
-      class Node
-        attr_reader :id, :labels, :properties, :element_id
+      # Represents a Node in the Neo4j graph. Mirrors
+      # org.neo4j.driver.types.Node — an Entity with a set of labels.
+      class Node < Entity
+        attr_reader :labels
 
         def initialize(id, labels, properties, element_id = nil)
-          @id = id
+          super(id, properties, element_id)
           @labels = labels
-          @properties = properties
-          @element_id = element_id || id.to_s
-        end
-
-        def [](key)
-          @properties[key.to_s] || @properties[key.to_sym]
-        end
-
-        def ==(other)
-          other.is_a?(Node) && other.id == @id
         end
       end
     end
