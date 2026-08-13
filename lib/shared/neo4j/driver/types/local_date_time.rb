@@ -34,12 +34,13 @@ module Neo4j
 
         def self.from_epoch(epoch_seconds, nanoseconds) = new(epoch_seconds, nanoseconds)
 
-        # Capture the Time's displayed wall clock, encoded as if UTC. The
-        # Time's own zone is irrelevant — only the clock face it shows, so
-        # from_time(t) and from_time(t.utc) generally differ (as they should).
+        # Store the Time's wall clock (its date and time-of-day *in its own
+        # zone*), dropping the zone. We read that wall clock off the instant
+        # using the offset the Time already carries — we never invent a zone,
+        # so from_time(t) and from_time(t.utc) differ (they show different
+        # clocks). epoch_seconds encodes it as-if-UTC per the class contract.
         def self.from_time(time)
-          new(::Time.utc(time.year, time.month, time.day,
-                         time.hour, time.min, time.sec).to_i, time.nsec)
+          new(time.to_i + time.utc_offset, time.nsec)
         end
 
         def self.parse(string)
