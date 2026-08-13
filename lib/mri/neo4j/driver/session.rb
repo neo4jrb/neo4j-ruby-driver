@@ -540,7 +540,9 @@ module Neo4j
                                                              telemetry_ack: on_telemetry_ack)
 
         begin
-          result = yield @transaction
+          # Managed functions yield a run-only context; the driver owns
+          # commit/rollback on the underlying UnmanagedTransaction (@transaction).
+          result = yield Transaction.new(@transaction)
           @transaction.commit if @transaction.open?
           result
         rescue StandardError => e
@@ -562,15 +564,15 @@ module Neo4j
         # commit-time update_bookmarks reports it as `previous`).
         bookmarks = current_bookmarks_for_extra
         tx_options = tx_options.merge(database: begin_db).compact
-        Transaction.new(connection, self, bookmarks, tx_options, telemetry_api: telemetry_api,
-                                                                 telemetry_ack: telemetry_ack,
-                                                                 # executeQuery's session reports telemetry api 3 (DRIVER_EXECUTE_QUERY);
-                                                                 # only that path pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining).
-                                                                 pipelined: @options[:telemetry_api] == 3,
-                                                                 on_begin: method(:cache_home_db_from),
-                                                                 on_release: lambda {
-                                                                   @connection_provider.release(connection)
-                                                                 })
+        UnmanagedTransaction.new(connection, self, bookmarks, tx_options, telemetry_api: telemetry_api,
+                                                                          telemetry_ack: telemetry_ack,
+                                                                          # executeQuery's session reports telemetry api 3 (DRIVER_EXECUTE_QUERY);
+                                                                          # only that path pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining).
+                                                                          pipelined: @options[:telemetry_api] == 3,
+                                                                          on_begin: method(:cache_home_db_from),
+                                                                          on_release: lambda {
+                                                                            @connection_provider.release(connection)
+                                                                          })
       end
     end
   end
