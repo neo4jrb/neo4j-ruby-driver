@@ -203,10 +203,11 @@ module Neo4j
             result = yield @transaction
             # Explicit-block transactions default to rollback; user must call
             # tx.commit to persist changes (matches Java driver semantics).
-            rollback_if_open
+            # #close rolls back iff still open (a no-op once committed).
+            @transaction.close
             result
           rescue StandardError => e
-            rollback_if_open
+            @transaction.close
             raise e
           ensure
             @transaction = nil
@@ -542,26 +543,22 @@ module Neo4j
         begin
           # Managed functions yield a run-only context; the driver owns
           # commit/rollback on the underlying UnmanagedTransaction (@transaction).
+          # The block can only #run — it can't close the tx — and any run
+          # failure raises (→ rescue), so a clean return always leaves it open:
+          # commit unconditionally.
           result = yield Transaction.new(@transaction)
-          @transaction.commit if @transaction.open?
+          @transaction.commit
           result
         rescue StandardError => e
-          rollback_if_open
+          @transaction.close
           raise e
         ensure
           # A non-local exit from the work block (return/throw/break through an
-          # outer iterator) skips both the commit and the rescue; roll back here
-          # so the transaction and its connection lease are never leaked.
-          rollback_if_open
+          # outer iterator) skips both the commit and the rescue; #close rolls
+          # back the still-open tx so it and its connection lease aren't leaked.
+          @transaction.close
           @transaction = nil
         end
-      end
-
-      # Roll back the in-flight transaction if it is still open. Shared exit for
-      # the managed and explicit blocks (default rollback, rescued error, and
-      # the non-local-exit safety net). @transaction is always set when called.
-      def rollback_if_open
-        @transaction.rollback if @transaction.open?
       end
 
       def open_transaction(op_mode, tx_options, telemetry_api:, telemetry_ack: nil)
