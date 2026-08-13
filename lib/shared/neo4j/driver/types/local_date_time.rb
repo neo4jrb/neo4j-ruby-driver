@@ -3,11 +3,17 @@
 module Neo4j
   module Driver
     module Types
-      # Bolt LocalDateTime — wall-clock datetime without timezone.
-      # Stored as the wire-format pair (epoch_seconds, nanoseconds), where
-      # epoch_seconds is the wall-clock components encoded as if they were
-      # UTC. Two LocalDateTimes representing the same wall-clock value
-      # always have the same field values regardless of the host TZ.
+      # Bolt LocalDateTime — a wall-clock datetime with no timezone
+      # (java.time.LocalDateTime). Stored as the wire-format pair
+      # (epoch_seconds, nanoseconds), where epoch_seconds encodes the
+      # wall-clock components as if they were UTC — so the value reads the
+      # same regardless of the host TZ.
+      #
+      # There is deliberately no #to_time: a zone-less value cannot become a
+      # zoned Ruby Time without inventing a zone, and every serious datetime
+      # library refuses that implicit conversion (Java's LocalDateTime forces
+      # .atZone/.atOffset; Python yields a naive datetime). Read the fields via
+      # the component getters instead.
       class LocalDateTime < TemporalValue
         PARSE_FORMATS = [
           '%Y-%m-%d %H:%M:%S.%N',
@@ -28,35 +34,48 @@ module Neo4j
 
         def self.from_epoch(epoch_seconds, nanoseconds) = new(epoch_seconds, nanoseconds)
 
+        # Capture the Time's displayed wall clock, encoded as if UTC. The
+        # Time's own zone is irrelevant — only the clock face it shows, so
+        # from_time(t) and from_time(t.utc) generally differ (as they should).
         def self.from_time(time)
-          new(time.to_i, ((time.to_f - time.to_i) * NANOS_PER_SECOND).round)
+          new(::Time.utc(time.year, time.month, time.day,
+                         time.hour, time.min, time.sec).to_i, time.nsec)
         end
 
         def self.parse(string)
-          # Strip trailing timezone if present — naive datetime ignores it.
+          # Strip a trailing timezone if present — a naive datetime ignores it.
           naive = string.sub(/[Z+\-]\d{2}:?\d{2}?$/, '')
           time = PARSE_FORMATS.lazy.filter_map { |fmt| ::Time.strptime(naive, fmt) rescue nil }.first
           raise ArgumentError, "Invalid LocalDateTime format: #{string}" unless time
-          from_time(::Time.utc(*time_components(time)))
+          from_time(time)
         end
 
-        def self.time_components(time)
-          [time.year, time.month, time.day, time.hour, time.min, time.sec, time.subsec * 1_000_000]
-        end
-        private_class_method :time_components
+        def year       = wall_clock.year
+        def month      = wall_clock.month
+        def day        = wall_clock.day
+        def hour       = wall_clock.hour
+        def minute     = wall_clock.min
+        def second     = wall_clock.sec
+        def nanosecond = @nanoseconds
 
-        def to_time
-          ::Time.at(@epoch_seconds, @nanoseconds.to_i, :nanosecond)
-        end
-
-        # Add a numeric or ActiveSupport::Duration. Sub-second precision
-        # preserved by going through to_f.
+        # Add a numeric or ActiveSupport::Duration. A wall clock has no DST,
+        # so this is plain second arithmetic; sub-second precision preserved.
         def +(seconds)
-          self.class.from_time(to_time + seconds.to_f)
+          total = (@epoch_seconds * NANOS_PER_SECOND) + @nanoseconds +
+                  (seconds.to_f * NANOS_PER_SECOND).round
+          self.class.new(total / NANOS_PER_SECOND, total % NANOS_PER_SECOND)
         end
 
         def to_s
-          to_time.strftime('%Y-%m-%d %H:%M:%S.%N')
+          wall_clock.strftime('%Y-%m-%d %H:%M:%S.%N')
+        end
+
+        private
+
+        # epoch_seconds read back as its wall clock. UTC by construction, so
+        # the components never depend on the host TZ.
+        def wall_clock
+          ::Time.at(@epoch_seconds, @nanoseconds.to_i, :nanosecond, in: 'UTC')
         end
       end
     end

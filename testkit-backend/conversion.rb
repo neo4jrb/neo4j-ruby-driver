@@ -25,11 +25,9 @@ module TestkitBackend
           when Neo4j::Driver::Types::LocalTime
             named_entity('CypherTime', hour: object.hour, minute: object.minute, second: object.second, nanosecond: object.nanosecond)
           when Neo4j::Driver::Types::LocalDateTime
-            # epoch_seconds encodes the wall clock as if it were UTC, so read
-            # the components back in UTC; nanoseconds are stored exactly.
-            t = object.to_time.utc
-            named_entity('CypherDateTime', year: t.year, month: t.month, day: t.day, hour: t.hour,
-                         minute: t.min, second: t.sec, nanosecond: object.nanoseconds)
+            named_entity('CypherDateTime', year: object.year, month: object.month, day: object.day,
+                         hour: object.hour, minute: object.minute, second: object.second,
+                         nanosecond: object.nanosecond)
           when Neo4j::Driver::Types::Duration
             named_entity('CypherDuration', months: object.months, days: object.days,
                          seconds: object.seconds, nanoseconds: object.nanoseconds)
