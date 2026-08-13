@@ -203,10 +203,10 @@ module Neo4j
             result = yield @transaction
             # Explicit-block transactions default to rollback; user must call
             # tx.commit to persist changes (matches Java driver semantics).
-            @transaction.rollback if @transaction.open?
+            rollback_if_open
             result
           rescue StandardError => e
-            @transaction.rollback if @transaction.open?
+            rollback_if_open
             raise e
           ensure
             @transaction = nil
@@ -546,15 +546,22 @@ module Neo4j
           @transaction.commit if @transaction.open?
           result
         rescue StandardError => e
-          @transaction.rollback if @transaction.open?
+          rollback_if_open
           raise e
         ensure
           # A non-local exit from the work block (return/throw/break through an
           # outer iterator) skips both the commit and the rescue; roll back here
           # so the transaction and its connection lease are never leaked.
-          @transaction&.rollback if @transaction&.open?
+          rollback_if_open
           @transaction = nil
         end
+      end
+
+      # Roll back the in-flight transaction if it is still open. Shared exit for
+      # the managed and explicit blocks (default rollback, rescued error, and
+      # the non-local-exit safety net). @transaction is always set when called.
+      def rollback_if_open
+        @transaction.rollback if @transaction.open?
       end
 
       def open_transaction(op_mode, tx_options, telemetry_api:, telemetry_ack: nil)
