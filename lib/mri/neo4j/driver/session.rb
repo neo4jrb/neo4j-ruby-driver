@@ -549,6 +549,10 @@ module Neo4j
           @transaction.rollback if @transaction.open?
           raise e
         ensure
+          # A non-local exit from the work block (return/throw/break through an
+          # outer iterator) skips both the commit and the rescue; roll back here
+          # so the transaction and its connection lease are never leaked.
+          @transaction&.rollback if @transaction&.open?
           @transaction = nil
         end
       end
