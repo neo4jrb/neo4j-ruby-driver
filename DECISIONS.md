@@ -266,5 +266,6 @@ years/weeks/etc. into the four fields, and the reverse is lossy (months/days
 must be forced to fixed second-lengths). Callers that need it decompose via
 `AS::Duration#parts` / the `Types::Duration` field readers themselves.
 
-Companion playbook (illustrative helpers for both directions + the round-trip
-fixed-point analysis): https://claude.ai/code/artifact/c7c90005-843e-4d2f-a578-f3ca4a29472b
+Companion doc with illustrative helpers for both directions + the round-trip
+fixed-point analysis: `docs/duration-conversion.md` (rendered version:
+https://claude.ai/code/artifact/c7c90005-843e-4d2f-a578-f3ca4a29472b).
