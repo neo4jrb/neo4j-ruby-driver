@@ -12,7 +12,8 @@ module Neo4j
         include ConfigConverter
 
         def default_manager(initial_bookmarks: nil, bookmarks_supplier: nil, bookmarks_consumer: nil)
-          super(to_java_config(Neo4j::Driver::BookmarkManagerConfig, initial_bookmarks:, bookmarks_supplier:, bookmarks_consumer:))
+          super(to_java_config(Neo4j::Driver::BookmarkManagerConfig, initial_bookmarks:, bookmarks_supplier:,
+                                                                     bookmarks_consumer:))
         end
       end
     end

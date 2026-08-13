@@ -74,6 +74,7 @@ module Neo4j
 
         def plan
           return @plan if defined?(@plan)
+
           @plan =
             if @metadata[:plan]
               Plan.new(@metadata[:plan])
@@ -87,6 +88,7 @@ module Neo4j
 
         def profile
           return @profile if defined?(@profile)
+
           @profile = @metadata[:profile] ? Profile.new(@metadata[:profile]) : nil
         end
 

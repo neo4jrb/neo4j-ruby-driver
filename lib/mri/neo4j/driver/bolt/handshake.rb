@@ -38,9 +38,9 @@ module Neo4j
         # DISCARD_ALL, single-DB, no routing in HELLO).
         SLOTS = [
           MANIFEST_SENTINEL,
-          0x00_08_08_05,  # 5.0–5.8
-          0x00_02_04_04,  # 4.2–4.4
-          0x00_00_00_03   # 3.0
+          0x00_08_08_05, # 5.0–5.8
+          0x00_02_04_04, # 4.2–4.4
+          0x00_00_00_03 # 3.0
         ].freeze
 
         # Versions we'd accept from a manifest, highest-preference first.
@@ -91,15 +91,19 @@ module Neo4j
           @socket.flush
 
           server_reply = read_int32!('Server closed the connection during handshake')
-          raise Exceptions::ServiceUnavailableException,
-                'Server does not support any of the proposed Bolt versions' if server_reply.zero?
+          if server_reply.zero?
+            raise Exceptions::ServiceUnavailableException,
+                  'Server does not support any of the proposed Bolt versions'
+          end
 
           # An HTTP server on the Bolt port replies with an HTTP status
           # line; its first four bytes spell "HTTP". Mirror Java's helpful
           # error instead of reporting a bogus protocol version.
-          raise Exceptions::ClientException,
-                'Server responded HTTP. Make sure you are not trying to connect to the http ' \
-                'endpoint (HTTP defaults to port 7474 whereas BOLT defaults to port 7687)' if server_reply == HTTP_REPLY
+          if server_reply == HTTP_REPLY
+            raise Exceptions::ClientException,
+                  'Server responded HTTP. Make sure you are not trying to connect to the http ' \
+                  'endpoint (HTTP defaults to port 7474 whereas BOLT defaults to port 7687)'
+          end
 
           server_reply == MANIFEST_SENTINEL ? negotiate_manifest : server_reply
         end
@@ -170,8 +174,8 @@ module Neo4j
           buf = String.new(encoding: Encoding::BINARY)
           while buf.bytesize < n
             case (chunk = @socket.read_nonblock(n - buf.bytesize, exception: false))
-            when :wait_readable then (@socket.wait_readable(remaining_budget) || return)
-            when :wait_writable then (@socket.wait_writable(remaining_budget) || return)
+            when :wait_readable then @socket.wait_readable(remaining_budget) || return
+            when :wait_writable then @socket.wait_writable(remaining_budget) || return
             when nil then return
             else buf << chunk
             end

@@ -89,7 +89,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'Example 2.12. Notification config', version: '>=5' do
-      let(:config) { { notification_config: { minimum_severity: :warning, disabled_categories: [:hint, :generic] } } }
+      let(:config) { { notification_config: { minimum_severity: :warning, disabled_categories: %i[hint generic] } } }
 
       it { is_expected.to be true }
     end
@@ -334,7 +334,7 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'Example 5.2. Custom severity and categories' do
-      let(:config) { { notification_config: { minimum_severity: :warning, disabled_categories: [:hint, :generic] } } }
+      let(:config) { { notification_config: { minimum_severity: :warning, disabled_categories: %i[hint generic] } } }
 
       it { is_expected.to be_empty }
     end

@@ -14,13 +14,13 @@ module Neo4j
         # executeQuery pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining):
         # BEGIN's reply is read only after the first RUN+PULL are flushed, not eagerly.
         @pipelined = pipelined
-        @on_begin = on_begin      # called with the BEGIN reply (home-db cache update)
-        @on_release = on_release  # called once when the connection is no longer needed
+        @on_begin = on_begin # called with the BEGIN reply (home-db cache update)
+        @on_release = on_release # called once when the connection is no longer needed
         @open = true
         @committed = false
         @rolled_back = false
         @failed = false
-        @terminating_error = nil  # the classified error that terminated this tx (a RUN/commit failure)
+        @terminating_error = nil # the classified error that terminated this tx (a RUN/commit failure)
         @current_result = nil
         # Every result opened in this tx, in order. Bolt lets multiple stay open
         # and streaming concurrently (qid multiplexing); a new RUN no longer
@@ -88,8 +88,10 @@ module Neo4j
         # the user's own iteration (@current_result.failed?). Message wording
         # stays "rolled back" to match the Java flavor (a shared integration spec
         # asserts it on both impls); only the exception class becomes specific.
-        raise Exceptions::TransactionTerminatedException,
-              'Cannot run more queries in this transaction, it has been rolled back' if terminated?
+        if terminated?
+          raise Exceptions::TransactionTerminatedException,
+                'Cannot run more queries in this transaction, it has been rolled back'
+        end
         unless @open
           # Mirror the Java/JRuby messages so the closed-state reason
           # (committed vs rolled back) is reported the same on both impls.
@@ -138,10 +140,10 @@ module Neo4j
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
 
         @current_result = Result.new(@connection, keys, buffer: buffer, handler: handler,
-                                     query_text: query, parameters: parameters,
-                                     run_metadata: run_response.metadata, fetch_size: fetch_size,
-                                     qid: run_response.metadata[:qid],
-                                     terminated_error: method(:terminating_error))
+                                                        query_text: query, parameters: parameters,
+                                                        run_metadata: run_response.metadata, fetch_size: fetch_size,
+                                                        qid: run_response.metadata[:qid],
+                                                        terminated_error: method(:terminating_error))
         @open_results << @current_result
         @current_result
       end
@@ -263,6 +265,7 @@ module Neo4j
       # executeQuery (and defensively before ROLLBACK if that query never ran).
       def ack_begin!
         return if @begin_acked
+
         @begin_acked = true
 
         if @telemetry_sent
@@ -334,7 +337,7 @@ module Neo4j
 
       def release_connection
         @on_release&.call
-        @on_release = nil  # idempotent
+        @on_release = nil # idempotent
       end
     end
   end

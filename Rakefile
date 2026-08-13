@@ -18,7 +18,7 @@ def stage_and_build(impl)
   root = __dir__
   pkg = File.join(root, 'pkg')
   stage = File.join(pkg, "stage-#{impl}")
-  gemspec_file = (impl == 'jruby') ? 'neo4j-ruby-driver-java.gemspec' : 'neo4j-ruby-driver.gemspec'
+  gemspec_file = impl == 'jruby' ? 'neo4j-ruby-driver-java.gemspec' : 'neo4j-ruby-driver.gemspec'
 
   FileUtils.rm_rf(stage)
   FileUtils.mkdir_p(File.join(stage, 'lib'))

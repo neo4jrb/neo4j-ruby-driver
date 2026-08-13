@@ -25,12 +25,12 @@ module Neo4j
             raise ArgumentError, "Invalid ISO 8601 duration format: #{string}"
           end
 
-          years = ($1 || 0).to_i
-          months = ($2 || 0).to_i
-          days = ($3 || 0).to_i
-          hours = ($4 || 0).to_i
-          minutes = ($5 || 0).to_i
-          seconds_with_fraction = ($6 || 0).to_f
+          years = (::Regexp.last_match(1) || 0).to_i
+          months = (::Regexp.last_match(2) || 0).to_i
+          days = (::Regexp.last_match(3) || 0).to_i
+          hours = (::Regexp.last_match(4) || 0).to_i
+          minutes = (::Regexp.last_match(5) || 0).to_i
+          seconds_with_fraction = (::Regexp.last_match(6) || 0).to_f
 
           total_months = years * 12 + months
           whole_seconds = seconds_with_fraction.to_i

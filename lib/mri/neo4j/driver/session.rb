@@ -10,6 +10,7 @@ module Neo4j
     # hold a connection — only its in-flight operation does.
     class Session
       include Internal::DurationNormalizer
+
       def initialize(connection_provider, options = {}, clock: Internal::Clock.new)
         @connection_provider = connection_provider
         @options = options
@@ -21,7 +22,7 @@ module Neo4j
         # The home database this session pinned after its first resolution
         # (Optimization:HomeDatabaseCache); nil until then / for explicit-db sessions.
         @pinned_database = nil
-        @used_guess = false  # whether an operation optimistically guessed the home db
+        @used_guess = false # whether an operation optimistically guessed the home db
         @bookmark_manager = options[:bookmark_manager]
         # The bookmark snapshot we sent on the most recent BEGIN — used
         # as `previous_bookmarks` when forwarding to the manager so it
@@ -31,12 +32,12 @@ module Neo4j
         @bookmarks_used_on_begin = nil
 
         # Initialize with provided bookmarks if any
-        if options[:bookmarks]
-          initial_bookmarks = options[:bookmarks]
-          initial_bookmarks = [initial_bookmarks] unless initial_bookmarks.is_a?(Enumerable)
-          initial_bookmarks.each do |bookmark|
-            @last_bookmarks << (bookmark.is_a?(Bookmark) ? bookmark : Bookmark.from(bookmark))
-          end
+        return unless options[:bookmarks]
+
+        initial_bookmarks = options[:bookmarks]
+        initial_bookmarks = [initial_bookmarks] unless initial_bookmarks.is_a?(Enumerable)
+        initial_bookmarks.each do |bookmark|
+          @last_bookmarks << (bookmark.is_a?(Bookmark) ? bookmark : Bookmark.from(bookmark))
         end
       end
 
@@ -50,7 +51,10 @@ module Neo4j
         end
 
         raise Exceptions::ClientException, 'Session is closed' unless @open
-        raise Exceptions::ClientException, 'You cannot run a query directly on a session while a transaction is open' if @transaction&.open?
+        if @transaction&.open?
+          raise Exceptions::ClientException,
+                'You cannot run a query directly on a session while a transaction is open'
+        end
 
         drain_current_result
 
@@ -90,7 +94,7 @@ module Neo4j
         retries_left = auto_commit_retries_enabled? ? 1 : 0
 
         buffer = handler = run_response = nil
-        telemetry_sent = false    # TELEMETRY 2 = auto-commit; sent once, never resent on a retry
+        telemetry_sent = false # TELEMETRY 2 = auto-commit; sent once, never resent on a retry
         telemetry_pending = false # its (opted-in) SUCCESS is still owed
         loop do
           # A fresh stream per attempt — a prior attempt's buffer saw the IGNORED.
@@ -160,10 +164,10 @@ module Neo4j
         keys = (run_response.metadata[:fields] || run_response.metadata['fields'] || []).map(&:to_sym)
         @current_result = Result.new(
           connection, keys, buffer: buffer, handler: handler,
-          query_text: query, parameters: parameters, run_metadata: run_response.metadata,
-          fetch_size: fetch_size,
-          on_summary: method(:harvest_auto_commit_bookmark),
-          on_release: -> { @connection_provider.release(connection) }
+                            query_text: query, parameters: parameters, run_metadata: run_response.metadata,
+                            fetch_size: fetch_size,
+                            on_summary: method(:harvest_auto_commit_bookmark),
+                            on_release: -> { @connection_provider.release(connection) }
         )
       end
 
@@ -171,7 +175,7 @@ module Neo4j
         raise Exceptions::ClientException, 'Session is closed' unless @open
         if @transaction&.open?
           raise Exceptions::ClientException,
-                "You cannot begin a transaction on a session with an open transaction; either run from within the transaction or use a different session."
+                'You cannot begin a transaction on a session with an open transaction; either run from within the transaction or use a different session.'
         end
 
         drain_current_result
@@ -201,7 +205,7 @@ module Neo4j
             # tx.commit to persist changes (matches Java driver semantics).
             @transaction.rollback if @transaction.open?
             result
-          rescue => e
+          rescue StandardError => e
             @transaction.rollback if @transaction.open?
             raise e
           ensure
@@ -212,12 +216,12 @@ module Neo4j
         end
       end
 
-      def execute_read(timeout: nil, metadata: nil, &block)
-        execute_transaction(AccessMode::READ, timeout:, metadata:, &block)
+      def execute_read(timeout: nil, metadata: nil, &)
+        execute_transaction(AccessMode::READ, timeout:, metadata:, &)
       end
 
-      def execute_write(timeout: nil, metadata: nil, &block)
-        execute_transaction(AccessMode::WRITE, timeout:, metadata:, &block)
+      def execute_write(timeout: nil, metadata: nil, &)
+        execute_transaction(AccessMode::WRITE, timeout:, metadata:, &)
       end
 
       # Close any pending result by asking the server to abandon
@@ -232,7 +236,7 @@ module Neo4j
 
         pending_error = nil
         begin
-          @transaction&.close  # tx releases its own connection
+          @transaction&.close # tx releases its own connection
           if @current_result
             connection = @current_result.connection
             begin
@@ -244,7 +248,7 @@ module Neo4j
             # the server's FAILED state; RESET so the next borrower starts
             # from a clean READY state.
             connection.reset! if @current_result.failed?
-            @current_result.discard!  # idempotent; releases the connection
+            @current_result.discard! # idempotent; releases the connection
           end
         ensure
           @open = false
@@ -257,9 +261,7 @@ module Neo4j
         @open
       end
 
-      def last_bookmarks
-        @last_bookmarks
-      end
+      attr_reader :last_bookmarks
 
       def update_bookmarks(bookmarks)
         # Replace bookmarks (don't accumulate) — matches Java driver behavior.
@@ -447,19 +449,19 @@ module Neo4j
           result.buffer
         rescue Exceptions::Neo4jException
           connection.reset!
-          result.discard!  # idempotent; routes through Result#release_connection
+          result.discard! # idempotent; routes through Result#release_connection
           raise
         end
 
-        if result.failed?
-          connection.reset!
-          result.discard!
-        end
+        return unless result.failed?
+
+        connection.reset!
+        result.discard!
+
         # Successful drain: Result already released its connection from on_success.
       end
 
-
-      def execute_transaction(access_mode, timeout: nil, metadata: nil, &block)
+      def execute_transaction(access_mode, timeout: nil, metadata: nil, &)
         raise Exceptions::ClientException, 'Session is closed' unless @open
 
         # Drain any pending auto-commit result so its connection is released
@@ -495,55 +497,53 @@ module Neo4j
         ).compact
 
         loop do
-          begin
-            # api 0 = managed tx; execute_query's session overrides it to 3
-            # (DRIVER_EXECUTE_QUERY). nil once the server has acked the report.
-            telemetry_api = telemetry_acked ? nil : (@options[:telemetry_api] || 0)
-            return run_managed_transaction(op_mode, tx_options, telemetry_api, on_telemetry_ack, &block)
-          rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException,
-                 Exceptions::TransientException,
-                 # AuthorizationExpired (server authz-cache expiry) is always
-                 # retryable; SecurityRetryableException is an auth failure the
-                 # token manager has flagged retryable (token refreshed) — both
-                 # warrant another attempt on a fresh connection/identity.
-                 Exceptions::AuthorizationExpiredException, Exceptions::SecurityRetryableException => e
-            errors << e
+          # api 0 = managed tx; execute_query's session overrides it to 3
+          # (DRIVER_EXECUTE_QUERY). nil once the server has acked the report.
+          telemetry_api = telemetry_acked ? nil : (@options[:telemetry_api] || 0)
+          return run_managed_transaction(op_mode, tx_options, telemetry_api, on_telemetry_ack, &)
+        rescue Exceptions::ServiceUnavailableException, Exceptions::SessionExpiredException,
+               Exceptions::TransientException,
+               # AuthorizationExpired (server authz-cache expiry) is always
+               # retryable; SecurityRetryableException is an auth failure the
+               # token manager has flagged retryable (token refreshed) — both
+               # warrant another attempt on a fresh connection/identity.
+               Exceptions::AuthorizationExpiredException, Exceptions::SecurityRetryableException => e
+          errors << e
 
-            if @clock.realtime - start_time >= max_retry_time
-              # Retries exhausted — re-raise the LAST error with its real
-              # type (SessionExpired / Transient / ServiceUnavailable)
-              # rather than flattening everything to ServiceUnavailable;
-              # Java's transaction executor likewise rethrows the last
-              # error. testkit asserts on the type (e.g. a routed reader
-              # interruption must surface as SessionExpired), so the
-              # generic wrapper masked it. Earlier attempts ride along as
-              # suppressed.
-              e.add_suppressed(*errors[0...-1])
-              raise e
-            end
-
-            # Exponential backoff: 1s, 2s, 4s, ... matching Java driver defaults
-            sleep(2 ** (errors.size - 1))
+          if @clock.realtime - start_time >= max_retry_time
+            # Retries exhausted — re-raise the LAST error with its real
+            # type (SessionExpired / Transient / ServiceUnavailable)
+            # rather than flattening everything to ServiceUnavailable;
+            # Java's transaction executor likewise rethrows the last
+            # error. testkit asserts on the type (e.g. a routed reader
+            # interruption must surface as SessionExpired), so the
+            # generic wrapper masked it. Earlier attempts ride along as
+            # suppressed.
+            e.add_suppressed(*errors[0...-1])
+            raise e
           end
+
+          # Exponential backoff: 1s, 2s, 4s, ... matching Java driver defaults
+          sleep(2**(errors.size - 1))
         end
       end
 
-      def run_managed_transaction(op_mode, tx_options, telemetry_api, on_telemetry_ack, &block)
+      def run_managed_transaction(op_mode, tx_options, telemetry_api, on_telemetry_ack, &)
         if @transaction&.open?
           raise Exceptions::ClientException,
-                "You cannot begin a transaction on a session with an open transaction"
+                'You cannot begin a transaction on a session with an open transaction'
         end
 
         # TELEMETRY 0 = managed transaction function; api is nil once acked so a
         # retry doesn't repeat it.
         @transaction = open_transaction(op_mode, tx_options, telemetry_api: telemetry_api,
-                                        telemetry_ack: on_telemetry_ack)
+                                                             telemetry_ack: on_telemetry_ack)
 
         begin
           result = yield @transaction
           @transaction.commit if @transaction.open?
           result
-        rescue => e
+        rescue StandardError => e
           @transaction.rollback if @transaction.open?
           raise e
         ensure
@@ -563,12 +563,14 @@ module Neo4j
         bookmarks = current_bookmarks_for_extra
         tx_options = tx_options.merge(database: begin_db).compact
         Transaction.new(connection, self, bookmarks, tx_options, telemetry_api: telemetry_api,
-                        telemetry_ack: telemetry_ack,
-                        # executeQuery's session reports telemetry api 3 (DRIVER_EXECUTE_QUERY);
-                        # only that path pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining).
-                        pipelined: @options[:telemetry_api] == 3,
-                        on_begin: method(:cache_home_db_from),
-                        on_release: -> { @connection_provider.release(connection) })
+                                                                 telemetry_ack: telemetry_ack,
+                                                                 # executeQuery's session reports telemetry api 3 (DRIVER_EXECUTE_QUERY);
+                                                                 # only that path pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining).
+                                                                 pipelined: @options[:telemetry_api] == 3,
+                                                                 on_begin: method(:cache_home_db_from),
+                                                                 on_release: lambda {
+                                                                   @connection_provider.release(connection)
+                                                                 })
       end
     end
   end

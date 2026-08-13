@@ -1,19 +1,19 @@
 module TestkitBackend
-    class ObjectCache < Hash
-      cattr_reader :objects, default: new
+  class ObjectCache < Hash
+    cattr_reader :objects, default: new
 
-      class << self
-        def fetch(*args)
-          objects.fetch(*args)
-        end
+    class << self
+      def fetch(*)
+        objects.fetch(*)
+      end
 
-        def delete(key)
-          objects.delete(key)
-        end
+      def delete(key)
+        objects.delete(key)
+      end
 
-        def store(object)
-          object.object_id.tap { |key| objects.store(key, object) }
-        end
+      def store(object)
+        object.object_id.tap { |key| objects.store(key, object) }
       end
     end
+  end
 end

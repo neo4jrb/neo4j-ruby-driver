@@ -19,13 +19,13 @@ module Neo4j
         end
         alias get_log getLog
 
-        def error(*args) = log(::Logger::ERROR, *args)
+        def error(*) = log(::Logger::ERROR, *)
 
-        def info(*args) = log(::Logger::INFO, *args)
+        def info(*) = log(::Logger::INFO, *)
 
-        def warn(*args) = log(::Logger::WARN, *args)
+        def warn(*) = log(::Logger::WARN, *)
 
-        def debug(*args) = log(::Logger::DEBUG, *args)
+        def debug(*) = log(::Logger::DEBUG, *)
         alias trace debug
 
         def trace_enabled?
@@ -38,12 +38,13 @@ module Neo4j
 
         private
 
-        def log(level, *args)
-          @logger.add(level) { format(*args) }
+        def log(level, *)
+          @logger.add(level) { format(*) }
         end
 
         def format(message, *args)
           return message.to_s if args.empty? && !message.is_a?(java.lang.Throwable)
+
           args.unshift(message)
           args.unshift('%s%n%s') if args.last.is_a?(java.lang.Throwable)
           java.lang.String.format(*args)

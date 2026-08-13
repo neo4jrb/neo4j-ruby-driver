@@ -46,13 +46,13 @@ module Neo4j
 
         begin
           result = yield session
-        rescue => block_error
+        rescue StandardError => e
           # Block raised; preserve as primary, attach close-time failures
           # as suppressed (Java try-with-resources semantics).
           begin
             session.close
           rescue Exceptions::Neo4jException => close_error
-            block_error.add_suppressed(close_error) if block_error.respond_to?(:add_suppressed)
+            e.add_suppressed(close_error) if e.respond_to?(:add_suppressed)
           end
           raise
         else

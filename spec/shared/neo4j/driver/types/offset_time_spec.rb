@@ -41,12 +41,12 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
 
   describe '.from_time' do
     it 'captures the wall clock and the UTC offset' do
-      time = ::Time.new(2026, 1, 1, 12, 34, 56, '+03:30') + Rational(123_456_789, 1_000_000_000)
+      time = Time.new(2026, 1, 1, 12, 34, 56, '+03:30') + Rational(123_456_789, 1_000_000_000)
       expect(described_class.from_time(time)).to eql described_class.parse('12:34:56.123456789+03:30')
     end
 
     it 'reads a UTC time as a zero offset' do
-      expect(described_class.from_time(::Time.new(2026, 1, 1, 8, 0, 0, '+00:00')))
+      expect(described_class.from_time(Time.new(2026, 1, 1, 8, 0, 0, '+00:00')))
         .to eql described_class.parse('08:00:00Z')
     end
   end

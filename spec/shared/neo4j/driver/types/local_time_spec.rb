@@ -27,12 +27,12 @@ RSpec.describe Neo4j::Driver::Types::LocalTime do
 
   describe '.from_time' do
     it 'captures the wall clock with nanosecond precision' do
-      time = ::Time.new(2026, 1, 1, 12, 34, 56, '+00:00') + Rational(123_456_789, 1_000_000_000)
+      time = Time.new(2026, 1, 1, 12, 34, 56, '+00:00') + Rational(123_456_789, 1_000_000_000)
       expect(described_class.from_time(time)).to eql described_class.parse('12:34:56.123456789')
     end
 
     it 'takes the displayed wall clock, ignoring the zone' do
-      time = ::Time.new(2026, 1, 1, 8, 0, 0, '-05:00')
+      time = Time.new(2026, 1, 1, 8, 0, 0, '-05:00')
       expect(described_class.from_time(time)).to eql described_class.parse('08:00:00')
     end
   end

@@ -27,7 +27,7 @@ module Neo4j
         FAILURE = 0x7F
 
         class << self
-          # Note: HELLO message building is now handled by protocol-specific handlers
+          # NOTE: HELLO message building is now handled by protocol-specific handlers
           # This method kept for backward compatibility but shouldn't be used directly
           def hello(user_agent:, auth:, routing: nil)
             extra = { user_agent: user_agent }

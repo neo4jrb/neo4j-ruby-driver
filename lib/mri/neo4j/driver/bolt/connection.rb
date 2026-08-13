@@ -15,7 +15,7 @@ module Neo4j
         # everything into the shared inbox queue for fetch_response to drain.
         # (A streaming request could register a record-routing handler instead.)
         ResponseCollector = Struct.new(:inbox) do
-          def on_record(message)  = inbox.push(message)
+          def on_record(message) = inbox.push(message)
           def on_success(message) = inbox.push(message)
           def on_failure(message) = inbox.push(message)
           def on_ignored(message) = inbox.push(message)
@@ -96,8 +96,8 @@ module Neo4j
           # stopped on close. Drives #advance and routes via the wire.
           @reader = nil
           @reader_mutex = Mutex.new
-          @reader_cv = ConditionVariable.new       # wakes the reader: a reply is expected
-          @quiescent_cv = ConditionVariable.new    # wakes drainers: in_flight hit 0
+          @reader_cv = ConditionVariable.new # wakes the reader: a reply is expected
+          @quiescent_cv = ConditionVariable.new # wakes drainers: in_flight hit 0
           @reader_stopped = false
           @broken_error = nil # set by failure fan-out; raised to inbox poppers
           @server_version = nil
@@ -129,25 +129,23 @@ module Neo4j
           # sharing one budget) wins over this connection's own.
           @read_deadline = deadline || acquisition_deadline
           resolved_addresses.each do |host, port|
-            begin
-              open_socket(host, port)
-              perform_handshake
-              perform_hello
-              @read_deadline = nil
-              @created_at = current_monotonic
-              # Connection is READY: hand steady-state reads to the dedicated
-              # reader. (Handshake/hello above read synchronously via
-              # fetch_response, so a failed connect never spawns a reader.)
-              start_reader
-              return self
-            rescue Exceptions::AuthenticationException
-              # Auth is the same regardless of which address we hit — fail fast.
-              discard_socket
-              raise
-            rescue Exceptions::ServiceUnavailableException, IOError, SystemCallError => e
-              last_error = e
-              discard_socket
-            end
+            open_socket(host, port)
+            perform_handshake
+            perform_hello
+            @read_deadline = nil
+            @created_at = current_monotonic
+            # Connection is READY: hand steady-state reads to the dedicated
+            # reader. (Handshake/hello above read synchronously via
+            # fetch_response, so a failed connect never spawns a reader.)
+            start_reader
+            return self
+          rescue Exceptions::AuthenticationException
+            # Auth is the same regardless of which address we hit — fail fast.
+            discard_socket
+            raise
+          rescue Exceptions::ServiceUnavailableException, IOError, SystemCallError => e
+            last_error = e
+            discard_socket
           end
 
           raise Exceptions::ServiceUnavailableException, 'No addresses to connect to' if last_error.nil?
@@ -246,12 +244,21 @@ module Neo4j
           begin
             @wire&.enqueue(Message.goodbye, @collector)
             bytes = @wire&.take_outbound
-            @write_mutex.synchronize { @socket.write(bytes); @socket.flush } if bytes && !bytes.empty?
+            if bytes && !bytes.empty?
+              @write_mutex.synchronize do
+                @socket.write(bytes)
+                @socket.flush
+              end
+            end
           rescue StandardError
             # closing anyway
           end
           stop_reader
-          @socket&.close rescue nil
+          begin
+            @socket&.close
+          rescue StandardError
+            nil
+          end
         end
 
         def closed?
@@ -521,7 +528,7 @@ module Neo4j
             response = fetch_response
             case response
             when Message::Success then break # PULL summary — end of stream
-            when Message::Record  then row ||= fields.zip(response.fields).to_h
+            when Message::Record then row ||= fields.zip(response.fields).to_h
             else response.assert_success! # FAILURE / IGNORED — raises
             end
           end
@@ -663,7 +670,11 @@ module Neo4j
 
         def discard_socket
           stop_reader
-          @socket&.close rescue nil
+          begin
+            @socket&.close
+          rescue StandardError
+            nil
+          end
           @socket = nil
           # Reset all per-attempt I/O state so a retry on the next address (or a
           # later reset!/drain loop) doesn't carry a phantom in-flight request or
@@ -709,7 +720,8 @@ module Neo4j
           end
         rescue IOError, SystemCallError => e
           fail_broken(Exceptions::ServiceUnavailableException.new(
-                        "Connection to #{@address || @uri} broken: #{e.class}: #{e.message}"))
+                        "Connection to #{@address || @uri} broken: #{e.class}: #{e.message}"
+                      ))
         end
 
         # The dedicated reader: the sole socket reader for this connection's
@@ -779,10 +791,18 @@ module Neo4j
           # Wake the parked reader (@reader_cv) and any drainer blocked in
           # #wait_quiescent (@quiescent_cv) — stopping is a terminal transition
           # they must observe, else a concurrent reset!/fetch_all/alive? hangs.
-          @reader_mutex.synchronize { @reader_stopped = true; @reader_cv.broadcast; @quiescent_cv.broadcast }
+          @reader_mutex.synchronize do
+            @reader_stopped = true
+            @reader_cv.broadcast
+            @quiescent_cv.broadcast
+          end
           return unless reader
 
-          @socket&.close rescue nil
+          begin
+            @socket&.close
+          rescue StandardError
+            nil
+          end
           reader.join unless reader == Thread.current
         end
 
@@ -814,7 +834,11 @@ module Neo4j
         end
 
         def mark_closed_broken
-          @socket&.close rescue nil
+          begin
+            @socket&.close
+          rescue StandardError
+            nil
+          end
           @closed = true
           fire_on_close
         end
@@ -926,10 +950,16 @@ module Neo4j
           # test_should_fail_when_acquisition_timeout_is_reached_first, where
           # acquisition 2s < connection 720s).
           connect_timeout = [timeout&.to_f, remaining_read_budget].compact.min
-          tcp_socket = connect_timeout ? Socket.tcp(bare_host, port, connect_timeout: connect_timeout) : TCPSocket.new(bare_host, port)
+          tcp_socket = if connect_timeout
+                         Socket.tcp(bare_host, port,
+                                    connect_timeout: connect_timeout)
+                       else
+                         TCPSocket.new(bare_host, port)
+                       end
         rescue SystemCallError, SocketError => e
           raise Exceptions::ServiceUnavailableException,
-                "Unable to connect to #{format_address(host, port)}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
+                "Unable to connect to #{format_address(host,
+                                                       port)}, ensure the database is running and that there is a working network connection to it. (#{e.message})"
         else
           @address = format_address(host, port)
           tcp_socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
@@ -961,11 +991,19 @@ module Neo4j
           ssl.post_connection_check(hostname) if tls.verify_hostname?
           ssl
         rescue OpenSSL::SSL::SSLError => e
-          tcp_socket.close rescue nil
+          begin
+            tcp_socket.close
+          rescue StandardError
+            nil
+          end
           raise Exceptions::SecurityException,
                 "TLS handshake to #{format_address(hostname, port)} failed: #{e.message}"
         rescue SystemCallError, IOError => e
-          tcp_socket.close rescue nil
+          begin
+            tcp_socket.close
+          rescue StandardError
+            nil
+          end
           raise Exceptions::ServiceUnavailableException,
                 "Connection lost during TLS handshake to #{format_address(hostname, port)}: #{e.message}"
         end
@@ -1047,7 +1085,6 @@ module Neo4j
           seconds = hints && hints[:'connection.recv_timeout_seconds']
           @recv_timeout = seconds if seconds&.positive?
         end
-
       end
     end
   end

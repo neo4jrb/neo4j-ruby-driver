@@ -57,8 +57,8 @@ module TestkitBackend
         derived_offset = tz.period_for_local(local, true).utc_total_offset
         return nil if derived_offset == data[:utc_offset_s]
 
-        "DateTime not supported: Unmatched UTC offset. TestKit expected " \
-        "#{data[:utc_offset_s]}, local zone db yielded #{derived_offset}"
+        'DateTime not supported: Unmatched UTC offset. TestKit expected ' \
+          "#{data[:utc_offset_s]}, local zone db yielded #{derived_offset}"
       rescue TZInfo::InvalidTimezoneIdentifier, TZInfo::AmbiguousTime, TZInfo::PeriodNotFound, ArgumentError => e
         "DateTime not supported: #{e.message}"
       end

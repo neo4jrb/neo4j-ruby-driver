@@ -42,11 +42,10 @@ module Neo4j
           when nil, true, false, Integer, Float
             object
           else
-            if skip_unknown
-              object
-            else
-              raise Exceptions::ClientException.unable_to_convert(object)
-            end
+            raise Exceptions::ClientException.unable_to_convert(object) unless skip_unknown
+
+            object
+
           end
         end
 

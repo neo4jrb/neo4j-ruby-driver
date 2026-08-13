@@ -45,8 +45,8 @@ module Neo4j
 
         # Iterate over segments in the path
         # Each segment represents a relationship and its start/end nodes
-        def each(&block)
-          @segments.each(&block)
+        def each(&)
+          @segments.each(&)
         end
 
         # Represents a segment of a path (a relationship and its start/end nodes)

@@ -38,13 +38,7 @@ def common_gemspec(spec, impl)
 
   spec.add_dependency 'tzinfo', '~> 2.0'
   spec.add_dependency 'zeitwerk', '~> 2.6'
-
-  # csv was a default gem through Ruby 3.3, became a bundled gem in
-  # 3.4, so it needs to be in the Gemfile for the load_csv_spec to
-  # require 'csv'.
-  spec.add_development_dependency 'csv'
-  spec.add_development_dependency 'ffaker'
-  spec.add_development_dependency 'rake', '~> 13.0'
-  spec.add_development_dependency 'rspec', '~> 3.13'
-  spec.add_development_dependency 'rspec-its', '~> 2.0'
+  # Development/test dependencies live in the Gemfile (grouped), where they can
+  # carry require:false, groups, and platform conditions — the gemspec keeps
+  # runtime dependencies only.
 end

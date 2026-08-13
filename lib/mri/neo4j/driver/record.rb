@@ -14,13 +14,7 @@ module Neo4j
         end
       end
 
-      def keys
-        @keys
-      end
-
-      def values
-        @values
-      end
+      attr_reader :keys, :values
 
       def [](key)
         case key
@@ -41,8 +35,8 @@ module Neo4j
         @map.dup
       end
 
-      def each(&block)
-        @map.each(&block)
+      def each(&)
+        @map.each(&)
       end
     end
   end

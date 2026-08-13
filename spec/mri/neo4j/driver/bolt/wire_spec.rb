@@ -22,7 +22,7 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
       attr_reader :events
 
       def initialize = @events = []
-      def on_record(m)  = @events << [:record, m]
+      def on_record(m) = @events << [:record, m]
       def on_success(m) = @events << [:success, m]
       def on_failure(m) = @events << [:failure, m]
       def on_ignored(m) = @events << [:ignored, m]
@@ -46,8 +46,8 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
   end
 
   def success(meta = {}) = framed(Structure.new(Message::SUCCESS, [meta]))
-  def record(values)     = framed(Structure.new(Message::RECORD, [values]))
-  def failure(meta)      = framed(Structure.new(Message::FAILURE, [meta]))
+  def record(values) = framed(Structure.new(Message::RECORD, [values]))
+  def failure(meta) = framed(Structure.new(Message::FAILURE, [meta]))
 
   describe 'response-ordering FIFO' do
     it 'routes a reply to the handler the request registered' do
@@ -63,13 +63,13 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
     it 'keeps a streaming request at the FIFO front across its RECORDs, then advances' do
       run = recorder
       pull = recorder
-      wire.enqueue(Message.run('Q', {}, {}), run)   # one SUCCESS
-      wire.enqueue(Message.pull(n: -1), pull)        # RECORDs then SUCCESS
+      wire.enqueue(Message.run('Q', {}, {}), run) # one SUCCESS
+      wire.enqueue(Message.pull(n: -1), pull) # RECORDs then SUCCESS
       expect(wire.in_flight).to eq(2)
 
       wire.receive(success(fields: %w[n]) + record([1]) + record([2]) + success(type: 'r'))
 
-      expect(run.events.map(&:first)).to eq([:success])              # RUN reply
+      expect(run.events.map(&:first)).to eq([:success]) # RUN reply
       expect(pull.events.map(&:first)).to eq(%i[record record success]) # PULL reply
       expect(pull.events[0][1].fields).to eq([1])
       expect(wire.in_flight).to eq(0)
@@ -88,7 +88,7 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
       wire.enqueue(Message.reset, h)
       bytes = success(server: 'x')
       wire.receive(bytes.byteslice(0, 3))
-      expect(h.events).to be_empty       # partial — not dispatched yet
+      expect(h.events).to be_empty # partial — not dispatched yet
       wire.receive(bytes.byteslice(3..))
       expect(h.events.map(&:first)).to eq([:success])
     end
@@ -96,9 +96,9 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
     it 'skips NOOP keepalives without touching the handler' do
       h = recorder
       wire.enqueue(Message.reset, h)
-      wire.receive("\x00\x00".b)              # NOOP
+      wire.receive("\x00\x00".b) # NOOP
       expect(h.events).to be_empty
-      expect(wire.in_flight).to eq(1)         # still awaiting
+      expect(wire.in_flight).to eq(1) # still awaiting
       wire.receive("\x00\x00".b + success({}) + "\x00\x00".b)
       expect(h.events.map(&:first)).to eq([:success])
     end
@@ -127,7 +127,7 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
     end
 
     it 'accumulates several enqueues (pipelining) into one outbound blob' do
-      single = described_class.new(protocol).tap { _1.enqueue(Message.reset, recorder) }.take_outbound
+      single = described_class.new(protocol).tap { it.enqueue(Message.reset, recorder) }.take_outbound
       wire.enqueue(Message.reset, recorder)
       wire.enqueue(Message.reset, recorder)
       expect(wire).to be_pending_outbound

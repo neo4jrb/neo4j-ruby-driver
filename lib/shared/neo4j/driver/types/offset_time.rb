@@ -28,7 +28,7 @@ module Neo4j
         # Accepts "12:34:56.123456789+01:00", "12:34:56Z", or any string
         # containing such a time-with-offset component.
         def self.parse(string)
-          match = string.match(/(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?([Z+\-][\d:]*)?/)
+          match = string.match(/(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?([Z+-][\d:]*)?/)
           raise ArgumentError, "Invalid OffsetTime format: #{string}" unless match
 
           nanos = LocalTime.send(:parse_nanos,
@@ -38,22 +38,22 @@ module Neo4j
 
         def self.parse_offset(str)
           return 0 if str == 'Z'
-          raise ArgumentError, "Invalid timezone offset: #{str}" unless str =~ /^([+\-])(\d{2}):?(\d{2})?$/
+          raise ArgumentError, "Invalid timezone offset: #{str}" unless str =~ /^([+-])(\d{2}):?(\d{2})?$/
 
-          sign = $1 == '+' ? 1 : -1
-          sign * ($2.to_i * 3600 + ($3 || 0).to_i * 60)
+          sign = ::Regexp.last_match(1) == '+' ? 1 : -1
+          sign * (::Regexp.last_match(2).to_i * 3600 + (::Regexp.last_match(3) || 0).to_i * 60)
         end
         private_class_method :parse_offset
 
-        def hour       = (@nanoseconds / NANOS_PER_HOUR) % 24
-        def minute     = (@nanoseconds / NANOS_PER_MINUTE) % 60
-        def second     = (@nanoseconds / NANOS_PER_SECOND) % 60
+        def hour = (@nanoseconds / NANOS_PER_HOUR) % 24
+        def minute = (@nanoseconds / NANOS_PER_MINUTE) % 60
+        def second = (@nanoseconds / NANOS_PER_SECOND) % 60
         def nanosecond = @nanoseconds % NANOS_PER_SECOND
 
         # Add a numeric or ActiveSupport::Duration. Sub-second precision
         # preserved (see LocalTime#+).
-        def +(seconds)
-          self.class.new(@nanoseconds + (seconds.to_f * NANOS_PER_SECOND).round, @tz_offset_seconds)
+        def +(other)
+          self.class.new(@nanoseconds + (other.to_f * NANOS_PER_SECOND).round, @tz_offset_seconds)
         end
 
         def to_s
@@ -72,6 +72,7 @@ module Neo4j
         # <=>; == still requires same fields (they're not the same value).
         def <=>(other)
           return nil unless other.is_a?(OffsetTime)
+
           utc_nanos <=> other.utc_nanos
         end
 

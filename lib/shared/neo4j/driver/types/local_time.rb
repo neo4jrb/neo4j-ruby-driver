@@ -42,15 +42,15 @@ module Neo4j
         end
         private_class_method :parse_nanos
 
-        def hour       = (@nanoseconds / NANOS_PER_HOUR) % 24
-        def minute     = (@nanoseconds / NANOS_PER_MINUTE) % 60
-        def second     = (@nanoseconds / NANOS_PER_SECOND) % 60
+        def hour = (@nanoseconds / NANOS_PER_HOUR) % 24
+        def minute = (@nanoseconds / NANOS_PER_MINUTE) % 60
+        def second = (@nanoseconds / NANOS_PER_SECOND) % 60
         def nanosecond = @nanoseconds % NANOS_PER_SECOND
 
         # Add a numeric or ActiveSupport::Duration. Sub-second precision
         # preserved by going through to_f (NOT to_i, which dropped 0.5s).
-        def +(seconds)
-          self.class.new(@nanoseconds + (seconds.to_f * NANOS_PER_SECOND).round)
+        def +(other)
+          self.class.new(@nanoseconds + (other.to_f * NANOS_PER_SECOND).round)
         end
 
         def to_s

@@ -12,7 +12,7 @@ module Neo4j
           @name =
             case db_data
             when String then db_data
-            when Hash   then db_data[:name]
+            when Hash then db_data[:name]
             end
         end
 

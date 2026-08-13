@@ -39,7 +39,7 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
     end
 
     # Alaska (UTC-9) Monday 22:00 — a different instant *and* clock from NY.
-    let(:alaska_monday) { ::Time.new(2026, 1, 5, 22, 0, 0, '-09:00') }
+    let(:alaska_monday) { Time.new(2026, 1, 5, 22, 0, 0, '-09:00') }
 
     it 'captures the displayed wall clock, not the absolute instant' do
       ldt = described_class.from_time(alaska_monday)

@@ -3,11 +3,11 @@ module TestkitBackend
     class CypherFloat < Request
       def to_object
         case value
-        when "NaN"
+        when 'NaN'
           Float::NAN
-        when "-Infinity"
+        when '-Infinity'
           -Float::INFINITY
-        when "+Infinity"
+        when '+Infinity'
           Float::INFINITY
         else
           value.to_f

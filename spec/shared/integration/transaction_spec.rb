@@ -115,7 +115,7 @@ RSpec.describe 'Transaction' do
   it 'fails run' do
     session.begin_transaction do |tx|
       expect { tx.run('RETURN Wrong') }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
-        expect(error.code).to match /SyntaxError/
+        expect(error.code).to match(/SyntaxError/)
       end
     end
   end
@@ -130,7 +130,7 @@ RSpec.describe 'Transaction' do
     session.begin_transaction do |tx|
       expect(tx.run('UNWIND [1,2,3] AS x CREATE (:Node) RETURN x').map(&:first)).to eq [1, 2, 3]
       expect { tx.run('RETURN unknown').consume }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
-        expect(error.code).to match /SyntaxError/
+        expect(error.code).to match(/SyntaxError/)
       end
       expect { tx.run('CREATE (:OtherNode)').consume }
         .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more queries in this transaction/)
@@ -156,7 +156,7 @@ RSpec.describe 'Transaction' do
         tx.commit
       end
     end.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
-      expect(error.code).to match /SyntaxError/
+      expect(error.code).to match(/SyntaxError/)
       # corresponding java test is not deterministic
       # expect(error.suppressed.size).to be >= 1
       # suppressed = error.suppressed.first

@@ -20,14 +20,17 @@ RSpec.describe Neo4j::Driver::Bolt::RecordBuffer do
       err = Neo4j::Driver::Exceptions::ServiceUnavailableException.new('boom')
       buffer.push_record(:a)
       buffer.fail(err)
-      expect(buffer.try_shift).to eq(:a)            # record that preceded the failure
+      expect(buffer.try_shift).to eq(:a) # record that preceded the failure
       expect { buffer.try_shift }.to raise_error(err) # then the failure
     end
   end
 
   describe '#await — one wait woken by a record OR the batch promise' do
     it 'wakes when a record is delivered mid-stream' do
-      producer = Thread.new { sleep 0.05; buffer.push_record(:late) }
+      producer = Thread.new do
+        sleep 0.05
+        buffer.push_record(:late)
+      end
       Timeout.timeout(2) { buffer.await }
       expect(buffer.try_shift).to eq(:late)
       producer.join
@@ -36,7 +39,10 @@ RSpec.describe Neo4j::Driver::Bolt::RecordBuffer do
     it 'wakes when the batch completes (promise resolves) with no new record' do
       # First PULL is in flight (@pull_in_flight true); a bare batch_complete
       # must release a cursor that has drained the buffer empty.
-      producer = Thread.new { sleep 0.05; buffer.batch_complete(has_more: true) }
+      producer = Thread.new do
+        sleep 0.05
+        buffer.batch_complete(has_more: true)
+      end
       Timeout.timeout(2) { buffer.await }
       expect(buffer.pull_ready?).to be(true) # cursor can now PULL the next batch
       producer.join
@@ -69,8 +75,8 @@ RSpec.describe Neo4j::Driver::Bolt::RecordBuffer do
       buffer.batch_complete(has_more: true)
       expect(buffer.pull_ready?).to be(true)
       buffer.note_pull_issued
-      expect(buffer.pull_ready?).to be(false)  # promise unfulfilled again
-      buffer.batch_complete(has_more: true)    # next batch's SUCCESS
+      expect(buffer.pull_ready?).to be(false) # promise unfulfilled again
+      buffer.batch_complete(has_more: true) # next batch's SUCCESS
       expect(buffer.pull_ready?).to be(true)
     end
 

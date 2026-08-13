@@ -17,7 +17,11 @@ module Neo4j
         %i[read write].each do |mode|
           define_method("execute_#{mode}") do |**config, &block|
             check do
-              super(->(tx) { Struct::Wrapper.new(reverse_check { block.call(tx) }) }, to_java_config(Neo4j::Driver::TransactionConfig, **config)).object
+              super(lambda { |tx|
+                Struct::Wrapper.new(reverse_check do
+                                      block.call(tx)
+                                    end)
+              }, to_java_config(Neo4j::Driver::TransactionConfig, **config)).object
             end
           end
         end

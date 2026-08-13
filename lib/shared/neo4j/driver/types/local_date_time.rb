@@ -44,10 +44,15 @@ module Neo4j
         end
 
         def self.parse(string)
-          # Strip a trailing timezone if present — a naive datetime ignores it.
-          naive = string.sub(/[Z+\-]\d{2}:?\d{2}?$/, '')
-          time = PARSE_FORMATS.lazy.filter_map { |fmt| ::Time.strptime(naive, fmt) rescue nil }.first
+          # Strip trailing timezone if present — naive datetime ignores it.
+          naive = string.sub(/[Z+-]\d{2}:?\d{2}?$/, '')
+          time = PARSE_FORMATS.lazy.filter_map do |fmt|
+            ::Time.strptime(naive, fmt)
+          rescue StandardError
+            nil
+          end.first
           raise ArgumentError, "Invalid LocalDateTime format: #{string}" unless time
+
           from_time(time)
         end
 
@@ -61,9 +66,9 @@ module Neo4j
 
         # Add a numeric or ActiveSupport::Duration. A wall clock has no DST,
         # so this is plain second arithmetic; sub-second precision preserved.
-        def +(seconds)
+        def +(other)
           total = (@epoch_seconds * NANOS_PER_SECOND) + @nanoseconds +
-                  (seconds.to_f * NANOS_PER_SECOND).round
+                  (other.to_f * NANOS_PER_SECOND).round
           self.class.new(total / NANOS_PER_SECOND, total % NANOS_PER_SECOND)
         end
 

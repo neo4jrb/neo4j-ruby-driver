@@ -3,7 +3,8 @@
 # Ported from neo4j-java-driver CredentialsIT.java.
 RSpec.describe 'Credentials' do
   it 'is able to provide realm with basic auth' do
-    Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password, 'native')) do |d|
+    Neo4j::Driver::GraphDatabase.driver(uri,
+                                        Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password, 'native')) do |d|
       expect(d.session { |s| s.run('CREATE () RETURN 1').single[0] }).to eq 1
     end
   end

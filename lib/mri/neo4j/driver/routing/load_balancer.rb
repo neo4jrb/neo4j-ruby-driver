@@ -40,9 +40,9 @@ module Neo4j
           @clock = clock
           @domain_name_resolver = domain_name_resolver
           @routing_context = parse_routing_context(uri)
-          @pools = {}                      # ServerAddress => ConnectionPool::TimedStack
-          @routing_tables = {}             # database (str or nil) => RoutingTable
-          @cursor = Hash.new(0)            # round-robin per (database, role)
+          @pools = {} # ServerAddress => ConnectionPool::TimedStack
+          @routing_tables = {} # database (str or nil) => RoutingTable
+          @cursor = Hash.new(0) # round-robin per (database, role)
           # Per-server authorization-expired generation counters (see
           # Connection#auth_epoch and Direct::ConnectionProvider). Bumped for a
           # server when one of its connections reports AuthorizationExpired, so
@@ -79,8 +79,8 @@ module Neo4j
           @ssr_lock.synchronize do
             if conn.ssr_enabled?
               @ssr_with -= 1 if @ssr_with.positive?
-            else
-              @ssr_without -= 1 if @ssr_without.positive?
+            elsif @ssr_without.positive?
+              @ssr_without -= 1
             end
           end
         end
@@ -193,7 +193,8 @@ module Neo4j
           # routing driver surfaced the wrong error type.
           raise Exceptions::IllegalStateException, 'Driver is closed' if @closed
 
-          resolved = ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks, imp_user: imp_user, auth: auth).database
+          resolved = ensure_routing_table_is_fresh(nil, :read, bookmarks: bookmarks, imp_user: imp_user,
+                                                               auth: auth).database
           # Remember the authoritative name (Optimization:HomeDatabaseCache) so a
           # later same-identity session can guess it and skip discovery.
           cache_home_db(imp_user, auth, resolved)
@@ -236,7 +237,9 @@ module Neo4j
           # server to re-auth. Provider-side, so it runs regardless of who
           # owns the token; the manager notification is skipped for a
           # per-session identity.
-          @refresh_lock.synchronize { @auth_epochs[address] += 1 } if error.is_a?(Exceptions::AuthorizationExpiredException)
+          if error.is_a?(Exceptions::AuthorizationExpiredException)
+            @refresh_lock.synchronize { @auth_epochs[address] += 1 }
+          end
           return false if session_scoped
 
           @auth_manager.handle_security_exception(token, error)
@@ -316,7 +319,13 @@ module Neo4j
         def close
           @refresh_lock.synchronize do
             @closed = true
-            @pools.each_value { |pool| pool.shutdown { |conn| conn.close rescue nil } }
+            @pools.each_value do |pool|
+              pool.shutdown do |conn|
+                conn.close
+              rescue StandardError
+                nil
+              end
+            end
             @pools.clear
             @routing_tables.clear
           end
@@ -368,7 +377,11 @@ module Neo4j
           @refresh_lock.synchronize do
             @routing_tables.each_value { |table| table.forget(address) }
             pool = @pools.delete(address)
-            pool&.shutdown { |conn| conn.close rescue nil }
+            pool&.shutdown do |conn|
+              conn.close
+            rescue StandardError
+              nil
+            end
           end
         end
 
@@ -442,7 +455,7 @@ module Neo4j
           raise Exceptions::ServiceUnavailableException.new(
             "Unable to retrieve routing information for database #{database.inspect}: " \
             "tried #{errors.length} router(s) without success" \
-            "#{last ? " (last: #{last.message})" : ''}",
+            "#{" (last: #{last.message})" if last}",
             suppressed: errors
           )
         end
@@ -529,7 +542,11 @@ module Neo4j
             errors << e
             # Connection (if any) is presumed dead; deactivate tears
             # down the pool so the conn's `created` slot is reclaimed.
-            conn&.close rescue nil
+            begin
+              conn&.close
+            rescue StandardError
+              nil
+            end
             deactivate(router)
             nil
           rescue Exceptions::Neo4jException => e
@@ -674,7 +691,7 @@ module Neo4j
 
         def symbolize(value)
           case value
-          when Hash  then value.transform_keys(&:to_sym).transform_values { symbolize(it) }
+          when Hash then value.transform_keys(&:to_sym).transform_values { symbolize(it) }
           when Array then value.map { symbolize(it) }
           else value
           end
@@ -683,7 +700,6 @@ module Neo4j
         def max_pool_size
           @options[:max_connection_pool_size] || Driver::DEFAULT_MAX_POOL_SIZE
         end
-
       end
     end
   end

@@ -1,6 +1,7 @@
 module TestkitBackend
   class Response
     extend Conversion
+
     delegate :delete, :fetch, :store, to: TestkitBackend::ObjectCache
 
     def initialize(object)

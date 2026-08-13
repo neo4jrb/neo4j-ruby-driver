@@ -45,7 +45,7 @@ module Neo4j
         def to_time
           time = as_zoned_date_time
           zone_id = time.zone.id
-          if /^Z|[+\-][0-9]{2}:[0-9]{2}$/.match?(zone_id)
+          if /^Z|[+-][0-9]{2}:[0-9]{2}$/.match?(zone_id)
             Time.parse(time.to_string)
           else
             instant = time.to_instant

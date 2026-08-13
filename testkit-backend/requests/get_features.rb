@@ -27,27 +27,27 @@ module TestkitBackend
         # 'r' (MRI) added: this branch implements the pure-Ruby Bolt 3.0
         # protocol handler (Protocol::V3) + getRoutingTable procedure
         # fallback, so MRI negotiates and passes the v3 suites too.
-        'Feature:Bolt:3.0'                                  => 'jar',
-        'Feature:Bolt:4.1'                                  => 'j',
-        'Feature:Bolt:4.2'                                  => 'jar',
-        'Feature:Bolt:4.3'                                  => 'jar',
-        'Feature:Bolt:4.4'                                  => 'jar',
-        'Feature:Bolt:5.0'                                  => 'jar',
-        'Feature:Bolt:5.1'                                  => 'jar',
-        'Feature:Bolt:5.2'                                  => 'jar',
-        'Feature:Bolt:5.3'                                  => 'jar',
-        'Feature:Bolt:5.4'                                  => 'jar',
-        'Feature:Bolt:5.5'                                  => 'jar',
-        'Feature:Bolt:5.6'                                  => 'jar',
-        'Feature:Bolt:5.7'                                  => 'jar',
-        'Feature:Bolt:5.8'                                  => 'jar',
-        'Feature:Bolt:6.0'                                  => 'jar',
+        'Feature:Bolt:3.0' => 'jar',
+        'Feature:Bolt:4.1' => 'j',
+        'Feature:Bolt:4.2' => 'jar',
+        'Feature:Bolt:4.3' => 'jar',
+        'Feature:Bolt:4.4' => 'jar',
+        'Feature:Bolt:5.0' => 'jar',
+        'Feature:Bolt:5.1' => 'jar',
+        'Feature:Bolt:5.2' => 'jar',
+        'Feature:Bolt:5.3' => 'jar',
+        'Feature:Bolt:5.4' => 'jar',
+        'Feature:Bolt:5.5' => 'jar',
+        'Feature:Bolt:5.6' => 'jar',
+        'Feature:Bolt:5.7' => 'jar',
+        'Feature:Bolt:5.8' => 'jar',
+        'Feature:Bolt:6.0' => 'jar',
         # Bolt 6.1: MRI proposes it at the top of the manifest ladder and
         # speaks PackStream V2 (the UUID type). JRuby gets it from the bundled
         # Java driver.
-        'Feature:Bolt:6.1'                                  => 'jar',
-        'Feature:Bolt:HandshakeManifestV1'                  => 'jar',
-        'Feature:Bolt:Patch:UTC'                            => 'jar',
+        'Feature:Bolt:6.1' => 'jar',
+        'Feature:Bolt:HandshakeManifestV1' => 'jar',
+        'Feature:Bolt:Patch:UTC' => 'jar',
 
         # --- TLS -------------------------------------------------------------
         # Bolt::TlsConfig pins the client to a min of TLS 1.2 — so
@@ -62,87 +62,87 @@ module TestkitBackend
         # JRuby docker image needs the test CAs imported into the JDK
         # truststore (Dockerfile's keytool loop) — without that the
         # +s scheme tests fail because system-trust ≠ Java-trust.
-        'Feature:TLS:1.1'                                   => 'a',
-        'Feature:TLS:1.2'                                   => 'jar',
-        'Feature:TLS:1.3'                                   => 'jar',
+        'Feature:TLS:1.1' => 'a',
+        'Feature:TLS:1.2' => 'jar',
+        'Feature:TLS:1.3' => 'jar',
 
         # --- Authentication --------------------------------------------------
-        'Feature:Auth:Bearer'                               => 'jar',
-        'Feature:Auth:Custom'                               => 'jar',
-        'Feature:Auth:Kerberos'                             => 'jar',
-        'Feature:Auth:Managed'                              => 'jar',
-        'AuthorizationExpiredTreatment'                     => 'jar',
+        'Feature:Auth:Bearer' => 'jar',
+        'Feature:Auth:Custom' => 'jar',
+        'Feature:Auth:Kerberos' => 'jar',
+        'Feature:Auth:Managed' => 'jar',
+        'AuthorizationExpiredTreatment' => 'jar',
 
         # --- Public API surface ----------------------------------------------
-        'Feature:API:BookmarkManager'                       => 'jar',
-        'Feature:API:ConnectionAcquisitionTimeout'          => 'jar',
-        'Feature:API:Driver.ExecuteQuery'                   => 'jar',
-        'Feature:API:Driver.ExecuteQuery:WithAuth'          => 'jar',
-        'Feature:API:Driver:GetServerInfo'                  => '',
-        'Feature:API:Driver.IsEncrypted'                    => 'jar',
-        'Feature:API:Driver:NotificationsConfig'            => 'jar',
-        'Feature:API:Driver.VerifyAuthentication'           => 'jar',
+        'Feature:API:BookmarkManager' => 'jar',
+        'Feature:API:ConnectionAcquisitionTimeout' => 'jar',
+        'Feature:API:Driver.ExecuteQuery' => 'jar',
+        'Feature:API:Driver.ExecuteQuery:WithAuth' => 'jar',
+        'Feature:API:Driver:GetServerInfo' => '',
+        'Feature:API:Driver.IsEncrypted' => 'jar',
+        'Feature:API:Driver:NotificationsConfig' => 'jar',
+        'Feature:API:Driver.VerifyAuthentication' => 'jar',
         # JRuby's verifyConnectivity routes for the system database (the
         # bundled Java driver hardcodes it in RoutedBoltConnectionSource),
         # but testkit's routing tests expect the default database — so the
         # routing variants can't pass without reimplementing the verify
         # path. Java's own backend doesn't advertise this feature either;
         # MRI does and passes.
-        'Feature:API:Driver.VerifyConnectivity'             => 'r',
-        'Feature:API:Driver.SupportsSessionAuth'            => 'jar',
-        'Feature:API:Driver:MaxConnectionLifetime'          => 'jar',
-        'Feature:API:Liveness.Check'                        => 'jar',
-        'Feature:API:Result.List'                           => 'jar',
-        'Feature:API:Result.Peek'                           => 'jar',
-        'Feature:API:Result.Single'                         => 'jar',
-        'Feature:API:Result.SingleOptional'                 => '',
-        'Feature:API:RetryableExceptions'                   => 'jar',
-        'Feature:API:Session:AuthConfig'                    => 'jar',
-        'Feature:API:Session:NotificationsConfig'           => 'jar',
-        'Feature:API:SSLClientCertificate'                  => 'jar', # ClientCertificateManager -> TlsConfig (MRI) / DriverFactory (JRuby)
-        'Feature:API:SSLConfig'                             => 'jar',
-        'Feature:API:SSLSchemes'                            => 'jar',
-        'Feature:API:Summary:GqlStatusObjects'              => 'jar',
-        'Feature:API:Summary:Profile:OptionalStats'         => 'jar',
-        'Feature:API:Type.Spatial'                          => '',
-        'Feature:API:Type.Temporal'                         => 'jar',  # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
-        'Feature:API:Type.UnsupportedType'                  => 'jar',
-        'Feature:API:Type.UUID'                             => 'jar',  # Bolt 6.1 UUID <-> Types::UUID (MRI: PackStream V2 marker 0xE0; JRuby: java.util.UUID)
-        'Feature:API:Type.Vector'                           => '',
+        'Feature:API:Driver.VerifyConnectivity' => 'r',
+        'Feature:API:Driver.SupportsSessionAuth' => 'jar',
+        'Feature:API:Driver:MaxConnectionLifetime' => 'jar',
+        'Feature:API:Liveness.Check' => 'jar',
+        'Feature:API:Result.List' => 'jar',
+        'Feature:API:Result.Peek' => 'jar',
+        'Feature:API:Result.Single' => 'jar',
+        'Feature:API:Result.SingleOptional' => '',
+        'Feature:API:RetryableExceptions' => 'jar',
+        'Feature:API:Session:AuthConfig' => 'jar',
+        'Feature:API:Session:NotificationsConfig' => 'jar',
+        'Feature:API:SSLClientCertificate' => 'jar', # ClientCertificateManager -> TlsConfig (MRI) / DriverFactory (JRuby)
+        'Feature:API:SSLConfig' => 'jar',
+        'Feature:API:SSLSchemes' => 'jar',
+        'Feature:API:Summary:GqlStatusObjects' => 'jar',
+        'Feature:API:Summary:Profile:OptionalStats' => 'jar',
+        'Feature:API:Type.Spatial' => '',
+        'Feature:API:Type.Temporal' => 'jar', # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
+        'Feature:API:Type.UnsupportedType' => 'jar',
+        'Feature:API:Type.UUID' => 'jar', # Bolt 6.1 UUID <-> Types::UUID (MRI: PackStream V2 marker 0xE0; JRuby: java.util.UUID)
+        'Feature:API:Type.Vector' => '',
 
         # --- Other features --------------------------------------------------
-        'Feature:Impersonation'                             => 'jar',
-        'Feature:IdempotentRetries'                         => 'jar',
+        'Feature:Impersonation' => 'jar',
+        'Feature:IdempotentRetries' => 'jar',
 
         # --- Optimizations ---------------------------------------------------
-        'Optimization:AuthPipelining'                       => 'jar',
-        'Optimization:ConnectionReuse'                      => '',  # disabled in Java too
-        'Optimization:EagerTransactionBegin'                => 'jar',
-        'Optimization:ExecuteQueryPipelining'               => 'jar',
-        'Optimization:HomeDatabaseCache'                    => 'jar',
-        'Optimization:HomeDbCacheBasicPrincipalIsImpersonatedUser'  => '',
-        'Optimization:ImplicitDefaultArguments'             => 'jar',
-        'Optimization:MinimalBookmarksSet'                  => '',
-        'Optimization:MinimalResets'                        => '',  # disabled in Java too
-        'Optimization:MinimalVerifyAuthentication'          => '',
-        'Optimization:PullPipelining'                       => 'jar',
-        'Optimization:ResultListFetchAll'                   => 'jar',
+        'Optimization:AuthPipelining' => 'jar',
+        'Optimization:ConnectionReuse' => '', # disabled in Java too
+        'Optimization:EagerTransactionBegin' => 'jar',
+        'Optimization:ExecuteQueryPipelining' => 'jar',
+        'Optimization:HomeDatabaseCache' => 'jar',
+        'Optimization:HomeDbCacheBasicPrincipalIsImpersonatedUser' => '',
+        'Optimization:ImplicitDefaultArguments' => 'jar',
+        'Optimization:MinimalBookmarksSet' => '',
+        'Optimization:MinimalResets' => '', # disabled in Java too
+        'Optimization:MinimalVerifyAuthentication' => '',
+        'Optimization:PullPipelining' => 'jar',
+        'Optimization:ResultListFetchAll' => 'jar',
 
         # --- Backend / detail ------------------------------------------------
-        'Backend:MockTime'                                  => 'jar',
+        'Backend:MockTime' => 'jar',
         # Both impls answer via Driver#routing_table(db) (returns a
         # RoutingTable — Java's on JRuby, Routing::RoutingTable on MRI);
         # how each reaches it is the driver's business, not testkit's.
-        'Backend:RTFetch'                                   => 'jr',
+        'Backend:RTFetch' => 'jr',
         # Driver#routing_table_refresh(db, bookmarks). MRI forces a ROUTE
         # call; JRuby is still a no-op (Java's force-refresh needs
         # ClusterComposition parameters not yet wired from Ruby), so only
         # MRI advertises it.
-        'Backend:RTForceUpdate'                             => 'r',
-        'ConfHint:connection.recv_timeout_seconds'          => 'jar',
-        'Detail:ClosedDriverIsEncrypted'                    => '',
-        'Detail:DefaultSecurityConfigValueEquality'         => 'jar',
-        'Detail:NumberIsNumber'                             => 'jr'
+        'Backend:RTForceUpdate' => 'r',
+        'ConfHint:connection.recv_timeout_seconds' => 'jar',
+        'Detail:ClosedDriverIsEncrypted' => '',
+        'Detail:DefaultSecurityConfigValueEquality' => 'jar',
+        'Detail:NumberIsNumber' => 'jr'
       }.freeze
 
       def process
