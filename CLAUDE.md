@@ -52,8 +52,8 @@ lib/jruby/neo4j/driver/           JRuby implementation: thin wrapper over the
 
 ## API conventions
 
-- Node labels, relationship types, and field keys → symbols (converted at hydration).
-- Record property keys stored as strings; accessible via string *or* symbol.
+- Node labels, relationship types, field keys, and property keys → symbols (converted at hydration).
+- All keys are stored as symbols; retrieval by string is tolerated (`Record#[]` / `Entity#[]` coerce with `to_sym`).
 - `session.run(query, parameters = {}, config = {})` — explicit split. Same key allowed in both hashes.
 - Timeouts are seconds (or `ActiveSupport::Duration`); converted to ms for the Bolt wire internally.
 - Bookmarks are **replaced** on each successful commit, not accumulated. `session.last_bookmarks` returns a Set of 0 or 1. Rollback, failure, and auto-commit queries do not update them.
