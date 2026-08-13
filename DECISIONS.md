@@ -239,3 +239,29 @@ so "one feature, fully green, one PR" is enforced by CI rather than a manual
 fold. No automatic retry for now — we want genuine flakes to surface; a
 confirmed flaky/environment-dependent test gets an explicit `skip` with a
 reason, never silent omission.
+
+## 2026-08-13 — Neo4j durations are `Types::Duration`, not `ActiveSupport::Duration`
+
+The Neo4j duration *value* type is `Neo4j::Driver::Types::Duration` — four
+independent integer fields `(months, days, seconds, nanoseconds)`, mirroring
+Bolt's `IsoDuration` struct (`0x45`). The old FFI implementation used
+`ActiveSupport::Duration` as the value type (decomposed to those four fields for
+the wire); the temporal-types refactor dropped that.
+
+Why not `ActiveSupport::Duration`: Neo4j keeps months/days/seconds
+**deliberately un-normalized** because their lengths vary — a month isn't 30
+days, a day isn't always 86 400 s (DST). `ActiveSupport::Duration` is
+seconds-based with fuzzy calendar parts and **can't round-trip** a Neo4j
+duration without collapsing the month/day/second distinction. `Types::Duration`
+preserves the exact wire components and drives value equality from them
+(`significant_fields`). This also keeps the public API flavor-agnostic — no
+third-party type leaks as a Neo4j value (MRI and JRuby both hydrate/dump the
+same `Types::Duration`).
+
+`ActiveSupport::Duration` survives **only** as a duck-typed (`to_f`) accepted
+form for *timeout* arguments (see the 2026-04-22 timeout entry) — never as a
+value. There is intentionally **no built-in conversion** between the two:
+`AS::Duration → Types::Duration` requires choosing how to split
+years/weeks/etc. into the four fields, and the reverse is lossy (months/days
+must be forced to fixed second-lengths). Callers that need it decompose via
+`AS::Duration#parts` / the `Types::Duration` field readers themselves.
