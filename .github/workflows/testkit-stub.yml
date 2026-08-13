@@ -6,9 +6,9 @@ on:
     # Housekeeping-only changes (docs, changelog, version bump) can't affect
     # tests — skip the heavy CI on them. A mixed change still runs (paths-ignore
     # skips only when EVERY changed file matches).
-    paths-ignore: ['**.md', 'lib/shared/neo4j/driver/version.rb']
+    paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
   pull_request:
-    paths-ignore: ['**.md', 'lib/shared/neo4j/driver/version.rb']
+    paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
 
 jobs:
   testkit-stub:
