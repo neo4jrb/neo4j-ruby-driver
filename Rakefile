@@ -25,19 +25,40 @@ def regenerate_jruby_jars(root)
 end
 
 # Generate lib/jruby/neo4j-ruby-driver_jars.rb from Jars.lock so the runtime
-# require manifest can never pin a version other than what is vendored.
+# require manifest can never pin a version other than what is vendored. Uses
+# Jars::Lock#process(:runtime), which drops `provided`/`test` entries (only
+# runtime jars are vendored — requiring the others would raise JarLoadError),
+# and `gacv` so classifier coordinates round-trip.
 def write_jars_manifest(root, vendor)
-  entries = File.readlines(File.join(root, 'Jars.lock'))
-                .map(&:strip).reject(&:empty?).map { it.split(':')[0, 3] }
+  require 'jars/lock'
+  jars = []
+  Jars::Lock.new(File.join(root, 'Jars.lock')).process(:runtime) { |jar| jars << jar }
   lines = ['# frozen_string_literal: true',
            '# GENERATED from Jars.lock by `rake build:jruby` — do not edit. Loads the',
            '# vendored jars via require_jar (no Maven / network at install or runtime).',
            'begin', "  require 'jar_dependencies'", 'rescue LoadError']
-  lines += entries.map { |g, a, v| "  require '#{g.tr('.', '/')}/#{a}/#{v}/#{a}-#{v}.jar'" }
+  lines += jars.map { |j| "  require '#{jar_require_path(j)}'" }
   lines += ['end', '', 'if defined? Jars']
-  lines += entries.map { |g, a, v| "  require_jar '#{g}', '#{a}', '#{v}'" }
+  lines += jars.map { |j| "  require_jar #{j.gacv.map { |c| "'#{c}'" }.join(', ')}" }
   lines << 'end'
   File.write(File.join(vendor, 'neo4j-ruby-driver_jars.rb'), "#{lines.join("\n")}\n")
+end
+
+# Load-path-relative require target for a vendored jar. Mirrors
+# Jars::JarDetails#path (whose own path is absolute, under Jars.home) but keeps
+# it relative to lib/, since the plain-require fallback loads off $LOAD_PATH.
+def jar_require_path(jar)
+  File.join(jar.group_id.tr('.', '/'), jar.artifact_id, jar.version,
+            "#{jar.gacv[1..].join('-')}.jar")
+end
+
+# JRuby only (no-op otherwise): regenerate the vendored jars + Jars.lock, then
+# stage Jars.lock into the gem root so the published gem pins exact versions.
+def prepare_jruby_jars(impl, root, stage)
+  return unless impl == 'jruby'
+
+  regenerate_jruby_jars(root)
+  FileUtils.cp(File.join(root, 'Jars.lock'), stage)
 end
 
 # Pattern 1 staged build (see JRUBY.md): copy lib/shared/ and lib/<impl>/
@@ -57,21 +78,16 @@ def stage_and_build(impl)
   FileUtils.rm_rf(stage)
   FileUtils.mkdir_p(File.join(stage, 'lib'))
   FileUtils.cp_r(File.join(root, 'lib/shared/.'), File.join(stage, 'lib'))
-  # JRuby: resolve + vendor the Java-driver jars, and regenerate Jars.lock and
-  # the require manifest, so the staged copy below is deterministic on a clean
-  # checkout rather than a side effect of a prior `bundle install`.
-  regenerate_jruby_jars(root) if impl == 'jruby'
+  # JRuby only (no-op for MRI): (re)generate + stage the vendored jars before
+  # the lib/jruby copy, so the staged tree is deterministic on a clean checkout
+  # rather than a side effect of a prior `bundle install`.
+  prepare_jruby_jars(impl, root, stage)
   FileUtils.cp_r(File.join(root, "lib/#{impl}/."), File.join(stage, 'lib'))
   FileUtils.mkdir_p(File.join(stage, 'build'))
   FileUtils.cp(File.join(root, 'build/gemspec_common.rb'), File.join(stage, 'build'))
   [gemspec_file, 'README.md', 'LICENSE.txt'].each do |f|
     src = File.join(root, f)
     FileUtils.cp(src, stage) if File.exist?(src)
-  end
-  # JRuby: ship Jars.lock alongside the vendored jars so the published gem pins
-  # exact versions and needs no Maven at install time.
-  if impl == 'jruby' && File.exist?(File.join(root, 'Jars.lock'))
-    FileUtils.cp(File.join(root, 'Jars.lock'), stage)
   end
 
   # Run `gem build` outside Bundler. If we leave Bundler env in place, the
