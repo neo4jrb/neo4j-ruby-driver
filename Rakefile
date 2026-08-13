@@ -6,6 +6,40 @@ require 'rake/clean'
 
 CLOBBER.include('pkg')
 
+# JRuby only: resolve the Java-driver jars from Maven, vendor them into
+# lib/jruby (maven-repo layout), write Jars.lock, and regenerate the require
+# manifest from that lock. Maven runs at BUILD time only — the published gem
+# declares no jar `requirements` (see neo4j-ruby-driver-java.gemspec), so
+# `gem install` does zero Maven. Deterministic: starts from a clean vendor tree
+# so a fresh checkout yields the same result regardless of prior `bundle install`.
+def regenerate_jruby_jars(root)
+  vendor = File.join(root, 'lib/jruby')
+  # Start clean so stale versions can't accumulate; the manifest is generated
+  # from the lock below, so it can never drift from what is vendored.
+  FileUtils.rm_rf(File.join(vendor, 'org'))
+  FileUtils.rm_f(File.join(root, 'Jars.lock'))
+  # lock_jars reads the jar requirements off the (dev-tree) gemspec, downloads
+  # the dependency tree, copies the jars under vendor/, and writes Jars.lock.
+  Dir.chdir(root) { sh 'lock_jars', '--vendor-dir', vendor }
+  write_jars_manifest(root, vendor)
+end
+
+# Generate lib/jruby/neo4j-ruby-driver_jars.rb from Jars.lock so the runtime
+# require manifest can never pin a version other than what is vendored.
+def write_jars_manifest(root, vendor)
+  entries = File.readlines(File.join(root, 'Jars.lock'))
+                .map(&:strip).reject(&:empty?).map { it.split(':')[0, 3] }
+  lines = ['# frozen_string_literal: true',
+           '# GENERATED from Jars.lock by `rake build:jruby` — do not edit. Loads the',
+           '# vendored jars via require_jar (no Maven / network at install or runtime).',
+           'begin', "  require 'jar_dependencies'", 'rescue LoadError']
+  lines += entries.map { |g, a, v| "  require '#{g.tr('.', '/')}/#{a}/#{v}/#{a}-#{v}.jar'" }
+  lines += ['end', '', 'if defined? Jars']
+  lines += entries.map { |g, a, v| "  require_jar '#{g}', '#{a}', '#{v}'" }
+  lines << 'end'
+  File.write(File.join(vendor, 'neo4j-ruby-driver_jars.rb'), "#{lines.join("\n")}\n")
+end
+
 # Pattern 1 staged build (see JRUBY.md): copy lib/shared/ and lib/<impl>/
 # into a temporary pkg/stage-<impl>/lib/ so the published gem has a flat
 # lib/ tree. Each impl has its own gemspec (neo4j-ruby-driver.gemspec for
@@ -23,12 +57,21 @@ def stage_and_build(impl)
   FileUtils.rm_rf(stage)
   FileUtils.mkdir_p(File.join(stage, 'lib'))
   FileUtils.cp_r(File.join(root, 'lib/shared/.'), File.join(stage, 'lib'))
+  # JRuby: resolve + vendor the Java-driver jars, and regenerate Jars.lock and
+  # the require manifest, so the staged copy below is deterministic on a clean
+  # checkout rather than a side effect of a prior `bundle install`.
+  regenerate_jruby_jars(root) if impl == 'jruby'
   FileUtils.cp_r(File.join(root, "lib/#{impl}/."), File.join(stage, 'lib'))
   FileUtils.mkdir_p(File.join(stage, 'build'))
   FileUtils.cp(File.join(root, 'build/gemspec_common.rb'), File.join(stage, 'build'))
   [gemspec_file, 'README.md', 'LICENSE.txt'].each do |f|
     src = File.join(root, f)
     FileUtils.cp(src, stage) if File.exist?(src)
+  end
+  # JRuby: ship Jars.lock alongside the vendored jars so the published gem pins
+  # exact versions and needs no Maven at install time.
+  if impl == 'jruby' && File.exist?(File.join(root, 'Jars.lock'))
+    FileUtils.cp(File.join(root, 'Jars.lock'), stage)
   end
 
   # Run `gem build` outside Bundler. If we leave Bundler env in place, the

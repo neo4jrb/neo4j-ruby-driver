@@ -269,3 +269,37 @@ must be forced to fixed second-lengths). Callers that need it decompose via
 Companion doc with illustrative helpers for both directions + the round-trip
 fixed-point analysis: `docs/duration-conversion.md` (rendered version:
 https://claude.ai/code/artifact/c7c90005-843e-4d2f-a578-f3ca4a29472b).
+
+## 2026-08-13 — JRuby gem vendors the Java-driver jars, zero Maven at install
+
+The `java`-platform gem ships the Neo4j Java-driver jars vendored under `lib/`
+(+ `Jars.lock`), and the published gemspec declares **no** jar `requirements`.
+
+Background: `jar-dependencies` supports two models — vendor the jars in the gem,
+or download them from Maven at install. The gem had drifted into the *worst of
+both*: the jars were vendored (incidentally, because CI's `bundle install` ran
+before `rake build:jruby` and populated `lib/jruby`), **and** install still ran
+Maven — because `Jars::Installer#jars?` fires the post-install hook whenever the
+gem has non-empty `spec.requirements` *and* a runtime `jar-dependencies` dep.
+`Jars.lock` does **not** gate that hook. So a 5 MB gem *and* a Maven round-trip
+(which errors when `ruby-maven` can't be installed).
+
+Decision: make vendoring deliberate and drop the install-time Maven.
+- Under `STAGED_BUILD=1` the java gemspec omits `spec.requirements`, so `jars?`
+  is false and `gem install` runs zero Maven / network. `jar-dependencies` stays
+  a runtime dep so `require_jar` resolves the vendored jars.
+- `rake build:jruby` regenerates the vendored tree deterministically on a clean
+  checkout: `lock_jars --vendor-dir lib/jruby` resolves + vendors + writes
+  `Jars.lock`, then the require manifest (`neo4j-ruby-driver_jars.rb`) is
+  generated *from* `Jars.lock` so it can't drift (the old committed-ish manifest
+  had gone stale at 6.2.0 while requirements said 6.2.1). Maven runs at *build*
+  time only.
+- Vendored jars, `Jars.lock`, and the manifest are all git-ignored — build
+  artifacts, never committed.
+
+Trade-off: the `java` gem stays ~4.9 MB (the shaded `neo4j-java-driver-all` uber
+jar). The alternative — a ~114 KB gem that fetches at install — reintroduces the
+Maven-at-install fragility we already work around with `BUNDLE_JOBS=1` (the
+post-install hook races under parallel installs), plus network/air-gapped
+failures. Reliability over size, matching why nokogiri et al. ship fat platform
+gems. The MRI (`ruby`) gem is unaffected — pure Ruby, no jars, no `Jars.lock`.
