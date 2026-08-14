@@ -6,10 +6,6 @@ module Neo4j
       module RunOverride
         include NeoConverter
 
-        def close
-          check { super }
-        end
-
         private
 
         def to_statement(text, parameters)

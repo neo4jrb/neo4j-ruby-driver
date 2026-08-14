@@ -203,10 +203,11 @@ module Neo4j
             result = yield @transaction
             # Explicit-block transactions default to rollback; user must call
             # tx.commit to persist changes (matches Java driver semantics).
-            @transaction.rollback if @transaction.open?
+            # #close rolls back iff still open (a no-op once committed).
+            @transaction.close
             result
           rescue StandardError => e
-            @transaction.rollback if @transaction.open?
+            @transaction.close
             raise e
           ensure
             @transaction = nil
@@ -540,13 +541,22 @@ module Neo4j
                                                              telemetry_ack: on_telemetry_ack)
 
         begin
-          result = yield @transaction
-          @transaction.commit if @transaction.open?
+          # Managed functions yield a run-only context; the driver owns
+          # commit/rollback on the underlying UnmanagedTransaction (@transaction).
+          # The block can only #run — it can't close the tx — and any run
+          # failure raises (→ rescue), so a clean return always leaves it open:
+          # commit unconditionally.
+          result = yield Transaction.new(@transaction)
+          @transaction.commit
           result
         rescue StandardError => e
-          @transaction.rollback if @transaction.open?
+          @transaction.close
           raise e
         ensure
+          # A non-local exit from the work block (return/throw/break through an
+          # outer iterator) skips both the commit and the rescue; #close rolls
+          # back the still-open tx so it and its connection lease aren't leaked.
+          @transaction.close
           @transaction = nil
         end
       end
@@ -562,15 +572,15 @@ module Neo4j
         # commit-time update_bookmarks reports it as `previous`).
         bookmarks = current_bookmarks_for_extra
         tx_options = tx_options.merge(database: begin_db).compact
-        Transaction.new(connection, self, bookmarks, tx_options, telemetry_api: telemetry_api,
-                                                                 telemetry_ack: telemetry_ack,
-                                                                 # executeQuery's session reports telemetry api 3 (DRIVER_EXECUTE_QUERY);
-                                                                 # only that path pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining).
-                                                                 pipelined: @options[:telemetry_api] == 3,
-                                                                 on_begin: method(:cache_home_db_from),
-                                                                 on_release: lambda {
-                                                                   @connection_provider.release(connection)
-                                                                 })
+        UnmanagedTransaction.new(connection, self, bookmarks, tx_options, telemetry_api: telemetry_api,
+                                                                          telemetry_ack: telemetry_ack,
+                                                                          # executeQuery's session reports telemetry api 3 (DRIVER_EXECUTE_QUERY);
+                                                                          # only that path pipelines BEGIN + RUN + PULL (Optimization:ExecuteQueryPipelining).
+                                                                          pipelined: @options[:telemetry_api] == 3,
+                                                                          on_begin: method(:cache_home_db_from),
+                                                                          on_release: lambda {
+                                                                            @connection_provider.release(connection)
+                                                                          })
       end
     end
   end

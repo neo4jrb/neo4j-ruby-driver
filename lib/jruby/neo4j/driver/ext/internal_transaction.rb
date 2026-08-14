@@ -5,6 +5,7 @@ module Neo4j
     module Ext
       module InternalTransaction
         include Internal::AbstractQueryRunner
+        include CloseOverride
 
         def commit
           check { super }

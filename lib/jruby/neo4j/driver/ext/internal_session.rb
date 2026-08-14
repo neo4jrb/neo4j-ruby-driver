@@ -8,6 +8,7 @@ module Neo4j
         include ConfigConverter
         include ExceptionCheckable
         include RunOverride
+        include CloseOverride
 
         auto_closeable :begin_transaction
 
