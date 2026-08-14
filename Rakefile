@@ -14,9 +14,12 @@ CLOBBER.include('pkg')
 # so a fresh checkout yields the same result regardless of prior `bundle install`.
 def regenerate_jruby_jars(root)
   vendor = File.join(root, 'lib/jruby')
-  # Start clean so stale versions can't accumulate; the manifest is generated
-  # from the lock below, so it can never drift from what is vendored.
-  FileUtils.rm_rf(File.join(vendor, 'org'))
+  # Start clean so stale jars can't accumulate. Vendored jars land under maven
+  # group dirs (org/, com/, io/, …) and the manifest is a generated file, so
+  # remove everything under lib/jruby except the Ruby sources (neo4j/).
+  Dir.glob(File.join(vendor, '*')).each do |path|
+    FileUtils.rm_rf(path) unless File.basename(path) == 'neo4j'
+  end
   FileUtils.rm_f(File.join(root, 'Jars.lock'))
   # lock_jars reads the jar requirements off the (dev-tree) gemspec, downloads
   # the dependency tree, copies the jars under vendor/, and writes Jars.lock.
