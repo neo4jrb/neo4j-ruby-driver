@@ -303,3 +303,11 @@ Maven-at-install fragility we already work around with `BUNDLE_JOBS=1` (the
 post-install hook races under parallel installs), plus network/air-gapped
 failures. Reliability over size, matching why nokogiri et al. ship fat platform
 gems. The MRI (`ruby`) gem is unaffected — pure Ruby, no jars, no `Jars.lock`.
+
+Verified in production (published `6.2.1.beta.4-java` from RubyGems): a clean
+`gem install` into a fresh `GEM_HOME` with an *empty* `JARS_HOME` runs zero
+Maven — no jar-dependencies hook output, and nothing is fetched into the empty
+Maven home — and the driver then loads `org.neo4j.driver.GraphDatabase` from the
+vendored jar (not `~/.m2`). The prior published gems (`beta.3` and earlier)
+instead threw `UnsatisfiableDependencyError: ruby-maven` on the same install,
+because their post-install hook still resolved via Maven.
