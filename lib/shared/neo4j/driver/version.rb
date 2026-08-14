@@ -2,6 +2,6 @@
 
 module Neo4j
   module Driver
-    VERSION = '6.2.1.beta.3'
+    VERSION = '6.2.1.beta.4'
   end
 end

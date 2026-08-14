@@ -10,6 +10,12 @@ pre-release token when applicable (e.g. `6.2.1.beta.1`).
 
 ## [Unreleased]
 
+### Added
+
+- Run-only managed transaction context, matching JRuby ([#459](https://github.com/neo4jrb/neo4j-ruby-driver/pull/459))
+
+## [6.2.1.beta.3] - 2026-08-13
+
 ### Fixed
 
 - Record#to_h returns symbol keys, matching JRuby ([#457](https://github.com/neo4jrb/neo4j-ruby-driver/pull/457))
@@ -99,7 +105,8 @@ pre-release token when applicable (e.g. `6.2.1.beta.1`).
 - Raise IllegalStateException on closed-driver home-db routing [Feature:Bolt:3.0] ([#418](https://github.com/neo4jrb/neo4j-ruby-driver/pull/418))
 - Re-consult auth manager on Bolt 5.0 routed re-auth [Feature:Auth:Managed] ([#419](https://github.com/neo4jrb/neo4j-ruby-driver/pull/419))
 
-[unreleased]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v6.2.1.beta.2..HEAD
+[unreleased]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v6.2.1.beta.3..HEAD
+[6.2.1.beta.3]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v6.2.1.beta.2..v6.2.1.beta.3
 [6.2.1.beta.2]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v6.2.1.beta.1..v6.2.1.beta.2
 [6.2.1.beta.1]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v1.7.2.beta.3..v6.2.1.beta.1
 
