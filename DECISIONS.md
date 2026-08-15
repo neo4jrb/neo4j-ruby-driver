@@ -260,14 +260,27 @@ same `Types::Duration`).
 
 `ActiveSupport::Duration` survives **only** as a duck-typed (`to_f`) accepted
 form for *timeout* arguments (see the 2026-04-22 timeout entry) — never as a
-value. There is intentionally **no built-in conversion** between the two:
-`AS::Duration → Types::Duration` requires choosing how to split
-years/weeks/etc. into the four fields, and the reverse is lossy (months/days
-must be forced to fixed second-lengths). Callers that need it decompose via
-`AS::Duration#parts` / the `Types::Duration` field readers themselves.
+value. There is intentionally **no built-in conversion** between the two, but a
+correct one is not hard: map **field-to-field** (parts ↔ Neo4j fields), never
+through the scalar. `AS::Duration` carries the same calendar distinction as
+`Types::Duration`, just in its `#parts` (`{months: 3}` vs `{days: 91}` are
+different durations; `==`/`to_f` see only the scalar). So AS years/months →
+Neo4j `months`, weeks/days → `days`, h/m/s → `seconds`; a *fractional* part
+cascades its remainder down into seconds (forward), and the reverse maps each
+Neo4j field back to the matching AS unit (`Duration.months`/`days`/`seconds`) —
+**not** `build(scalar)`, which collapses months/days and greedily re-buckets.
 
-Companion doc with illustrative helpers for both directions + the round-trip
-fixed-point analysis: `docs/duration-conversion.md` (rendered version:
+This preserves value and calendar behaviour in both directions. The **one
+genuine loss** is a fractional calendar-month: months and days aren't
+commensurable, so `0.5.months` has no exact finer form — the whole month stays a
+month and the fraction degrades to fixed seconds (value-exact, only the "half a
+month" intent softens). AS keeps fractional/Rational month counts verbatim
+(`{months: 1/3}` never self-normalizes), which has no honest integer-field wire
+form — part of why the stored value type is `Types::Duration` (four integer
+fields), not `AS::Duration`.
+
+Companion doc with the illustrative helpers + round-trip analysis:
+`docs/duration-conversion.md` (rendered version:
 https://claude.ai/code/artifact/c7c90005-843e-4d2f-a578-f3ca4a29472b).
 
 ## 2026-08-13 — JRuby gem vendors the Java-driver jars, zero Maven at install
