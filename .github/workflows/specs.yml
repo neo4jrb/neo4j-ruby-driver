@@ -106,12 +106,23 @@ jobs:
 
   # Memgraph compatibility: the SAME shared suite, run against Memgraph instead
   # of Neo4j. Neo4j-only specs are tagged `memgraph: false` and skipped via
-  # TEST_MEMGRAPH (see spec_helper); everything else runs unchanged. MRI flavor
-  # only — the pure-Ruby Bolt impl is the direct wire-compatibility test.
-  # See docs/memgraph.md.
+  # TEST_MEMGRAPH (see spec_helper); everything else runs unchanged. Runs on both
+  # flavors — latest CRuby (pure-Ruby Bolt) and latest JRuby (Java driver, which
+  # Memgraph officially supports). See docs/memgraph.md.
   rspec-memgraph:
-    name: rspec (memgraph)
+    name: rspec (memgraph / ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest
+    # Both flavors pass the same tagged suite against Memgraph. The JRuby leg is
+    # kept non-blocking only to match the repo-wide JRuby policy (see the rspec
+    # job above); the CRuby leg is the gating one.
+    continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - "4.0" # latest CRuby — MRI pure-Ruby Bolt flavor
+          - "jruby-10.1.0.0" # latest JRuby — Java-driver flavor
 
     services:
       memgraph:
@@ -133,7 +144,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.4' # MRI flavor (pure-Ruby Bolt)
+          ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
       - name: Wait for Bolt
         run: |

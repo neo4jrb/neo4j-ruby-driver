@@ -7,11 +7,10 @@ connection **with no code changes** — the gaps below are Memgraph feature/dial
 differences, not driver bugs, and the driver degrades gracefully on all of them.
 
 > Status: **community-verified, not officially supported.** Measured against
-> **Memgraph v3.12.0** with the MRI (pure-Ruby Bolt) flavor. Memgraph advertises
-> itself as *"Neo4j/v5.11.0 compatible"* and this driver negotiates **Bolt 5.x**
-> with it. The JRuby flavor wraps the Neo4j Java driver, which Memgraph
-> officially supports, so it is expected to behave the same (confirm before
-> relying on it).
+> **Memgraph v3.12.0** on **both flavors** — MRI (pure-Ruby Bolt) and JRuby
+> (Neo4j Java driver, which Memgraph officially supports). The same tagged suite
+> passes identically on each. Memgraph advertises itself as *"Neo4j/v5.11.0
+> compatible"* and this driver negotiates **Bolt 5.x** with it.
 
 ## Connecting
 
@@ -42,9 +41,9 @@ Do **not** pass `database: 'neo4j'` — Memgraph's default database is named
 | Bolt version negotiation | ✓ (Bolt 5.x) |
 | Scalars, parameters (Integer/String/Float/List/Map), `UNWIND` | ✓ |
 | Nodes, relationships, paths, labels | ✓ |
-| Temporal read **and** parameter round-trip — `Date`, `LocalDateTime`, zoned `DateTime`, `Duration` | ✓ |
+| Temporal read **and** parameter round-trip — `Date`, `LocalDateTime`, zoned `DateTime`, `Duration` | ✓ (µs precision — see gaps) |
 | `Types::Point` (2D) read and round-trip | ✓ |
-| `Types::Duration` parameter round-trip | ✓ (value-exact) |
+| `Types::Duration` parameter round-trip | ✓ (value-exact to µs) |
 | Explicit transactions (`begin_transaction`) | ✓ |
 | Managed transactions (`execute_read` / `execute_write`, with retry) | ✓ |
 | `CALL dbms.components()` | ✓ (Memgraph implements it) |
@@ -58,9 +57,13 @@ Do **not** pass `database: 'neo4j'` — Memgraph's default database is named
 | **Bookmarks** | `session.last_bookmarks` returns an empty set after commit | Memgraph has no causal-consistency bookmarks. The driver returns an empty set (not an error) — safe to ignore. |
 | **Byte-array parameters** | Memgraph errors when a `String` with `BINARY` (`.b`) encoding is sent as a parameter | Memgraph has no blob type on the Bolt wire. Avoid byte parameters. |
 | **`duration()` with months** | `duration('P1M…')` → *Invalid duration string* | Cypher-dialect difference: Memgraph durations are day/time only (no month component). Month-less strings and the Bolt `Duration` struct (`months = 0`) work fine. |
+| **Temporal precision** | A `Time`/`DateTime`/`Duration` carrying **sub-microsecond nanoseconds** comes back with the last three digits zeroed (e.g. `…123456789` → `…123456000`) | Memgraph stores temporal values at **microsecond** resolution; Neo4j keeps full **nanosecond** resolution. Values round-trip exactly at µs precision; only the sub-µs remainder is lost. Memgraph's parser also rejects nanosecond-precision string literals (`localtime('12:00:00.123456789')` → *Extra characters…*). |
+| **`datetime({epochMillis: …})`** | Memgraph's `datetime()` has no `epochMillis` / `epochSeconds` / `nanosecond` construction keys | Construct from an ISO string or the Bolt temporal struct instead. |
+| **Single-digit date components** | `localdatetime('2018-1-1T…')` → parse error | Memgraph requires zero-padded `YYYY-MM-DD`; Neo4j is lenient. Zero-pad and it works on both. |
 
-These are all detected cleanly — a clear exception, or a benign empty result —
-so application code fails fast rather than silently misbehaving.
+These are all detected cleanly — a clear exception, a benign empty result, or a
+documented precision truncation — so application code fails fast (or degrades
+predictably) rather than silently misbehaving.
 
 ## How it's tested
 
@@ -80,10 +83,14 @@ context 'when bytes', memgraph: false do # Memgraph has no Bolt byte-array type
 `spec/spec_helper.rb` excludes them only when the suite targets Memgraph
 (`config.filter_run_excluding memgraph: false if memgraph?`), mirroring the
 existing `auth: :none` / `csv:` conditional excludes. Against Neo4j the tag is
-inert — every example still runs. Currently **465 of 572** shared examples run
-against Memgraph; the ~107 tagged ones cover the gaps in the table above (error
-mapping to base `Neo4jException`, routing, bookmarks, multi-database, byte
-params, duration/temporal normalization, summary/plan/profile shape, auth).
+inert — every example still runs. Currently **~468 of ~578** shared examples run
+against Memgraph — identically on **both flavors** (MRI and JRuby); the ~110
+tagged ones cover the gaps in the table above (error mapping to base
+`Neo4jException`, routing, bookmarks, multi-database, byte params,
+duration/temporal precision, summary/plan/profile shape, auth). Where a gap is a
+format artifact rather than a hard limitation (single-digit dates, sub-µs
+precision), the tagged example keeps a parallel that *does* run on Memgraph, so
+coverage isn't simply dropped.
 
 **Connecting the suite to Memgraph** is env-driven (`spec/shared/support/driver_helper.rb`):
 
@@ -111,15 +118,16 @@ a Memgraph service container with the env vars above:
 - **`rspec-memgraph`** starts a `memgraph/memgraph` service container, waits for
   the Bolt port, and runs `bundle exec rspec` with `TEST_MEMGRAPH=1` (+ auth-none,
   `memgraph` database). No separate spec file, no separate workflow — it reuses the
-  entire shared suite.
+  entire shared suite. It runs as a **matrix over both flavors**: latest CRuby
+  (MRI pure-Ruby Bolt) and latest JRuby (Java driver).
 - **`memgraph-success`** is a version-free aggregator gate (mirroring
   `rspec-success`) so the branch-protection ruleset can require a stable name that
   doesn't embed the Memgraph image version.
 
 Notes:
 
-- **MRI flavor only** to start — it's the pure-Ruby Bolt implementation, so it's
-  the direct test of wire compatibility. A JRuby leg (Java-driver path) can follow.
+- **Both flavors pass** the same tagged suite. The CRuby leg gates; the JRuby leg
+  is kept non-blocking only to match the repo-wide JRuby policy.
 - **Non-gating until promoted.** `memgraph-success` is not yet in the ruleset;
   require it once the lane has been stable for a while.
 - **Pin the image** (`memgraph/memgraph:<version>`) once the baseline is

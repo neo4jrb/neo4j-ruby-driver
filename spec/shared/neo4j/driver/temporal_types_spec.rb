@@ -15,24 +15,46 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq param }
     end
 
+    # Neo4j stores temporal values at nanosecond precision; Memgraph truncates to
+    # microseconds. Time.now/DateTime.now carry full nanosecond precision on Linux,
+    # so the exact-value round-trip only holds on Neo4j — but a microsecond-truncated
+    # value round-trips exactly on BOTH, so each case has a parallel µs context.
     context 'when DateTime as Time' do
       let(:param) { Time.now.in_time_zone(TZInfo::Timezone.get('UTC')).change(zone: '+07:00') }
 
-      it { is_expected.to eq param }
+      it('round-trips full nanosecond precision', memgraph: false) { is_expected.to eq param }
+
+      context 'truncated to microseconds' do
+        let(:param) { super().floor(6) }
+
+        it { is_expected.to eq param }
+      end
     end
 
     context 'when DateTime as plain Time' do
       let(:param) { Time.now }
 
       it { is_expected.to be_a Time }
-      it { is_expected.to eq param }
+      it('round-trips full nanosecond precision', memgraph: false) { is_expected.to eq param }
+
+      context 'truncated to microseconds' do
+        let(:param) { super().floor(6) }
+
+        it { is_expected.to eq param }
+      end
     end
 
     context 'when DateTime as DateTime' do
       let(:param) { DateTime.now }
 
       it { is_expected.to be_a Time }
-      it { is_expected.to eq param }
+      it('round-trips full nanosecond precision', memgraph: false) { is_expected.to eq param }
+
+      context 'truncated to microseconds' do
+        let(:param) { super().to_time.floor(6).to_datetime }
+
+        it { is_expected.to eq param }
+      end
     end
   end
 

@@ -69,11 +69,18 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
     end
 
     let(:function) { %{localdatetime("#{localdatetime}")} }
+    let(:result) { described_class.parse(localdatetime) }
 
-    # Memgraph requires zero-padded YYYY-MM-DD; it rejects single-digit month/day like '2018-1-1'.
-    context 'when LocalDateTime', memgraph: false do
+    # Memgraph rejects single-digit month/day; kept for Neo4j's lenient parsing.
+    context 'when LocalDateTime (single-digit month/day)', memgraph: false do
       let(:localdatetime) { '2018-1-1T12:34:00' }
-      let(:result) { described_class.parse(localdatetime) }
+
+      it { is_expected.to eq result }
+    end
+
+    # Parallel zero-padded value that both Neo4j and Memgraph accept.
+    context 'when LocalDateTime (zero-padded)' do
+      let(:localdatetime) { '2018-01-01T12:34:00' }
 
       it { is_expected.to eq result }
     end
@@ -89,9 +96,16 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
       end
     end
 
-    # Memgraph requires zero-padded YYYY-MM-DD; it rejects single-digit month/day like '2018-1-1'.
-    context 'when LocalDateTime', memgraph: false do
+    # Memgraph rejects single-digit month/day; kept for Neo4j's lenient parsing.
+    context 'when LocalDateTime (single-digit month/day)', memgraph: false do
       let(:param) { '2018-1-1T12:34:00' }
+
+      it { is_expected.to be true }
+    end
+
+    # Parallel zero-padded value that both Neo4j and Memgraph accept.
+    context 'when LocalDateTime (zero-padded)' do
+      let(:param) { '2018-01-01T12:34:00' }
 
       it { is_expected.to be true }
     end
@@ -107,9 +121,16 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
       end
     end
 
-    # Memgraph requires zero-padded YYYY-MM-DD; it rejects single-digit month/day like '2018-1-1'.
-    context 'when LocalDateTime', memgraph: false do
+    # Memgraph rejects single-digit month/day; kept for Neo4j's lenient parsing.
+    context 'when LocalDateTime (single-digit month/day)', memgraph: false do
       let(:param) { '2018-1-1T12:34:00' }
+
+      it { is_expected.to be true }
+    end
+
+    # Parallel zero-padded value that both Neo4j and Memgraph accept.
+    context 'when LocalDateTime (zero-padded)' do
+      let(:param) { '2018-01-01T12:34:00' }
 
       it { is_expected.to be true }
     end

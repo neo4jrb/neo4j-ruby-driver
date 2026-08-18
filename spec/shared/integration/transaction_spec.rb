@@ -90,92 +90,92 @@ RSpec.describe 'Transaction' do
     end
   end
 
-  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
-  it 'Rolls back Transaction After Failed Run And Commit And Session Successfully Begins New Transaction', memgraph: false do
-    tx = session.begin_transaction
-    expect { tx.run('invalid') }.to raise_error Neo4j::Driver::Exceptions::ClientException
-    expect(&tx.method(:commit)).to raise_error Neo4j::Driver::Exceptions::ClientException
+  # Every example here fails the same way against Memgraph: it maps Cypher
+  # errors to the base Neo4jException (no Neo.* status code) instead of the
+  # specific ClientException these specs expect (some also differ in dialect
+  # wording, e.g. "Unbound variable").
+  context 'when a run fails (Memgraph error semantics differ)', memgraph: false do
+    it 'Rolls back Transaction After Failed Run And Commit And Session Successfully Begins New Transaction' do
+      tx = session.begin_transaction
+      expect { tx.run('invalid') }.to raise_error Neo4j::Driver::Exceptions::ClientException
+      expect(&tx.method(:commit)).to raise_error Neo4j::Driver::Exceptions::ClientException
 
-    session.begin_transaction do |another_tx|
-      expect(another_tx.run('RETURN 1').single['1']).to eq 1
+      session.begin_transaction do |another_tx|
+        expect(another_tx.run('RETURN 1').single['1']).to eq 1
+      end
     end
-  end
 
-  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
-  it 'rolls back tx if error with consume', memgraph: false do
-    expect do
+    it 'rolls back tx if error with consume' do
+      expect do
+        session.begin_transaction do |tx|
+          result = tx.run('invalid')
+          tx.commit
+          result.consume
+        end
+      end.to raise_error Neo4j::Driver::Exceptions::ClientException
+
+      session.begin_transaction do |another_tx|
+        expect(another_tx.run('RETURN 1').single['1']).to eq 1
+      end
+    end
+
+    it 'fails run' do
       session.begin_transaction do |tx|
-        result = tx.run('invalid')
-        tx.commit
-        result.consume
-      end
-    end.to raise_error Neo4j::Driver::Exceptions::ClientException
-
-    session.begin_transaction do |another_tx|
-      expect(another_tx.run('RETURN 1').single['1']).to eq 1
-    end
-  end
-
-  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException
-  # (and uses different dialect wording, e.g. "Unbound variable").
-  it 'fails run', memgraph: false do
-    session.begin_transaction do |tx|
-      expect { tx.run('RETURN Wrong') }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
-        expect(error.code).to match(/SyntaxError/)
+        expect { tx.run('RETURN Wrong') }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
+          expect(error.code).to match(/SyntaxError/)
+        end
       end
     end
-  end
 
-  # Not Implemented
-  # shouldBeResponsiveToThreadInterruptWhenWaitingForResult
-  # shouldBeResponsiveToThreadInterruptWhenWaitingForCommit
-  # shouldThrowWhenConnectionKilledDuringTransaction
-  # shouldThrowWhenConnectionKilledDuringTransactionMarkedForSuccess
+    # Not Implemented
+    # shouldBeResponsiveToThreadInterruptWhenWaitingForResult
+    # shouldBeResponsiveToThreadInterruptWhenWaitingForCommit
+    # shouldThrowWhenConnectionKilledDuringTransaction
+    # shouldThrowWhenConnectionKilledDuringTransactionMarkedForSuccess
 
-  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
-  it 'disallows queries after failure when results are consumed', memgraph: false do
-    session.begin_transaction do |tx|
-      expect(tx.run('UNWIND [1,2,3] AS x CREATE (:Node) RETURN x').map(&:first)).to eq [1, 2, 3]
-      expect { tx.run('RETURN unknown').consume }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
-        expect(error.code).to match(/SyntaxError/)
-      end
-      expect { tx.run('CREATE (:OtherNode)').consume }
-        .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more queries in this transaction/)
-      expect { tx.run('RETURN 42').consume }
-        .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more queries in this transaction/)
-    end
-
-    expect(count_nodes_by_label(:Node)).to be_zero
-    expect(count_nodes_by_label(:OtherNode)).to be_zero
-  end
-
-  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
-  it 'rolls back when marked successful but one statement fails', memgraph: false do
-    expect do
+    it 'disallows queries after failure when results are consumed' do
       session.begin_transaction do |tx|
-        tx.run('CREATE (:Node1)')
-        tx.run('CREATE (:Node2)')
-        tx.run('CREATE SmthStrange')
-        # In java the code below might be or might be not executed as all `tx.run` are responding asynchronously and the
-        # exception might happen before any of the 3 subsequent lines is executed.
-        tx.run('CREATE (:Node3)')
-        tx.run('CREATE (:Node4)')
-
-        tx.commit
+        expect(tx.run('UNWIND [1,2,3] AS x CREATE (:Node) RETURN x').map(&:first)).to eq [1, 2, 3]
+        expect { tx.run('RETURN unknown').consume }
+          .to raise_error(Neo4j::Driver::Exceptions::ClientException) { |error| expect(error.code).to match(/SyntaxError/) }
+        expect { tx.run('CREATE (:OtherNode)').consume }
+          .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more queries in this transaction/)
+        expect { tx.run('RETURN 42').consume }
+          .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more queries in this transaction/)
       end
-    end.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
-      expect(error.code).to match(/SyntaxError/)
-      # corresponding java test is not deterministic
-      # expect(error.suppressed.size).to be >= 1
-      # suppressed = error.suppressed.first
-      # expect(suppressed).to be_a Neo4j::Driver::Exceptions::ClientException
-      # expect(suppressed.message).to start_with "Transaction can't be committed"
+
+      expect(count_nodes_by_label(:Node)).to be_zero
+      expect(count_nodes_by_label(:OtherNode)).to be_zero
     end
 
-    expect(count_nodes_by_label(:Node1)).to be_zero
-    expect(count_nodes_by_label(:Node2)).to be_zero
-    expect(count_nodes_by_label(:Node3)).to be_zero
-    expect(count_nodes_by_label(:Node4)).to be_zero
+    it 'rolls back when marked successful but one statement fails' do
+      expect do
+        session.begin_transaction do |tx|
+          tx.run('CREATE (:Node1)')
+          tx.run('CREATE (:Node2)')
+          tx.run('CREATE SmthStrange')
+          # In java the code below might or might not be executed, as all `tx.run`
+          # respond asynchronously and the exception might happen before any of
+          # the 3 subsequent lines is executed.
+          tx.run('CREATE (:Node3)')
+          tx.run('CREATE (:Node4)')
+
+          tx.commit
+        end
+      end.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
+        expect(error.code).to match(/SyntaxError/)
+        # corresponding java test is not deterministic
+        # expect(error.suppressed.size).to be >= 1
+        # suppressed = error.suppressed.first
+        # expect(suppressed).to be_a Neo4j::Driver::Exceptions::ClientException
+        # expect(suppressed.message).to start_with "Transaction can't be committed"
+      end
+
+      expect(count_nodes_by_label(:Node1)).to be_zero
+      expect(count_nodes_by_label(:Node2)).to be_zero
+      expect(count_nodes_by_label(:Node3)).to be_zero
+      expect(count_nodes_by_label(:Node4)).to be_zero
+    end
   end
 
   # Memgraph has no `tx.getMetaData` procedure, so tx metadata can't be read back.
