@@ -104,6 +104,47 @@ jobs:
       - name: Run RSpec
         run: bundle exec rspec --format progress
 
+  # Memgraph compatibility: the SAME shared suite, run against Memgraph instead
+  # of Neo4j. Neo4j-only specs are tagged `memgraph: false` and skipped via
+  # TEST_MEMGRAPH (see spec_helper); everything else runs unchanged. MRI flavor
+  # only — the pure-Ruby Bolt impl is the direct wire-compatibility test.
+  # See docs/memgraph.md.
+  rspec-memgraph:
+    name: rspec (memgraph)
+    runs-on: ubuntu-latest
+
+    services:
+      memgraph:
+        image: memgraph/memgraph:latest # pin a version once stabilised
+        ports:
+          - 7687:7687
+        # Memgraph has no built-in Docker healthcheck; the step below waits.
+
+    env:
+      TEST_NEO4J_URL: bolt://localhost:7687
+      TEST_MEMGRAPH: "1" # activates the `memgraph: false` exclusion
+      TEST_NEO4J_AUTH: none # Memgraph runs with auth disabled by default
+      TEST_NEO4J_DATABASE: memgraph # Memgraph's default database (no `neo4j` db)
+      # Memgraph advertises Neo4j/v5.11.0 compatibility; feeds version-gated specs.
+      NEO4J_VERSION: 5.11.0
+      BUNDLE_JOBS: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4' # MRI flavor (pure-Ruby Bolt)
+          bundler-cache: true
+      - name: Wait for Bolt
+        run: |
+          for i in $(seq 1 30); do
+            (echo > /dev/tcp/localhost/7687) >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "::error::Memgraph bolt port never opened"; exit 1
+      - name: Run RSpec (Memgraph)
+        run: bundle exec rspec --format progress
+
   # Stable, version-free gate for branch protection. Requiring the matrix
   # legs directly would embed the Ruby/Neo4j versions in the required-check
   # names, so bumping the matrix would silently strip the requirement. This
@@ -118,4 +159,19 @@ jobs:
         if: ${{ needs.rspec.result != 'success' }}
         run: |
           echo "rspec matrix result: ${{ needs.rspec.result }}"
+          exit 1
+
+  # Version-free gate for the Memgraph leg. Not yet added to the branch-protection
+  # ruleset (Memgraph is community-verified, not gating) — promote by requiring
+  # `memgraph-success` once it has been stable for a while.
+  memgraph-success:
+    name: memgraph-success
+    needs: [rspec-memgraph]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the Memgraph suite to pass
+        if: ${{ needs.rspec-memgraph.result != 'success' }}
+        run: |
+          echo "rspec-memgraph result: ${{ needs.rspec-memgraph.result }}"
           exit 1

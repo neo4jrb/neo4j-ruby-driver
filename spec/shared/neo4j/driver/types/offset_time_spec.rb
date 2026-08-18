@@ -60,14 +60,16 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
 
     let(:function) { %{time("#{offset_time}")} }
 
-    context 'when Time (UTC)' do
+    # Memgraph has no time()/OffsetTime (zoned time) type or function.
+    context 'when Time (UTC)', memgraph: false do
       let(:offset_time) { '12:34:00Z' }
       let(:result) { described_class.parse(offset_time) }
 
       it { is_expected.to eq result }
     end
 
-    context 'when Time (+3:30)' do
+    # Memgraph has no time()/OffsetTime (zoned time) type or function.
+    context 'when Time (+3:30)', memgraph: false do
       let(:offset_time) { '12:34:00+03:30' }
       let(:result) { described_class.parse(offset_time) }
 
@@ -85,7 +87,8 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
       end
     end
 
-    context 'when Time' do
+    # Memgraph has no time()/OffsetTime (zoned time) type or function.
+    context 'when Time', memgraph: false do
       let(:param) { '12:34:00-05:00' }
 
       it { is_expected.to be true }
@@ -102,7 +105,8 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
       end
     end
 
-    context 'when Time' do
+    # Memgraph has no time()/OffsetTime (zoned time) type or function.
+    context 'when Time', memgraph: false do
       let(:param) { '12:34:00-05:00' }
 
       it { is_expected.to be true }

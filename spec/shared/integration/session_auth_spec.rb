@@ -13,14 +13,16 @@ RSpec.describe 'Per-session auth', version: '>=5.1' do
     end
   end
 
-  it 'rejects a wrong token with AuthenticationException at first use' do
+  # Memgraph auth is disabled by default, so a wrong token still connects and no AuthenticationException is raised.
+  it 'rejects a wrong token with AuthenticationException at first use', memgraph: false do
     bad = Neo4j::Driver::AuthTokens.basic(neo4j_user, 'definitely-not-the-password')
     expect do
       driver.session(auth_token: bad) { |s| s.run('RETURN 1').consume }
     end.to raise_error(Neo4j::Driver::Exceptions::AuthenticationException)
   end
 
-  it "doesn't poison the pool — subsequent default sessions still work" do
+  # Memgraph auth is disabled by default, so the wrong-token session doesn't raise, and the expectation fails.
+  it "doesn't poison the pool — subsequent default sessions still work", memgraph: false do
     bad = Neo4j::Driver::AuthTokens.basic(neo4j_user, 'definitely-not-the-password')
     expect do
       driver.session(auth_token: bad) { |s| s.run('RETURN 1').consume }

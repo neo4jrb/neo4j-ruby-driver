@@ -18,7 +18,9 @@ RSpec.describe Neo4j::Driver::GraphDatabase do
       it { is_expected.to eq 1 }
     end
 
-    context 'when neo4j' do
+    # Memgraph: single-instance, not a cluster, so the neo4j:// routing scheme
+    # cannot fetch a routing table (raises ServiceUnavailable).
+    context 'when neo4j', memgraph: false do
       let(:scheme) { 'neo4j' }
       it { is_expected.to eq 1 }
     end

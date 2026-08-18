@@ -25,13 +25,16 @@ RSpec.describe 'Bookmark' do
     expect(values.first).to start_with(value)
   end
 
-  it 'raises for invalid bookmark' do
+  # Memgraph has no causal-consistency bookmarks: commits return an empty
+  # bookmark set and invalid bookmarks are not rejected, so these expectations
+  # (non-empty bookmarks / ClientException on a bad bookmark) don't hold.
+  it 'raises for invalid bookmark', memgraph: false do
     invalid_bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
     expect { driver.session(bookmarks: Set[invalid_bookmark], &:begin_transaction) }
       .to raise_error Neo4j::Driver::Exceptions::ClientException
   end
 
-  it 'remain after rollback tx' do
+  it 'remain after rollback tx', memgraph: false do
     driver.session do |session|
       bookmarks = preamble(session)
       session.begin_transaction do |tx|
@@ -42,7 +45,7 @@ RSpec.describe 'Bookmark' do
     end
   end
 
-  it 'remains after tx failure' do
+  it 'remains after tx failure', memgraph: false do
     driver.session do |session|
       bookmarks = preamble(session)
       tx = session.begin_transaction
@@ -51,7 +54,7 @@ RSpec.describe 'Bookmark' do
     end
   end
 
-  it 'remains after successful session run' do
+  it 'remains after successful session run', memgraph: false do
     driver.session do |session|
       bookmarks = preamble(session)
       session.run('RETURN 1').consume
@@ -59,7 +62,7 @@ RSpec.describe 'Bookmark' do
     end
   end
 
-  it 'remains after failed session run' do
+  it 'remains after failed session run', memgraph: false do
     driver.session do |session|
       bookmarks = preamble(session)
       expect { session.run('RETURN').consume }.to raise_error Neo4j::Driver::Exceptions::ClientException
@@ -67,7 +70,7 @@ RSpec.describe 'Bookmark' do
     end
   end
 
-  it 'is updated every committed tx' do
+  it 'is updated every committed tx', memgraph: false do
     driver.session do |session|
       expect(session.last_bookmarks).to be_empty
       expect(3.times.sum(Set.new) { create_and_expect(session) }.size).to eq 3
@@ -90,7 +93,8 @@ RSpec.describe 'Bookmark' do
     expect(driver.session(bookmarks: [bookmark], &:last_bookmarks)).to contain_exactly bookmark
   end
 
-  it 'fails on invalid bookmark using tx func' do
+  # Memgraph accepts any bookmark, so no InvalidBookmark ClientException.
+  it 'fails on invalid bookmark using tx func', memgraph: false do
     bookmark = Neo4j::Driver::Bookmark.from('hi, this is an invalid bookmark')
     driver.session(bookmarks: [bookmark]) do |session|
       expect { session.execute_read { |tx| tx.run('RETURN 1').single } }

@@ -7,7 +7,8 @@ RSpec.describe 'Driver completeness' do
       expect(driver.verify_authentication(good)).to be(true)
     end
 
-    it 'returns false for wrong credentials without disturbing the driver' do
+    # Memgraph auth is disabled by default, so wrong credentials verify as valid (returns true instead of false).
+    it 'returns false for wrong credentials without disturbing the driver', memgraph: false do
       bad = Neo4j::Driver::AuthTokens.basic(neo4j_user, 'definitely-not-the-password')
       expect(driver.verify_authentication(bad)).to be(false)
 

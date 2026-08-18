@@ -77,7 +77,8 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq result }
     end
 
-    context 'when epochMillis' do
+    # Memgraph's datetime() does not support the epochMillis construction key.
+    context 'when epochMillis', memgraph: false do
       let(:function) { 'datetime({epochMillis: 3360000})' }
       let(:result) { ActiveSupport::TimeZone.new('UTC').parse('1970-01-01 00:56:00') }
 
@@ -119,7 +120,8 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'when epochMillis' do
+    # Memgraph's datetime() does not support the epochMillis construction key.
+    context 'when epochMillis', memgraph: false do
       let(:param) { { epochMillis: 3_360_000 } }
 
       it { is_expected.to be true }
@@ -178,13 +180,15 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to be true }
     end
 
-    context 'when epochMillis' do
+    # Memgraph's datetime() does not support the epochMillis construction key.
+    context 'when epochMillis', memgraph: false do
       let(:param) { { epochMillis: 3_360_000 } }
 
       it { is_expected.to be true }
     end
 
-    context 'when nanosecond' do
+    # Memgraph's datetime() does not support epochSeconds/nanosecond construction keys.
+    context 'when nanosecond', memgraph: false do
       let(:param) { { epochSeconds: 1, nanosecond: 1 } }
 
       it { is_expected.to be true }

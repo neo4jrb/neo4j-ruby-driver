@@ -42,7 +42,9 @@ RSpec.describe 'ResultStream' do
     end
   end
 
-  it 'is able to reuse session after failure' do
+  # Memgraph maps Cypher errors to the base Neo4jException (no Neo.* status
+  # code), so specs expecting a ClientException fail.
+  it 'is able to reuse session after failure', memgraph: false do
     driver.session do |session|
       expect { session.run('INVALID') }.to raise_error Neo4j::Driver::Exceptions::ClientException
       res2 = session.run('RETURN 1')
@@ -55,7 +57,8 @@ RSpec.describe 'ResultStream' do
     end
   end
 
-  it 'is able to access summary after transaction failure' do
+  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
+  it 'is able to access summary after transaction failure', memgraph: false do
     driver.session do |session|
       result = nil
       expect do
@@ -70,7 +73,8 @@ RSpec.describe 'ResultStream' do
     end
   end
 
-  it 'is an empty list after failure' do
+  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
+  it 'is an empty list after failure', memgraph: false do
     driver.session do |session|
       result = session.run('UNWIND [0, 1] as i RETURN 10 / i')
       expect(&result.method(:to_a)).to raise_error Neo4j::Driver::Exceptions::ClientException
@@ -94,7 +98,9 @@ RSpec.describe 'ResultStream' do
     end
   end
 
-  it 'converts immediatelly failing statement result to stream' do
+  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException
+  # (division by zero surfaces as "Invalid types" rather than "/ by zero").
+  it 'converts immediatelly failing statement result to stream', memgraph: false do
     driver.session do |session|
       seen = []
       expect { session.run('RETURN 10 / 0').each { |record| seen << record[0] } }
@@ -103,7 +109,8 @@ RSpec.describe 'ResultStream' do
     end
   end
 
-  it 'converts eventually failing statement result to stream' do
+  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
+  it 'converts eventually failing statement result to stream', memgraph: false do
     driver.session do |session|
       seen = []
       expect { session.run('UNWIND range(5, 0, -1) AS x RETURN x / x').each { |record| seen << record[0] } }

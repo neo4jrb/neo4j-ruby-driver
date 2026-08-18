@@ -52,6 +52,11 @@ RSpec.configure do |config|
   import_dir = ENV.fetch('TEST_NEO4J_IMPORT_DIR', nil)
   usable_import_dir = import_dir && !import_dir.empty? && Dir.exist?(import_dir) && File.writable?(import_dir)
   config.filter_run_excluding csv: true unless usable_import_dir
+  # When targeting Memgraph, skip specs marked `memgraph: false` — Neo4j-only
+  # features (routing, bookmarks, multi-database admin, APOC, auth management,
+  # byte params, month-durations, server-version assertions). The rest of the
+  # shared suite runs unchanged. See docs/memgraph.md.
+  config.filter_run_excluding memgraph: false if memgraph?
   config.exclude_pattern = "#{Neo4j::Driver::Loader.jruby? ? 'mri' : 'jruby'}/**/*_spec.rb"
   Neo4j::Driver::Internal::Deprecator.deprecator.behavior = :silence
 end

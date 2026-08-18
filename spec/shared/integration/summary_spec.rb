@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 RSpec.describe 'Summary' do
-  it 'contains basic metadata' do
+  # Memgraph's result-summary metadata differs from Neo4j's (query type,
+  # timing, statistics, plan/profile, notifications, system db), so these
+  # summary assertions don't hold against Memgraph.
+  it 'contains basic metadata', memgraph: false do
     driver.session do |session|
       statement_text = 'UNWIND [1, 2, 3, 4] AS n RETURN n AS number LIMIT $limit'
       statement_parameters = { limit: 10 }
@@ -18,7 +21,7 @@ RSpec.describe 'Summary' do
     end
   end
 
-  it 'contains time information' do
+  it 'contains time information', memgraph: false do
     driver.session do |session|
       summary = session.run('UNWIND range(1,1000) AS n RETURN n AS numbe').consume
       expect(summary.result_available_after).to be >= 0
@@ -26,7 +29,7 @@ RSpec.describe 'Summary' do
     end
   end
 
-  it 'contains correct statistics' do
+  it 'contains correct statistics', memgraph: false do
     driver.session do |session|
       expect(session.run('CREATE (n)').consume.counters.nodes_created).to eq 1
       expect(session.run('MATCH (n) DELETE (n)').consume.counters.nodes_deleted).to eq 1
@@ -49,7 +52,7 @@ RSpec.describe 'Summary' do
     end
   end
 
-  it 'contain correct statement type' do
+  it 'contain correct statement type', memgraph: false do
     driver.session do |session|
       expect(session.run('MATCH (n) RETURN 1').consume.query_type)
         .to eq Neo4j::Driver::Summary::QueryType::READ_ONLY
@@ -64,7 +67,7 @@ RSpec.describe 'Summary' do
     end
   end
 
-  it 'contains correct plan' do
+  it 'contains correct plan', memgraph: false do
     driver.session do |session|
       summary = session.run('EXPLAIN MATCH (n) RETURN 1').consume
 
@@ -78,7 +81,7 @@ RSpec.describe 'Summary' do
     end
   end
 
-  it 'contains profile' do
+  it 'contains profile', memgraph: false do
     driver.session do |session|
       summary = session.run('PROFILE RETURN 1').consume
 
@@ -96,7 +99,7 @@ RSpec.describe 'Summary' do
     end
   end
 
-  it 'contains notifications' do
+  it 'contains notifications', memgraph: false do
     driver.session do |session|
       # 'EXPLAIN MATCH (n), (m) RETURN n, m' seems to return notifications randomly. Server issue?
       # summary = session.run('EXPLAIN MATCH (n), (m) RETURN n, m').consume
@@ -125,7 +128,7 @@ RSpec.describe 'Summary' do
 
   # Ported from neo4j-java-driver SummaryIT.shouldGetSystemUpdates
   # (multi-database + admin command -> needs Neo4j 4+ enterprise).
-  it 'gets system updates', version: '>=4' do
+  it 'gets system updates', version: '>=4', memgraph: false do
     driver.session(database: 'system') do |session|
       # Java relies on a pristine system DB; our global cleaner only wipes
       # the default graph, so drop any leftover `foo` up front to keep the

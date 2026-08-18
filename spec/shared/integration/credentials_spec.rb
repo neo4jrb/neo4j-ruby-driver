@@ -24,7 +24,8 @@ RSpec.describe 'Credentials' do
     end
   end
 
-  it 'gets helpful error on invalid credentials' do
+  # Memgraph auth is disabled by default, so invalid credentials connect fine and no AuthenticationException is raised.
+  it 'gets helpful error on invalid credentials', memgraph: false do
     Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(neo4j_user, 'thisisnotthepassword')) do |d|
       expect { d.session { |s| s.run('RETURN 1').consume } }
         .to raise_error(
@@ -34,7 +35,9 @@ RSpec.describe 'Credentials' do
     end
   end
 
-  it 'routing driver fails early on wrong credentials' do
+  # Memgraph has no neo4j:// routing (not a cluster) and auth is disabled: verify_connectivity raises
+  # ServiceUnavailableException about routing, not AuthenticationException.
+  it 'routing driver fails early on wrong credentials', memgraph: false do
     routing_uri = "neo4j://#{host}:#{port}"
     Neo4j::Driver::GraphDatabase.driver(routing_uri, Neo4j::Driver::AuthTokens.basic(neo4j_user, 'wrongSecret')) do |d|
       expect { d.verify_connectivity }

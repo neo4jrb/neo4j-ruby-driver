@@ -118,7 +118,8 @@ RSpec.describe Neo4j::Driver do
     its(:z) { is_expected.to be_within(DELTA).of(4) }
   end
 
-  context 'when bytes' do
+  # Memgraph does not support the Bolt byte-array type; passing packed bytes errors server-side.
+  context 'when bytes', memgraph: false do
     let(:param) { [1, 2, 3].pack('C*') }
 
     it { is_expected.to eq param }

@@ -62,71 +62,65 @@ Do **not** pass `database: 'neo4j'` — Memgraph's default database is named
 These are all detected cleanly — a clear exception, or a benign empty result —
 so application code fails fast rather than silently misbehaving.
 
-## Continuous integration (sketch)
+## How it's tested
 
-Because the full `spec/shared/integration/` suite includes Neo4j-specific
-behaviour (routing, bookmarks, multi-database, byte parameters), a Memgraph lane
-should run a **curated compatibility subset**, not the whole suite. Two moving
-parts:
+Memgraph is treated as **another target of the existing shared suite** — the same
+way that suite already runs against the MRI and JRuby flavors — rather than a
+parallel set of Memgraph-specific specs. The whole `spec/shared/**` suite runs
+against Memgraph unchanged; the handful of examples that assert Neo4j-only
+behaviour are tagged and skipped.
 
-**1. A dedicated compatibility spec** — `spec/memgraph/compatibility_spec.rb` —
-covering the "works out of the box" matrix and asserting the gaps behave as
-documented (e.g. `neo4j://` raises `ServiceUnavailableException`, bookmarks are
-empty). It connects with Memgraph-appropriate config (`bolt://`,
-`AuthTokens.none`, no hardcoded database) rather than reusing the Neo4j
-`spec_helper` defaults.
+**The `memgraph: false` tag.** Examples exercising a documented gap carry
+`memgraph: false` metadata with a one-line reason, e.g.:
 
-**2. A workflow** — `.github/workflows/memgraph.yml` — non-gating at first
-(informational, like other incubating lanes), promoted to required once green:
-
-```yaml
-name: Memgraph compatibility
-
-on:
-  push:
-    branches: [main]
-    paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
-  pull_request:
-    paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
-
-jobs:
-  memgraph:
-    name: memgraph-compat
-    runs-on: ubuntu-latest
-    services:
-      memgraph:
-        image: memgraph/memgraph:latest        # pin a version once stabilised
-        ports:
-          - 7687:7687
-        # Memgraph has no built-in Docker healthcheck; the step below waits.
-
-    env:
-      TEST_MEMGRAPH_URL: bolt://localhost:7687
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.4'                   # MRI flavor (pure-Ruby Bolt)
-          bundler-cache: true
-      - name: Wait for Bolt
-        run: |
-          for i in $(seq 1 30); do
-            (echo > /dev/tcp/localhost/7687) >/dev/null 2>&1 && exit 0
-            sleep 2
-          done
-          echo "::error::Memgraph bolt port never opened"; exit 1
-      - name: Run Memgraph compatibility spec
-        run: bundle exec rspec spec/memgraph
+```ruby
+context 'when bytes', memgraph: false do # Memgraph has no Bolt byte-array type
 ```
+
+`spec/spec_helper.rb` excludes them only when the suite targets Memgraph
+(`config.filter_run_excluding memgraph: false if memgraph?`), mirroring the
+existing `auth: :none` / `csv:` conditional excludes. Against Neo4j the tag is
+inert — every example still runs. Currently **465 of 572** shared examples run
+against Memgraph; the ~107 tagged ones cover the gaps in the table above (error
+mapping to base `Neo4jException`, routing, bookmarks, multi-database, byte
+params, duration/temporal normalization, summary/plan/profile shape, auth).
+
+**Connecting the suite to Memgraph** is env-driven (`spec/shared/support/driver_helper.rb`):
+
+| Env var | Value | Why |
+|---|---|---|
+| `TEST_MEMGRAPH` | `1` | Activates the `memgraph: false` exclusion |
+| `TEST_NEO4J_AUTH` | `none` | Memgraph runs with auth disabled → `AuthTokens.none` |
+| `TEST_NEO4J_DATABASE` | `memgraph` | Memgraph's default database (there is no `neo4j` db) |
+| `NEO4J_VERSION` | `5.11.0` | Memgraph's advertised Neo4j-compat level; feeds version-gated specs |
+
+Run it locally against a Memgraph container:
+
+```bash
+docker run -d -p 7687:7687 memgraph/memgraph
+TEST_MEMGRAPH=1 TEST_NEO4J_AUTH=none TEST_NEO4J_DATABASE=memgraph \
+  NEO4J_VERSION=5.11.0 bundle exec rspec
+```
+
+## Continuous integration
+
+The Memgraph leg is a job in `.github/workflows/specs.yml` — the *same* workflow
+and the *same* `bundle exec rspec` invocation as the Neo4j matrix, just pointed at
+a Memgraph service container with the env vars above:
+
+- **`rspec-memgraph`** starts a `memgraph/memgraph` service container, waits for
+  the Bolt port, and runs `bundle exec rspec` with `TEST_MEMGRAPH=1` (+ auth-none,
+  `memgraph` database). No separate spec file, no separate workflow — it reuses the
+  entire shared suite.
+- **`memgraph-success`** is a version-free aggregator gate (mirroring
+  `rspec-success`) so the branch-protection ruleset can require a stable name that
+  doesn't embed the Memgraph image version.
 
 Notes:
 
 - **MRI flavor only** to start — it's the pure-Ruby Bolt implementation, so it's
-  the direct test of wire compatibility. Add a JRuby leg later to cover the
-  Java-driver path.
-- **Version-stable gate.** If this becomes a required check, add a
-  `memgraph-success` aggregator job (see `specs.yml`) so the ruleset requires a
-  name that doesn't embed the Memgraph version.
+  the direct test of wire compatibility. A JRuby leg (Java-driver path) can follow.
+- **Non-gating until promoted.** `memgraph-success` is not yet in the ruleset;
+  require it once the lane has been stable for a while.
 - **Pin the image** (`memgraph/memgraph:<version>`) once the baseline is
   established, so a Memgraph release can't silently change the result.
