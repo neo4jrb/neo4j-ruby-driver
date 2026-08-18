@@ -126,6 +126,13 @@ age    = record[1]      # or by index
 records = result.to_a
 ```
 
+Node labels and relationship types come back as **symbols** off the entity —
+`node.labels # => [:Person]`, `rel.type # => :KNOWS` — as do record columns and
+map/property keys. Cypher functions that *return* strings (`labels()`, `keys()`,
+`type()`) return **strings**, because their result is an ordinary value on the
+wire, indistinguishable from data you returned yourself. Read the accessor for
+symbols, or convert the function result with `.map(&:to_sym)`.
+
 ## Architecture
 
 The development tree is split so shared code lives in one place and each
