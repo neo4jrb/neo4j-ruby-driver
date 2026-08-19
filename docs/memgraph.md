@@ -89,7 +89,7 @@ context 'when bytes', memgraph: false do # Memgraph has no Bolt byte-array type
 `spec/spec_helper.rb` excludes them only when the suite targets Memgraph
 (`config.filter_run_excluding memgraph: false if memgraph?`), mirroring the
 existing `auth: :none` / `csv:` conditional excludes. Against Neo4j the tag is
-inert — every example still runs. Currently **~478 of ~578** shared examples run
+inert — every example still runs. Currently **~477 of ~578** shared examples run
 against Memgraph — **identically on both flavors** (MRI and JRuby); the ~100
 tagged ones cover the gaps in the table above (routing, bookmarks, multi-database,
 byte params, duration/temporal precision, summary/plan/profile shape, auth) plus
@@ -116,16 +116,13 @@ Memgraph error, and the tagged set is identical on MRI and JRuby.
 
 The suite runs **with authentication on** (basic `neo4j`/`password`, the
 `driver_helper` default) so the auth path is exercised the same way as against
-Neo4j. Since Memgraph enables auth only once a user exists, a one-shot bootstrap
-creates that user before the suite runs — connecting with `AuthTokens.none` while
-the instance is still open:
+Neo4j. Memgraph enables auth as soon as a user exists, and the `MEMGRAPH_USER` /
+`MEMGRAPH_PASSWORD` env vars create that user at startup — so the container comes
+up with auth already on:
 
 ```bash
-docker run -d -p 7687:7687 memgraph/memgraph
-# Create the user (turns auth on for the whole instance):
-bundle exec ruby -e "require 'neo4j/driver'; \
-  Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687', Neo4j::Driver::AuthTokens.none) { |d| \
-    d.session { |s| s.run(%q(CREATE USER neo4j IDENTIFIED BY 'password')).consume } }"
+docker run -d -p 7687:7687 \
+  -e MEMGRAPH_USER=neo4j -e MEMGRAPH_PASSWORD=password memgraph/memgraph:3.12.0
 TEST_MEMGRAPH=1 TEST_NEO4J_DATABASE=memgraph NEO4J_VERSION=5.11.0 bundle exec rspec
 ```
 
@@ -135,21 +132,26 @@ The Memgraph leg is a job in `.github/workflows/specs.yml` — the *same* workfl
 and the *same* `bundle exec rspec` invocation as the Neo4j matrix, just pointed at
 a Memgraph service container with the env vars above:
 
-- **`rspec-memgraph`** starts a `memgraph/memgraph` service container, waits for
-  the Bolt port, creates the `neo4j` user (enabling auth), and runs `bundle exec
-  rspec` with `TEST_MEMGRAPH=1` (+ `memgraph` database, basic auth). No separate
-  spec file, no separate workflow — it reuses the
-  entire shared suite. It runs as a **matrix over both flavors**: latest CRuby
-  (MRI pure-Ruby Bolt) and latest JRuby (Java driver).
+- **`rspec-memgraph`** starts a pinned `memgraph/memgraph:3.12.0` service
+  container (with `MEMGRAPH_USER`/`MEMGRAPH_PASSWORD` set, so it comes up with auth
+  on), waits until Memgraph is query-ready, and runs `bundle exec rspec` with
+  `TEST_MEMGRAPH=1` (+ `memgraph` database, basic auth). No separate spec file, no
+  separate workflow — it reuses the entire shared suite. It runs as a **matrix
+  over both flavors**: latest CRuby (MRI pure-Ruby Bolt) and latest JRuby (Java
+  driver).
 - **`memgraph-success`** is a version-free aggregator gate (mirroring
   `rspec-success`) so the branch-protection ruleset can require a stable name that
   doesn't embed the Memgraph image version.
 
 Notes:
 
-- **Both flavors pass** the same tagged suite. The CRuby leg gates; the JRuby leg
-  is kept non-blocking only to match the repo-wide JRuby policy.
+- **CRuby leg is fully green and gates.** The JRuby leg is non-blocking and shows
+  **two** tests red — the Java driver's connection **re-auth** (`verify_authentication`)
+  and its handling of a **cancelled failing stream** behave differently against
+  Memgraph than the pure-Ruby impl does (both pass on CRuby+Memgraph and on both
+  flavors against Neo4j). These reflect the Java driver's own behavior, which we
+  don't override, so they're left as known JRuby×Memgraph differences.
 - **Non-gating until promoted.** `memgraph-success` is not yet in the ruleset;
   require it once the lane has been stable for a while.
-- **Pin the image** (`memgraph/memgraph:<version>`) once the baseline is
-  established, so a Memgraph release can't silently change the result.
+- **Image is pinned** to `memgraph/memgraph:3.12.0` so a Memgraph release can't
+  silently change the result; bump it deliberately after re-validating.

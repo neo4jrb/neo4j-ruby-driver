@@ -126,10 +126,17 @@ jobs:
 
     services:
       memgraph:
-        image: memgraph/memgraph:latest # pin a version once stabilised
+        image: memgraph/memgraph:3.12.0 # pinned to the validated version
         ports:
           - 7687:7687
-        # Memgraph has no built-in Docker healthcheck; the step below waits.
+        # MEMGRAPH_USER/PASSWORD create the user at startup, which turns auth on
+        # (Memgraph has no auth flag — the first user is the switch). The suite
+        # then authenticates with basic neo4j/password (the driver_helper default),
+        # exercising the auth path the same way as against Neo4j. Memgraph has no
+        # built-in Docker healthcheck; the query-ready step below waits.
+        env:
+          MEMGRAPH_USER: neo4j
+          MEMGRAPH_PASSWORD: password
 
     env:
       TEST_NEO4J_URL: bolt://localhost:7687
@@ -141,26 +148,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # no authenticated git ops here; don't leak the token to bundle
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Wait for Bolt
+      - name: Wait for Memgraph (query-ready)
+        # A listening TCP port doesn't mean Memgraph accepts queries yet (and the
+        # startup user may not exist yet); retry a real authenticated query until
+        # it responds.
         run: |
           for i in $(seq 1 30); do
-            (echo > /dev/tcp/localhost/7687) >/dev/null 2>&1 && exit 0
+            bundle exec ruby -e "require 'neo4j/driver'; Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687', Neo4j::Driver::AuthTokens.basic('neo4j', 'password')) { |d| d.session { |s| s.run('RETURN 1').consume } }" >/dev/null 2>&1 && exit 0
             sleep 2
           done
-          echo "::error::Memgraph bolt port never opened"; exit 1
-      - name: Enable Memgraph auth (create the neo4j user)
-        # Memgraph starts with auth open; creating a user turns it on. We connect
-        # once with AuthTokens.none (allowed while no users exist), then the suite
-        # authenticates with basic neo4j/password (the driver_helper default), so
-        # the auth path is exercised the same way as against Neo4j.
-        run: >-
-          bundle exec ruby -e "require 'neo4j/driver';
-          Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687', Neo4j::Driver::AuthTokens.none) { |d|
-          d.session { |s| s.run(%q(CREATE USER neo4j IDENTIFIED BY 'password')).consume } }"
+          echo "::error::Memgraph never became query-ready"; exit 1
       - name: Run RSpec (Memgraph)
         run: bundle exec rspec --format progress
 
