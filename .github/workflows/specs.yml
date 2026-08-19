@@ -110,11 +110,13 @@ jobs:
   # flavors — latest CRuby (pure-Ruby Bolt) and latest JRuby (Java driver, which
   # Memgraph officially supports). See docs/memgraph.md.
   rspec-memgraph:
-    name: rspec (memgraph / ruby ${{ matrix.ruby }})
+    name: rspec (memgraph / ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }})
     runs-on: ubuntu-latest
-    # Both flavors pass the same tagged suite against Memgraph. The JRuby leg is
-    # kept non-blocking only to match the repo-wide JRuby policy (see the rspec
-    # job above); the CRuby leg is the gating one.
+    # Only the CRuby leg gates. Both JRuby legs (Java-driver flavor, and the
+    # MRI-flavor-on-JVM cross-flavor row) are non-blocking, matching the repo-wide
+    # JRuby policy. The mri-flavor-on-JVM row isolates whether a JRuby-only red is
+    # the Java driver's behavior (MRI-on-JVM passes) or a JVM/Linux environment
+    # effect (MRI-on-JVM fails too) — the same three-cell layout as the Neo4j job.
     continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
 
     strategy:
@@ -123,6 +125,12 @@ jobs:
         ruby:
           - "4.0" # latest CRuby — MRI pure-Ruby Bolt flavor
           - "jruby-10.1.0.0" # latest JRuby — Java-driver flavor
+        force_mri: [false]
+        include:
+          # MRI flavor on JRuby — same env/platform as the Java-driver row but the
+          # pure-Ruby impl, via NEO4J_DRIVER_FORCE_MRI=1 (the Gemfile's flip).
+          - ruby: "jruby-10.1.0.0"
+            force_mri: true
 
     services:
       memgraph:
@@ -144,6 +152,9 @@ jobs:
       TEST_NEO4J_DATABASE: memgraph # Memgraph's default database (no `neo4j` db)
       # Memgraph advertises Neo4j/v5.11.0 compatibility; feeds version-gated specs.
       NEO4J_VERSION: 5.11.0
+      # '1' on the mri-flavor-on-JVM row; empty otherwise. The Gemfile pins to the
+      # MRI gemspec when set (same as the rspec job's cross-flavor row).
+      NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
       BUNDLE_JOBS: '1'
 
     steps:
