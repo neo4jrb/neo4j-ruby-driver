@@ -136,21 +136,26 @@ a Memgraph service container with the env vars above:
   container (with `MEMGRAPH_USER`/`MEMGRAPH_PASSWORD` set, so it comes up with auth
   on), waits until Memgraph is query-ready, and runs `bundle exec rspec` with
   `TEST_MEMGRAPH=1` (+ `memgraph` database, basic auth). No separate spec file, no
-  separate workflow — it reuses the entire shared suite. It runs as a **matrix
-  over both flavors**: latest CRuby (MRI pure-Ruby Bolt) and latest JRuby (Java
-  driver).
+  separate workflow — it reuses the entire shared suite. It runs as a **three-cell
+  matrix**: MRI on CRuby (gating), MRI on the JVM (`NEO4J_DRIVER_FORCE_MRI=1`), and
+  the JRuby/Java-driver flavor — the same layout as the Neo4j job. The MRI-on-JVM
+  cell shares the Java-driver row's platform, so it isolates flavor from
+  environment (see the note below).
 - **`memgraph-success`** is a version-free aggregator gate (mirroring
   `rspec-success`) so the branch-protection ruleset can require a stable name that
   doesn't embed the Memgraph image version.
 
 Notes:
 
-- **CRuby leg is fully green and gates.** The JRuby leg is non-blocking and shows
-  **two** tests red — the Java driver's connection **re-auth** (`verify_authentication`)
-  and its handling of a **cancelled failing stream** behave differently against
-  Memgraph than the pure-Ruby impl does (both pass on CRuby+Memgraph and on both
-  flavors against Neo4j). These reflect the Java driver's own behavior, which we
-  don't override, so they're left as known JRuby×Memgraph differences.
+- **Two tests are Java-driver-flavor-specific.** The Java driver's connection
+  **re-auth** (`verify_authentication`) and its handling of a **cancelled failing
+  stream** fail *only* on the JRuby/Java-driver flavor against Memgraph on Linux
+  CI. The three-cell matrix isolates the cause: **MRI passes on both CRuby and the
+  JVM** (`force_mri`) — same platform as the Java-driver row — so this is the Java
+  driver's own behavior, **not** a JVM/Linux environment effect and **not** an MRI
+  gap. We don't override the Java driver, so those two carry `memgraph_jruby: false`
+  — excluded only on that flavor (`memgraph? && Loader.jruby?`), leaving the other
+  three cells (MRI-CRuby, MRI-on-JVM, and all Neo4j) running them.
 - **Non-gating until promoted.** `memgraph-success` is not yet in the ruleset;
   require it once the lane has been stable for a while.
 - **Image is pinned** to `memgraph/memgraph:3.12.0` so a Memgraph release can't

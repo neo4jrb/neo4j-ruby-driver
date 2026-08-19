@@ -392,7 +392,9 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'does not propagate failure when streaming is cancelled' do
+  # Java-driver-flavor only: it surfaces the cancelled failing stream against
+  # Memgraph on Linux CI, where MRI discards it cleanly on both CRuby and the JVM.
+  it 'does not propagate failure when streaming is cancelled', memgraph_jruby: false do
     driver.session do |session|
       session.run('UNWIND range(20000, 0, -1) AS x RETURN 10 / x')
     end
