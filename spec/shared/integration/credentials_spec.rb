@@ -24,7 +24,10 @@ RSpec.describe 'Credentials' do
     end
   end
 
-  it 'gets helpful error on invalid credentials' do
+  # Memgraph rejects invalid credentials with a ClientException "Authentication
+  # failure" (as the Java driver does), not AuthenticationException with Neo4j's
+  # "The client is unauthorized…" message.
+  it 'gets helpful error on invalid credentials', memgraph: false do
     Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(neo4j_user, 'thisisnotthepassword')) do |d|
       expect { d.session { |s| s.run('RETURN 1').consume } }
         .to raise_error(
@@ -34,7 +37,10 @@ RSpec.describe 'Credentials' do
     end
   end
 
-  it 'routing driver fails early on wrong credentials' do
+  # Memgraph has no neo4j:// routing (not a cluster), so verify_connectivity fails
+  # fetching a routing table (ServiceUnavailableException), not with the
+  # AuthenticationException this expects.
+  it 'routing driver fails early on wrong credentials', memgraph: false do
     routing_uri = "neo4j://#{host}:#{port}"
     Neo4j::Driver::GraphDatabase.driver(routing_uri, Neo4j::Driver::AuthTokens.basic(neo4j_user, 'wrongSecret')) do |d|
       expect { d.verify_connectivity }

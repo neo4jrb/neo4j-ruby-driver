@@ -4,7 +4,9 @@
 # plus session(bookmark_manager:) — in Ruby terms only (Set, Bookmark#value).
 # Impl-agnostic, so it runs on both flavors.
 RSpec.describe 'BookmarkManager' do
-  it 'tracks bookmarks across sessions and notifies the consumer on commit' do
+  # Memgraph has no causal-consistency bookmarks: commits produce no bookmark,
+  # so the manager's consumer is never notified and nothing is tracked.
+  it 'tracks bookmarks across sessions and notifies the consumer on commit', memgraph: false do
     consumed = nil
     manager = Neo4j::Driver::BookmarkManagers.default_manager(
       bookmarks_consumer: ->(bookmarks) { consumed = bookmarks }
@@ -27,7 +29,8 @@ RSpec.describe 'BookmarkManager' do
     expect(count).to eq 1
   end
 
-  it 'seeds the manager with initial_bookmarks' do
+  # Memgraph produces no bookmark after a commit, so there is nothing to seed.
+  it 'seeds the manager with initial_bookmarks', memgraph: false do
     # Produce a real bookmark from a vanilla session, then hand it to a
     # second manager as initial_bookmarks. The consumer should still
     # observe the bookmark set after a write that follows.

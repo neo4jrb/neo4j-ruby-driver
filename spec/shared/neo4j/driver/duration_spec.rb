@@ -53,13 +53,15 @@ RSpec.describe Neo4j::Driver::Types::Duration do
       it { is_expected.to eq param }
     end
 
-    context 'when -1 nanosecond' do
+    # Memgraph truncates durations to microsecond precision (999999999ns -> 999999000ns).
+    context 'when -1 nanosecond', memgraph: false do
       let(:param) { described_class.new(0, 0, 0, -1) }
 
       it { is_expected.to eq param }
     end
 
-    context 'when 1 nanosecond' do
+    # Memgraph drops sub-microsecond nanoseconds (1ns -> 0).
+    context 'when 1 nanosecond', memgraph: false do
       let(:param) { described_class.new(0, 0, 0, 1) }
 
       it { is_expected.to eq param }
@@ -71,7 +73,8 @@ RSpec.describe Neo4j::Driver::Types::Duration do
       it { is_expected.to eq param }
     end
 
-    context 'when 1 month (to test month normalization)' do
+    # Memgraph normalizes months into days+seconds (1 month -> 30 days + 37746 seconds).
+    context 'when 1 month (to test month normalization)', memgraph: false do
       let(:param) { described_class.new(1, 0, 0, 0) }
 
       it { is_expected.to eq param }
@@ -85,19 +88,22 @@ RSpec.describe Neo4j::Driver::Types::Duration do
       end
     end
 
-    context 'when 1 year only' do
+    # Memgraph only accepts P[nD]T[nH][nM][nS] duration strings; year/month designators are rejected.
+    context 'when 1 year only', memgraph: false do
       let(:duration) { 'P1Y' }
 
       it { is_expected.to eq described_class.new(12, 0, 0, 0) }
     end
 
-    context 'when 1 year 2 months' do
+    # Memgraph only accepts P[nD]T[nH][nM][nS] duration strings; year/month designators are rejected.
+    context 'when 1 year 2 months', memgraph: false do
       let(:duration) { 'P1Y2M' }
 
       it { is_expected.to eq described_class.new(14, 0, 0, 0) }
     end
 
-    context 'when 0.9 years (Neo4j normalizes to 10 months + extras)' do
+    # Memgraph only accepts P[nD]T[nH][nM][nS] duration strings; year designator is rejected.
+    context 'when 0.9 years (Neo4j normalizes to 10 months + extras)', memgraph: false do
       let(:duration) { 'P0.9Y' }
 
       it 'returns normalized duration' do
@@ -110,7 +116,8 @@ RSpec.describe Neo4j::Driver::Types::Duration do
       end
     end
 
-    context 'when half month (Neo4j normalizes to ~15 days)' do
+    # Memgraph only accepts P[nD]T[nH][nM][nS] duration strings; the month designator is rejected.
+    context 'when half month (Neo4j normalizes to ~15 days)', memgraph: false do
       let(:duration) { 'P0.5M' }
 
       it 'returns normalized duration' do
@@ -138,7 +145,8 @@ RSpec.describe Neo4j::Driver::Types::Duration do
   end
 
   shared_examples 'duration' do
-    context 'when duration with all components' do
+    # Memgraph only accepts P[nD]T[nH][nM][nS] duration strings; year/month/week designators are rejected.
+    context 'when duration with all components', memgraph: false do
       let(:param) { 'P1Y2M3W10DT12H45M30.01S' }
 
       it { is_expected.to be true }
@@ -150,7 +158,8 @@ RSpec.describe Neo4j::Driver::Types::Duration do
       it { is_expected.to be true }
     end
 
-    context 'when half month' do
+    # Memgraph only accepts P[nD]T[nH][nM][nS] duration strings; the month designator is rejected.
+    context 'when half month', memgraph: false do
       let(:param) { 'P0.5M' }
 
       it { is_expected.to be true }

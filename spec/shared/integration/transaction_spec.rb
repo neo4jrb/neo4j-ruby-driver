@@ -112,7 +112,9 @@ RSpec.describe 'Transaction' do
     end
   end
 
-  it 'fails run' do
+  # Memgraph's error code isn't Neo4j's `…SyntaxError`, so the code assertion
+  # fails (the ClientException class now matches).
+  it 'fails run', memgraph: false do
     session.begin_transaction do |tx|
       expect { tx.run('RETURN Wrong') }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
         expect(error.code).to match(/SyntaxError/)
@@ -126,12 +128,13 @@ RSpec.describe 'Transaction' do
   # shouldThrowWhenConnectionKilledDuringTransaction
   # shouldThrowWhenConnectionKilledDuringTransactionMarkedForSuccess
 
-  it 'disallows queries after failure when results are consumed' do
+  # Memgraph's error code isn't Neo4j's `…SyntaxError`, so the code assertion
+  # fails (the ClientException class now matches).
+  it 'disallows queries after failure when results are consumed', memgraph: false do
     session.begin_transaction do |tx|
       expect(tx.run('UNWIND [1,2,3] AS x CREATE (:Node) RETURN x').map(&:first)).to eq [1, 2, 3]
-      expect { tx.run('RETURN unknown').consume }.to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
-        expect(error.code).to match(/SyntaxError/)
-      end
+      expect { tx.run('RETURN unknown').consume }
+        .to raise_error(Neo4j::Driver::Exceptions::ClientException) { |error| expect(error.code).to match(/SyntaxError/) }
       expect { tx.run('CREATE (:OtherNode)').consume }
         .to raise_error(Neo4j::Driver::Exceptions::ClientException, /^Cannot run more queries in this transaction/)
       expect { tx.run('RETURN 42').consume }
@@ -142,14 +145,17 @@ RSpec.describe 'Transaction' do
     expect(count_nodes_by_label(:OtherNode)).to be_zero
   end
 
-  it 'rolls back when marked successful but one statement fails' do
+  # Memgraph's error code isn't Neo4j's `…SyntaxError`, so the code assertion
+  # fails (the ClientException class now matches).
+  it 'rolls back when marked successful but one statement fails', memgraph: false do
     expect do
       session.begin_transaction do |tx|
         tx.run('CREATE (:Node1)')
         tx.run('CREATE (:Node2)')
         tx.run('CREATE SmthStrange')
-        # In java the code below might be or might be not executed as all `tx.run` are responding asynchronously and the
-        # exception might happen before any of the 3 subsequent lines is executed.
+        # In java the code below might or might not be executed, as all `tx.run`
+        # respond asynchronously and the exception might happen before any of
+        # the 3 subsequent lines is executed.
         tx.run('CREATE (:Node3)')
         tx.run('CREATE (:Node4)')
 
@@ -170,7 +176,8 @@ RSpec.describe 'Transaction' do
     expect(count_nodes_by_label(:Node4)).to be_zero
   end
 
-  it 'accepts metadata on begin_transaction' do
+  # Memgraph has no `tx.getMetaData` procedure, so tx metadata can't be read back.
+  it 'accepts metadata on begin_transaction', memgraph: false do
     metadata = { foo: 'bar', baz: 1 }
     session.begin_transaction(metadata: metadata) do |tx|
       result = tx.run('CALL tx.getMetaData()').single.first
@@ -231,7 +238,9 @@ RSpec.describe 'Transaction' do
       .to raise_error(Neo4j::Driver::Exceptions::ClientException, /Can't commit.*rolled back/)
   end
 
-  it 'fails to commit after failure' do
+  # Memgraph's error code isn't Neo4j's `…SyntaxError` and its commit-after-failure
+  # message differs, so the code/message assertions fail (ClientException matches).
+  it 'fails to commit after failure', memgraph: false do
     tx = session.begin_transaction
     xs = tx.run('UNWIND [1,2,3] AS x CREATE (:Node) RETURN x').to_a.map { |r| r[0] }
     expect(xs).to eq [1, 2, 3]

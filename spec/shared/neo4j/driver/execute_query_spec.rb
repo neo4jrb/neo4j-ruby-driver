@@ -3,7 +3,8 @@
 RSpec.describe Neo4j::Driver do
   describe '#execute_query', version: '>=5' do
     context 'when querying the database' do
-      it 'accepts query with params hash and config hash' do
+      # Memgraph: no named 'neo4j' database ("Tried to retrieve an unknown database").
+      it 'accepts query with params hash and config hash', memgraph: false do
         expect do
           driver.execute_query(
             'MATCH (p:Person {age: $age}) RETURN p.name AS name',
@@ -68,7 +69,8 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'when using query configuration' do
-      it 'accepts params hash and config hash together' do
+      # Memgraph: no named 'neo4j' database ("Tried to retrieve an unknown database").
+      it 'accepts params hash and config hash together', memgraph: false do
         expect do
           driver.execute_query(
             'MATCH (p:Person) RETURN p.name',
@@ -130,7 +132,8 @@ RSpec.describe Neo4j::Driver do
         end.not_to raise_error
       end
 
-      it 'accepts shortestPath query with keyword parameters' do
+      # Memgraph: shortestPath is not a Cypher parser keyword (parse error).
+      it 'accepts shortestPath query with keyword parameters', memgraph: false do
         expect do
           driver.execute_query(
             'MATCH p=shortestPath((:Person {name: $start})-[*]->(:Person {name: $end})) RETURN p',
@@ -142,7 +145,8 @@ RSpec.describe Neo4j::Driver do
     end
 
     context 'parameter handling' do
-      it 'handles params hash and config hash together' do
+      # Memgraph: no named 'neo4j' database ("Tried to retrieve an unknown database").
+      it 'handles params hash and config hash together', memgraph: false do
         expect do
           driver.execute_query(
             'MATCH (p:Person {age: $age, name: $name}) RETURN p',

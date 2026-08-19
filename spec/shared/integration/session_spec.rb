@@ -15,7 +15,9 @@ RSpec.describe 'Session' do
     driver.close
   end
 
-  it 'handles nil AuthToken' do
+  # Memgraph rejects a nil/absent token with a ClientException (as the Java driver
+  # does), not the AuthenticationException this expects.
+  it 'handles nil AuthToken', memgraph: false do
     Neo4j::Driver::GraphDatabase.driver(uri, nil) do |driver|
       expect(&driver.method(:verify_connectivity)).to raise_error Neo4j::Driver::Exceptions::AuthenticationException
     end
@@ -53,19 +55,21 @@ RSpec.describe 'Session' do
     test_write_methods(Neo4j::Driver::AccessMode::WRITE, :execute_write)
   end
 
-  it 'rolls back write transaction in read session when function throws exception' do
+  # Memgraph raises ClientException for `10/0` but with message "Invalid types: int
+  # and int for '/'", not "/ by zero", so these message assertions fail.
+  it 'rolls back write transaction in read session when function throws exception', memgraph: false do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ, :execute_write)
   end
 
-  it 'rolls back write transaction in write session when function throws exception' do
+  it 'rolls back write transaction in write session when function throws exception', memgraph: false do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE, :execute_write)
   end
 
-  it 'rolls back execute write in read session when function throws exception' do
+  it 'rolls back execute write in read session when function throws exception', memgraph: false do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::READ, :execute_write)
   end
 
-  it 'rolls back execute write in write session when function throws exception' do
+  it 'rolls back execute write in write session when function throws exception', memgraph: false do
     test_tx_rollback_when_function_throws_exception(Neo4j::Driver::AccessMode::WRITE, :execute_write)
   end
 
@@ -185,7 +189,8 @@ RSpec.describe 'Session' do
     test_write_rollback_on_exception(:execute_write)
   end
 
-  it 'read tx committed without tx success' do
+  # Memgraph does not return a bookmark for a committed read-only transaction, so last_bookmarks stays empty.
+  it 'read tx committed without tx success', memgraph: false do
     driver.session do |session|
       expect(session.execute_read { |tx| tx.run('RETURN 42').single[0] }).to eq(42)
       expect(session.last_bookmarks.size).to eq 1
@@ -231,7 +236,10 @@ RSpec.describe 'Session' do
 
   # This multi threaded scenario deadlocks outside of neo4j on MRI due to Global Interpreter Lock und so it never comes
   # to the neo4j transaction deadlock which would be discovered and resolved by the neo4j server
-  it 'transaction run fails on deadlocks', concurrency: true do
+  # Memgraph maps a write-write conflict to a TransientException, but its code is
+  # "Memgraph.TransientError.MemgraphError", not Neo4j's
+  # "Neo.TransientError.Transaction.DeadlockDetected", so the code assertion fails.
+  it 'transaction run fails on deadlocks', concurrency: true, memgraph: false do
     node_id1 = 42
     node_id2 = 4242
     new_node_id1 = 1
@@ -376,14 +384,17 @@ RSpec.describe 'Session' do
     test_read_work_in_caller_thread(:execute_read)
   end
 
-  it 'Throws Run Failure Immediately And Closes Successfully' do
+  # Memgraph's Cypher dialect evaluates `1 * "x"` without error (no "Type mismatch" ClientException is raised).
+  it 'Throws Run Failure Immediately And Closes Successfully', memgraph: false do
     driver.session do |session|
       expect { session.run('RETURN 1 * "x"') }
         .to raise_error Neo4j::Driver::Exceptions::ClientException, /^Type mismatch/
     end
   end
 
-  it 'does not propagate failure when streaming is cancelled' do
+  # Java-driver-flavor only: it surfaces the cancelled failing stream against
+  # Memgraph on Linux CI, where MRI discards it cleanly on both CRuby and the JVM.
+  it 'does not propagate failure when streaming is cancelled', memgraph_jruby: false do
     driver.session do |session|
       session.run('UNWIND range(20000, 0, -1) AS x RETURN 10 / x')
     end
@@ -396,7 +407,8 @@ RSpec.describe 'Session' do
     expect { result.map { |record| record[0] } }.to raise_error Neo4j::Driver::Exceptions::ResultConsumedException
   end
 
-  it 'Throw Run Failure Immediately After Multiple Successful Runs And Close Successfully' do
+  # Memgraph's Cypher dialect evaluates `1 * "x"` without error (no "Type mismatch" ClientException is raised).
+  it 'Throw Run Failure Immediately After Multiple Successful Runs And Close Successfully', memgraph: false do
     driver.session do |session|
       session.run('CREATE ()')
       session.run('CREATE ()')
@@ -405,7 +417,8 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'Throw Run Failure Immediately And Accept Subsequent Run' do
+  # Memgraph's Cypher dialect evaluates `1 * "x"` without error (no "Type mismatch" ClientException is raised).
+  it 'Throw Run Failure Immediately And Accept Subsequent Run', memgraph: false do
     driver.session do |session|
       session.run('CREATE ()')
       session.run('CREATE ()')
@@ -415,7 +428,8 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'Close Cleanly When Run Error Consumed' do
+  # Memgraph raises ClientException for `10 / 0` but with message "Invalid types: int and int for '/'", not "/ by zero".
+  it 'Close Cleanly When Run Error Consumed', memgraph: false do
     driver.session do |session|
       session.run('CREATE ()')
       expect do
@@ -427,7 +441,8 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'Consume Previous Result Before Running New Query' do
+  # Memgraph raises ClientException for `42 / 0` but with message "Invalid types: int and int for '/'", not "/ by zero".
+  it 'Consume Previous Result Before Running New Query', memgraph: false do
     driver.session do |session|
       session.run('UNWIND range(1000, 0, -1) AS x RETURN 42 / x')
       expect { session.run('RETURN 1') }.to raise_error Neo4j::Driver::Exceptions::ClientException, '/ by zero'
@@ -436,7 +451,12 @@ RSpec.describe 'Session' do
 
   context "with 'bolt' scheme" do
     let(:scheme) { 'bolt' } # to avoid routing logic triggered by 'neo4j' scheme
-    it 'does not retry on connection acquisition timeout' do
+    # Memgraph's auth handshake (LOGON) is slow enough to exceed this test's tight
+    # 0.1s connection-acquisition timeout, so the driver surfaces a HELLO
+    # ServiceUnavailableException instead of the expected pool-acquisition
+    # ClientException. Timing-dependent but fails on both flavors. (Neo4j and
+    # auth-disabled Memgraph both complete the handshake within the budget.)
+    it 'does not retry on connection acquisition timeout', memgraph: false do
       max_pool_size = 3
       config = {
         max_connection_pool_size: max_pool_size,
@@ -456,7 +476,9 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'reports failure in close' do
+  # Memgraph does not support the `CYPHER runtime=...` query prefix and rejects it
+  # with a parse error, so no "/ by zero" ArithmeticError surfaces on close.
+  it 'reports failure in close', memgraph: false do
     session = driver.session
     session.run('CYPHER runtime=interpreted UNWIND [2, 4, 8, 0] AS x RETURN 32 / x')
     expect(&session.method(:close)).to raise_error(Neo4j::Driver::Exceptions::ClientException) do |error|
@@ -464,7 +486,8 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'Does Not Allow Accessing Records After Summary' do
+  # Memgraph reports the summary query_type as "rw" for these read queries where Neo4j reports "r".
+  it 'Does Not Allow Accessing Records After Summary', memgraph: false do
     driver.session do |session|
       record_count = 10_000
       query = "UNWIND range(1, #{record_count}) AS x RETURN x"
@@ -528,7 +551,9 @@ RSpec.describe 'Session' do
   #  end
   # end
 
-  it 'allows long running query with connect timeout', concurrency: true do
+  # Memgraph resolves the write-write conflict immediately (rejecting the second query) instead of blocking on the
+  # row lock as Neo4j does, so the future is already resolved rather than pending.
+  it 'allows long running query with connect timeout', concurrency: true, memgraph: false do
     session1 = driver.session
     session2 = driver.session
 
@@ -579,7 +604,8 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'Allow Consuming Empty Result' do
+  # Memgraph reports the summary query_type as "rw" for this read query where Neo4j reports "r".
+  it 'Allow Consuming Empty Result', memgraph: false do
     driver.session do |session|
       result = session.run('UNWIND [] AS x RETURN x')
       summary = result.consume
@@ -595,7 +621,8 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'Consume' do
+  # Memgraph reports the summary query_type as "rw" for this read query where Neo4j reports "r".
+  it 'Consume', memgraph: false do
     driver.session do |session|
       query = 'UNWIND [1, 2, 3, 4, 5] AS x RETURN x'
       result = session.run(query)
@@ -605,7 +632,8 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'Reports Failure In Summary' do
+  # Memgraph raises ClientException for `10 / 0` but with message "Invalid types: int and int for '/'", not "/ by zero".
+  it 'Reports Failure In Summary', memgraph: false do
     driver.session do |session|
       query = 'UNWIND [1, 2, 3, 4, 0] AS x RETURN 10 / x'
       result = session.run(query)
@@ -808,13 +836,15 @@ RSpec.describe 'Session' do
     expect { session.close }.to raise_error(Neo4j::Driver::Exceptions::ClientException, /by zero|arithmetic/i)
   end
 
-  it 'allows database name', version: '>=4' do
+  # Memgraph has no multi-database support: selecting the "neo4j" database fails
+  # with 'Tried to retrieve an unknown database "neo4j"'.
+  it 'allows database name', version: '>=4', memgraph: false do
     driver.session(database: 'neo4j') do |session|
       expect(session.run('RETURN 1').single[0]).to eq 1
     end
   end
 
-  it 'allows database name using explicit transaction', version: '>=4' do
+  it 'allows database name using explicit transaction', version: '>=4', memgraph: false do
     driver.session(database: 'neo4j') do |session|
       session.begin_transaction do |tx|
         expect(tx.run('RETURN 1').single[0]).to eq 1
@@ -822,13 +852,15 @@ RSpec.describe 'Session' do
     end
   end
 
-  it 'allows database name using execute_read', version: '>=4' do
+  it 'allows database name using execute_read', version: '>=4', memgraph: false do
     driver.session(database: 'neo4j') do |session|
       expect(session.execute_read { |tx| tx.run('RETURN 1').single[0] }).to eq 1
     end
   end
 
-  it 'errors using session.run when database is absent', version: '>=4' do
+  # Memgraph has no multi-database support: an absent database yields
+  # 'Tried to retrieve an unknown database "foo"', not Neo4j's DatabaseNotFound.
+  it 'errors using session.run when database is absent', version: '>=4', memgraph: false do
     session = driver.session(database: 'foo')
     expect { session.run('RETURN 1').consume }
       .to raise_error(Neo4j::Driver::Exceptions::ClientException) do |e|
@@ -839,7 +871,7 @@ RSpec.describe 'Session' do
     session&.close
   end
 
-  it 'errors using explicit transaction when database is absent', version: '>=4' do
+  it 'errors using explicit transaction when database is absent', version: '>=4', memgraph: false do
     session = driver.session(database: 'foo')
     expect do
       tx = session.begin_transaction
@@ -852,7 +884,7 @@ RSpec.describe 'Session' do
     session&.close
   end
 
-  it 'errors using execute_read when database is absent', version: '>=4' do
+  it 'errors using execute_read when database is absent', version: '>=4', memgraph: false do
     session = driver.session(database: 'foo')
     expect { session.execute_read { |tx| tx.run('RETURN 1').consume } }
       .to raise_error(Neo4j::Driver::Exceptions::ClientException) do |e|

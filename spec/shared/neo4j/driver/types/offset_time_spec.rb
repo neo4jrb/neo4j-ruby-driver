@@ -51,7 +51,8 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
     end
   end
 
-  describe 'cypher functions' do
+  # Memgraph has no time()/OffsetTime (zoned time) type or function.
+  describe 'cypher functions', memgraph: false do
     subject do
       driver.session do |session|
         session.execute_write { |tx| tx.run("RETURN #{function}").single.first }
@@ -75,7 +76,8 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
     end
   end
 
-  describe 'offset_time roundtrip ruby check' do
+  # Memgraph has no time()/OffsetTime (zoned time) type or function.
+  describe 'offset_time roundtrip ruby check', memgraph: false do
     subject do
       driver.session do |session|
         session.execute_write do |tx|
@@ -92,7 +94,8 @@ RSpec.describe Neo4j::Driver::Types::OffsetTime do
     end
   end
 
-  describe 'offset_time roundtrip neo4j check' do
+  # Memgraph has no time()/OffsetTime (zoned time) type or function.
+  describe 'offset_time roundtrip neo4j check', memgraph: false do
     subject do
       driver.session do |session|
         session.execute_write do |tx|

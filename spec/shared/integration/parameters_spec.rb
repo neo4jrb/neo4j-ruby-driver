@@ -39,7 +39,8 @@ RSpec.describe 'Parameters' do
       test_property 6.28
     end
 
-    it 'is able to set and return ByteArray property' do
+    # Memgraph does not support byte-array (binary) parameters.
+    it 'is able to set and return ByteArray property', memgraph: false do
       proc = ->(v) { v.is_a?(String) && v.encoding == Encoding::BINARY }
       bytes = ->(size) { Random.new.bytes(size, &proc) }
       test_property bytes.call(0)
@@ -168,7 +169,8 @@ RSpec.describe 'Parameters' do
       it { is_expected.to eq value }
     end
 
-    context 'sends and receives long array of bytes' do
+    # Memgraph does not support byte-array (binary) parameters.
+    context 'sends and receives long array of bytes', memgraph: false do
       let(:value) { Random.new.bytes(LONG_VALUE_SIZE) }
 
       it { is_expected.to eq value }

@@ -104,6 +104,80 @@ jobs:
       - name: Run RSpec
         run: bundle exec rspec --format progress
 
+  # Memgraph compatibility: the SAME shared suite, run against Memgraph instead
+  # of Neo4j. Neo4j-only specs are tagged `memgraph: false` and skipped via
+  # TEST_MEMGRAPH (see spec_helper); everything else runs unchanged. Runs on both
+  # flavors — latest CRuby (pure-Ruby Bolt) and latest JRuby (Java driver, which
+  # Memgraph officially supports). See docs/memgraph.md.
+  rspec-memgraph:
+    name: rspec (memgraph / ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }})
+    runs-on: ubuntu-latest
+    # Only the CRuby leg gates. Both JRuby legs (Java-driver flavor, and the
+    # MRI-flavor-on-JVM cross-flavor row) are non-blocking, matching the repo-wide
+    # JRuby policy. The mri-flavor-on-JVM row isolates whether a JRuby-only red is
+    # the Java driver's behavior (MRI-on-JVM passes) or a JVM/Linux environment
+    # effect (MRI-on-JVM fails too) — the same three-cell layout as the Neo4j job.
+    continue-on-error: ${{ startsWith(matrix.ruby, 'jruby') }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - "4.0" # latest CRuby — MRI pure-Ruby Bolt flavor
+          - "jruby-10.1.0.0" # latest JRuby — Java-driver flavor
+        force_mri: [false]
+        include:
+          # MRI flavor on JRuby — same env/platform as the Java-driver row but the
+          # pure-Ruby impl, via NEO4J_DRIVER_FORCE_MRI=1 (the Gemfile's flip).
+          - ruby: "jruby-10.1.0.0"
+            force_mri: true
+
+    services:
+      memgraph:
+        image: memgraph/memgraph:3.12.0 # pinned to the validated version
+        ports:
+          - 7687:7687
+        # MEMGRAPH_USER/PASSWORD create the user at startup, which turns auth on
+        # (Memgraph has no auth flag — the first user is the switch). The suite
+        # then authenticates with basic neo4j/password (the driver_helper default),
+        # exercising the auth path the same way as against Neo4j. Memgraph has no
+        # built-in Docker healthcheck; the query-ready step below waits.
+        env:
+          MEMGRAPH_USER: neo4j
+          MEMGRAPH_PASSWORD: password
+
+    env:
+      TEST_NEO4J_URL: bolt://localhost:7687
+      TEST_MEMGRAPH: "1" # activates the `memgraph: false` exclusion
+      TEST_NEO4J_DATABASE: memgraph # Memgraph's default database (no `neo4j` db)
+      # Memgraph advertises Neo4j/v5.11.0 compatibility; feeds version-gated specs.
+      NEO4J_VERSION: 5.11.0
+      # '1' on the mri-flavor-on-JVM row; empty otherwise. The Gemfile pins to the
+      # MRI gemspec when set (same as the rspec job's cross-flavor row).
+      NEO4J_DRIVER_FORCE_MRI: ${{ matrix.force_mri && '1' || '' }}
+      BUNDLE_JOBS: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # no authenticated git ops here; don't leak the token to bundle
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - name: Wait for Memgraph (query-ready)
+        # A listening TCP port doesn't mean Memgraph accepts queries yet (and the
+        # startup user may not exist yet); retry a real authenticated query until
+        # it responds.
+        run: |
+          for i in $(seq 1 30); do
+            bundle exec ruby -e "require 'neo4j/driver'; Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687', Neo4j::Driver::AuthTokens.basic('neo4j', 'password')) { |d| d.session { |s| s.run('RETURN 1').consume } }" >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "::error::Memgraph never became query-ready"; exit 1
+      - name: Run RSpec (Memgraph)
+        run: bundle exec rspec --format progress
+
   # Stable, version-free gate for branch protection. Requiring the matrix
   # legs directly would embed the Ruby/Neo4j versions in the required-check
   # names, so bumping the matrix would silently strip the requirement. This
@@ -118,4 +192,19 @@ jobs:
         if: ${{ needs.rspec.result != 'success' }}
         run: |
           echo "rspec matrix result: ${{ needs.rspec.result }}"
+          exit 1
+
+  # Version-free gate for the Memgraph leg. Not yet added to the branch-protection
+  # ruleset (Memgraph is community-verified, not gating) — promote by requiring
+  # `memgraph-success` once it has been stable for a while.
+  memgraph-success:
+    name: memgraph-success
+    needs: [rspec-memgraph]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the Memgraph suite to pass
+        if: ${{ needs.rspec-memgraph.result != 'success' }}
+        run: |
+          echo "rspec-memgraph result: ${{ needs.rspec-memgraph.result }}"
           exit 1

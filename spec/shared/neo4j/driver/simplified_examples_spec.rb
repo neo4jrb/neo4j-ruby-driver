@@ -34,7 +34,9 @@ RSpec.describe Neo4j::Driver do
     expect(result.first).to eq 'John'
   end
 
-  it 'raises type mismatch error execute_read' do
+  # Memgraph raises ClientException but with a different message
+  # ("Redeclaring variable" instead of "Type mismatch:").
+  it 'raises type mismatch error execute_read', memgraph: false do
     driver.session do |session|
       expect do
         session.execute_read do |tx|
@@ -44,7 +46,9 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'raises type mismatch error in explicit transaction on close' do
+  # Memgraph raises ClientException but with a different message
+  # ("Redeclaring variable" instead of "Type mismatch:").
+  it 'raises type mismatch error in explicit transaction on close', memgraph: false do
     driver.session do |session|
       tx = session.begin_transaction
       expect { tx.run('MATCH (r) MATCH ()-[r]-() RETURN r') }
@@ -54,7 +58,9 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  it 'raise exception on delete without detach' do
+  # Memgraph raises ClientException but with a different message
+  # ("Failed to remove node..." instead of "Cannot delete").
+  it 'raise exception on delete without detach', memgraph: false do
     driver.session do |session|
       session.execute_write do |tx|
         tx.run('CREATE (:Label)-[:REL]->()')

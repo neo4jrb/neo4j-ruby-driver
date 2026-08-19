@@ -25,7 +25,9 @@ RSpec.describe 'DirectDriverSpec' do
     end
   end
 
-  it 'does not verify connectivity with bad auth token' do
+  # With auth enabled, Memgraph rejects AuthTokens.none with a ClientException (as
+  # the Java driver does), not the SecurityException this expects.
+  it 'does not verify connectivity with bad auth token', memgraph: false do
     Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.none) do |driver|
       expect { driver.verify_connectivity }.to raise_error Neo4j::Driver::Exceptions::SecurityException
     end

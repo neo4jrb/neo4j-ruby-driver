@@ -300,7 +300,9 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  context '5. Notification config', version: '>=5' do
+  # Memgraph: shortestPath is not a Cypher parser keyword, so the subject query
+  # fails to parse (also notification-config severity/category differences).
+  context '5. Notification config', version: '>=5', memgraph: false do
     subject do
       driver.session do |session|
         result = session.run(

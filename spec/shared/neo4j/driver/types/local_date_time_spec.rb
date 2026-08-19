@@ -69,10 +69,18 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
     end
 
     let(:function) { %{localdatetime("#{localdatetime}")} }
+    let(:result) { described_class.parse(localdatetime) }
 
-    context 'when LocalDateTime' do
+    # Memgraph rejects single-digit month/day; kept for Neo4j's lenient parsing.
+    context 'when LocalDateTime (single-digit month/day)', memgraph: false do
       let(:localdatetime) { '2018-1-1T12:34:00' }
-      let(:result) { described_class.parse(localdatetime) }
+
+      it { is_expected.to eq result }
+    end
+
+    # Parallel zero-padded value that both Neo4j and Memgraph accept.
+    context 'when LocalDateTime (zero-padded)' do
+      let(:localdatetime) { '2018-01-01T12:34:00' }
 
       it { is_expected.to eq result }
     end
@@ -88,8 +96,16 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
       end
     end
 
-    context 'when LocalDateTime' do
+    # Memgraph rejects single-digit month/day; kept for Neo4j's lenient parsing.
+    context 'when LocalDateTime (single-digit month/day)', memgraph: false do
       let(:param) { '2018-1-1T12:34:00' }
+
+      it { is_expected.to be true }
+    end
+
+    # Parallel zero-padded value that both Neo4j and Memgraph accept.
+    context 'when LocalDateTime (zero-padded)' do
+      let(:param) { '2018-01-01T12:34:00' }
 
       it { is_expected.to be true }
     end
@@ -105,8 +121,16 @@ RSpec.describe Neo4j::Driver::Types::LocalDateTime do
       end
     end
 
-    context 'when LocalDateTime' do
+    # Memgraph rejects single-digit month/day; kept for Neo4j's lenient parsing.
+    context 'when LocalDateTime (single-digit month/day)', memgraph: false do
       let(:param) { '2018-1-1T12:34:00' }
+
+      it { is_expected.to be true }
+    end
+
+    # Parallel zero-padded value that both Neo4j and Memgraph accept.
+    context 'when LocalDateTime (zero-padded)' do
+      let(:param) { '2018-01-01T12:34:00' }
 
       it { is_expected.to be true }
     end

@@ -52,6 +52,17 @@ RSpec.configure do |config|
   import_dir = ENV.fetch('TEST_NEO4J_IMPORT_DIR', nil)
   usable_import_dir = import_dir && !import_dir.empty? && Dir.exist?(import_dir) && File.writable?(import_dir)
   config.filter_run_excluding csv: true unless usable_import_dir
+  # When targeting Memgraph, skip specs marked `memgraph: false` — Neo4j-only
+  # features (routing, bookmarks, multi-database admin, APOC, auth management,
+  # byte params, month-durations, server-version assertions). The rest of the
+  # shared suite runs unchanged. See docs/memgraph.md.
+  config.filter_run_excluding memgraph: false if memgraph?
+  # A few specs pass on the MRI flavor against Memgraph (on both CRuby and the
+  # JVM) but fail on the JRuby/Java-driver flavor — the Java driver's own behavior
+  # against Memgraph, not an MRI gap or a platform effect (proven by the
+  # mri-flavor-on-JVM CI row passing). `Loader.jruby?` is true only for that
+  # flavor (false under NEO4J_DRIVER_FORCE_MRI), so this skips exactly that cell.
+  config.filter_run_excluding memgraph_jruby: false if memgraph? && Neo4j::Driver::Loader.jruby?
   config.exclude_pattern = "#{Neo4j::Driver::Loader.jruby? ? 'mri' : 'jruby'}/**/*_spec.rb"
   Neo4j::Driver::Internal::Deprecator.deprecator.behavior = :silence
 end

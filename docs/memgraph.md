@@ -7,11 +7,10 @@ connection **with no code changes** — the gaps below are Memgraph feature/dial
 differences, not driver bugs, and the driver degrades gracefully on all of them.
 
 > Status: **community-verified, not officially supported.** Measured against
-> **Memgraph v3.12.0** with the MRI (pure-Ruby Bolt) flavor. Memgraph advertises
-> itself as *"Neo4j/v5.11.0 compatible"* and this driver negotiates **Bolt 5.x**
-> with it. The JRuby flavor wraps the Neo4j Java driver, which Memgraph
-> officially supports, so it is expected to behave the same (confirm before
-> relying on it).
+> **Memgraph v3.12.0** on **both flavors** — MRI (pure-Ruby Bolt) and JRuby
+> (Neo4j Java driver, which Memgraph officially supports). The same tagged suite
+> passes identically on each. Memgraph advertises itself as *"Neo4j/v5.11.0
+> compatible"* and this driver negotiates **Bolt 5.x** with it.
 
 ## Connecting
 
@@ -34,6 +33,12 @@ end
 Do **not** pass `database: 'neo4j'` — Memgraph's default database is named
 `memgraph`. Omit the database entirely, or pass `database: 'memgraph'`.
 
+Memgraph's auth model has no explicit on/off switch: a fresh instance has **no
+users and open access**, and creating the **first** user (`CREATE USER … IDENTIFIED
+BY …`) flips the whole instance to **mandatory authentication for everyone**. Once
+any user exists, use `AuthTokens.basic(user, pass)` — `AuthTokens.none` is then
+rejected.
+
 ## What works out of the box (`bolt://`)
 
 | Capability | Status |
@@ -42,9 +47,9 @@ Do **not** pass `database: 'neo4j'` — Memgraph's default database is named
 | Bolt version negotiation | ✓ (Bolt 5.x) |
 | Scalars, parameters (Integer/String/Float/List/Map), `UNWIND` | ✓ |
 | Nodes, relationships, paths, labels | ✓ |
-| Temporal read **and** parameter round-trip — `Date`, `LocalDateTime`, zoned `DateTime`, `Duration` | ✓ |
+| Temporal read **and** parameter round-trip — `Date`, `LocalDateTime`, zoned `DateTime`, `Duration` | ✓ (µs precision — see gaps) |
 | `Types::Point` (2D) read and round-trip | ✓ |
-| `Types::Duration` parameter round-trip | ✓ (value-exact) |
+| `Types::Duration` parameter round-trip | ✓ (value-exact to µs) |
 | Explicit transactions (`begin_transaction`) | ✓ |
 | Managed transactions (`execute_read` / `execute_write`, with retry) | ✓ |
 | `CALL dbms.components()` | ✓ (Memgraph implements it) |
@@ -58,75 +63,100 @@ Do **not** pass `database: 'neo4j'` — Memgraph's default database is named
 | **Bookmarks** | `session.last_bookmarks` returns an empty set after commit | Memgraph has no causal-consistency bookmarks. The driver returns an empty set (not an error) — safe to ignore. |
 | **Byte-array parameters** | Memgraph errors when a `String` with `BINARY` (`.b`) encoding is sent as a parameter | Memgraph has no blob type on the Bolt wire. Avoid byte parameters. |
 | **`duration()` with months** | `duration('P1M…')` → *Invalid duration string* | Cypher-dialect difference: Memgraph durations are day/time only (no month component). Month-less strings and the Bolt `Duration` struct (`months = 0`) work fine. |
+| **Temporal precision** | A `Time`/`DateTime`/`Duration` carrying **sub-microsecond nanoseconds** comes back with the last three digits zeroed (e.g. `…123456789` → `…123456000`) | Memgraph stores temporal values at **microsecond** resolution; Neo4j keeps full **nanosecond** resolution. Values round-trip exactly at µs precision; only the sub-µs remainder is lost. Memgraph's parser also rejects nanosecond-precision string literals (`localtime('12:00:00.123456789')` → *Extra characters…*). |
+| **`datetime({epochMillis: …})`** | Memgraph's `datetime()` has no `epochMillis` / `epochSeconds` / `nanosecond` construction keys | Construct from an ISO string or the Bolt temporal struct instead. |
+| **Single-digit date components** | `localdatetime('2018-1-1T…')` → parse error | Memgraph requires zero-padded `YYYY-MM-DD`; Neo4j is lenient. Zero-pad and it works on both. |
 
-These are all detected cleanly — a clear exception, or a benign empty result —
-so application code fails fast rather than silently misbehaving.
+These are all detected cleanly — a clear exception, a benign empty result, or a
+documented precision truncation — so application code fails fast (or degrades
+predictably) rather than silently misbehaving.
 
-## Continuous integration (sketch)
+## How it's tested
 
-Because the full `spec/shared/integration/` suite includes Neo4j-specific
-behaviour (routing, bookmarks, multi-database, byte parameters), a Memgraph lane
-should run a **curated compatibility subset**, not the whole suite. Two moving
-parts:
+Memgraph is treated as **another target of the existing shared suite** — the same
+way that suite already runs against the MRI and JRuby flavors — rather than a
+parallel set of Memgraph-specific specs. The whole `spec/shared/**` suite runs
+against Memgraph unchanged; the handful of examples that assert Neo4j-only
+behaviour are tagged and skipped.
 
-**1. A dedicated compatibility spec** — `spec/memgraph/compatibility_spec.rb` —
-covering the "works out of the box" matrix and asserting the gaps behave as
-documented (e.g. `neo4j://` raises `ServiceUnavailableException`, bookmarks are
-empty). It connects with Memgraph-appropriate config (`bolt://`,
-`AuthTokens.none`, no hardcoded database) rather than reusing the Neo4j
-`spec_helper` defaults.
+**The `memgraph: false` tag.** Examples exercising a documented gap carry
+`memgraph: false` metadata with a one-line reason, e.g.:
 
-**2. A workflow** — `.github/workflows/memgraph.yml` — non-gating at first
-(informational, like other incubating lanes), promoted to required once green:
-
-```yaml
-name: Memgraph compatibility
-
-on:
-  push:
-    branches: [main]
-    paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
-  pull_request:
-    paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
-
-jobs:
-  memgraph:
-    name: memgraph-compat
-    runs-on: ubuntu-latest
-    services:
-      memgraph:
-        image: memgraph/memgraph:latest        # pin a version once stabilised
-        ports:
-          - 7687:7687
-        # Memgraph has no built-in Docker healthcheck; the step below waits.
-
-    env:
-      TEST_MEMGRAPH_URL: bolt://localhost:7687
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.4'                   # MRI flavor (pure-Ruby Bolt)
-          bundler-cache: true
-      - name: Wait for Bolt
-        run: |
-          for i in $(seq 1 30); do
-            (echo > /dev/tcp/localhost/7687) >/dev/null 2>&1 && exit 0
-            sleep 2
-          done
-          echo "::error::Memgraph bolt port never opened"; exit 1
-      - name: Run Memgraph compatibility spec
-        run: bundle exec rspec spec/memgraph
+```ruby
+context 'when bytes', memgraph: false do # Memgraph has no Bolt byte-array type
 ```
+
+`spec/spec_helper.rb` excludes them only when the suite targets Memgraph
+(`config.filter_run_excluding memgraph: false if memgraph?`), mirroring the
+existing `auth: :none` / `csv:` conditional excludes. Against Neo4j the tag is
+inert — every example still runs. Currently **~477 of ~578** shared examples run
+against Memgraph — **identically on both flavors** (MRI and JRuby); the ~100
+tagged ones cover the gaps in the table above (routing, bookmarks, multi-database,
+byte params, duration/temporal precision, summary/plan/profile shape, auth) plus
+error-*text* differences: Memgraph's error **class** matches Neo4j's (see below),
+but its message/code strings differ, so assertions like `raise_error(…, "/ by
+zero")` don't hold. Where a gap is a format artifact rather than a hard limitation
+(single-digit dates, sub-µs precision), the tagged example keeps a parallel that
+*does* run on Memgraph, so coverage isn't simply dropped.
+
+**Error-class parity.** Memgraph sends its own status codes (e.g.
+`Memgraph.ClientError.MemgraphError`). The MRI driver classifies an error by its
+**classification segment** — the second dotted part — matching the Java driver's
+`ErrorUtil`, rather than requiring a literal `Neo.` prefix. So both flavors raise
+the same `ClientException` / `TransientException` / `DatabaseException` for a given
+Memgraph error, and the tagged set is identical on MRI and JRuby.
+
+**Connecting the suite to Memgraph** is env-driven (`spec/shared/support/driver_helper.rb`):
+
+| Env var | Value | Why |
+|---|---|---|
+| `TEST_MEMGRAPH` | `1` | Activates the `memgraph: false` exclusion |
+| `TEST_NEO4J_DATABASE` | `memgraph` | Memgraph's default database (there is no `neo4j` db) |
+| `NEO4J_VERSION` | `5.11.0` | Memgraph's advertised Neo4j-compat level; feeds version-gated specs |
+
+The suite runs **with authentication on** (basic `neo4j`/`password`, the
+`driver_helper` default) so the auth path is exercised the same way as against
+Neo4j. Memgraph enables auth as soon as a user exists, and the `MEMGRAPH_USER` /
+`MEMGRAPH_PASSWORD` env vars create that user at startup — so the container comes
+up with auth already on:
+
+```bash
+docker run -d -p 7687:7687 \
+  -e MEMGRAPH_USER=neo4j -e MEMGRAPH_PASSWORD=password memgraph/memgraph:3.12.0
+TEST_MEMGRAPH=1 TEST_NEO4J_DATABASE=memgraph NEO4J_VERSION=5.11.0 bundle exec rspec
+```
+
+## Continuous integration
+
+The Memgraph leg is a job in `.github/workflows/specs.yml` — the *same* workflow
+and the *same* `bundle exec rspec` invocation as the Neo4j matrix, just pointed at
+a Memgraph service container with the env vars above:
+
+- **`rspec-memgraph`** starts a pinned `memgraph/memgraph:3.12.0` service
+  container (with `MEMGRAPH_USER`/`MEMGRAPH_PASSWORD` set, so it comes up with auth
+  on), waits until Memgraph is query-ready, and runs `bundle exec rspec` with
+  `TEST_MEMGRAPH=1` (+ `memgraph` database, basic auth). No separate spec file, no
+  separate workflow — it reuses the entire shared suite. It runs as a **three-cell
+  matrix**: MRI on CRuby (gating), MRI on the JVM (`NEO4J_DRIVER_FORCE_MRI=1`), and
+  the JRuby/Java-driver flavor — the same layout as the Neo4j job. The MRI-on-JVM
+  cell shares the Java-driver row's platform, so it isolates flavor from
+  environment (see the note below).
+- **`memgraph-success`** is a version-free aggregator gate (mirroring
+  `rspec-success`) so the branch-protection ruleset can require a stable name that
+  doesn't embed the Memgraph image version.
 
 Notes:
 
-- **MRI flavor only** to start — it's the pure-Ruby Bolt implementation, so it's
-  the direct test of wire compatibility. Add a JRuby leg later to cover the
-  Java-driver path.
-- **Version-stable gate.** If this becomes a required check, add a
-  `memgraph-success` aggregator job (see `specs.yml`) so the ruleset requires a
-  name that doesn't embed the Memgraph version.
-- **Pin the image** (`memgraph/memgraph:<version>`) once the baseline is
-  established, so a Memgraph release can't silently change the result.
+- **Two tests are Java-driver-flavor-specific.** The Java driver's connection
+  **re-auth** (`verify_authentication`) and its handling of a **cancelled failing
+  stream** fail *only* on the JRuby/Java-driver flavor against Memgraph on Linux
+  CI. The three-cell matrix isolates the cause: **MRI passes on both CRuby and the
+  JVM** (`force_mri`) — same platform as the Java-driver row — so this is the Java
+  driver's own behavior, **not** a JVM/Linux environment effect and **not** an MRI
+  gap. We don't override the Java driver, so those two carry `memgraph_jruby: false`
+  — excluded only on that flavor (`memgraph? && Loader.jruby?`), leaving the other
+  three cells (MRI-CRuby, MRI-on-JVM, and all Neo4j) running them.
+- **Non-gating until promoted.** `memgraph-success` is not yet in the ruleset;
+  require it once the lane has been stable for a while.
+- **Image is pinned** to `memgraph/memgraph:3.12.0` so a Memgraph release can't
+  silently change the result; bump it deliberately after re-validating.

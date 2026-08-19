@@ -21,6 +21,10 @@ module DriverHelper
       Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password)
     end
 
+    # True when the suite is being run against Memgraph rather than Neo4j.
+    # Drives the `memgraph: false` exclusion for Neo4j-only specs.
+    def memgraph? = ENV.key?('TEST_MEMGRAPH')
+
     def neo4j_user = ENV.fetch('TEST_NEO4J_USER', 'neo4j')
 
     def neo4j_password = ENV.fetch('TEST_NEO4J_PASS', 'password')

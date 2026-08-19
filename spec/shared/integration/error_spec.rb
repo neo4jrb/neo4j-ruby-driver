@@ -5,7 +5,9 @@ RSpec.describe 'Error' do
   let(:session) { driver.session }
   after(:example) { session.close }
 
-  it 'throws helpful syntax error' do
+  # Memgraph's error code isn't Neo4j's `…SyntaxError` and its message isn't
+  # "Invalid input …", so these code/message assertions don't hold.
+  it 'throws helpful syntax error', memgraph: false do
     expect { session.run('invalid query').consume }
       .to raise_error(Neo4j::Driver::Exceptions::ClientException) do |e|
         expect(e.code).to match(/SyntaxError/)
@@ -41,7 +43,9 @@ RSpec.describe 'Error' do
     end
   end
 
-  it 'gets helpful error when trying to connect to http port' do
+  # Memgraph has no HTTP server on 7474, so connecting there is refused
+  # (ServiceUnavailableException) rather than the Neo4j "Server responded HTTP." ClientException.
+  it 'gets helpful error when trying to connect to http port', memgraph: false do
     Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7474', basic_auth_token, encryption: false) do |d|
       expect { d.verify_connectivity }
         .to raise_error(Neo4j::Driver::Exceptions::ClientException) do |e|
@@ -56,7 +60,8 @@ RSpec.describe 'Error' do
   # label to avoid cross-test clashes; here a fixed test-specific label
   # is unambiguous within the suite and lets us pre-drop any leftover for
   # re-runnability without a finally (Java has none).
-  it 'handles failure at run time' do
+  # Memgraph's Cypher dialect lacks `SHOW CONSTRAINTS ... YIELD` (parse error).
+  it 'handles failure at run time', memgraph: false do
     label = 'ErrorItRunTimeFailure'
     create = "CREATE CONSTRAINT FOR (a:`#{label}`) REQUIRE a.name IS UNIQUE"
     leftover = session.run('SHOW CONSTRAINTS YIELD name, labelsOrTypes WHERE $l IN labelsOrTypes RETURN name',
