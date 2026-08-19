@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-# Memgraph does not raise an AuthenticationException here (verify_connectivity
-# succeeds), so this Neo4j-specific auth behavior does not apply.
+# With auth enabled, Memgraph rejects wrong credentials with a ClientException (as
+# the Java driver does), not Neo4j's AuthenticationException.
 RSpec.describe Neo4j::Driver::Exceptions::AuthenticationException, memgraph: false do
   it 'wrong credentials' do
     Neo4j::Driver::GraphDatabase

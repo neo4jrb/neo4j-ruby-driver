@@ -134,7 +134,6 @@ jobs:
     env:
       TEST_NEO4J_URL: bolt://localhost:7687
       TEST_MEMGRAPH: "1" # activates the `memgraph: false` exclusion
-      TEST_NEO4J_AUTH: none # Memgraph runs with auth disabled by default
       TEST_NEO4J_DATABASE: memgraph # Memgraph's default database (no `neo4j` db)
       # Memgraph advertises Neo4j/v5.11.0 compatibility; feeds version-gated specs.
       NEO4J_VERSION: 5.11.0
@@ -153,6 +152,15 @@ jobs:
             sleep 2
           done
           echo "::error::Memgraph bolt port never opened"; exit 1
+      - name: Enable Memgraph auth (create the neo4j user)
+        # Memgraph starts with auth open; creating a user turns it on. We connect
+        # once with AuthTokens.none (allowed while no users exist), then the suite
+        # authenticates with basic neo4j/password (the driver_helper default), so
+        # the auth path is exercised the same way as against Neo4j.
+        run: >-
+          bundle exec ruby -e "require 'neo4j/driver';
+          Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687', Neo4j::Driver::AuthTokens.none) { |d|
+          d.session { |s| s.run(%q(CREATE USER neo4j IDENTIFIED BY 'password')).consume } }"
       - name: Run RSpec (Memgraph)
         run: bundle exec rspec --format progress
 

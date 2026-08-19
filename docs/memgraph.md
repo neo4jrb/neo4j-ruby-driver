@@ -33,6 +33,12 @@ end
 Do **not** pass `database: 'neo4j'` — Memgraph's default database is named
 `memgraph`. Omit the database entirely, or pass `database: 'memgraph'`.
 
+Memgraph's auth model has no explicit on/off switch: a fresh instance has **no
+users and open access**, and creating the **first** user (`CREATE USER … IDENTIFIED
+BY …`) flips the whole instance to **mandatory authentication for everyone**. Once
+any user exists, use `AuthTokens.basic(user, pass)` — `AuthTokens.none` is then
+rejected.
+
 ## What works out of the box (`bolt://`)
 
 | Capability | Status |
@@ -105,16 +111,22 @@ Memgraph error, and the tagged set is identical on MRI and JRuby.
 | Env var | Value | Why |
 |---|---|---|
 | `TEST_MEMGRAPH` | `1` | Activates the `memgraph: false` exclusion |
-| `TEST_NEO4J_AUTH` | `none` | Memgraph runs with auth disabled → `AuthTokens.none` |
 | `TEST_NEO4J_DATABASE` | `memgraph` | Memgraph's default database (there is no `neo4j` db) |
 | `NEO4J_VERSION` | `5.11.0` | Memgraph's advertised Neo4j-compat level; feeds version-gated specs |
 
-Run it locally against a Memgraph container:
+The suite runs **with authentication on** (basic `neo4j`/`password`, the
+`driver_helper` default) so the auth path is exercised the same way as against
+Neo4j. Since Memgraph enables auth only once a user exists, a one-shot bootstrap
+creates that user before the suite runs — connecting with `AuthTokens.none` while
+the instance is still open:
 
 ```bash
 docker run -d -p 7687:7687 memgraph/memgraph
-TEST_MEMGRAPH=1 TEST_NEO4J_AUTH=none TEST_NEO4J_DATABASE=memgraph \
-  NEO4J_VERSION=5.11.0 bundle exec rspec
+# Create the user (turns auth on for the whole instance):
+bundle exec ruby -e "require 'neo4j/driver'; \
+  Neo4j::Driver::GraphDatabase.driver('bolt://localhost:7687', Neo4j::Driver::AuthTokens.none) { |d| \
+    d.session { |s| s.run(%q(CREATE USER neo4j IDENTIFIED BY 'password')).consume } }"
+TEST_MEMGRAPH=1 TEST_NEO4J_DATABASE=memgraph NEO4J_VERSION=5.11.0 bundle exec rspec
 ```
 
 ## Continuous integration
@@ -124,8 +136,9 @@ and the *same* `bundle exec rspec` invocation as the Neo4j matrix, just pointed 
 a Memgraph service container with the env vars above:
 
 - **`rspec-memgraph`** starts a `memgraph/memgraph` service container, waits for
-  the Bolt port, and runs `bundle exec rspec` with `TEST_MEMGRAPH=1` (+ auth-none,
-  `memgraph` database). No separate spec file, no separate workflow — it reuses the
+  the Bolt port, creates the `neo4j` user (enabling auth), and runs `bundle exec
+  rspec` with `TEST_MEMGRAPH=1` (+ `memgraph` database, basic auth). No separate
+  spec file, no separate workflow — it reuses the
   entire shared suite. It runs as a **matrix over both flavors**: latest CRuby
   (MRI pure-Ruby Bolt) and latest JRuby (Java driver).
 - **`memgraph-success`** is a version-free aggregator gate (mirroring

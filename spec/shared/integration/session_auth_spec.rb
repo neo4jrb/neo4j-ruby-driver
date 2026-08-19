@@ -13,7 +13,8 @@ RSpec.describe 'Per-session auth', version: '>=5.1' do
     end
   end
 
-  # Memgraph auth is disabled by default, so a wrong token still connects and no AuthenticationException is raised.
+  # Memgraph rejects a wrong token with a ClientException (as the Java driver does),
+  # not the AuthenticationException this expects.
   it 'rejects a wrong token with AuthenticationException at first use', memgraph: false do
     bad = Neo4j::Driver::AuthTokens.basic(neo4j_user, 'definitely-not-the-password')
     expect do
@@ -21,7 +22,8 @@ RSpec.describe 'Per-session auth', version: '>=5.1' do
     end.to raise_error(Neo4j::Driver::Exceptions::AuthenticationException)
   end
 
-  # Memgraph auth is disabled by default, so the wrong-token session doesn't raise, and the expectation fails.
+  # Memgraph rejects the wrong-token session with a ClientException (as the Java
+  # driver does), not the AuthenticationException this expects.
   it "doesn't poison the pool — subsequent default sessions still work", memgraph: false do
     bad = Neo4j::Driver::AuthTokens.basic(neo4j_user, 'definitely-not-the-password')
     expect do

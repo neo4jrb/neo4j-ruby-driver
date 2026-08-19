@@ -17,12 +17,6 @@ module DriverHelper
 
     def port = ENV.fetch('TEST_NEO4J_PORT', 7687)
 
-    # Memgraph runs with auth disabled by default; TEST_NEO4J_AUTH=none selects
-    # AuthTokens.none so the shared suite can target it unchanged.
-    def auth_token
-      ENV['TEST_NEO4J_AUTH'] == 'none' ? Neo4j::Driver::AuthTokens.none : basic_auth_token
-    end
-
     def basic_auth_token
       Neo4j::Driver::AuthTokens.basic(neo4j_user, neo4j_password)
     end
@@ -39,7 +33,7 @@ module DriverHelper
 
     def driver
       self.single_driver ||= Neo4j::Driver::GraphDatabase.driver(
-        uri, auth_token,
+        uri, basic_auth_token,
         max_transaction_retry_time: 2,
         connection_timeout: 3
         # logger: ActiveSupport::Logger.new(IO::NULL, level: ::Logger::DEBUG)
