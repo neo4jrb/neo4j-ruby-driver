@@ -83,14 +83,22 @@ context 'when bytes', memgraph: false do # Memgraph has no Bolt byte-array type
 `spec/spec_helper.rb` excludes them only when the suite targets Memgraph
 (`config.filter_run_excluding memgraph: false if memgraph?`), mirroring the
 existing `auth: :none` / `csv:` conditional excludes. Against Neo4j the tag is
-inert — every example still runs. Currently **~468 of ~578** shared examples run
-against Memgraph — identically on **both flavors** (MRI and JRuby); the ~110
-tagged ones cover the gaps in the table above (error mapping to base
-`Neo4jException`, routing, bookmarks, multi-database, byte params,
-duration/temporal precision, summary/plan/profile shape, auth). Where a gap is a
-format artifact rather than a hard limitation (single-digit dates, sub-µs
-precision), the tagged example keeps a parallel that *does* run on Memgraph, so
-coverage isn't simply dropped.
+inert — every example still runs. Currently **~478 of ~578** shared examples run
+against Memgraph — **identically on both flavors** (MRI and JRuby); the ~100
+tagged ones cover the gaps in the table above (routing, bookmarks, multi-database,
+byte params, duration/temporal precision, summary/plan/profile shape, auth) plus
+error-*text* differences: Memgraph's error **class** matches Neo4j's (see below),
+but its message/code strings differ, so assertions like `raise_error(…, "/ by
+zero")` don't hold. Where a gap is a format artifact rather than a hard limitation
+(single-digit dates, sub-µs precision), the tagged example keeps a parallel that
+*does* run on Memgraph, so coverage isn't simply dropped.
+
+**Error-class parity.** Memgraph sends its own status codes (e.g.
+`Memgraph.ClientError.MemgraphError`). The MRI driver classifies an error by its
+**classification segment** — the second dotted part — matching the Java driver's
+`ErrorUtil`, rather than requiring a literal `Neo.` prefix. So both flavors raise
+the same `ClientException` / `TransientException` / `DatabaseException` for a given
+Memgraph error, and the tagged set is identical on MRI and JRuby.
 
 **Connecting the suite to Memgraph** is env-driven (`spec/shared/support/driver_helper.rb`):
 

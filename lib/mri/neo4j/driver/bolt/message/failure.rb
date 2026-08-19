@@ -15,17 +15,26 @@ module Neo4j
         # exposes the same fields regardless of the server's protocol version —
         # matching the Java driver's GqlStatusException behaviour.
         class Failure
-          # Code-prefix → driver exception class. Order matters: more specific
-          # patterns must come first.
+          # Code → driver exception class. Order matters: more specific patterns
+          # must come first.
+          #
+          # The broad rules classify by the code's **classification segment** (the
+          # second dotted part), matching the Java driver's `ErrorUtil` rather than
+          # keying on a literal `Neo.` vendor prefix. So a Bolt-compatible server
+          # that uses its own prefix — e.g. Memgraph's
+          # `Memgraph.ClientError.MemgraphError` — still maps to `ClientException`,
+          # not the base `Neo4jException`. Neo4j codes (`Neo.ClientError.…`) match
+          # these exactly as before. The leading rules stay `Neo.`-scoped because
+          # those subtypes are Neo4j-specific status codes.
           EXCEPTION_FOR_CODE = [
             [/^Neo\.ClientError\.Security\.Unauthorized/, Exceptions::AuthenticationException],
             [/^Neo\.ClientError\.Security\.AuthorizationExpired/, Exceptions::AuthorizationExpiredException],
             [/^Neo\.ClientError\.Security\.TokenExpired/, Exceptions::TokenExpiredException],
             [/^Neo\.ClientError\.Security/, Exceptions::SecurityException],
             [/^Neo\.ClientError\.Database\.DatabaseNotFound/, Exceptions::FatalDiscoveryException],
-            [/^Neo\.ClientError/, Exceptions::ClientException],
-            [/^Neo\.TransientError/, Exceptions::TransientException],
-            [/^Neo\.DatabaseError/, Exceptions::DatabaseException]
+            [/\A[^.]+\.ClientError(?:\.|\z)/, Exceptions::ClientException],
+            [/\A[^.]+\.TransientError(?:\.|\z)/, Exceptions::TransientException],
+            [/\A[^.]+\.DatabaseError(?:\.|\z)/, Exceptions::DatabaseException]
           ].freeze
 
           # Two `TransientError` codes the server may send that are actually

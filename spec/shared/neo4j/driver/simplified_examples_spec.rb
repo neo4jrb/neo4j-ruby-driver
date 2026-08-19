@@ -34,8 +34,8 @@ RSpec.describe Neo4j::Driver do
     expect(result.first).to eq 'John'
   end
 
-  # Memgraph maps errors to base Neo4jException (no ClientException) and uses a
-  # different message ("Redeclaring variable" instead of "Type mismatch:").
+  # Memgraph raises ClientException but with a different message
+  # ("Redeclaring variable" instead of "Type mismatch:").
   it 'raises type mismatch error execute_read', memgraph: false do
     driver.session do |session|
       expect do
@@ -46,8 +46,8 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  # Memgraph maps errors to base Neo4jException (no ClientException) and uses a
-  # different message ("Redeclaring variable" instead of "Type mismatch:").
+  # Memgraph raises ClientException but with a different message
+  # ("Redeclaring variable" instead of "Type mismatch:").
   it 'raises type mismatch error in explicit transaction on close', memgraph: false do
     driver.session do |session|
       tx = session.begin_transaction
@@ -58,8 +58,8 @@ RSpec.describe Neo4j::Driver do
     end
   end
 
-  # Memgraph maps errors to base Neo4jException (no ClientException) and uses a
-  # different message ("Failed to remove node..." instead of "Cannot delete").
+  # Memgraph raises ClientException but with a different message
+  # ("Failed to remove node..." instead of "Cannot delete").
   it 'raise exception on delete without detach', memgraph: false do
     driver.session do |session|
       session.execute_write do |tx|

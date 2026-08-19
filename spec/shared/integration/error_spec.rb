@@ -5,8 +5,8 @@ RSpec.describe 'Error' do
   let(:session) { driver.session }
   after(:example) { session.close }
 
-  # Memgraph maps Cypher errors to the base Neo4jException (no Neo.* status
-  # code), so specs expecting a ClientException fail.
+  # Memgraph's error code isn't Neo4j's `…SyntaxError` and its message isn't
+  # "Invalid input …", so these code/message assertions don't hold.
   it 'throws helpful syntax error', memgraph: false do
     expect { session.run('invalid query').consume }
       .to raise_error(Neo4j::Driver::Exceptions::ClientException) do |e|
@@ -15,15 +15,13 @@ RSpec.describe 'Error' do
       end
   end
 
-  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
-  it 'allows new query after recoverable error', memgraph: false do
+  it 'allows new query after recoverable error' do
     expect { session.run('invalid').consume }
       .to raise_error(Neo4j::Driver::Exceptions::ClientException)
     expect(session.run('RETURN 1').single[0]).to eq 1
   end
 
-  # Memgraph maps Cypher errors to the base Neo4jException, not ClientException.
-  it 'allows new transaction after recoverable error', memgraph: false do
+  it 'allows new transaction after recoverable error' do
     session.begin_transaction do |tx|
       expect { tx.run('invalid').consume }
         .to raise_error(Neo4j::Driver::Exceptions::ClientException)
@@ -62,8 +60,7 @@ RSpec.describe 'Error' do
   # label to avoid cross-test clashes; here a fixed test-specific label
   # is unambiguous within the suite and lets us pre-drop any leftover for
   # re-runnability without a finally (Java has none).
-  # Memgraph's Cypher dialect lacks `SHOW CONSTRAINTS ... YIELD` (parse error)
-  # and maps errors to the base Neo4jException, not ClientException.
+  # Memgraph's Cypher dialect lacks `SHOW CONSTRAINTS ... YIELD` (parse error).
   it 'handles failure at run time', memgraph: false do
     label = 'ErrorItRunTimeFailure'
     create = "CREATE CONSTRAINT FOR (a:`#{label}`) REQUIRE a.name IS UNIQUE"
