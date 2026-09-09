@@ -1,7 +1,7 @@
 {
   "testkit": {
-    "_comment": "Fork branch ruby-uuid-result-error = upstream 6.x (840cf46) + a ruby error assertion for test_rejects_uuid_result (UUID over Bolt 6.0). Rebase onto a newer 6.x SHA / upstream once merged.",
-    "uri": "https://github.com/klobuczek/testkit.git",
-    "ref": "2b49d1437beb8620664dade47586d5b02c6aaede"
+    "_comment": "Pinned testkit revision this driver is tested against (upstream 6.x). Includes PR #725 (ruby error assertion for test_rejects_uuid_result). Bump to a newer 6.x SHA as needed.",
+    "uri": "https://github.com/neo4j-drivers/testkit.git",
+    "ref": "14ebed82fb27a0280361a7c7c29f1e9f4306da6f"
   }
 }
