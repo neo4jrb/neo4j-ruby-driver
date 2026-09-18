@@ -18,3 +18,17 @@ AllCops:
 # `a * b + c` and friends.
 Lint/AmbiguousOperatorPrecedence:
   Enabled: false
+
+# The method-reference idiom (`&Bookmark.method(:new)`, `&method(:foo)`) is a
+# documented house style (see CLAUDE.md "Ruby 3.4+ idioms"); this cop would
+# rewrite every such reference into an explicit block, so disable it.
+Performance/MethodObjectAsBlock:
+  Enabled: false
+
+# TemporalValue is a hand-written, stateless base (no initialize; just mixes in
+# Comparable and derives ==/<=>/hash from `significant_fields`). Its subclasses'
+# constructors have no parent state to initialize, so `super` would only reach
+# the no-op Object#initialize.
+Lint/MissingSuper:
+  AllowedParentClasses:
+    - TemporalValue
