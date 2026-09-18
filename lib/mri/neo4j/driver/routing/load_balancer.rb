@@ -423,7 +423,7 @@ module Neo4j
         def ensure_routing_table_is_fresh(database, access_mode, bookmarks: nil, imp_user: nil, auth: nil)
           @refresh_lock.synchronize do
             table = @routing_tables[database]
-            return table if table && table.fresh?(readonly: access_mode == :read)
+            return table if table&.fresh?(readonly: access_mode == :read)
 
             update_routing_table(database, bookmarks: bookmarks, imp_user: imp_user, auth: auth)
           end

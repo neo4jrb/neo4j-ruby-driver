@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # This file is for backwards compatibility only.
 # Applications should require 'neo4j/driver'.
 

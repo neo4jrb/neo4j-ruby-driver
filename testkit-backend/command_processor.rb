@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   class CommandProcessor
     MAX_LOG_BYTES = 512
@@ -23,7 +25,7 @@ module TestkitBackend
 
     def initialize(socket)
       @socket = socket
-      @buffer = String.new
+      @buffer = +''
       @closed = false
       @debug = ENV['TESTKIT_DEBUG'] == '1'
       # One reader thread owns the socket; everything else communicates
@@ -123,7 +125,7 @@ module TestkitBackend
       loop do
         if (request_begin = find_request_begin) && (request_end = find_request_end(request_begin))
           message = @buffer[request_begin...request_end[:start]]
-          @buffer = @buffer[(request_end[:line_end] + 1)..-1] || ''
+          @buffer = @buffer[(request_end[:line_end] + 1)..] || ''
           return message
         end
 
@@ -188,7 +190,7 @@ module TestkitBackend
       begin_index = @buffer.index(REQUEST_BEGIN)
       return nil unless begin_index
 
-      @buffer = @buffer[begin_index..-1] if begin_index.positive?
+      @buffer = @buffer[begin_index..] if begin_index.positive?
       line_end = @buffer.index("\n")
       return nil unless line_end
 

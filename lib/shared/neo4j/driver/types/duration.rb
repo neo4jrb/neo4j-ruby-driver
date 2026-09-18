@@ -60,7 +60,7 @@ module Neo4j
         # Normalize nanoseconds overflow/underflow into seconds:
         # -1ns becomes -1s + 999999999ns; 1.5e9 ns becomes 1s + 5e8 ns.
         def normalize!
-          if @nanoseconds < 0
+          if @nanoseconds.negative?
             sec_adjust = (@nanoseconds.abs / NANOS_PER_SECOND.to_f).ceil
             @seconds -= sec_adjust
             @nanoseconds += sec_adjust * NANOS_PER_SECOND

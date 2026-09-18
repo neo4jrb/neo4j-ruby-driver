@@ -158,12 +158,12 @@ module Neo4j
           count = (range_int >> 16) & 0xFF
           return false unless version.major == major
 
-          version.minor <= top_minor && version.minor >= top_minor - count
+          version.minor.between?(top_minor - count, top_minor)
         end
 
         def read_int32
           bytes = read_fully(4)
-          bytes ? bytes.unpack1('L>') : nil
+          bytes&.unpack1('L>')
         end
 
         # Read exactly n bytes, bounded by @deadline. Returns the bytes, or nil
@@ -208,7 +208,7 @@ module Neo4j
             raise IOError, 'Unexpected end of stream while reading varint' if byte.nil?
 
             value |= (byte & 0x7F) << shift
-            return value if byte & 0x80 == 0
+            return value if byte.nobits?(0x80)
 
             shift += 7
           end

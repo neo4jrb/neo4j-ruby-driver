@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   class ObjectCache < Hash
     cattr_reader :objects, default: new

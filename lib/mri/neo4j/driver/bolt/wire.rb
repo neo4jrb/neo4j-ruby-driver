@@ -220,7 +220,7 @@ module Neo4j
             indices.each_slice(2) do |rel_idx, node_idx|
               next_node = nodes[node_idx]
 
-              if rel_idx < 0
+              if rel_idx.negative?
                 unbound_rel = unbound_rels[rel_idx.abs - 1]
                 bound_rel = unbound_rel.bind(next_node.id, current_node.id,
                                              next_node.element_id, current_node.element_id)

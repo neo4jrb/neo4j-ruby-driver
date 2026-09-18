@@ -114,16 +114,16 @@ module Neo4j
         end
 
         def pack_integer(value)
-          if value >= -16 && value <= 127
+          if value.between?(-16, 127)
             # TINY_INT: -16 to +127
             @buffer << [value].pack('c')
-          elsif value >= -128 && value <= 127
+          elsif value.between?(-128, 127)
             @buffer << [INT_8, value].pack('Cc')
-          elsif value >= -32_768 && value <= 32_767
+          elsif value.between?(-32_768, 32_767)
             @buffer << [INT_16, value].pack('Cs>')
-          elsif value >= -2_147_483_648 && value <= 2_147_483_647
+          elsif value.between?(-2_147_483_648, 2_147_483_647)
             @buffer << [INT_32, value].pack('Cl>')
-          elsif value >= -9_223_372_036_854_775_808 && value <= 9_223_372_036_854_775_807
+          elsif value.between?(-9_223_372_036_854_775_808, 9_223_372_036_854_775_807)
             @buffer << [INT_64, value].pack('Cq>')
           else
             raise ArgumentError, "Integer value out of range: #{value}"

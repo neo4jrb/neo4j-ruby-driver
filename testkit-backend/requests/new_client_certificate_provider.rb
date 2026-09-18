@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Creates a managed client-certificate provider (mutual TLS). The

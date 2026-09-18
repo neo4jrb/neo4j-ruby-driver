@@ -18,8 +18,8 @@ RSpec.describe 'Resolver' do
         'neo4j://my.server.com:9001',
         basic_auth_token,
         encryption: false,
-        resolver: resolver
-      ) { |d| d.verify_connectivity }
+        resolver: resolver, &:verify_connectivity
+      )
     end.to raise_error(/Resolution failure!/)
 
     # The resolver was actually called with the configured address.

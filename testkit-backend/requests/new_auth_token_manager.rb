@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Custom AuthTokenManager: testkit-driven token supplier *and*

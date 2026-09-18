@@ -74,7 +74,7 @@ RSpec.describe Neo4j::Driver::Internal::DefaultBookmarkManager do
   describe 'thread safety' do
     it 'serialises concurrent update_bookmarks without losing entries' do
       manager = described_class.new
-      threads = 8.times.map do |i|
+      threads = Array.new(8) do |i|
         Thread.new { 50.times { |j| manager.update_bookmarks([], ["bm:#{i}-#{j}"]) } }
       end
       # &:value (not &:join) re-raises any in-thread exception here so a

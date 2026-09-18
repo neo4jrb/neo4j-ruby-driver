@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     class GetRoutingTable < Request
@@ -10,7 +12,7 @@ module TestkitBackend
       end
 
       def to_object
-        @obj ||= fetch(driver_id).routing_table(database)
+        @to_object ||= fetch(driver_id).routing_table(database)
       end
 
       private

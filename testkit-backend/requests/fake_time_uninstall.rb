@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Return the testkit clock to system time. See FakeTimeInstall.
