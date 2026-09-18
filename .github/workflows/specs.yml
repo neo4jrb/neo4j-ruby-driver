@@ -10,6 +10,11 @@ on:
   pull_request:
     paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
 
+# Read-only token: these jobs only check out, run tests, and exchange artifacts
+# via the Actions runtime token (unaffected by this scope).
+permissions:
+  contents: read
+
 jobs:
   rspec:
     name: rspec (ruby ${{ matrix.ruby }}${{ matrix.force_mri && ' [mri flavor]' || '' }} / neo4j ${{ matrix.neo4j }})
@@ -119,6 +124,9 @@ jobs:
         with:
           name: coverage-${{ matrix.ruby }}-${{ matrix.neo4j }}
           path: coverage/*/.resultset.json
+          # .resultset.json is a dotfile; upload-artifact@v4 skips hidden files
+          # by default, which would leave the diff-coverage job with no inputs.
+          include-hidden-files: true
           retention-days: 1
           if-no-files-found: ignore
 

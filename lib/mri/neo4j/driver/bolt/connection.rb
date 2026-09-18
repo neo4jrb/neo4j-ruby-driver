@@ -710,9 +710,9 @@ module Neo4j
         def advance
           case (chunk = @socket.read_nonblock(READ_CHUNK, exception: false))
           when :wait_readable
-            @socket.wait_readable(current_read_timeout) or fail_broken(read_timeout_error)
+            wait_ready(:wait_readable) or fail_broken(read_timeout_error)
           when :wait_writable # SSL renegotiation mid-read
-            @socket.wait_writable(current_read_timeout) or fail_broken(read_timeout_error)
+            wait_ready(:wait_writable) or fail_broken(read_timeout_error)
           when nil
             raise EOFError, 'end of file reached'
           else
@@ -857,11 +857,27 @@ module Neo4j
           callback&.call(self)
         end
 
+        # Block until the socket is ready to read (or write, during a mid-read
+        # SSL renegotiation), bounded by the current read timeout. A nil timeout
+        # waits indefinitely (steady state with no server hint). When the
+        # acquisition deadline is set and already past, don't wait at all —
+        # report the timeout immediately rather than polling the socket with a
+        # zero or negative interval. Returns falsey on timeout so the caller
+        # raises read_timeout_error.
+        def wait_ready(readiness)
+          timeout = current_read_timeout
+          return false if timeout && !timeout.positive?
+
+          @socket.public_send(readiness, timeout)
+        end
+
         # The timeout the next read may take. During acquisition (handshake,
-        # ROUTE) it's the remaining budget of the total deadline; in steady
-        # state it's the server's recv-timeout hint (nil = block indefinitely).
+        # ROUTE) it's the time left on the total deadline — non-positive once the
+        # deadline has passed, which #wait_ready turns into an immediate timeout.
+        # In steady state it's the server's recv-timeout hint (nil = block
+        # indefinitely).
         def current_read_timeout
-          return [@read_deadline - current_monotonic, 0.001].max if @read_deadline
+          return @read_deadline - current_monotonic if @read_deadline
 
           @recv_timeout
         end

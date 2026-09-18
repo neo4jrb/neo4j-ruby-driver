@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'open3'
 
 # Enforces 100% test coverage on lines added or modified since a base ref.
 #
@@ -44,9 +45,14 @@ class DiffCoverage
 
   # Added/modified line numbers (new side) per path, from `base...HEAD` limited
   # to `pathspec`. Three-dot so only the branch's own changes are considered.
+  # git is invoked with an argument array (no shell), and a non-zero status
+  # raises — an unknown base must fail the gate, not silently yield an empty diff.
   def self.changed_lines(base:, root:, pathspec: 'lib')
-    diff = Dir.chdir(root) { `git diff --unified=0 --no-color #{base}...HEAD -- #{pathspec}` }
-    parse_diff(diff)
+    out, status = Open3.capture2('git', 'diff', '--unified=0', '--no-color',
+                                 "#{base}...HEAD", '--', pathspec, chdir: root)
+    raise "git diff failed (base #{base.inspect}); ensure the base ref is fetched." unless status.success?
+
+    parse_diff(out)
   end
 
   def self.parse_diff(text)
