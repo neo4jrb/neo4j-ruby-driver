@@ -188,6 +188,7 @@ Metrics/BlockLength:
     - 'spec/mri/neo4j/driver/bolt/tls_config_spec.rb'
     - 'spec/mri/neo4j/driver/bolt/wire_spec.rb'
     - 'spec/mri/neo4j/driver/internal/default_bookmark_manager_spec.rb'
+    - 'spec/mri/tasks/diff_coverage_spec.rb'
     - 'spec/shared/integration/bookmark_manager_spec.rb'
     - 'spec/shared/integration/bookmark_spec.rb'
     - 'spec/shared/integration/credentials_spec.rb'

@@ -37,4 +37,12 @@ group :development, :test do
   # add cops and turn CI red, so bump deliberately and re-run --auto-gen-config.
   gem 'rubocop', '~> 1.91.0', require: false
   gem 'rubocop-performance', '~> 1.27.0', require: false
+  # Coverage + code smells, patch-pinned like rubocop above: a minor bump can
+  # add reek detectors (past the .reek.yml baseline) and turn CI red, so bump
+  # deliberately.
+  gem 'reek', '~> 6.5.0', require: false
+  # Pinned to 0.22: SimpleCov 1.x's static_coverage_extractor hard-requires
+  # prism, whose FFI backend has no native lib on JRuby (LoadError). 0.22 uses
+  # the Coverage stdlib on both flavours (branch coverage on MRI, line on JRuby).
+  gem 'simplecov', '~> 0.22.0', require: false
 end
