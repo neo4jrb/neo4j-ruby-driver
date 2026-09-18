@@ -85,6 +85,13 @@ jobs:
       # correct everywhere — matches testkit/build.py for the same
       # reason. Cf. PR #303 commit 670dec3 fix in testkit/build.py.
       BUNDLE_JOBS: '1'
+      # Measure coverage once per flavour, across every server version (the MRI
+      # Bolt v3/v4/v5 ladder only executes against a matching server, so the
+      # diff-coverage gate unions all these runs). MRI flavour = the ruby 3.4
+      # legs; JRuby flavour = the native jruby legs. Empty elsewhere (ruby 4.0
+      # and the mri-on-jruby row are redundant for coverage). spec_helper treats
+      # an empty value as off.
+      COVERAGE: ${{ (matrix.ruby == '3.4' || (startsWith(matrix.ruby, 'jruby') && !matrix.force_mri)) && '1' || '' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -103,6 +110,51 @@ jobs:
 
       - name: Run RSpec
         run: bundle exec rspec --format progress
+
+      # One resultset per measuring leg; the diff-coverage job unions them.
+      # always() so a flaky (continue-on-error) leg still contributes what it ran.
+      - name: Upload coverage
+        if: ${{ always() && env.COVERAGE == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.ruby }}-${{ matrix.neo4j }}
+          path: coverage/*/.resultset.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+  # Enforce 100% coverage on lines changed vs the PR base. Reads every per-leg
+  # resultset (all flavours × server versions) and unions them, so a line
+  # covered by any leg counts. PR-only: a diff needs a base branch. lib/mri and
+  # lib/shared are gated by the (required) MRI legs; lib/jruby is gated only
+  # when the continue-on-error jruby legs produced coverage.
+  diff-coverage:
+    name: diff-coverage
+    needs: [rspec]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Fetch PR base
+        run: git fetch --no-tags --depth=1 origin ${{ github.base_ref }}
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: coverage
+
+      - name: Enforce diff coverage
+        env:
+          COVERAGE_BASE: origin/${{ github.base_ref }}
+        run: bundle exec rake coverage:enforce
 
   # Stable, version-free gate for branch protection. Requiring the matrix
   # legs directly would embed the Ruby/Neo4j versions in the required-check

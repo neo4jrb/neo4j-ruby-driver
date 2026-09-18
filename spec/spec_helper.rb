@@ -1,6 +1,28 @@
 # frozen_string_literal: true
 
 impl = RUBY_PLATFORM == 'java' ? 'jruby' : 'mri'
+
+# Coverage (opt-in via COVERAGE=1 so the normal matrix is unaffected). Must
+# start before neo4j/driver is required so every driver file is tracked.
+# Scoped per flavour: each run tracks only the trees it actually loads —
+# lib/shared plus lib/<impl> — and writes to its own coverage/<impl> dir, so
+# CRuby and JRuby coverage stay independent. `rake coverage:enforce` unions the
+# per-flavour resultsets to gate the changed lines of a PR (see tasks/).
+unless ENV['COVERAGE'].to_s.empty?
+  require 'simplecov'
+  SimpleCov.start do
+    # Branch coverage needs MRI's Coverage; JRuby supports line coverage only.
+    enable_coverage :branch unless RUBY_PLATFORM == 'java'
+    command_name impl
+    coverage_dir "coverage/#{impl}"
+    # Track both the shared tree and this flavour's tree; nothing else.
+    add_filter %r{^/lib/(?!(shared|#{impl})/)}
+    add_filter %r{^/(spec|testkit-backend|testkit|build)/}
+    add_group('Shared') { |f| f.filename.include?('/lib/shared/') }
+    add_group(impl == 'mri' ? 'MRI' : 'JRuby') { |f| f.filename.include?("/lib/#{impl}/") }
+  end
+end
+
 $LOAD_PATH.unshift File.expand_path('shared', __dir__),
                    File.expand_path(impl, __dir__)
 

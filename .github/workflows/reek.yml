@@ -1,0 +1,26 @@
+name: Reek
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
+  pull_request:
+    paths-ignore: ['**/*.md', 'lib/shared/neo4j/driver/version.rb']
+
+jobs:
+  reek:
+    name: reek
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      # The .reek.yml baseline keeps this green on existing code (like
+      # .rubocop_todo.yml), so a failure here means a new code smell was
+      # introduced. --format github surfaces smells as inline PR annotations.
+      - name: Run Reek
+        run: bundle exec reek --format github lib
