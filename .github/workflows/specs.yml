@@ -99,7 +99,11 @@ jobs:
       COVERAGE: ${{ (matrix.ruby == '3.4' || (startsWith(matrix.ruby, 'jruby') && !matrix.force_mri)) && '1' || '' }}
 
     steps:
+      # persist-credentials: false — bundler-cache runs Bundler after checkout;
+      # the test run needs no persisted GITHUB_TOKEN.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -141,9 +145,12 @@ jobs:
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
+      # persist-credentials: false — the base fetch below is an unauthenticated
+      # fetch of this public repo; no persisted GITHUB_TOKEN is needed.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: ruby/setup-ruby@v1
         with:

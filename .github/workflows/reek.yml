@@ -15,7 +15,11 @@ jobs:
     name: reek
     runs-on: ubuntu-latest
     steps:
+      # persist-credentials: false — bundler-cache runs Bundler after checkout;
+      # nothing here needs the GITHUB_TOKEN persisted in .git/config.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: ruby/setup-ruby@v1
         with:
