@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Responses
     # Serialises a driver exception into the testkit DriverError shape.

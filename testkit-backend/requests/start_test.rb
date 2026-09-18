@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Skip patterns mirror the Java testkit-backend's StartTest

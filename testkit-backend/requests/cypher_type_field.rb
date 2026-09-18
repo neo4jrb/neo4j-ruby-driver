@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Stub: introspects a single field of a typed cypher value.

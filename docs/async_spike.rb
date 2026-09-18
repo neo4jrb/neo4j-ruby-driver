@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'async'
 require 'socket'
 require 'openssl'

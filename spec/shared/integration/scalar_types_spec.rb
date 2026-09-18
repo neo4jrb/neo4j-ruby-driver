@@ -98,7 +98,7 @@ RSpec.describe 'ScalarTypesSpec' do
   end
 
   it 'echos nested hash' do
-    verify_can_encode_and_decode(hash_to_test.map { |hash| [hash.to_s.to_sym, hash] }.to_h)
+    verify_can_encode_and_decode(hash_to_test.to_h { |hash| [hash.to_s.to_sym, hash] })
   end
 
   def verify_can_encode_and_decode(var)

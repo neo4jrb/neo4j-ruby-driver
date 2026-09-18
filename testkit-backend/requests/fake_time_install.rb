@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Freeze the testkit clock at zero — subsequent `FakeTimeTick`

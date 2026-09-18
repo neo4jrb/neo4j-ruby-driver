@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Bearer-token manager — same retry semantics as Java's

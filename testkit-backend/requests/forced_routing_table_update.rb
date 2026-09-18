@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # testkit only sends this when the impl advertises

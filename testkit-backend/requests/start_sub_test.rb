@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Mirrors Java testkit-backend StartSubTest.java. For tests that

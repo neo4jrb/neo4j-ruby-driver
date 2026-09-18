@@ -253,7 +253,7 @@ RSpec.describe Neo4j::Driver::Bolt::Pool do
       pool = build_pool([conn])
       pool.pop
 
-      pool.shutdown { |c| c.close }
+      pool.shutdown(&:close)
       expect(pool.metrics_snapshot).to eq([0, 0])
     end
   end

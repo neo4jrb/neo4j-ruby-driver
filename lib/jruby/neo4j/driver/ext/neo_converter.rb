@@ -9,7 +9,7 @@ module Neo4j
         def to_neo(object, skip_unknown: false)
           case object
           when Hash
-            object.map { |key, value| [key.to_s, to_neo(value)] }.to_h
+            object.to_h { |key, value| [key.to_s, to_neo(value)] }
           when Types::Path
             Exceptions::ClientException.unable_to_convert(object)
           when Enumerable

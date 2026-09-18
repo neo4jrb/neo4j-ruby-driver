@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Advance the driver's fake clock by `increment_ms` milliseconds.

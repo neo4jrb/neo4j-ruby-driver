@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   class Response
     extend Conversion

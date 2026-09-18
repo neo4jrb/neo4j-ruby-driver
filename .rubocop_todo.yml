@@ -368,15 +368,6 @@ Naming/FileName:
     - 'lib/shared/neo4j-ruby-driver.rb'
     - 'lib/shared/neo4j-ruby-driver_loader.rb'
 
-# Offense count: 3
-# This cop supports unsafe autocorrection (--autocorrect-all).
-# Configuration parameters: EnforcedStyleForLeadingUnderscores.
-# SupportedStylesForLeadingUnderscores: disallowed, required, optional
-Naming/MemoizedInstanceVariableName:
-  Exclude:
-    - 'lib/mri/neo4j/driver/summary/result_summary.rb'
-    - 'testkit-backend/requests/get_routing_table.rb'
-
 # Offense count: 6
 # Configuration parameters: EnforcedStyle, AllowedPatterns, ForbiddenIdentifiers, ForbiddenPatterns.
 # SupportedStyles: snake_case, camelCase
@@ -461,38 +452,6 @@ Performance/MethodObjectAsBlock:
     - 'testkit-backend/requests/new_bookmark_manager.rb'
     - 'testkit-backend/responses/record.rb'
     - 'testkit-backend/responses/summary.rb'
-
-# Offense count: 2
-# This cop supports unsafe autocorrection (--autocorrect-all).
-Performance/TimesMap:
-  Exclude:
-    - 'spec/mri/neo4j/driver/internal/default_bookmark_manager_spec.rb'
-    - 'spec/shared/neo4j/driver/result_spec.rb'
-
-# Offense count: 1
-# This cop supports unsafe autocorrection (--autocorrect-all).
-Performance/UnfreezeString:
-  Exclude:
-    - 'testkit-backend/command_processor.rb'
-
-# Offense count: 3
-# This cop supports unsafe autocorrection (--autocorrect-all).
-# Configuration parameters: EnforcedStyle, EnforcedStyleForClasses, EnforcedStyleForModules.
-# SupportedStyles: nested, compact
-# SupportedStylesForClasses: ~, nested, compact
-# SupportedStylesForModules: ~, nested, compact
-Style/ClassAndModuleChildren:
-  Exclude:
-    - 'lib/jruby/neo4j/driver/ext/async_converter.rb'
-    - 'lib/jruby/neo4j/driver/ext/internal/cluster/routing_table_registry_impl.rb'
-    - 'lib/jruby/neo4j/driver/ext/internal/cursor/disposable_async_result_cursor.rb'
-
-# Offense count: 6
-# This cop supports unsafe autocorrection (--autocorrect-all).
-Style/ComparableBetween:
-  Exclude:
-    - 'lib/mri/neo4j/driver/bolt/handshake.rb'
-    - 'lib/mri/neo4j/driver/packstream/packer.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -616,120 +575,10 @@ Style/FormatString:
 Style/FormatStringToken:
   EnforcedStyle: unannotated
 
-# Offense count: 88
-# This cop supports unsafe autocorrection (--autocorrect-all).
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: always, always_true, never
-Style/FrozenStringLiteralComment:
-  Exclude:
-    - '**/*.arb'
-    - 'docs/async_spike.rb'
-    - 'lib/jruby/neo4j-ruby-driver_jars.rb'
-    - 'lib/jruby/neo4j/driver/ext/internal/summary/internal_notification.rb'
-    - 'lib/shared/neo4j-ruby-driver.rb'
-    - 'lib/shared/neo4j/driver/exceptions/value/lossy_coercion.rb'
-    - 'lib/shared/neo4j/driver/exceptions/value/not_multi_valued.rb'
-    - 'lib/shared/neo4j/driver/exceptions/value/uncoercible.rb'
-    - 'lib/shared/neo4j/driver/exceptions/value/unsizable.rb'
-    - 'lib/shared/neo4j/driver/exceptions/value/value_exception.rb'
-    - 'lib/shared/neo4j_ruby_driver.rb'
-    - 'test_summary_debug.rb'
-    - 'testkit-backend/command_processor.rb'
-    - 'testkit-backend/conversion.rb'
-    - 'testkit-backend/object_cache.rb'
-    - 'testkit-backend/request.rb'
-    - 'testkit-backend/requests/auth_token_manager_close.rb'
-    - 'testkit-backend/requests/auth_token_manager_get_auth_completed.rb'
-    - 'testkit-backend/requests/auth_token_manager_handle_security_exception_completed.rb'
-    - 'testkit-backend/requests/authorization_token.rb'
-    - 'testkit-backend/requests/basic_auth_token_provider_completed.rb'
-    - 'testkit-backend/requests/bearer_auth_token_provider_completed.rb'
-    - 'testkit-backend/requests/bookmark_manager_close.rb'
-    - 'testkit-backend/requests/bookmarks_consumer_completed.rb'
-    - 'testkit-backend/requests/bookmarks_supplier_completed.rb'
-    - 'testkit-backend/requests/check_driver_is_encrypted.rb'
-    - 'testkit-backend/requests/check_multi_d_b_support.rb'
-    - 'testkit-backend/requests/check_session_auth_support.rb'
-    - 'testkit-backend/requests/client_certificate_provider_close.rb'
-    - 'testkit-backend/requests/client_certificate_provider_completed.rb'
-    - 'testkit-backend/requests/cypher_bytes.rb'
-    - 'testkit-backend/requests/cypher_date.rb'
-    - 'testkit-backend/requests/cypher_date_time.rb'
-    - 'testkit-backend/requests/cypher_duration.rb'
-    - 'testkit-backend/requests/cypher_float.rb'
-    - 'testkit-backend/requests/cypher_list.rb'
-    - 'testkit-backend/requests/cypher_map.rb'
-    - 'testkit-backend/requests/cypher_time.rb'
-    - 'testkit-backend/requests/cypher_type_field.rb'
-    - 'testkit-backend/requests/cypher_value.rb'
-    - 'testkit-backend/requests/domain_name_resolution_completed.rb'
-    - 'testkit-backend/requests/driver_close.rb'
-    - 'testkit-backend/requests/execute_query.rb'
-    - 'testkit-backend/requests/fake_time_install.rb'
-    - 'testkit-backend/requests/fake_time_tick.rb'
-    - 'testkit-backend/requests/fake_time_uninstall.rb'
-    - 'testkit-backend/requests/forced_routing_table_update.rb'
-    - 'testkit-backend/requests/get_connection_pool_metrics.rb'
-    - 'testkit-backend/requests/get_features.rb'
-    - 'testkit-backend/requests/get_routing_table.rb'
-    - 'testkit-backend/requests/new_auth_token_manager.rb'
-    - 'testkit-backend/requests/new_basic_auth_token_manager.rb'
-    - 'testkit-backend/requests/new_bearer_auth_token_manager.rb'
-    - 'testkit-backend/requests/new_bookmark_manager.rb'
-    - 'testkit-backend/requests/new_client_certificate_provider.rb'
-    - 'testkit-backend/requests/new_driver.rb'
-    - 'testkit-backend/requests/new_session.rb'
-    - 'testkit-backend/requests/resolver_resolution_completed.rb'
-    - 'testkit-backend/requests/result_consume.rb'
-    - 'testkit-backend/requests/result_list.rb'
-    - 'testkit-backend/requests/result_next.rb'
-    - 'testkit-backend/requests/result_peek.rb'
-    - 'testkit-backend/requests/result_single.rb'
-    - 'testkit-backend/requests/retryable.rb'
-    - 'testkit-backend/requests/retryable_negative.rb'
-    - 'testkit-backend/requests/retryable_positive.rb'
-    - 'testkit-backend/requests/rollback_exception.rb'
-    - 'testkit-backend/requests/session_begin_transaction.rb'
-    - 'testkit-backend/requests/session_close.rb'
-    - 'testkit-backend/requests/session_last_bookmarks.rb'
-    - 'testkit-backend/requests/session_read_transaction.rb'
-    - 'testkit-backend/requests/session_run.rb'
-    - 'testkit-backend/requests/session_transaction.rb'
-    - 'testkit-backend/requests/session_write_transaction.rb'
-    - 'testkit-backend/requests/start_sub_test.rb'
-    - 'testkit-backend/requests/start_test.rb'
-    - 'testkit-backend/requests/transaction_close.rb'
-    - 'testkit-backend/requests/transaction_commit.rb'
-    - 'testkit-backend/requests/transaction_rollback.rb'
-    - 'testkit-backend/requests/transaction_run.rb'
-    - 'testkit-backend/requests/verify_authentication.rb'
-    - 'testkit-backend/requests/verify_connectivity.rb'
-    - 'testkit-backend/response.rb'
-    - 'testkit-backend/responses/driver_error.rb'
-    - 'testkit-backend/responses/record.rb'
-    - 'testkit-backend/responses/result.rb'
-    - 'testkit-backend/responses/summary.rb'
-    - 'testkit-backend/rollback_exception.rb'
-    - 'testkit-backend/runner.rb'
-
 # Offense count: 1
 Style/ItAssignment:
   Exclude:
     - 'lib/jruby/neo4j/driver/ext/internal/cluster/routing_table_registry_impl.rb'
-
-# Offense count: 1
-# This cop supports unsafe autocorrection (--autocorrect-all).
-Style/MapIntoArray:
-  Exclude:
-    - 'comprehensive_test.rb'
-
-# Offense count: 3
-# This cop supports unsafe autocorrection (--autocorrect-all).
-Style/MapToHash:
-  Exclude:
-    - 'lib/jruby/neo4j/driver/ext/neo_converter.rb'
-    - 'spec/shared/integration/scalar_types_spec.rb'
-    - 'testkit-backend/responses/summary.rb'
 
 # Offense count: 1
 Style/MixinUsage:
@@ -742,31 +591,11 @@ Style/MultilineBlockChain:
     - 'spec/shared/integration/session_spec.rb'
     - 'spec/shared/integration/transaction_spec.rb'
 
-# Offense count: 2
-# This cop supports unsafe autocorrection (--autocorrect-all).
-# Configuration parameters: EnforcedStyle, Recursive.
-# SupportedStyles: literals, strict
-Style/MutableConstant:
-  Exclude:
-    - 'testkit-backend/command_processor.rb'
-
 # Offense count: 1
 # This cop supports safe autocorrection (--autocorrect).
 Style/NestedModifier:
   Exclude:
     - 'lib/mri/neo4j/driver/result.rb'
-
-# Offense count: 5
-# This cop supports unsafe autocorrection (--autocorrect-all).
-# Configuration parameters: EnforcedStyle, AllowedMethods, AllowedPatterns.
-# SupportedStyles: predicate, comparison
-Style/NumericPredicate:
-  Exclude:
-    - 'spec/**/*'
-    - 'comprehensive_test.rb'
-    - 'lib/mri/neo4j/driver/bolt/handshake.rb'
-    - 'lib/mri/neo4j/driver/bolt/wire.rb'
-    - 'lib/shared/neo4j/driver/types/duration.rb'
 
 # Offense count: 1
 Style/OpenStructUse:
@@ -796,27 +625,3 @@ Style/RaiseArgs:
 Style/RedundantAssignment:
   Exclude:
     - 'spec/shared/integration/session_spec.rb'
-
-# Offense count: 2
-# This cop supports unsafe autocorrection (--autocorrect-all).
-# Configuration parameters: ConvertCodeThatCanStartToReturnNil, AllowedMethods, MaxChainLength.
-# AllowedMethods: present?, blank?, presence, try, try!
-Style/SafeNavigation:
-  Exclude:
-    - 'lib/mri/neo4j/driver/bolt/handshake.rb'
-    - 'lib/mri/neo4j/driver/routing/load_balancer.rb'
-
-# Offense count: 2
-# This cop supports unsafe autocorrection (--autocorrect-all).
-Style/SlicingWithRange:
-  Exclude:
-    - 'testkit-backend/command_processor.rb'
-
-# Offense count: 2
-# This cop supports unsafe autocorrection (--autocorrect-all).
-# Configuration parameters: AllowMethodsWithArguments, AllowedMethods, AllowedPatterns, AllowComments.
-# AllowedMethods: define_method
-Style/SymbolProc:
-  Exclude:
-    - 'spec/mri/neo4j/driver/bolt/pool_spec.rb'
-    - 'spec/shared/integration/resolver_spec.rb'

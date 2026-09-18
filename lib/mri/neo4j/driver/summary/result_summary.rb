@@ -44,7 +44,7 @@ module Neo4j
         end
 
         def server
-          @server_info ||=
+          @server ||=
             if @metadata[:server]
               ServerInfo.new(@metadata[:server])
             elsif @connection
@@ -59,7 +59,7 @@ module Neo4j
         end
 
         def database
-          @database_info ||= DatabaseInfo.new(@metadata[:db])
+          @database ||= DatabaseInfo.new(@metadata[:db])
         end
 
         # Time until results are available (milliseconds). 't_first' on the wire.

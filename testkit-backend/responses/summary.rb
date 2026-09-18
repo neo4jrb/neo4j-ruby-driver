@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Responses
     class Summary < Response
@@ -26,7 +28,7 @@ module TestkitBackend
       private
 
       def to_map(o, *methods)
-        methods.map { |name| [key(name), o.send(name).then { |obj| block_given? ? yield(obj) : obj }] }.to_h
+        methods.to_h { |name| [key(name), o.send(name).then { |obj| block_given? ? yield(obj) : obj }] }
       end
 
       def key(name)

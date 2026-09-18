@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module TestkitBackend
   module Requests
     # Per-flavour feature advertisement. testkit gates tests on these

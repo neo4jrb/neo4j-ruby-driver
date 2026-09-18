@@ -117,7 +117,7 @@ Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, p
         # Don't commit - should rollback
       end
       r = session.run('MATCH (n:TestNode {name: "Eve"}) RETURN count(n) AS count')
-      raise 'Node should not exist' unless r.single['count'] == 0
+      raise 'Node should not exist' unless r.single['count'].zero?
     end
     result == :passed ? passed += 1 : failed += 1
 
@@ -146,8 +146,7 @@ Neo4j::Driver::GraphDatabase.driver(uri, Neo4j::Driver::AuthTokens.basic(user, p
     test_count += 1
     result = test('Iterating over results') do
       r = session.run('UNWIND range(1, 5) AS x RETURN x * 2 AS doubled')
-      values = []
-      r.each { |record| values << record['doubled'] }
+      values = r.map { |record| record['doubled'] }
       raise 'Wrong count' unless values.size == 5
       raise "Wrong values: #{values.inspect}" unless values == [2, 4, 6, 8, 10]
     end
@@ -195,7 +194,7 @@ puts "Total:  #{test_count}"
 puts "Passed: #{passed} (#{(passed * 100.0 / test_count).round(1)}%)"
 puts "Failed: #{failed}"
 puts
-if failed == 0
+if failed.zero?
   puts '✅ All tests passed!'
   exit 0
 else
