@@ -35,6 +35,6 @@ group :development, :test do
   gem 'rspec-its', '~> 2.0'
   # Pinned to patch level: with a .rubocop_todo.yml baseline, a minor bump can
   # add cops and turn CI red, so bump deliberately and re-run --auto-gen-config.
-  gem 'rubocop', '~> 1.89.0', require: false
-  gem 'rubocop-performance', '~> 1.26.0', require: false
+  gem 'rubocop', '~> 1.91.0', require: false
+  gem 'rubocop-performance', '~> 1.27.0', require: false
 end
