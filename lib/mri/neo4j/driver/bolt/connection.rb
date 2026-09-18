@@ -963,6 +963,7 @@ module Neo4j
         else
           @address = format_address(host, port)
           tcp_socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
+          enable_keepalive(tcp_socket)
 
           if timeout
             timeval = [timeout, 0].pack('l_2')
@@ -971,6 +972,27 @@ module Neo4j
           end
 
           @socket = wrap_with_tls(tcp_socket, bare_host, port)
+        end
+
+        # Enable TCP keepalive so a dead peer — a crashed host or a silent network
+        # partition that never delivers FIN/RST — is detected and the blocked read
+        # fails, instead of the socket sitting "ESTABLISHED" until the OS default
+        # idle (~2h on Linux) or, with nothing in flight, forever. Probe after ~60s
+        # idle, every 10s, 3 times (~90s to detection). The per-interval options
+        # are platform-specific (TCP_KEEPIDLE on Linux, TCP_KEEPALIVE on macOS/BSD)
+        # and best-effort — skip any the platform lacks or rejects; SO_KEEPALIVE
+        # alone (OS-default timing) still applies. Does not affect a slow-but-alive
+        # server: its TCP stack keeps ACKing probes, so keepalive never fires on it.
+        def enable_keepalive(socket)
+          socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1)
+          idle_opt = if defined?(Socket::TCP_KEEPIDLE) then Socket::TCP_KEEPIDLE
+                     elsif defined?(Socket::TCP_KEEPALIVE) then Socket::TCP_KEEPALIVE
+                     end
+          socket.setsockopt(Socket::IPPROTO_TCP, idle_opt, 60) if idle_opt
+          socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_KEEPINTVL, 10) if defined?(Socket::TCP_KEEPINTVL)
+          socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_KEEPCNT, 3) if defined?(Socket::TCP_KEEPCNT)
+        rescue StandardError
+          nil # keepalive stays on with OS-default timing; interval tuning is an optimization
         end
 
         # When the URI uses a +s/+ssc scheme (or :encryption is set
