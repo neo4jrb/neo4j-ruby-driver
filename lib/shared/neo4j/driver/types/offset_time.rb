@@ -13,6 +13,7 @@ module Neo4j
         def self.significant_fields = %i[nanoseconds tz_offset_seconds]
 
         def initialize(nanoseconds, tz_offset_seconds)
+          super()
           @nanoseconds = nanoseconds % NANOS_PER_DAY
           @tz_offset_seconds = tz_offset_seconds
         end

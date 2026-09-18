@@ -98,20 +98,6 @@ Lint/IncompatibleIoSelectWithFiberScheduler:
   Exclude:
     - 'testkit-backend/command_processor.rb'
 
-# Offense count: 4
-# Configuration parameters: AllowedParentClasses.
-Lint/MissingSuper:
-  Exclude:
-    - 'lib/shared/neo4j/driver/types/duration.rb'
-    - 'lib/shared/neo4j/driver/types/local_date_time.rb'
-    - 'lib/shared/neo4j/driver/types/local_time.rb'
-    - 'lib/shared/neo4j/driver/types/offset_time.rb'
-
-# Offense count: 2
-Lint/RescueException:
-  Exclude:
-    - 'spec/shared/integration/session_spec.rb'
-
 # Offense count: 1
 # Configuration parameters: AllowComments, AllowNil.
 Lint/SuppressedException:
@@ -429,30 +415,6 @@ Naming/PredicatePrefix:
 Naming/VariableNumber:
   Exclude:
     - 'spec/shared/neo4j/driver/dev_manual_examples_spec.rb'
-
-# Offense count: 35
-Performance/MethodObjectAsBlock:
-  Exclude:
-    - 'lib/jruby/neo4j/driver/ext/async_converter.rb'
-    - 'lib/jruby/neo4j/driver/ext/config_converter.rb'
-    - 'lib/jruby/neo4j/driver/ext/exception_mapper.rb'
-    - 'lib/jruby/neo4j/driver/ext/neo_converter.rb'
-    - 'lib/jruby/neo4j/driver/ext/ruby_converter.rb'
-    - 'lib/mri/neo4j/driver/internal/default_bookmark_manager.rb'
-    - 'lib/mri/neo4j/driver/session.rb'
-    - 'spec/shared/integration/result_stream_spec.rb'
-    - 'spec/shared/integration/session_spec.rb'
-    - 'spec/shared/integration/transaction_spec.rb'
-    - 'spec/shared/neo4j/driver/dev_manual_examples_spec.rb'
-    - 'spec/shared/neo4j/driver/graph_database_spec.rb'
-    - 'spec/shared/neo4j/driver/result_spec.rb'
-    - 'spec/spec_helper.rb'
-    - 'testkit-backend/conversion.rb'
-    - 'testkit-backend/requests/cypher_list.rb'
-    - 'testkit-backend/requests/cypher_map.rb'
-    - 'testkit-backend/requests/new_bookmark_manager.rb'
-    - 'testkit-backend/responses/record.rb'
-    - 'testkit-backend/responses/summary.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).

@@ -28,6 +28,7 @@ module Neo4j
         def self.significant_fields = %i[epoch_seconds nanoseconds]
 
         def initialize(epoch_seconds, nanoseconds)
+          super()
           @epoch_seconds = epoch_seconds
           @nanoseconds = nanoseconds
         end
