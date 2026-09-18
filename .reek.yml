@@ -46,6 +46,7 @@ detectors:
     - Neo4j::Driver::Internal::HomeDbCache#compute_key
     - Neo4j::Driver::PackStream::Packer#pack_boolean
     - Neo4j::Driver::PackStream::Unpacker#register_hydration_handler
+    - Neo4j::Driver::Routing::LoadBalancer#ensure_routing_table_is_fresh
     - Neo4j::Driver::Routing::LoadBalancer#on_security_exception
     - Neo4j::Driver::Routing::LoadBalancer#open_connection
     - Neo4j::Driver::Routing::LoadBalancer#routers_in_order

@@ -11,6 +11,7 @@ module Neo4j
         def self.significant_fields = %i[nanoseconds]
 
         def initialize(nanoseconds)
+          super()
           @nanoseconds = nanoseconds % NANOS_PER_DAY
         end
 

@@ -12,6 +12,7 @@ module Neo4j
         def self.significant_fields = %i[months days seconds nanoseconds]
 
         def initialize(months, days, seconds, nanoseconds)
+          super()
           @months = months.to_i
           @days = days.to_i
           @seconds = seconds.to_i
