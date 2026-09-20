@@ -966,14 +966,14 @@ RSpec.describe 'Session' do
     first_failed = false
     begin
       expect(future1.value!(20)).to be_nil
-    rescue Exception => e
+    rescue StandardError => e
       assert_deadlock_detected_error(e)
       first_failed = true
     end
 
     begin
       expect(future2.value!(20)).to be_nil
-    rescue Exception => e
+    rescue StandardError => e
       expect(first_failed).to be false
       assert_deadlock_detected_error(e)
     end
