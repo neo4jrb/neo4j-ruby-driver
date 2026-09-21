@@ -10,11 +10,18 @@ impl = RUBY_PLATFORM == 'java' ? 'jruby' : 'mri'
 # per-flavour resultsets to gate the changed lines of a PR (see tasks/).
 unless ENV['COVERAGE'].to_s.empty?
   require 'simplecov'
+  require 'simplecov-cobertura'
   SimpleCov.start do
     # Branch coverage needs MRI's Coverage; JRuby supports line coverage only.
     enable_coverage :branch unless RUBY_PLATFORM == 'java'
     command_name impl
     coverage_dir "coverage/#{impl}"
+    # Keep the local HTML report and also emit coverage/<impl>/coverage.xml
+    # (Cobertura) for the Codecov PR display. The resultset is written either
+    # way, so `rake coverage:enforce` is unaffected.
+    formatter SimpleCov::Formatter::MultiFormatter.new(
+      [SimpleCov::Formatter::HTMLFormatter, SimpleCov::Formatter::CoberturaFormatter]
+    )
     # Track both the shared tree and this flavour's tree; nothing else.
     add_filter %r{^/lib/(?!(shared|#{impl})/)}
     add_filter %r{^/(spec|testkit-backend|testkit|build)/}

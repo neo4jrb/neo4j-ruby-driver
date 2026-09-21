@@ -1,0 +1,42 @@
+# Codecov is DISPLAY-ONLY here. The authoritative coverage gate is the
+# `diff-coverage` job (rake coverage:enforce — 100% of the lines a PR changes),
+# so Codecov's own statuses are informational: they post the coverage comment
+# and render the graphs/flags, but never block a merge. Coverage is uploaded
+# once per flavour as the `mri` and `jruby` flags (see .github/workflows/specs.yml).
+
+coverage:
+  status:
+    project:
+      default:
+        informational: true   # report, never fail the build
+    patch:
+      default:
+        informational: true   # `coverage:enforce` owns the changed-line gate
+
+# Carry a flag's last coverage forward when a commit doesn't re-upload it. The
+# JRuby legs are continue-on-error and may not always produce a report; without
+# carryforward a missing upload would read as a coverage drop to 0.
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: mri
+      paths:
+        - lib/shared
+        - lib/mri
+    - name: jruby
+      paths:
+        - lib/shared
+        - lib/jruby
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+
+github_checks:
+  # Inline PR annotations are unsupported once Flags (mri / jruby) are
+  # configured, so leave them off rather than promise something Codecov won't
+  # render. The per-flavour coverage is worth more here, and `coverage:enforce`
+  # already pinpoints (and gates on) uncovered changed lines.
+  annotations: false

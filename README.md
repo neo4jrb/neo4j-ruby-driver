@@ -1,5 +1,7 @@
 # Neo4j Ruby Driver
 
+[![codecov](https://codecov.io/gh/neo4jrb/neo4j-ruby-driver/branch/main/graph/badge.svg)](https://codecov.io/gh/neo4jrb/neo4j-ruby-driver)
+
 A driver for [Neo4j](https://neo4j.com) that speaks the
 [Bolt protocol](https://neo4j.com/docs/bolt/current/), with **two
 implementations behind one public Ruby API**:
