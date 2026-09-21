@@ -45,4 +45,10 @@ group :development, :test do
   # prism, whose FFI backend has no native lib on JRuby (LoadError). 0.22 uses
   # the Coverage stdlib on both flavours (branch coverage on MRI, line on JRuby).
   gem 'simplecov', '~> 0.22.0', require: false
+  # Cobertura XML from the SimpleCov resultset, for the Codecov PR display
+  # (per-flavour flags). Pure Ruby, so it runs on JRuby too. Display only —
+  # `rake coverage:enforce` stays the authoritative changed-line gate. Held at
+  # 3.x: 4.0 requires simplecov ~> 1.0, but simplecov is pinned to 0.22 (see
+  # above — 1.x breaks on JRuby).
+  gem 'simplecov-cobertura', '~> 3.0', require: false
 end

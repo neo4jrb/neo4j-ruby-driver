@@ -120,6 +120,22 @@ jobs:
       - name: Run RSpec
         run: bundle exec rspec --format progress
 
+      # Display-only: push each measuring leg's Cobertura report to Codecov under
+      # its flavour flag (mri / jruby), so the PR gets Codecov's coverage comment,
+      # graphs and inline annotations. Never fails CI (fail_ci_if_error: false) and
+      # is not a required check — `rake coverage:enforce` remains the real gate.
+      # Multiple legs per flavour upload the same flag; Codecov merges them, which
+      # matches how coverage:enforce unions the per-leg resultsets.
+      - name: Upload coverage to Codecov
+        if: ${{ always() && env.COVERAGE == '1' }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/*/coverage.xml
+          flags: ${{ startsWith(matrix.ruby, 'jruby') && 'jruby' || 'mri' }}
+          disable_search: true
+          fail_ci_if_error: false
+
       # One resultset per measuring leg; the diff-coverage job unions them.
       # always() so a flaky (continue-on-error) leg still contributes what it ran.
       - name: Upload coverage
