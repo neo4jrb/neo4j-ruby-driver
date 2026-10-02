@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Passes a scalar testkit value through unchanged; the shared handler
+    # aliased for CypherBool, CypherNull, CypherInt and CypherString.
     class CypherValue < Request
       def to_object
         value

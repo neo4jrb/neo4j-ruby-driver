@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Returns the driver's routing table for a database — routers, writers,
+    # readers and ttl — as testkit host:port strings.
     class GetRoutingTable < Request
       def process
         named_entity('RoutingTable',

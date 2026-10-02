@@ -2,6 +2,8 @@
 
 module Neo4j
   module Driver
+    # Builds Bolt auth-token hashes (basic, bearer, kerberos, none, custom),
+    # mirroring Java's org.neo4j.driver.AuthTokens factory for the MRI flavour.
     module AuthTokens
       class << self
         # Signatures mirror Java's org.neo4j.driver.AuthTokens. The JRuby

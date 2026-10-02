@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Returns the referenced result's next record, or NullRecord when exhausted.
     class ResultNext < Request
       def process
         result = fetch(result_id)

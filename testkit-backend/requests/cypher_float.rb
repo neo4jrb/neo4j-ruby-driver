@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Builds a Ruby Float from a testkit CypherFloat, including NaN and ±Infinity.
     class CypherFloat < Request
       def to_object
         case value

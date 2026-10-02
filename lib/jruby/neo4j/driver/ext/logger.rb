@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # Adapts a Ruby ::Logger to Java's org.neo4j.driver.Logging/Logger
+      # interface, so the Java driver logs through the user's Ruby logger.
       class Logger
         include org.neo4j.driver.Logger
         include org.neo4j.driver.Logging

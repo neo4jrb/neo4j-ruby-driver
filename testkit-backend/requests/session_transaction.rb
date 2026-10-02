@@ -2,6 +2,9 @@
 
 module TestkitBackend
   module Requests
+    # Base for managed read/write transactions: drives the frontend's retry
+    # loop (RetryableTry/RetryableDone), running the nested requests of each
+    # attempt until a Retryable reply ends it.
     class SessionTransaction < Request
       def process(method)
         fetch(session_id).send(method, metadata: decode(tx_meta), timeout: timeout_duration) do |tx|

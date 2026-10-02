@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # Prepended onto Java's AuthTokens factory: validates credentials and
+      # converts the custom-token parameters Hash into a Java Map.
       module AuthTokens
         include NeoConverter
 

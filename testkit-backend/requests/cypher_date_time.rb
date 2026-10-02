@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Builds a zoned, offset-only, or naive (LocalDateTime) datetime from a
+    # testkit CypherDateTime.
     class CypherDateTime < Request
       def to_object
         if timezone_id

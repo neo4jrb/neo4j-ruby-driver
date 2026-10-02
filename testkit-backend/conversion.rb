@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 module TestkitBackend
+  # Serialises driver values (scalars, temporals, nodes, relationships, paths,
+  # maps, lists, unsupported types) into testkit's Cypher* JSON entity shapes
+  # returned to the test runner.
   module Conversion
     def to_testkit(object)
       case object

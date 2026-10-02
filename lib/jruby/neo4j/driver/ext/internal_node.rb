@@ -3,6 +3,7 @@
 module Neo4j
   module Driver
     module Ext
+      # Returns a node's labels as symbols.
       module InternalNode
         def labels
           super.map(&:to_sym)

@@ -3,6 +3,9 @@
 module Neo4j
   module Driver
     module Ext
+      # Maps org.neo4j.driver Java exceptions to the shared Ruby exception
+      # hierarchy, carrying across the error code, GQL status fields and the
+      # cause chain so no Java type leaks over the public API.
       module ExceptionMapper
         java_import org.neo4j.driver.exceptions.AuthenticationException
         java_import org.neo4j.driver.exceptions.AuthorizationExpiredException

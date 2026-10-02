@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Builds a driver auth token from a testkit AuthorizationToken
+    # (basic, bearer, kerberos or custom scheme).
     class AuthorizationToken < Request
       def to_object
         case scheme

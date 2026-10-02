@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 module TestkitBackend
+  # Base class for an inbound testkit request: instantiates the concrete
+  # Requests::* handler from the message name, runs it, and maps driver
+  # exceptions to testkit DriverError/FrontendError/BackendError responses.
   class Request < OpenStruct
     include Conversion
 

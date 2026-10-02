@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Closes the referenced session and returns a Session reference.
     class SessionClose < Request
       def process
         reference('Session')

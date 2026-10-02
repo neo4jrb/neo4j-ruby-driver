@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Rolls back the referenced explicit transaction and returns a Transaction reference.
     class TransactionRollback < Request
       def process
         reference('Transaction')

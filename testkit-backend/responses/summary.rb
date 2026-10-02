@@ -2,6 +2,9 @@
 
 module TestkitBackend
   module Responses
+    # Renders a result summary as testkit's Summary response: server info,
+    # update counters, the query, notifications, GQL status objects and the
+    # query plan/profile.
     class Summary < Response
       PLAN_FIELDS = %w[operator_type args identifiers].freeze
       PROFILE_FIELDS = (PLAN_FIELDS + %w[db_hits records page_cache_hits

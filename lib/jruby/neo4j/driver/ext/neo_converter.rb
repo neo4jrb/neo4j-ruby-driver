@@ -3,6 +3,9 @@
 module Neo4j
   module Driver
     module Ext
+      # The Ruby→native boundary: converts Ruby values (collections, temporals,
+      # Point, Duration, UUID, byte strings, symbols) into the Java driver
+      # types the wire layer accepts.
       module NeoConverter
         private
 

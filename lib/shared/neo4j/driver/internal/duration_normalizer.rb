@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Internal
+      # Converts a transaction timeout from seconds (or ActiveSupport::Duration)
+      # to the integer milliseconds the Bolt wire expects, rejecting negatives.
       module DurationNormalizer
         # Convert timeout from seconds (or ActiveSupport::Duration) to
         # milliseconds for the Bolt protocol. A negative timeout is

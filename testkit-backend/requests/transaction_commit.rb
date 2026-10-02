@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Commits the referenced explicit transaction and returns a Transaction reference.
     class TransactionCommit < Request
       def process
         reference('Transaction')

@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Begins an explicit transaction on the referenced session and returns a
+    # Transaction reference.
     class SessionBeginTransaction < Request
       def process
         reference('Transaction')

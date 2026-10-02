@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Runs a managed read transaction on the referenced session (execute_read).
     class SessionReadTransaction < SessionTransaction
       def process
         super(:execute_read)

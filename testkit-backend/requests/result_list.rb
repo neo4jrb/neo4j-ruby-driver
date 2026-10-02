@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Drains the referenced result and returns all remaining records as a RecordList.
     class ResultList < Request
       def process = named_entity('RecordList', records: fetch(result_id).to_a.map { Responses::Record.new(it).data })
     end

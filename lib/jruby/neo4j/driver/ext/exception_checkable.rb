@@ -3,6 +3,9 @@
 module Neo4j
   module Driver
     module Ext
+      # Wraps Java-driver calls: `check` re-raises Java exceptions as the
+      # driver's Ruby exceptions, and `reverse_check` turns Ruby exceptions
+      # from user callbacks back into Java ones the Java driver expects.
       module ExceptionCheckable
         include ExceptionMapper
 

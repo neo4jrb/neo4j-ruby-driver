@@ -2,6 +2,9 @@
 
 module TestkitBackend
   module Requests
+    # Opens a session from testkit's NewSession config (access mode, bookmarks,
+    # database, impersonation, per-session auth, notifications) and returns a
+    # Session reference.
     class NewSession < Request
       def process
         reference('Session')

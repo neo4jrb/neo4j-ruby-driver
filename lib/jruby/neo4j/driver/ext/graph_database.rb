@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # Prepended onto Java's GraphDatabase entry point: builds a driver from a
+      # URI, an auth token or token manager, and the converted Ruby config.
       module GraphDatabase
         extend AutoCloseable
         include ConfigConverter

@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # The native→Ruby boundary: converts a Java driver Value into the
+      # matching Ruby or Types object, dispatching on its type constructor.
       module RubyConverter
         include MapConverter
 

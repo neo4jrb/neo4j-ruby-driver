@@ -3,6 +3,9 @@
 module Neo4j
   module Driver
     module Ext
+      # Prepended onto Java's InternalSession: run, begin_transaction, the
+      # managed execute_read/write runners (reverse-checking the user block),
+      # and last_bookmarks as a Ruby Set.
       module InternalSession
         extend AutoCloseable
         include ConfigConverter

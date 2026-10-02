@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Runs driver.execute_query and returns the EagerResult (keys, records,
+    # summary), translating testkit's QueryConfig into the driver config hash.
     class ExecuteQuery < Request
       def process
         fetch(driver_id).execute_query(cypher, decode(params), query_config).then do |er|

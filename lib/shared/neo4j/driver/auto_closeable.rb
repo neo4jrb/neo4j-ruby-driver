@@ -2,6 +2,9 @@
 
 module Neo4j
   module Driver
+    # Class-level helper: wraps the named factory methods so that, when given
+    # a block, the returned resource is yielded and guaranteed closed
+    # afterwards (Java try-with-resources semantics).
     module AutoCloseable
       def auto_closeable(*methods)
         prepend with_block_definer(methods)

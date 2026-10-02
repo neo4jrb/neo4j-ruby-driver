@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # Shared Node/Relationship behaviour: property lookup coerced to Ruby
+      # values, `properties` as a Hash, and Java value-equality for `==`.
       module InternalEntity
         include MapConverter
 

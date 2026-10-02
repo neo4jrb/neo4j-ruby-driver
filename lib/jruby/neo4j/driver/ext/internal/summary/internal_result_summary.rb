@@ -5,6 +5,9 @@ module Neo4j
     module Ext
       module Internal
         module Summary
+          # Ruby-ifies the Java result summary: the available/consumed timings
+          # in milliseconds (nil when absent), the 6.2 queryProfile, and the
+          # query-type enum mapped to the shared Ruby QueryType.
           module InternalResultSummary
             %i[result_available_after result_consumed_after].each do |method|
               define_method(method) do
