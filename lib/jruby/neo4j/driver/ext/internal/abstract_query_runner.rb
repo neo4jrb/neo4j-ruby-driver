@@ -5,8 +5,9 @@ module Neo4j
     module Ext
       module Internal
         # Shared run() override for query runners (sessions, transactions):
-        # builds a Java Statement from the Ruby query and parameters and maps
-        # any Java exception on the way out.
+        # builds a Neo4j::Driver::Query from the Ruby query text and parameters
+        # (via RunOverride#to_statement) and routes the call through #check, so a
+        # Java exception comes back as the driver's Ruby exception.
         module AbstractQueryRunner
           include ExceptionCheckable
           include RunOverride
