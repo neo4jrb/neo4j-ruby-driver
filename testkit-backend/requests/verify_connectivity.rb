@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Verifies the referenced driver can reach its server and returns a Driver
+    # reference.
     class VerifyConnectivity < Request
       def process
         fetch(driver_id).verify_connectivity

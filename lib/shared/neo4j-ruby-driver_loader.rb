@@ -8,6 +8,8 @@ require 'zeitwerk'
 
 module Neo4j
   module Driver
+    # Boots the driver for a given flavour (:mri or :jruby): configures the
+    # Zeitwerk loader over the shared and impl roots, then eager-loads them.
     class Loader
       class << self
         # `__dir__` resolves to:

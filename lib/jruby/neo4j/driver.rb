@@ -4,6 +4,8 @@ require 'neo4j-ruby-driver_jars'
 require 'neo4j-ruby-driver_loader'
 
 module Neo4j
+  # Top-level namespace for the JRuby flavour: imports the org.neo4j.driver
+  # Java packages and prepends the Ext mixins that adapt them to the Ruby API.
   module Driver
     Loader.load(:jruby) do |loader|
       impl_root = File.expand_path('..', __dir__)
@@ -18,19 +20,24 @@ module Neo4j
     Result = Java::OrgNeo4jDriverInternal::InternalResult
     Transaction = Java::OrgNeo4jDriverInternal::DelegatingTransactionContext
 
+    # Mirrors org.neo4j.driver.internal — Java internals the driver reaches
+    # into directly, such as DriverFactory and DatabaseName.
     module Internal
       java_import org.neo4j.driver.internal.shaded.bolt.connection.DatabaseName
       java_import org.neo4j.driver.internal.DriverFactory
 
+      # Mirrors org.neo4j.driver.internal.security — the auth-token manager internals.
       module Security
         java_import org.neo4j.driver.internal.security.StaticAuthTokenManager
       end
     end
 
+    # Mirrors org.neo4j.driver.net — public networking types (ServerAddress, resolver).
     module Net
       include_package 'org.neo4j.driver.net'
     end
 
+    # Mirrors org.neo4j.driver.summary — result-summary Java types (counters, notifications, plans).
     module Summary
       include_package 'org.neo4j.driver.summary'
       GqlNotification = Java::OrgNeo4jDriverInternalSummary::InternalGqlNotification

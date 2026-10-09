@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # Builds a Java Query from Cypher text and a validated Ruby parameters
+      # Hash; shared by the session/transaction run() overrides.
       module RunOverride
         include NeoConverter
 

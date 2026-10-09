@@ -3,6 +3,10 @@
 module Neo4j
   module Driver
     module Internal
+      # Converts a timeout from seconds (or ActiveSupport::Duration) to integer
+      # milliseconds, rejecting negatives. Used for the Bolt tx_timeout (MRI
+      # session) and, on JRuby, for the connection / routing-table and other
+      # config timeouts handed to the Java driver.
       module DurationNormalizer
         # Convert timeout from seconds (or ActiveSupport::Duration) to
         # milliseconds for the Bolt protocol. A negative timeout is

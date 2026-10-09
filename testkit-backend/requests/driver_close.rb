@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Closes the referenced driver and returns a Driver reference.
     class DriverClose < Request
       def process
         reference('Driver')

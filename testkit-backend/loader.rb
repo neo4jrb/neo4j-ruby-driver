@@ -3,6 +3,7 @@
 require 'zeitwerk'
 
 module TestkitBackend
+  # Boots the testkit backend's own Zeitwerk loader over this directory.
   module Loader
     def self.load
       loader = Zeitwerk::Loader.new

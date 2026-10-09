@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Returns the in-use and idle connection-pool metrics for the driver's
+    # pool to a given server address.
     class GetConnectionPoolMetrics < Request
       def process
         uri = URI.parse(address.start_with?('bolt') ? address : "bolt://#{address}")

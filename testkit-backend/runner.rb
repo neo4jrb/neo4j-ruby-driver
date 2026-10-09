@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module TestkitBackend
+  # TCP server for the testkit backend: accepts frontend connections and
+  # handles each on its own thread with a CommandProcessor (reader + executor).
   class Runner
     def initialize(port)
       @selector = NIO::Selector.new

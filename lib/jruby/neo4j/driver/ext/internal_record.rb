@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # Record access: values and positional- or key-based lookups coerced to
+      # Ruby objects, with keys exposed as symbols.
       module InternalRecord
         include MapConverter
         include InternalKeys

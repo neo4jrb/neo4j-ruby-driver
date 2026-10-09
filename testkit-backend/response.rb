@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module TestkitBackend
+  # Base class for an outbound testkit response: wraps a driver object and
+  # renders it as a named JSON entity (subclass name + its `data`).
   class Response
     extend Conversion
 

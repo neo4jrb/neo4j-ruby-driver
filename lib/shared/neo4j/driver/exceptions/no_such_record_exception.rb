@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Exceptions
+      # Raised when a single record is requested but the result is empty or
+      # holds more than one, or when iteration/peek runs past the last record.
       class NoSuchRecordException < RuntimeError
         EMPTY = 'Cannot retrieve a single record, because this result is empty.'
         TOO_MANY = 'Expected a result with a single record, but this result ' \

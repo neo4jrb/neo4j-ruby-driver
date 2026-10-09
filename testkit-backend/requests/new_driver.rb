@@ -2,6 +2,9 @@
 
 module TestkitBackend
   module Requests
+    # Creates a driver from testkit's NewDriver config (auth token or manager,
+    # pool and timeout settings, encryption/trust, resolver hooks) and returns
+    # a Driver reference.
     class NewDriver < Request
       def process
         reference('Driver')

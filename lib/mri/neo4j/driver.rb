@@ -8,6 +8,8 @@ require 'stringio'
 require 'tzinfo'
 
 module Neo4j
+  # Top-level namespace for the MRI flavour; boots the pure-Ruby Bolt
+  # implementation through the shared Zeitwerk loader.
   module Driver
     Loader.load(:mri)
     AuthTokenManager = Internal::InternalAuthTokenManager

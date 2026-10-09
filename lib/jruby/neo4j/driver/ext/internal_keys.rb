@@ -3,6 +3,7 @@
 module Neo4j
   module Driver
     module Ext
+      # Returns a result's or record's column keys as symbols.
       module InternalKeys
         include ExceptionCheckable
 

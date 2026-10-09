@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # Mixed into Value-backed records and entities: exposes their map form
+      # as a Ruby Hash of native values.
       module MapConverter
         include PlainMapConverter
 

@@ -5,6 +5,9 @@ module Neo4j
     module Ext
       module Internal
         module Cluster
+          # Resolves a routing-table handler by database name, or the single
+          # default/home table when none is given, backing testkit's
+          # GetRoutingTable request.
           module RoutingTableRegistryImpl
             def routing_table_handler(database)
               if database

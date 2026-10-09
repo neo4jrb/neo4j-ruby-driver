@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Internal
+      # Client-side argument checks (hash parameters, non-nil values, non-empty
+      # query text, credentials) mirroring the Java driver's own validation.
       module Validator
         def self.require_hash_parameters!(parameters)
           require_hash!(parameters) do

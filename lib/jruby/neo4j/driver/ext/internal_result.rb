@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Ext
+      # Wraps the Java Result as a Ruby Enumerable, mapping exceptions on every
+      # traversal (next/peek/consume/single/each/to_a).
       module InternalResult
         include Enumerable
         include ExceptionCheckable

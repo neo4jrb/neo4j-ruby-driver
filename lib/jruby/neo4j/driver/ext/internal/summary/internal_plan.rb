@@ -5,6 +5,8 @@ module Neo4j
     module Ext
       module Internal
         module Summary
+          # Ruby-ifies the Java execution plan: its arguments as a Hash of
+          # native Ruby values and its identifiers as an Array.
           module InternalPlan
             # Ruby-idiomatic args: Java Map<String, Value> → Hash with
             # native Ruby values. Symmetric with MRI Plan#arguments

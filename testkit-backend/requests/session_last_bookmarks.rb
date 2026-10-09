@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Returns the referenced session's last bookmarks.
     class SessionLastBookmarks < Request
       def process
         named_entity('Bookmarks', bookmarks: to_object.map(&:value))

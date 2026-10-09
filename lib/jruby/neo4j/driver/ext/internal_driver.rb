@@ -3,6 +3,9 @@
 module Neo4j
   module Driver
     module Ext
+      # Prepended onto Java's InternalDriver: execute_query, session creation
+      # (with per-session auth), connectivity/auth verification, and
+      # routing-table access and refresh used by testkit.
       module InternalDriver
         extend AutoCloseable
         include ConfigConverter

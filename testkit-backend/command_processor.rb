@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 module TestkitBackend
+  # Per-connection engine for testkit's line-delimited JSON protocol: a
+  # dedicated reader thread frames each socket message and routes it, sending
+  # callback replies to the waiting driver thread and top-level requests to the
+  # executor loop that dispatches and answers them.
   class CommandProcessor
     MAX_LOG_BYTES = 512
     REQUEST_BEGIN = '#request begin'

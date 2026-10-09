@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Verifies the given auth token against the referenced driver's server.
     class VerifyAuthentication < Request
       def process
         named_entity('DriverIsAuthenticated',

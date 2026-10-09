@@ -2,6 +2,8 @@
 
 module TestkitBackend
   module Requests
+    # Aborts the running managed transaction: re-raises the referenced error,
+    # or rolls back (RollbackException) when no error id is given.
     class RetryableNegative < Retryable
       def process_request
         process

@@ -2,6 +2,7 @@
 
 module TestkitBackend
   module Requests
+    # Builds a driver OffsetTime (with utc_offset_s) or LocalTime from a testkit CypherTime.
     class CypherTime < Request
       def to_object
         nanos = (hour * 3600 + minute * 60 + second) * 1_000_000_000 + nanosecond

@@ -3,6 +3,8 @@
 module Neo4j
   module Driver
     module Internal
+      # No-op stand-in for an ActiveSupport-style deprecator; swallows the
+      # `behavior=` configuration the driver would otherwise forward.
       module Deprecator
         class << self
           def deprecator

@@ -3,6 +3,9 @@
 module Neo4j
   module Driver
     module Ext
+      # Translates the Ruby config Hash into Java Config builder calls —
+      # timeouts to Duration, trust/notification/revocation strategies, and
+      # resolver/bookmark procs wrapped as Java functional interfaces.
       module ConfigConverter
         include NeoConverter
         include Driver::Internal::DurationNormalizer
