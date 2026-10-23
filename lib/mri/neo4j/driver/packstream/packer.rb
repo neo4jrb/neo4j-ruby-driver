@@ -270,15 +270,20 @@ module Neo4j
           end
         end
 
-        # Return the IANA zone name for a TimeWithZone-like value when it has
-        # one, otherwise nil (so the caller falls back to offset-only 0x46).
+        # Return the IANA zone identifier for a TimeWithZone-like value when
+        # it has one, otherwise nil (so the caller falls back to offset-only
+        # 0x46). An ActiveSupport::TimeZone's `name` is the Rails display name
+        # ("Mountain Time (US & Canada)"), which the server rejects
+        # (Neo.ClientError.Request.Invalid); the identifier the DateTimeZoneId
+        # structure needs ("America/Denver") is on its tzinfo. A zone without
+        # tzinfo (a bare TZInfo::Timezone) carries the identifier as its name.
         # Offset-shaped names like "+07:00" or "-05:00" don't round-trip
         # through Neo4j's zoned DateTime and are treated as nil.
         def named_zone_for(value)
           return nil unless value.respond_to?(:time_zone)
 
           tz = value.time_zone
-          name = tz.respond_to?(:name) ? tz.name : nil
+          name = tz.respond_to?(:tzinfo) ? tz.tzinfo.identifier : tz.name
           return nil if name.nil? || name.empty? || name.match?(/\A[+-]?\d/)
 
           name
