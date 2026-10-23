@@ -34,6 +34,13 @@ RSpec.describe Neo4j::Driver::PackStream::Packer do
       expect(bytes).to include('Europe/Berlin')
     end
 
+    it 'keeps UTC verbatim rather than canonicalising it to Etc/UTC' do
+      bytes = packed(time_in(ActiveSupport::TimeZone['UTC']))
+
+      expect(bytes.getbyte(1)).to eq(0x66)
+      expect(bytes).not_to include('Etc/UTC')
+    end
+
     it 'falls back to the offset form for an offset-shaped zone name' do
       bytes = packed(time_in(Struct.new(:name).new('+07:00')))
 
