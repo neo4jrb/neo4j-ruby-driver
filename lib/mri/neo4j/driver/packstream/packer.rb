@@ -270,20 +270,16 @@ module Neo4j
           end
         end
 
-        # Return the IANA zone identifier for a TimeWithZone-like value when
-        # it has one, otherwise nil (so the caller falls back to offset-only
-        # 0x46). Internal::ZoneIdentifier keeps a zone name that is already a
+        # The IANA zone identifier for a TimeWithZone-like value's zone, or nil
+        # when it has none (so the caller falls back to the offset-only 0x46
+        # form). Internal::ZoneIdentifier keeps a zone name that is already a
         # valid IANA id (so "UTC" stays "UTC") and maps a Rails display name
-        # ("Mountain Time (US & Canada)") to its tzinfo id ("America/Denver").
-        # Offset-shaped names like "+07:00" or "-05:00" don't round-trip
-        # through Neo4j's zoned DateTime and are treated as nil.
+        # ("Mountain Time (US & Canada)") to its tzinfo id ("America/Denver"),
+        # returning nil when neither yields an identifier.
         def named_zone_for(value)
           return nil unless value.respond_to?(:time_zone)
 
-          name = Neo4j::Driver::Internal::ZoneIdentifier.call(value.time_zone)
-          return nil if name.nil? || name.empty? || name.match?(/\A[+-]?\d/)
-
-          name
+          Neo4j::Driver::Internal::ZoneIdentifier.call(value.time_zone)
         end
 
         def pack_local_datetime(value)
