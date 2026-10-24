@@ -21,6 +21,15 @@ RSpec.describe Neo4j::Driver do
       it { is_expected.to eq param }
     end
 
+    context 'when TimeWithZone in a Rails-named zone' do
+      # ActiveSupport::TimeZone#name is the Rails display name; the wire needs
+      # the IANA identifier from its tzinfo.
+      let(:param) { Time.now.in_time_zone(ActiveSupport::TimeZone['Mountain Time (US & Canada)']) }
+
+      it { is_expected.to eq param }
+      its(:utc_offset) { is_expected.to eq param.utc_offset }
+    end
+
     context 'when DateTime as plain Time' do
       let(:param) { Time.now }
 

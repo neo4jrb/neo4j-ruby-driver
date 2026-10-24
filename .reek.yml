@@ -267,6 +267,7 @@ detectors:
     - Neo4j::Driver::Ext::ExceptionMapper#unwrap_optional
     - Neo4j::Driver::Ext::NeoConverter#zone_identifier_for
     - Neo4j::Driver::Driver#session
+    - Neo4j::Driver::Internal::ZoneIdentifier#call
     - Neo4j::Driver::PackStream::Packer#named_zone_for
     - Neo4j::Driver::Routing::LoadBalancer#release
   MissingSafeMethod:
