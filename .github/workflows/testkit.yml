@@ -104,8 +104,13 @@ jobs:
         id: testkit
         continue-on-error: true
         run: |
-          set -o pipefail
-          cd "$TESTKIT_PATH"
+          # GitHub runs this step as `bash -e`; turn errexit OFF so a non-zero
+          # main.py (via pipefail on the `| tee` pipeline) doesn't kill the step
+          # before the retry gate runs. The status is managed explicitly via
+          # PIPESTATUS and the final `exit "$rc"` (continue-on-error only sets the
+          # step result; it does NOT stop `-e`'s early exit).
+          set +e
+          cd "$TESTKIT_PATH" || exit 1
           attempts=3
           rc=1
           for i in $(seq 1 "$attempts"); do
@@ -123,12 +128,19 @@ jobs:
             rc=${PIPESTATUS[0]}
             [ "$rc" -eq 0 ] && break
 
-            # Only a transient provisioning crash is retried (see note above).
+            # Retry ONLY a transient Neo4j cluster boot/readiness crash: a
+            # non-zero exit with no unittest failures/errors, where the crash is a
+            # provisioning command — a cluster `docker run coreN`, wait_for_all_dbs
+            # or wait_for_port/poll — or a port-readiness timeout. A real test
+            # failure (failures=/errors= > 0, or a FAIL:/ERROR: line) and any other
+            # crash (build / backend / a non-provisioning subprocess) are never
+            # retried; they fail fast and the postprocess reds the step.
             fe=$(awk 'match($0,/failures=[0-9]+/){f+=substr($0,RSTART+9,RLENGTH-9)} match($0,/errors=[0-9]+/){e+=substr($0,RSTART+7,RLENGTH-7)} END{print f+e+0}' "$RUNNER_TEMP/run.log")
             realfail=$(grep -Ec '^(FAIL|ERROR): ' "$RUNNER_TEMP/run.log" || true)
-            infra=$(grep -Ec "CalledProcessError|Timeout while waiting for port" "$RUNNER_TEMP/run.log" || true)
-            if [ "$i" -lt "$attempts" ] && [ "$fe" -eq 0 ] && [ "$realfail" -eq 0 ] && [ "$infra" -gt 0 ]; then
-              echo "::warning::testkit ${{ matrix.flavor }}: transient cluster-provisioning crash (0 test failures) — retrying ($((i + 1))/$attempts)"
+            boot_crash=$(grep -E 'CalledProcessError' "$RUNNER_TEMP/run.log" | grep -Ec "wait_for_all_dbs|wait_for_port|poll_host_and_port|'--name', 'core" || true)
+            readiness_timeout=$(grep -Ec 'Timeout while waiting for port' "$RUNNER_TEMP/run.log" || true)
+            if [ "$i" -lt "$attempts" ] && [ "$fe" -eq 0 ] && [ "$realfail" -eq 0 ] && [ $((boot_crash + readiness_timeout)) -gt 0 ]; then
+              echo "::warning::testkit ${{ matrix.flavor }}: transient Neo4j cluster boot/readiness crash (0 test failures) — retrying ($((i + 1))/$attempts)"
               docker rm -f $(docker ps -aq) >/dev/null 2>&1 || true
               docker network rm testkit_1 >/dev/null 2>&1 || true
               continue
