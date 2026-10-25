@@ -51,6 +51,11 @@ module Neo4j
           # server's authorization cache is per-server — a reader's expiry must
           # not force the writer pool to re-auth.
           @auth_epochs = Hash.new(0)
+          # Leaf lock for @auth_epochs: never held while taking another lock.
+          # Must not be @refresh_lock: open_connection reads the epoch from
+          # inside the pool's create block (under TimedStack's mutex), while
+          # release and refresh take that pool mutex under @refresh_lock.
+          @auth_epoch_lock = Mutex.new
           # Monitor (reentrant) because ensure_routing_table_is_fresh holds
           # the lock while it goes through pool_for, which also locks.
           @refresh_lock = Monitor.new
@@ -238,16 +243,16 @@ module Neo4j
           # owns the token; the manager notification is skipped for a
           # per-session identity.
           if error.is_a?(Exceptions::AuthorizationExpiredException)
-            @refresh_lock.synchronize { @auth_epochs[address] += 1 }
+            @auth_epoch_lock.synchronize { @auth_epochs[address] += 1 }
           end
           return false if session_scoped
 
           @auth_manager.handle_security_exception(token, error)
         end
 
-        # Current auth generation for a server, read under the lock that guards
-        # the @auth_epochs Hash (mutated in on_security_exception).
-        def auth_epoch_for(address) = @refresh_lock.synchronize { @auth_epochs[address] }
+        # Current auth generation for a server, read under the leaf lock that
+        # guards the @auth_epochs Hash (mutated in on_security_exception).
+        def auth_epoch_for(address) = @auth_epoch_lock.synchronize { @auth_epochs[address] }
 
         def release(connection)
           # Direct provider tolerates nil; mirror that. Internal callers
