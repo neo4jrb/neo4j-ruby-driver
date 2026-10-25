@@ -125,7 +125,16 @@ jobs:
                 5.23-enterprise-cluster-neo4j \
                 5.26-enterprise-cluster-neo4j \
               2>&1 | tee "$RUNNER_TEMP/run.log"
-            rc=${PIPESTATUS[0]}
+            st=("${PIPESTATUS[@]}")
+            rc=${st[0]}
+            # A `tee` write failure leaves run.log unreliable, so fail hard — it
+            # isn't a boot crash and the log can't be trusted for the retry gate
+            # or the postprocess. (Capture both pipe statuses before the next
+            # command resets PIPESTATUS.)
+            if [ "${st[1]:-0}" -ne 0 ]; then
+              echo "::error::tee failed writing $RUNNER_TEMP/run.log (exit ${st[1]})"
+              exit 1
+            fi
             [ "$rc" -eq 0 ] && break
 
             # Retry ONLY a transient Neo4j cluster boot/readiness crash: a
