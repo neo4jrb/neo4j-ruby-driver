@@ -76,6 +76,12 @@ jobs:
       id-token: write # OIDC token for RubyGems trusted publishing
     env:
       BUNDLE_JOBS: '1' # jar-dependencies' post_install hook races under parallel installs
+      # jar-dependencies 0.6.1 (bundled with JRuby 10.1.2.0) uses FileUtils in
+      # jars/installer.rb without requiring it, relying on a transitive load that
+      # the 0.6.x order no longer provides; the gem-build's jar vendoring then dies
+      # with `uninitialized constant Jars::Installer::FileUtils`. Preload fileutils.
+      # (Same fix as the JRuby legs in specs.yml.)
+      RUBYOPT: '-rfileutils'
     steps:
       - uses: actions/checkout@v4
         with:
