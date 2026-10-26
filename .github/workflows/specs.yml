@@ -105,6 +105,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # JRuby 10 requires Java 21; the runner's default JDK can be 17, which
+      # makes jruby.jar (class file 65) fail to launch with
+      # UnsupportedClassVersionError. Pin Java 21 for the jruby legs — no-op for
+      # the MRI legs, which don't touch the JVM.
+      - uses: actions/setup-java@v4
+        if: ${{ startsWith(matrix.ruby, 'jruby') }}
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
