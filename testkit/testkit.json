@@ -1,7 +1,7 @@
 {
   "testkit": {
-    "_comment": "Pinned testkit revision this driver is tested against (upstream 6.x). Includes PR #725 (ruby error assertion for test_rejects_uuid_result). Bump to a newer 6.x SHA as needed.",
+    "_comment": "Pinned testkit revision this driver is tested against (upstream branch 6.x). Latest 6.x as of 2026-10-26; supersedes 14ebed82 (which added ruby PR #725). Bump to a newer 6.x SHA as needed.",
     "uri": "https://github.com/neo4j-drivers/testkit.git",
-    "ref": "14ebed82fb27a0280361a7c7c29f1e9f4306da6f"
+    "ref": "d9cd7769db79cae0725ae03a0551abbc331fbc07"
   }
 }

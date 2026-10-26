@@ -8,7 +8,7 @@ Code's Dev Containers extension or JetBrains Gateway locally.
 | Tool | Version | Notes |
 |------|---------|-------|
 | Ruby (MRI) | 3.4.9 | matches the CI matrix |
-| JRuby | 10.1.0.0 | at `$JRUBY_HOME=/opt/jruby`; tarball SHA-256 verified |
+| JRuby | 10.1.2.0 | at `$JRUBY_HOME=/opt/jruby`; tarball SHA-256 verified |
 | Java | OpenJDK 21 (Temurin) | required by JRuby |
 | Python | 3.11 | for testkit's Python orchestration |
 | Node | 22 | for `npm install -g @anthropic-ai/claude-code` |

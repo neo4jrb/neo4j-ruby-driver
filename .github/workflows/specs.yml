@@ -30,11 +30,11 @@ jobs:
         ruby:
           - "3.4"
           - "4.0"
-          - "jruby-10.1.0.0"
+          - "jruby-10.1.2.0"
         neo4j:
           - "4.4.48"
-          - "5.26.28"
-          - "2026.06.0"
+          - "5.26.32"
+          - "2026.09.0"
         # Default value so the `include` below adds a new row rather
         # than merging into existing combinations (GH Actions semantics).
         force_mri: [false]
@@ -42,8 +42,8 @@ jobs:
           # MRI flavor on JRuby — exercises the cross-flavor path via
           # NEO4J_DRIVER_FORCE_MRI=1 (the Gemfile's `gemspec name:` flip).
           # Single Neo4j version to keep CI minutes reasonable.
-          - ruby: "jruby-10.1.0.0"
-            neo4j: "2026.06.0"
+          - ruby: "jruby-10.1.2.0"
+            neo4j: "2026.09.0"
             force_mri: true
 
     services:
