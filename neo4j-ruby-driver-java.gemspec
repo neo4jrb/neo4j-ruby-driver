@@ -23,8 +23,8 @@ Gem::Specification.new do |spec|
     # Dev tree: resolve + vendor the jars from Maven (writes Jars.lock and the
     # vendored tree that the staged build then packages).
     spec.add_development_dependency 'ruby-maven', '>= 0'
-    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 6.2.1'
-    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver-observation-metrics, 6.2.1'
+    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver-all, 6.3.0'
+    spec.requirements << 'jar org.neo4j.driver, neo4j-java-driver-observation-metrics, 6.3.0'
   end
   spec.metadata['rubygems_mfa_required'] = 'true'
 end

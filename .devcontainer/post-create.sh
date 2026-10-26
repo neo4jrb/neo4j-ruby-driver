@@ -5,14 +5,14 @@
 
 set -euo pipefail
 
-JRUBY_VERSION=10.1.0.0
+JRUBY_VERSION=10.1.2.0
 JRUBY_HOME=/opt/jruby
 JRUBY_TARBALL=jruby-dist-$JRUBY_VERSION-bin.tar.gz
 JRUBY_URL=https://repo1.maven.org/maven2/org/jruby/jruby-dist/$JRUBY_VERSION/$JRUBY_TARBALL
 # SHA-256 from Maven Central:
 #   $JRUBY_URL.sha256
 # Update both this constant and JRUBY_VERSION together.
-JRUBY_SHA256=9c14a0ce81f3a312fd98c415986982132e91d36b12cb8d74a3dfdae93fe984ac
+JRUBY_SHA256=6dcb361bc1df554803fdd0243dc7c7a42723ac88a4b6f66830026afe82db28a8
 
 # ---------------------------------------------------------------- JRuby
 # Reinstall when the pinned version doesn't match what's already in

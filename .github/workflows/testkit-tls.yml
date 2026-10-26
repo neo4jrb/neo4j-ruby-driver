@@ -26,10 +26,10 @@ jobs:
             base_image: ruby:4.0-slim
             force_mri: ''
           - flavor: jruby
-            base_image: jruby:10.1.0.0-jdk21
+            base_image: jruby:10.1.2.0-jdk21
             force_mri: ''
           - flavor: mri-on-jruby
-            base_image: jruby:10.1.0.0-jdk21
+            base_image: jruby:10.1.2.0-jdk21
             force_mri: '1'
 
     env:

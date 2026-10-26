@@ -25,16 +25,16 @@ jobs:
           - flavor: mri
             base_image: ruby:4.0-slim
             force_mri: ''
-          # Native JRuby: jruby:10.1.0.0-jdk21 base, runs lib/jruby/.
+          # Native JRuby: jruby:10.1.2.0-jdk21 base, runs lib/jruby/.
           - flavor: jruby
-            base_image: jruby:10.1.0.0-jdk21
+            base_image: jruby:10.1.2.0-jdk21
             force_mri: ''
           # MRI-on-JRuby forward-compat: jruby image as the runtime but
           # NEO4J_DRIVER_FORCE_MRI=1 flips the Gemfile to the MRI gemspec
           # so we exercise lib/mri/ under JRuby. Uses the mri baseline
           # because it runs MRI code.
           - flavor: mri-on-jruby
-            base_image: jruby:10.1.0.0-jdk21
+            base_image: jruby:10.1.2.0-jdk21
             force_mri: '1'
 
     env:
