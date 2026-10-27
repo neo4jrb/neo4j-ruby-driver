@@ -230,6 +230,7 @@ Metrics/ClassLength:
 # Configuration parameters: AllowedMethods, AllowedPatterns, Max.
 Metrics/CyclomaticComplexity:
   Exclude:
+    - 'Rakefile'
     - 'lib/jruby/neo4j/driver/ext/config_converter.rb'
     - 'lib/jruby/neo4j/driver/ext/exception_mapper.rb'
     - 'lib/jruby/neo4j/driver/ext/neo_converter.rb'
@@ -324,6 +325,7 @@ Metrics/ParameterLists:
 # Configuration parameters: AllowedMethods, AllowedPatterns, Max.
 Metrics/PerceivedComplexity:
   Exclude:
+    - 'Rakefile'
     - 'lib/jruby/neo4j/driver/ext/neo_converter.rb'
     - 'lib/mri/neo4j/driver/bolt/connection.rb'
     - 'lib/mri/neo4j/driver/bolt/wire.rb'
