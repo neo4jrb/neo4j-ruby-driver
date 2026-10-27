@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com). The gem
 version tracks the neo4j-java-driver version it targets, with a RubyGems
 pre-release token when applicable (e.g. `6.2.1.beta.1`).
 
+## [6.3.0] - 2026-10-27
+
+### Fixed
+
+- Enable tuned TCP keepalive on Bolt connections ([#463](https://github.com/neo4jrb/neo4j-ruby-driver/pull/463))
+- Pack TimeWithZone with the IANA zone identifier ([#475](https://github.com/neo4jrb/neo4j-ruby-driver/pull/475))
+- Guard auth epochs with a leaf lock to avoid a pool/refresh deadlock ([#474](https://github.com/neo4jrb/neo4j-ruby-driver/pull/474))
+
 ## [6.2.1.beta.4] - 2026-08-14
 
 ### Added
@@ -105,6 +113,7 @@ pre-release token when applicable (e.g. `6.2.1.beta.1`).
 - Raise IllegalStateException on closed-driver home-db routing [Feature:Bolt:3.0] ([#418](https://github.com/neo4jrb/neo4j-ruby-driver/pull/418))
 - Re-consult auth manager on Bolt 5.0 routed re-auth [Feature:Auth:Managed] ([#419](https://github.com/neo4jrb/neo4j-ruby-driver/pull/419))
 
+[6.3.0]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v6.2.1..v6.3.0
 [6.2.1.beta.4]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v6.2.1.beta.3..v6.2.1.beta.4
 [6.2.1.beta.3]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v6.2.1.beta.2..v6.2.1.beta.3
 [6.2.1.beta.2]: https://github.com/neo4jrb/neo4j-ruby-driver/compare/v6.2.1.beta.1..v6.2.1.beta.2
