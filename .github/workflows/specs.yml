@@ -90,6 +90,17 @@ jobs:
       # correct everywhere — matches testkit/build.py for the same
       # reason. Cf. PR #303 commit 670dec3 fix in testkit/build.py.
       BUNDLE_JOBS: '1'
+      # jar-dependencies 0.6.1 (bundled with JRuby 10.1.2.0) regressed: its
+      # jars/installer.rb uses FileUtils (lines 117/223) but only requires
+      # 'jar_dependencies' and 'jars/maven_exec' — it relied on a transitive
+      # `require 'fileutils'` (via jars/classpath.rb) that the 0.6.x load order
+      # no longer pulls in first. Under setup-ruby's `bundle install`, the
+      # jar-vendoring post_install hook runs before fileutils loads, so vendoring
+      # the native JRuby gem dies with `uninitialized constant
+      # Jars::Installer::FileUtils`. Preload fileutils so ::FileUtils is defined.
+      # (testkit's Docker lanes load it transitively, so only these legs bite.)
+      # No-op on the MRI legs — empty string, and fileutils is always-safe stdlib.
+      RUBYOPT: ${{ startsWith(matrix.ruby, 'jruby') && '-rfileutils' || '' }}
       # Measure coverage once per flavour, across every server version (the MRI
       # Bolt v3/v4/v5 ladder only executes against a matching server, so the
       # diff-coverage gate unions all these runs). MRI flavour = the ruby 3.4
@@ -104,6 +115,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      # JRuby 10 requires Java 21; the runner's default JDK can be 17, which
+      # makes jruby.jar (class file 65) fail to launch with
+      # UnsupportedClassVersionError. Pin Java 21 for the jruby legs — no-op for
+      # the MRI legs, which don't touch the JVM.
+      - uses: actions/setup-java@v4
+        if: ${{ startsWith(matrix.ruby, 'jruby') }}
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - uses: ruby/setup-ruby@v1
         with:
