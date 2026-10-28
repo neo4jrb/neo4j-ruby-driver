@@ -12,27 +12,42 @@ to `.pre.`). The progression is `alpha` → `beta` → `rc` → final.
 [git-cliff](https://git-cliff.org) — never hand-edited. Install it once
 (`brew install git-cliff`, or see the git-cliff docs).
 
-## Steps
+## Cutting a release
 
-1. **Bump the version** in `lib/shared/neo4j/driver/version.rb`.
-2. **Regenerate the changelog**, finalizing the new version's section (this
-   moves `[Unreleased]` into a `[<version>]` heading):
+One command does the whole thing — finalize the changelog, land it on `main`,
+and (after a confirmation) tag and trigger the publish:
 
-   ```bash
-   version="$(ruby -r ./lib/shared/neo4j/driver/version -e 'print Neo4j::Driver::VERSION')"
-   rake "changelog[v$version]"
-   ```
+```bash
+rake release            # release the version currently in version.rb
+rake "release[6.3.1]"   # bump version.rb to 6.3.1 first, then release
+```
 
-3. **Commit** the version + changelog on `main` (via PR, as usual).
-4. **Tag and push just that tag** (not `--tags`, which would push any stray
-   local tags):
+It needs an authenticated `gh` and `git-cliff` installed, and a clean `main` in
+sync with `origin/main`. It then:
 
-   ```bash
-   git tag "v$version"
-   git push origin "v$version"
-   ```
+1. Bumps `version.rb` if you passed a version (otherwise uses what's there —
+   the version is the single source of truth; the workflow refuses a tag that
+   disagrees with it). It also refuses to release a version whose base (without
+   any pre-release token) doesn't match the Java-driver pins in
+   `neo4j-ruby-driver-java.gemspec`, since the gem version tracks that driver —
+   bump the jar requirements in the same step when the target Java version
+   changes.
+2. Regenerates `CHANGELOG.md`, moving `[Unreleased]` into a `[<version>]`
+   heading.
+3. Commits both and pushes **straight to `main`**. Pushing to the protected
+   `main` is sanctioned by the admin `always` bypass on the branch ruleset — a
+   changelog/version commit is paths-ignored by CI and the changelog is
+   machine-generated, so a PR would add process without protection.
+4. Prompts `Continue? [y/N]` (since the next step publishes to RubyGems and
+   can't be undone), then tags `v<version>` and pushes just that tag, firing
+   [`release.yml`](.github/workflows/release.yml).
 
-(Between releases, `rake changelog` refreshes `[Unreleased]` from merged PRs.)
+A version already tagged on `origin` is refused: a released number can never be
+reused on RubyGems, so bump to a new one. Set `RELEASE_YES=1` to skip the
+prompt (e.g. from an automated caller).
+
+(Between releases, `rake changelog` on its own refreshes the `[Unreleased]`
+section from merged PRs — no tag argument.)
 
 ## What the workflow does
 

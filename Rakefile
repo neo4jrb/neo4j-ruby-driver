@@ -171,3 +171,103 @@ task :changelog, [:tag] do |_task, args|
   # Pass args to sh as an array — no shell, so the tag can't inject commands.
   sh(*cmd, '-o', 'CHANGELOG.md')
 end
+
+VERSION_FILE = 'lib/shared/neo4j/driver/version.rb'
+JAVA_GEMSPEC = 'neo4j-ruby-driver-java.gemspec'
+
+# Cut a release in one step. The gem version lives in version.rb (single source
+# of truth — the release workflow refuses a tag that disagrees with it), so:
+#
+#   rake release            # release the version already in version.rb
+#   rake "release[6.3.1]"   # bump version.rb to 6.3.1 first, then release
+#
+# It finalizes the CHANGELOG for the version, commits version.rb + CHANGELOG on
+# main and pushes straight to main (sanctioned by the admin `always` bypass on
+# the branch ruleset — a changelog/version commit is paths-ignored by CI and the
+# changelog is machine-generated, so a PR would add process without protection),
+# then — after a y/N gate, since this publishes to RubyGems and can't be undone —
+# tags `v<version>` and pushes the tag, which triggers .github/workflows/release.yml.
+#
+# Set RELEASE_YES=1 to skip the confirmation (e.g. from an automated caller).
+def cut_release(version_arg)
+  # Mutating commands abort loudly on failure; array form means no shell, so
+  # nothing here can be shell-injected. `probe` is for boolean probes.
+  run = ->(*cmd) { system(*cmd) or abort("✗ command failed: #{cmd.join(' ')}") }
+  probe = ->(*cmd) { system(*cmd, out: File::NULL, err: File::NULL) }
+
+  # --- preflight (before touching anything) --------------------------------
+  branch = `git rev-parse --abbrev-ref HEAD`.strip
+  abort "✗ not on main (on #{branch}). Releases are cut from main." unless branch == 'main'
+  probe.call('git', 'cliff', '--version') or abort '✗ git-cliff not found — `brew install git-cliff`.'
+  probe.call('gh', 'auth', 'status') or abort '✗ gh not authenticated — run `gh auth login`.'
+  abort '✗ working tree is dirty — commit or stash first.' unless `git status --porcelain`.empty?
+
+  run.call('git', 'fetch', '--quiet', 'origin', 'main', '--tags')
+  if `git rev-parse HEAD`.strip != `git rev-parse origin/main`.strip
+    abort '✗ local main differs from origin/main — `git pull` (or push your commits) first.'
+  end
+
+  # --- resolve + validate the target version (no writes yet) ---------------
+  # Decide the version from the arg (a bump) or version.rb, and run every check
+  # that can reject the release BEFORE touching version.rb — otherwise a rejected
+  # release (e.g. an already-tagged version) would leave the tree dirty and block
+  # a clean re-run.
+  version = version_arg&.delete_prefix('v') || File.read(VERSION_FILE)[/VERSION = '([^']*)'/, 1] or
+    abort "✗ no VERSION in #{VERSION_FILE}."
+  version.match?(/\A\d+\.\d+\.\d+(\.[A-Za-z0-9]+)*\z/) or
+    abort "✗ invalid version #{version.inspect} (expected e.g. 6.3.1 or 6.3.1.beta.1)."
+  tag = "v#{version}"
+
+  # A released version can never be reused on RubyGems, so refuse a taken tag.
+  abort "✗ tag #{tag} already exists locally." if probe.call('git', 'rev-parse', '-q', '--verify', "refs/tags/#{tag}")
+  abort "✗ #{tag} is already released (tag on origin) — bump the version." \
+    unless `git ls-remote --tags origin "refs/tags/#{tag}"`.empty?
+
+  # The gem version tracks the neo4j-java-driver version (see RELEASING.md), so
+  # the JRuby gemspec's jar pins must match version.rb's base version (ignoring
+  # any pre-release token). Otherwise a `release[X]` that bumped only version.rb
+  # would publish a gem vendoring the wrong Java driver.
+  java_pin = File.read(JAVA_GEMSPEC)[/neo4j-java-driver-all,\s*([\d.]+)/, 1]
+  unless java_pin == version[/\A\d+\.\d+\.\d+/]
+    abort "✗ version.rb targets #{version} but #{JAVA_GEMSPEC} pins the Java driver at #{java_pin} — " \
+          'align the jar requirements (both track the same neo4j-java-driver version).'
+  end
+
+  # Checks passed — now it's safe to bump version.rb (only when a version was given).
+  if version_arg
+    src = File.read(VERSION_FILE)
+    File.write(VERSION_FILE, src.sub(/VERSION = '[^']*'/, "VERSION = '#{version}'"))
+  end
+
+  # --- finalize changelog + land the commit on main ------------------------
+  Rake::Task[:changelog].invoke(tag)
+  run.call('git', 'add', VERSION_FILE, 'CHANGELOG.md')
+  if probe.call('git', 'diff', '--cached', '--quiet')
+    puts "• No version/changelog change to commit — main already holds #{tag}'s content."
+  else
+    # chore(release) is dropped by the changelog's notable-only filter, so the
+    # release commit never shows up in its own CHANGELOG.
+    run.call('git', 'commit', '--quiet', '-m', "chore(release): #{tag}")
+    run.call('git', 'push', '--quiet', 'origin', 'main')
+    puts "• Pushed #{tag}'s changelog commit to main."
+  end
+
+  # --- gate the irreversible publish, then tag -----------------------------
+  unless ENV['RELEASE_YES'] == '1'
+    print "\nAbout to tag #{tag} and push it — this publishes #{tag} to RubyGems " \
+          "and cannot be undone.\nContinue? [y/N] "
+    answer = $stdin.gets
+    unless answer&.strip&.match?(/\A(y|yes)\z/i)
+      abort 'Aborted before tagging. main already has the changelog commit; re-run `rake release` when ready.'
+    end
+  end
+
+  run.call('git', 'tag', tag)
+  run.call('git', 'push', 'origin', tag)
+  puts "\n✓ Pushed #{tag}. Release workflow:\n  " \
+       'https://github.com/neo4jrb/neo4j-ruby-driver/actions/workflows/release.yml'
+end
+
+desc 'Cut a release: finalize CHANGELOG, push main, tag, and trigger publish ' \
+     '(version from version.rb; pass one to bump first, e.g. rake "release[6.3.1]")'
+task(:release, [:version]) { |_task, args| cut_release(args[:version]) }
