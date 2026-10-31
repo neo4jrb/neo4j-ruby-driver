@@ -94,9 +94,25 @@ really "pull the bad release, then ship a *new* version".
    `.beta.N`), update the CHANGELOG, and tag/push as above. You cannot reuse the
    yanked number.
 
-> Only need to re-run a *failed publish* (not a version change)? Re-push the same
-> tag — the release step is idempotent — but note the gem push will still fail on
-> a duplicate version, so anything version-affecting means a bump.
+> Only need to re-run a *failed publish* (not a version change)? Re-run the
+> failed workflow run — pushing an unchanged tag is a no-op and fires nothing:
+>
+> ```bash
+> gh run list --workflow release.yml --status failure --limit 10   # pick the run for your tag
+> gh run rerun <run-id> --failed
+> ```
+>
+> GitHub allows reruns only within 30 days of the original run. For an older
+> run, delete the remote tag and push it again, which creates a new
+> tag-triggered run (the workflow has no manual trigger):
+>
+> ```bash
+> git push origin :refs/tags/v<version> && git push origin v<version>
+> ```
+>
+> All three jobs are idempotent (an existing Release is skipped, an
+> already-published gem is treated as success), so either recovery path is
+> safe at any point. Anything version-affecting still means a bump.
 
 ## One-time setup
 
