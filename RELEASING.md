@@ -102,9 +102,17 @@ really "pull the bad release, then ship a *new* version".
 > gh run rerun <run-id> --failed
 > ```
 >
+> GitHub allows reruns only within 30 days of the original run. For an older
+> run, delete the remote tag and push it again, which creates a new
+> tag-triggered run (the workflow has no manual trigger):
+>
+> ```bash
+> git push origin :refs/tags/v<version> && git push origin v<version>
+> ```
+>
 > All three jobs are idempotent (an existing Release is skipped, an
-> already-published gem is treated as success), so a rerun is safe at any
-> point. Anything version-affecting still means a bump.
+> already-published gem is treated as success), so either recovery path is
+> safe at any point. Anything version-affecting still means a bump.
 
 ## One-time setup
 
