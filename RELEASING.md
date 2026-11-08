@@ -104,10 +104,15 @@ really "pull the bad release, then ship a *new* version".
 >
 > GitHub allows reruns only within 30 days of the original run. For an older
 > run, delete the remote tag and push it again, which creates a new
-> tag-triggered run (the workflow has no manual trigger):
+> tag-triggered run (the workflow has no manual trigger). Sync the local tag to
+> the released commit **first** — otherwise, if your clone is missing the tag the
+> re-push fails after the remote tag is already gone, and if the local tag is
+> stale the rerun would publish from the wrong commit:
 >
 > ```bash
-> git push origin :refs/tags/v<version> && git push origin v<version>
+> git fetch --force origin "refs/tags/v<version>:refs/tags/v<version>"  # local tag := released commit
+> git push origin ":refs/tags/v<version>"                               # delete the remote tag
+> git push origin "v<version>"                                          # re-push it -> new run
 > ```
 >
 > All three jobs are idempotent (an existing Release is skipped, an
