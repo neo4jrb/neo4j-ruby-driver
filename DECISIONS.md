@@ -324,3 +324,22 @@ Maven home — and the driver then loads `org.neo4j.driver.GraphDatabase` from t
 vendored jar (not `~/.m2`). The prior published gems (`beta.3` and earlier)
 instead threw `UnsatisfiableDependencyError: ruby-maven` on the same install,
 because their post-install hook still resolved via Maven.
+
+## 2026-11-12 — Neo4j vectors are `Types::Vector`, holding the wire bytes
+
+Bolt 6.0's `VECTOR` (`0x56`: an element-type marker plus the big-endian element
+bytes) maps to one flavor-agnostic value type, `Neo4j::Driver::Types::Vector`
+(`element_type` ∈ `:int8 … :float64`, `length`, `to_a`, value equality) — shared
+like `Point`/`Duration` rather than aliased to the Java types like `UUID`,
+because Java splits it into six sealed interfaces with no common constructor.
+MRI packs/hydrates it in `Protocol::V6` (earlier protocols raise
+`UnsupportedFeatureException`, as Java does); JRuby converts at the
+`NeoConverter`/`RubyConverter` boundary.
+
+It stores the elements as their **big-endian wire bytes** (`data`), decoding in
+`to_a`, not as an Array of Ruby numbers: a float32 → Ruby `Float` → float32 trip
+quiets a signalling NaN's payload, so only the bytes round-trip bit-exactly
+(testkit's stub `test_vector` checks NaN payloads), and an embedding stays one
+String instead of thousands of `Float`s. For the same reason JRuby copies
+elements through a `ByteBuffer` view, never through Ruby numbers. `new` rejects
+integers outside the element type rather than letting `String#pack` wrap them.

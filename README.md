@@ -20,7 +20,7 @@ version it targets (e.g. `6.2.x`).
 
 - **Bolt 3.0 – 6.1** with handshake-manifest version negotiation
 - **Complete type system**: Node, Relationship, Path, temporal types, spatial
-  Point, Duration, UUID, and a forward-compatible `UnsupportedType`
+  Point, Duration, UUID, Vector, and a forward-compatible `UnsupportedType`
 - **Transactions**: auto-commit, explicit (default-rollback), and managed
   read/write with automatic retry
 - **Sessions & causal consistency** via bookmarks
@@ -134,6 +134,27 @@ map/property keys. Cypher functions that *return* strings (`labels()`, `keys()`,
 `type()`) return **strings**, because their result is an ordinary value on the
 wire, indistinguishable from data you returned yourself. Read the accessor for
 symbols, or convert the function result with `.map(&:to_sym)`.
+
+### Vectors
+
+Neo4j's `VECTOR` type (Bolt 6.0+, e.g. embeddings) maps to
+`Neo4j::Driver::Types::Vector` — a value type with a single element type,
+`:int8`, `:int16`, `:int32`, `:int64`, `:float32` or `:float64`:
+
+```ruby
+embedding = Neo4j::Driver::Types::Vector.new(:float32, [0.12, -0.5, 0.33])
+session.run('CREATE (:Doc {embedding: $embedding})', embedding:)
+
+vector = session.run('MATCH (d:Doc) RETURN d.embedding AS e').single[:e]
+vector.element_type # => :float32
+vector.length       # => 3
+vector.to_a         # => the elements as Floats (Integers for :int* vectors)
+```
+
+Integer elements must fit the element type (an out-of-range value raises
+`ArgumentError` rather than wrapping). Sending a vector over a connection that
+negotiated a Bolt version older than 6.0 raises an
+`UnsupportedFeatureException` (a `ClientException`).
 
 ## Architecture
 

@@ -2,9 +2,14 @@
 
 module TestkitBackend
   # Serialises driver values (scalars, temporals, nodes, relationships, paths,
-  # maps, lists, unsupported types) into testkit's Cypher* JSON entity shapes
-  # returned to the test runner.
+  # maps, lists, vectors, unsupported types) into testkit's Cypher* JSON entity
+  # shapes returned to the test runner.
   module Conversion
+    # testkit CypherVector dtype => driver Types::Vector element type.
+    VECTOR_ELEMENT_TYPES = {
+      'i8' => :int8, 'i16' => :int16, 'i32' => :int32, 'i64' => :int64, 'f32' => :float32, 'f64' => :float64
+    }.freeze
+
     def to_testkit(object)
       case object
       when nil
@@ -19,7 +24,7 @@ module TestkitBackend
         value_entity('CypherUUID', object.to_s)
       when String
         if object.encoding == Encoding::BINARY
-          value_entity('CypherBytes', object.bytes.map { |byte| '%02x' % byte }.join(' '))
+          value_entity('CypherBytes', hex(object))
         else
           value_entity('CypherString', object)
         end
@@ -46,6 +51,8 @@ module TestkitBackend
                                                                                      second: object.sec, nanosecond: object.nsec, 'utc_offset_s' => object.utc_offset, 'timezone_id' => object.zone.try(:identifier) || object.try(:time_zone)&.name)
       when Symbol
         to_testkit(object.to_s)
+      when Neo4j::Driver::Types::Vector
+        named_entity('CypherVector', dtype: VECTOR_ELEMENT_TYPES.key(object.element_type), data: hex(object.data))
       when Neo4j::Driver::Types::Path
         named_entity('Path', nodes: to_testkit(object.nodes), relationships: to_testkit(object.relationships))
       when Hash
@@ -93,6 +100,9 @@ module TestkitBackend
     end
 
     private
+
+    # testkit's byte encoding: space-separated lower-case hex pairs.
+    def hex(bytes) = bytes.unpack1('H*').scan(/../).join(' ')
 
     def map_of(object, *keys)
       keys.to_h { |key| [key, object.send(key)] }

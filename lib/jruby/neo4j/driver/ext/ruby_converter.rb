@@ -37,6 +37,8 @@ module Neo4j
             # Bolt 6.1 UUID -> native java.util.UUID (Types::UUID on JRuby).
             # asObject would raise Uncoercible (UUID is not a string).
             as_uuid
+          when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::VECTOR
+            VectorConverter.to_ruby(as_vector)
           else
             as_object
           end
