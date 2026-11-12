@@ -135,4 +135,37 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
       expect(wire).not_to be_pending_outbound
     end
   end
+
+  describe 'Bolt 6.0 VECTOR' do
+    let(:protocol) { Neo4j::Driver::Bolt::Protocol::V6.new(nil, nil) }
+
+    def pulled(bytes)
+      h = recorder
+      wire.enqueue(Message.pull(n: -1), h)
+      wire.receive(bytes)
+      h.events[0][1].fields
+    end
+
+    it 'hydrates every element type to the Types::Vector it was packed from' do
+      vectors = Neo4j::Driver::Types::Vector::ELEMENT_TYPES.keys.map { Neo4j::Driver::Types::Vector.new(it, [1, -1]) }
+
+      expect(pulled(record(vectors))).to eq(vectors)
+    end
+
+    it 'keeps the element bytes verbatim' do
+      signalling_nan = Neo4j::Driver::Types::Vector.from_bytes(:float32, "\x7f\x88\x42\x25".b)
+
+      expect(pulled(record([signalling_nan])).first.data).to eq(signalling_nan.data)
+    end
+
+    it 'raises a ProtocolException for an unknown element type marker' do
+      # RECORD [VECTOR(element type 0x00, no bytes)], framed by hand: the packer
+      # only emits the six known markers.
+      payload = "\xB1\x71\x91\xB2\x56\xCC\x01\x00\xCC\x00".b
+      frame = [payload.bytesize].pack('S>') + payload + "\x00\x00".b
+
+      expect { pulled(frame) }
+        .to raise_error(Neo4j::Driver::Exceptions::ProtocolException, /Unknown VECTOR element type marker: 0x00/)
+    end
+  end
 end

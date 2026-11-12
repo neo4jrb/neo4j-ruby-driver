@@ -4,7 +4,7 @@ module Neo4j
   module Driver
     module Ext
       # The Ruby→native boundary: converts Ruby values (collections, temporals,
-      # Point, Duration, UUID, byte strings, symbols) into the Java driver
+      # Point, Vector, Duration, UUID, byte strings, symbols) into the Java driver
       # types the wire layer accepts.
       module NeoConverter
         private
@@ -26,6 +26,8 @@ module Neo4j
                                                                   object.nanoseconds)
           when Types::Point
             Java::OrgNeo4jDriver::Values.point(object.srid, *object.coordinates)
+          when Types::Vector
+            VectorConverter.to_java(object)
           when Types::OffsetTime
             Java::JavaTime::OffsetTime.of(Java::JavaTime::LocalTime.of_nano_of_day(object.nanoseconds),
                                           Java::JavaTime::ZoneOffset.of_total_seconds(object.tz_offset_seconds))

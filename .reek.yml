@@ -596,6 +596,7 @@ detectors:
     - Neo4j::Driver::Bolt::Protocol::V5#configure_packer
     - Neo4j::Driver::Bolt::Protocol::V51#build_logon_message
     - Neo4j::Driver::Bolt::Protocol::V52#notification_config_extra
+    - Neo4j::Driver::Bolt::Protocol::V6#pack_vector
     - Neo4j::Driver::Bolt::Protocol::V61#pack_uuid
     - Neo4j::Driver::Bolt::Protocol::V61#unpack_uuid
     - Neo4j::Driver::Bolt::Wire#binary_string

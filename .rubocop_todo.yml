@@ -191,6 +191,7 @@ Metrics/BlockLength:
     - 'spec/shared/integration/session_spec.rb'
     - 'spec/shared/integration/summary_spec.rb'
     - 'spec/shared/integration/transaction_spec.rb'
+    - 'spec/shared/integration/vector_spec.rb'
     - 'spec/shared/neo4j/driver/dev_manual_examples_spec.rb'
     - 'spec/shared/neo4j/driver/driver_spec.rb'
     - 'spec/shared/neo4j/driver/duration_spec.rb'
@@ -205,6 +206,7 @@ Metrics/BlockLength:
     - 'spec/shared/neo4j/driver/types/offset_time_spec.rb'
     - 'spec/shared/neo4j/driver/types/path_spec.rb'
     - 'spec/shared/neo4j/driver/types/uuid_spec.rb'
+    - 'spec/shared/neo4j/driver/types/vector_spec.rb'
     - 'spec/shared/neo4j/driver/types_spec.rb'
 
 # Offense count: 14
