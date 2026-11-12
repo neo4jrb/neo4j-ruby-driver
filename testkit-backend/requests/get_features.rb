@@ -110,7 +110,7 @@ module TestkitBackend
         'Feature:API:Type.Temporal' => 'jar', # jruby wraps Java temporal types; MRI hydrates to Ruby Time/Types and defers unresolvable zone ids (Types::UnresolvableZonedDateTime)
         'Feature:API:Type.UnsupportedType' => 'jar',
         'Feature:API:Type.UUID' => 'jar', # Bolt 6.1 UUID <-> Types::UUID (MRI: PackStream V2 marker 0xE0; JRuby: java.util.UUID)
-        'Feature:API:Type.Vector' => '',
+        'Feature:API:Type.Vector' => 'jar', # Bolt 6.0 VECTOR <-> Types::Vector (MRI: struct 0x56; JRuby: Java Vector types)
 
         # --- Other features --------------------------------------------------
         'Feature:Impersonation' => 'jar',

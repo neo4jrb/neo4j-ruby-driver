@@ -72,6 +72,9 @@ module Neo4j
             # A PackStream V2 type: only the negotiated protocol decides whether
             # it can be sent — V61 packs it, every earlier version rejects it.
             @protocol.pack_uuid(self, value)
+          when Types::Vector
+            # Likewise a Bolt 6.0+ type: V6 packs it, earlier versions reject it.
+            @protocol.pack_vector(self, value)
           else
             Exceptions::ClientException.unable_to_convert(value)
           end
@@ -101,6 +104,16 @@ module Neo4j
         def pack_uuid_value(value)
           @buffer << [UUID].pack('C')
           @buffer << [value.to_s.delete('-')].pack('H*')
+        end
+
+        # Bolt 6.0 VECTOR: a 2-field structure of the element-type marker and
+        # the raw big-endian element bytes, each as PackStream BYTES. Called by
+        # Protocol::V6#pack_vector, which owns the signature and the marker
+        # mapping — earlier protocols reject a vector before reaching here.
+        def pack_vector_value(signature, type_marker, data)
+          @buffer << [TINY_STRUCT | 2, signature].pack('CC')
+          pack_bytes([type_marker].pack('C'))
+          pack_bytes(data)
         end
 
         private

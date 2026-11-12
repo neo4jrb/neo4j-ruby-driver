@@ -70,6 +70,13 @@ module Neo4j
             unpacker.raise_unknown_marker(PackStream::Markers::UUID)
           end
 
+          # Bolt 6.0 VECTOR. Only Protocol::V6 (and later) can send one; every
+          # earlier version rejects it with the Java driver's
+          # UnsupportedFeatureException, so both flavours raise alike.
+          def pack_vector(_packer, _value)
+            raise Exceptions::UnsupportedFeatureException, 'Vector type is not supported by this Bolt protocol version'
+          end
+
           # --- Message builders -------------------------------------------
           # The protocol handler owns the wire shape of the streaming /
           # transaction messages, mirroring Java's BoltProtocolVxY. The
