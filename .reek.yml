@@ -42,6 +42,7 @@ detectors:
     - Neo4j::Driver::Bolt::RecordBuffer#initialize
     - Neo4j::Driver::Bolt::Wire#hydrate_named_zone
     - Neo4j::Driver::Direct::ConnectionProvider#on_security_exception
+    - Neo4j::Driver::Ext::Point::ClassMethods#new
     - Neo4j::Driver::GraphDatabase#driver
     - Neo4j::Driver::Internal::HomeDbCache#compute_key
     - Neo4j::Driver::PackStream::Packer#pack_boolean
@@ -144,6 +145,7 @@ detectors:
     - Neo4j::Driver::Ext::ExceptionMapper#effective_code
     - Neo4j::Driver::Ext::Logger#format
     - Neo4j::Driver::Ext::NeoConverter#to_neo
+    - Neo4j::Driver::Ext::Point#==
     - Neo4j::Driver::Ext::RubyConverter#to_time
     - Neo4j::Driver::Bolt::Connection#split_addr
     - Neo4j::Driver::Bolt::Message::Failure#build_gql
@@ -241,6 +243,7 @@ detectors:
     - Neo4j::Driver::Bolt::Protocol::V44#build_route
     - Neo4j::Driver::Direct::ConnectionProvider#acquire
     - Neo4j::Driver::Direct::ConnectionProvider#ensure_identity
+    - Neo4j::Driver::Ext::Point::ClassMethods#new
     - Neo4j::Driver::GraphDatabase#driver
     - Neo4j::Driver::Internal::DriverFactory#build_connection_provider
     - Neo4j::Driver::Internal::DriverFactory#new_instance
@@ -308,6 +311,7 @@ detectors:
     - Neo4j::Driver::Bolt::RecordBuffer#await
     - Neo4j::Driver::Bolt::Wire#hydrate_named_zone
     - Neo4j::Driver::Direct::ConnectionProvider#ensure_identity
+    - Neo4j::Driver::Ext::Point#dimension
     - Neo4j::Driver::Internal::DriverFactory#validate_uri
     - Neo4j::Driver::Internal::HomeDbCache#set
     - Neo4j::Driver::PackStream::Packer#named_zone_for
@@ -381,6 +385,7 @@ detectors:
     - Neo4j::Driver::Summary::ResultSummary
   TooManyStatements:
     exclude:
+    - Neo4j::Driver::Ext::Point::ClassMethods#new
     - initialize
     - Neo4j::Driver::Ext::ConfigConverter#config_method
     - Neo4j::Driver::Ext::ExceptionMapper#mapped_exception_with_cause
@@ -489,6 +494,7 @@ detectors:
     exclude:
     - Neo4j::Driver::Ext::Logger#getLog
     - Neo4j::Driver::Bolt::Handshake#read_int32
+    - Neo4j::Driver::Ext::Point#z
     - Neo4j::Driver::Internal::DriverFactory#getDomainNameResolver
   UncommunicativeModuleName:
     exclude:
@@ -516,6 +522,7 @@ detectors:
     - Neo4j::Driver::Ext::ExceptionMapper#suppressed
     - Neo4j::Driver::Ext::ExceptionMapper#unwrap_optional
     - Neo4j::Driver::Bolt::Handshake#read_fully
+    - Neo4j::Driver::Ext::Point::ClassMethods#new
     - Neo4j::Driver::PackStream::Unpacker#read_bytes
     - Neo4j::Driver::Types::Point#initialize
   UncommunicativeVariableName:
@@ -527,6 +534,7 @@ detectors:
     - Neo4j::Driver::Ext::Internal::Metrics::InternalConnectionPoolMetrics#address
     - Neo4j::Driver::Ext::Internal::Reflection#self.field
     - Neo4j::Driver::Ext::Internal::Reflection#self.field?
+    - Neo4j::Driver::Ext::Point::ClassMethods#new
     - Neo4j::Driver::Ext::RubyConverter#to_time
     - Neo4j::Driver::Bolt::Connection#advance
     - Neo4j::Driver::Bolt::Connection#connect
@@ -600,6 +608,7 @@ detectors:
     - Neo4j::Driver::Bolt::Protocol::V61#unpack_uuid
     - Neo4j::Driver::Bolt::Wire#binary_string
     - Neo4j::Driver::Bolt::Wire#unresolvable_zone
+    - Neo4j::Driver::Ext::Point::ClassMethods#new
     - Neo4j::Driver::Internal::Clock#monotonic
     - Neo4j::Driver::Internal::Clock#realtime
     - Neo4j::Driver::Internal::DriverFactory#create_clock

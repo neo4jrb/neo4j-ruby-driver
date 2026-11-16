@@ -96,9 +96,11 @@ RSpec.describe Neo4j::Driver do
     let(:param) { Neo4j::Driver::Types::Point.new(srid: WGS_84_CRS_CODE, x: 2, y: 3) }
 
     it { is_expected.to be_a Neo4j::Driver::Types::Point }
+    it { is_expected.to eq param } # tolerant equality survives the round-trip
     its(:srid) { is_expected.to eq WGS_84_CRS_CODE }
     its(:x) { is_expected.to be_within(DELTA).of(2) }
     its(:y) { is_expected.to be_within(DELTA).of(3) }
+    its(:dimension) { is_expected.to eq 2 }
   end
 
   context 'when 2DPoint implied' do
@@ -116,6 +118,7 @@ RSpec.describe Neo4j::Driver do
     its(:x) { is_expected.to be_within(DELTA).of(2) }
     its(:y) { is_expected.to be_within(DELTA).of(3) }
     its(:z) { is_expected.to be_within(DELTA).of(4) }
+    its(:dimension) { is_expected.to eq 3 }
   end
 
   context 'when bytes' do

@@ -20,8 +20,9 @@ module Neo4j
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::DURATION
             Types::Duration.new(*%i[months days seconds nanoseconds].map(&as_object.method(:send)))
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::POINT
-            point = as_point
-            Types::Point.new(srid: point.srid, x: point.x, y: point.y, z: nullable(point.z))
+            # Return the Java point directly — it IS a Types::Point (the interface),
+            # decorated by Ext::Point. No copy into a Ruby object.
+            as_point
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::BYTES
             String.from_java_bytes(as_byte_array).force_encoding(Encoding::BINARY)
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::TIME
@@ -62,10 +63,6 @@ module Neo4j
           # doesn't unwrap to (and re-raise) the raw Java DateTimeException,
           # which the retry logic can't map back to a driver exception.
           raise Exceptions::ClientException.new(e.message), cause: nil
-        end
-
-        def nullable(double)
-          double unless double == java.lang.Double::NaN
         end
       end
     end

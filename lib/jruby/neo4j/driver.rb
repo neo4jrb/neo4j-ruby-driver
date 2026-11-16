@@ -47,6 +47,11 @@ module Neo4j
       Entity = Java::OrgNeo4jDriverInternal::InternalEntity
       Node = Java::OrgNeo4jDriverInternal::InternalNode
       Path = Java::OrgNeo4jDriverInternal::InternalPath
+      # The Java Point interface itself (impls InternalPoint2D/3D). Aliasing it
+      # here lets a returned Java point answer `is_a?(Types::Point)` and lets
+      # users write `Types::Point.new(...)` — decorated by Ext::Point below, with
+      # no copy into a Ruby object (cf. MRI's pure-Ruby Types::Point class).
+      Point = Java::OrgNeo4jDriverTypes::Point
       Relationship = Java::OrgNeo4jDriverInternal::InternalRelationship
       # Bolt 6.0 forward-compat marker. Aliasing the Java type here lets the
       # testkit backend match it with the same `Neo4j::Driver::Types::
@@ -75,6 +80,15 @@ Java::OrgNeo4jDriverInternal::InternalNode.prepend Neo4j::Driver::Ext::InternalN
 Java::OrgNeo4jDriverInternal::InternalNotificationSeverity.include Neo4j::Driver::Ext::Internal::InternalNotificationSeverity
 Java::OrgNeo4jDriverInternal::InternalPath.include Neo4j::Driver::Ext::StartEndNaming
 Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::Driver::Ext::StartEndNaming
+# Decorate the two Point records (prepend so the `z` override's `super` reaches
+# the record), and put the `Types::Point.new` factory on the interface singleton.
+Java::OrgNeo4jDriverInternal::InternalPoint2D.prepend Neo4j::Driver::Ext::Point
+Java::OrgNeo4jDriverInternal::InternalPoint3D.prepend Neo4j::Driver::Ext::Point
+Java::OrgNeo4jDriverTypes::Point.singleton_class.prepend Neo4j::Driver::Ext::Point::ClassMethods
+# Expose the SRID codes on Types::Point, as MRI's class does (Types::Point::WGS_84_2D …).
+%i[WGS_84_2D WGS_84_3D CARTESIAN_2D CARTESIAN_3D].each do |srid|
+  Neo4j::Driver::Types::Point.const_set(srid, Neo4j::Driver::Ext::Point.const_get(srid))
+end
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
 Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::InternalRelationship
 Java::OrgNeo4jDriverInternal::InternalUnsupportedType.prepend Neo4j::Driver::Ext::UnsupportedType
