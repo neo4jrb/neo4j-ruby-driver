@@ -33,6 +33,17 @@ module Neo4j
           z.nil? ? 2 : 3
         end
 
+        # Java records compare coordinates exactly; MRI's Types::Point allows a
+        # small tolerance for float round-trips. Match MRI so equality is the
+        # same on both flavours.
+        def ==(other)
+          return false unless other.is_a?(Types::Point) && srid == other.srid
+
+          mine = coordinates
+          theirs = other.coordinates
+          mine.size == theirs.size && mine.zip(theirs).all? { |left, right| (left - right).abs < 0.00001 }
+        end
+
         # Class-level factory for `Types::Point.new(...)`, replicating MRI's
         # longitude/latitude aliases and SRID defaults, then building the Java
         # point through the driver's own Values.point. Prepended onto the Point

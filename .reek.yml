@@ -145,6 +145,7 @@ detectors:
     - Neo4j::Driver::Ext::ExceptionMapper#effective_code
     - Neo4j::Driver::Ext::Logger#format
     - Neo4j::Driver::Ext::NeoConverter#to_neo
+    - Neo4j::Driver::Ext::Point#==
     - Neo4j::Driver::Ext::RubyConverter#to_time
     - Neo4j::Driver::Bolt::Connection#split_addr
     - Neo4j::Driver::Bolt::Message::Failure#build_gql

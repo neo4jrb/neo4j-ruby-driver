@@ -85,6 +85,10 @@ Java::OrgNeo4jDriverInternal::InternalPath::SelfContainedSegment.include Neo4j::
 Java::OrgNeo4jDriverInternal::InternalPoint2D.prepend Neo4j::Driver::Ext::Point
 Java::OrgNeo4jDriverInternal::InternalPoint3D.prepend Neo4j::Driver::Ext::Point
 Java::OrgNeo4jDriverTypes::Point.singleton_class.prepend Neo4j::Driver::Ext::Point::ClassMethods
+# Expose the SRID codes on Types::Point, as MRI's class does (Types::Point::WGS_84_2D …).
+%i[WGS_84_2D WGS_84_3D CARTESIAN_2D CARTESIAN_3D].each do |srid|
+  Neo4j::Driver::Types::Point.const_set(srid, Neo4j::Driver::Ext::Point.const_get(srid))
+end
 Java::OrgNeo4jDriverInternal::InternalRecord.prepend Neo4j::Driver::Ext::InternalRecord
 Java::OrgNeo4jDriverInternal::InternalRelationship.prepend Neo4j::Driver::Ext::InternalRelationship
 Java::OrgNeo4jDriverInternal::InternalUnsupportedType.prepend Neo4j::Driver::Ext::UnsupportedType
