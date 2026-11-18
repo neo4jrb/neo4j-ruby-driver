@@ -38,7 +38,9 @@ module Neo4j
             # asObject would raise Uncoercible (UUID is not a string).
             as_uuid
           when Java::OrgNeo4jDriverInternalTypes::TypeConstructor::VECTOR
-            VectorConverter.to_ruby(as_vector)
+            # Native org.neo4j.driver.types.Vector (Types::Vector on JRuby,
+            # adapted by Ext::Vector) — no copy at hydration.
+            as_vector
           else
             as_object
           end
