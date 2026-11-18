@@ -34,6 +34,14 @@ module Neo4j
         # sent to the server as a different number.
         INTEGER_RANGES = { int8: 8, int16: 16, int32: 32, int64: 64 }
                          .transform_values { -(2**(it - 1))..((2**(it - 1)) - 1) }.freeze
+        # Canonical quiet-NaN wire bytes per float element type. The Java
+        # driver is the reference for `==`, and its Vector#equals compares
+        # Float/Double.floatToIntBits, which collapses every NaN bit-pattern to
+        # one value — so two vectors that differ only in NaN payload are equal.
+        # We mirror that by comparing NaN-canonicalised bytes (`canonical_data`)
+        # while `data` keeps the exact payload for the wire. Signed zeros stay
+        # distinct (different bits, not NaN), again matching Java.
+        CANONICAL_NAN = { float32: [0x7fc00000].pack('L>'), float64: [0x7ff8000000000000].pack('Q>') }.freeze
 
         attr_reader :element_type, :data
 
@@ -71,9 +79,27 @@ module Neo4j
 
         protected
 
-        def state = [element_type, data]
+        def state = [element_type, canonical_data]
 
         private
+
+        # `data` with every NaN element replaced by the canonical quiet NaN, so
+        # == and hash match the Java driver's floatToIntBits value-equality.
+        # Integer vectors (and float vectors without a NaN) share the `data`
+        # String unchanged — no scan, no copy.
+        def canonical_data
+          @canonical_data ||=
+            if (canon = CANONICAL_NAN[element_type]) && (nans = nan_indexes).any?
+              data.dup.tap { |bytes| nans.each { |i| bytes[i * canon.bytesize, canon.bytesize] = canon } }
+            else
+              data
+            end
+        end
+
+        def nan_indexes
+          directive, width = layout(element_type)
+          (0...length).select { data[it * width, width].unpack1(directive).nan? }
+        end
 
         def assign(element_type, data)
           width = layout(element_type).last
