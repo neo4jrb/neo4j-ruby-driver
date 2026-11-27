@@ -63,21 +63,22 @@ module Neo4j
 
         protected
 
-        def state = [element_type, canonical_data]
+        def state = [element_type, @canonical_data]
 
         private
 
         # `data` with every NaN element replaced by the canonical quiet NaN, so
         # == and hash match the Java driver's floatToIntBits value-equality.
-        # Integer vectors (and float vectors without a NaN) share the `data`
-        # String unchanged — no scan, no copy.
-        def canonical_data
-          @canonical_data ||=
-            if (canon = CANONICAL_NAN[element_type]) && (nans = nan_indexes).any?
-              data.dup.tap { |bytes| nans.each { |i| bytes[i * canon.bytesize, canon.bytesize] = canon } }
-            else
-              data
-            end
+        # Integer vectors (and float vectors without a NaN) reuse the `data`
+        # String unchanged — no copy. Computed once in `assign` (not lazily on
+        # first compare) so a frozen vector stays hashable and `==`/`hash` can't
+        # drift from a later-mutated `data`.
+        def compute_canonical_data
+          canon = CANONICAL_NAN[element_type]
+          nans = canon && nan_indexes
+          return data unless nans&.any?
+
+          data.dup.tap { |bytes| nans.each { |i| bytes[i * canon.bytesize, canon.bytesize] = canon } }
         end
 
         def nan_indexes
@@ -89,6 +90,7 @@ module Neo4j
           VectorContract.check_data_width(element_type, data.bytesize, layout(element_type).last)
           @element_type = element_type
           @data = data
+          @canonical_data = compute_canonical_data
         end
 
         def layout(element_type)

@@ -93,6 +93,16 @@ RSpec.describe Neo4j::Driver::Types::Vector do
       expect({ vector => :found }[described_class.new(:int16, [1, -2, 32_767])]).to eq(:found)
     end
 
+    it 'can be frozen and still compared and used as a Hash key' do
+      # Equality bytes are computed eagerly, so a frozen value object stays
+      # hashable (no lazy ivar write) and two NaN vectors still collide.
+      frozen = described_class.from_bytes(:float32, "\x7f\x80\x00\x01".b).freeze
+      equal = described_class.from_bytes(:float32, "\x7f\xc0\x00\x00".b)
+
+      expect(frozen.hash).to eq(equal.hash)
+      expect({ frozen => :found }[equal]).to eq(:found)
+    end
+
     # The Java driver's Vector#equals compares floatToIntBits, which collapses
     # every NaN bit-pattern to one value; the Ruby driver matches that so == is
     # the same on both flavours and faithful to the reference.
