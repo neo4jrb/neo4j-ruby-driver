@@ -343,3 +343,23 @@ quiets a signalling NaN's payload, so only the bytes round-trip bit-exactly
 String instead of thousands of `Float`s. For the same reason JRuby copies
 elements through a `ByteBuffer` view, never through Ruby numbers. `new` rejects
 integers outside the element type rather than letting `String#pack` wrap them.
+
+## 2026-11-18 — Vector: JRuby stores the native Java Vector; `==` is Java value-equality
+
+Refines the entry above. `Types::Vector` is now **per-flavor** (the first type to
+split this way for performance): MRI keeps the pure-Ruby wire-byte class, while
+JRuby **aliases** it to the native `org.neo4j.driver.types.Vector` (like `UUID`),
+with `Ext::Vector` prepended onto the six `Internal*Vector` impls — so hydration
+is zero-copy, `to_a` materialises `Float`s only on demand, and `==`/`hash`
+delegate to the Java `equals`/`hashCode`. The `ByteBuffer` conversion moves into
+on-demand `data`/`from_bytes` (the testkit backend and the wire still want bytes),
+off the hydration hot path. Vector alone earns this (an unbounded payload); small
+types like `Point` stay shared. A shared `Types::VectorContract` holds what both
+flavors must keep identical — element validation, error messages, `to_s`.
+
+Equality follows the Java driver (the API reference), not raw bytes: its
+`Vector#equals` compares `float/doubleToIntBits`, so vectors differing only in NaN
+payload are **equal** (and `+0.0`/`-0.0` distinct). JRuby gets this free from the
+native `equals`; MRI matches it by comparing NaN-canonicalised bytes in `==`/`hash`
+while `data` keeps the exact payload for the wire. This is why `==` is not byte
+equality even though storage is byte-based on MRI.

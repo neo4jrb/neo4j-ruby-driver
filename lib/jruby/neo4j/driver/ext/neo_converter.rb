@@ -26,8 +26,8 @@ module Neo4j
                                                                   object.nanoseconds)
           when Types::Point
             Java::OrgNeo4jDriver::Values.point(object.srid, *object.coordinates)
-          when Types::Vector
-            VectorConverter.to_java(object)
+          when Types::Vector # native org.neo4j.driver.types.Vector; Values.value accepts it
+            object
           when Types::OffsetTime
             Java::JavaTime::OffsetTime.of(Java::JavaTime::LocalTime.of_nano_of_day(object.nanoseconds),
                                           Java::JavaTime::ZoneOffset.of_total_seconds(object.tz_offset_seconds))

@@ -167,5 +167,16 @@ RSpec.describe Neo4j::Driver::Bolt::Wire do
       expect { pulled(frame) }
         .to raise_error(Neo4j::Driver::Exceptions::ProtocolException, /Unknown VECTOR element type marker: 0x00/)
     end
+
+    it 'raises a ProtocolException for a multi-byte element type marker' do
+      # RECORD [VECTOR(element type = 2-byte string 0xC8 0x00, no bytes)]. The
+      # first byte 0xC8 is int8's marker; a lenient reader would silently accept
+      # it and drop the trailing byte, so the whole field must be rejected.
+      payload = "\xB1\x71\x91\xB2\x56\xCC\x02\xC8\x00\xCC\x00".b
+      frame = [payload.bytesize].pack('S>') + payload + "\x00\x00".b
+
+      expect { pulled(frame) }
+        .to raise_error(Neo4j::Driver::Exceptions::ProtocolException, /single byte/)
+    end
   end
 end

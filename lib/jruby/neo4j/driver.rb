@@ -56,6 +56,10 @@ module Neo4j
       # fromString) — MRI has its own opaque Types::UUID with the same
       # from_string / to_s surface.
       UUID = Java::JavaUtil::UUID
+      # Bolt 6.0 VECTOR. Native org.neo4j.driver.types.Vector (Int8Vector …
+      # Float64Vector, all extending AbstractArrayVector); Ext::Vector adapts it
+      # to the Types::Vector surface MRI implements as a pure-Ruby class.
+      Vector = Java::OrgNeo4jDriverTypes::Vector
     end
   end
 end
@@ -66,6 +70,14 @@ Java::OrgNeo4jDriver::BookmarkManagers.singleton_class.prepend Neo4j::Driver::Ex
 Java::OrgNeo4jDriver::ClientCertificates.singleton_class.prepend Neo4j::Driver::Ext::ClientCertificates
 Java::OrgNeo4jDriver::GraphDatabase.singleton_class.prepend Neo4j::Driver::Ext::GraphDatabase
 Java::OrgNeo4jDriver::Query.prepend Neo4j::Driver::Ext::Query
+# Prepend onto each concrete impl (not AbstractArrayVector): JRuby generates
+# the Java snake-case aliases (element_type, ==) on the concrete class, so only
+# a module prepended there overrides them.
+%i[InternalInt8Vector InternalInt16Vector InternalInt32Vector
+   InternalInt64Vector InternalFloat32Vector InternalFloat64Vector].each do |impl|
+  Java::OrgNeo4jDriverInternal.const_get(impl).prepend Neo4j::Driver::Ext::Vector
+end
+Java::OrgNeo4jDriverTypes::Vector.singleton_class.prepend Neo4j::Driver::Ext::Vector::ClassMethods
 Java::OrgNeo4jDriverInternal::DelegatingTransactionContext.prepend Neo4j::Driver::Ext::Internal::AbstractQueryRunner
 Java::OrgNeo4jDriverInternal::DriverFactory.prepend Neo4j::Driver::Ext::Internal::DriverFactory
 Java::OrgNeo4jDriverInternal::EagerResultValue.prepend Neo4j::Driver::Ext::Internal::EagerResultValue

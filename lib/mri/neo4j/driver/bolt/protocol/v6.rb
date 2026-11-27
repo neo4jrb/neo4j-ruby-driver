@@ -47,6 +47,16 @@ module Neo4j
           private
 
           def hydrate_vector(type_marker, data)
+            # The element-type field is a single-byte PackStream string; a
+            # malformed one (empty, multi-byte, or not a String) is a protocol
+            # violation, not an unknown marker — reject it before reading byte 0
+            # so a trailing byte can't be ignored nor an empty marker crash the
+            # format. Matches the Java reference's one-byte check.
+            unless type_marker.is_a?(String) && type_marker.bytesize == 1
+              raise Exceptions::ProtocolException,
+                    "VECTOR element-type marker must be a single byte, got #{type_marker.inspect}"
+            end
+
             marker = type_marker.getbyte(0)
             element_type = VECTOR_TYPE_MARKERS.key(marker)
             unless element_type
