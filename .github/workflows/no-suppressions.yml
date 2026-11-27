@@ -1,0 +1,63 @@
+name: no-new-suppressions
+
+# Keep static-analysis honest: a PR may *remove* lint suppressions freely, but it
+# may not *add* them. Fix the underlying warning, or leave the violation honest
+# (reek and rubocop are advisory, not required gates). When a suppression is
+# genuinely justified, add the `allow-suppression` label to the PR to bypass this.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  no-new-suppressions:
+    name: no-new-suppressions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reject newly added lint suppressions
+        env:
+          HAS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'allow-suppression') }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "$HAS_LABEL" = "true" ]; then
+            echo "The 'allow-suppression' label is present — skipping the suppression guard."
+            exit 0
+          fi
+
+          # Only the lines this PR adds, relative to the merge base.
+          added() { git diff "${BASE_SHA}...HEAD" -- "$@" | grep -E '^\+' | grep -vE '^\+\+\+' || true; }
+
+          fail=0
+
+          # 1) New inline disables in Ruby sources (rubocop:disable / rubocop:todo / :reek:).
+          inline=$(added '*.rb' | grep -E 'rubocop:(disable|todo)|:reek:' || true)
+          if [ -n "$inline" ]; then
+            echo "::error::This PR adds inline lint suppressions:"
+            printf '%s\n' "$inline"
+            fail=1
+          fi
+
+          # 2) New exclusion entries in the suppression config files (added YAML list items).
+          entries=$(added .reek.yml .rubocop_todo.yml | grep -E '^\+[[:space:]]*- ' || true)
+          if [ -n "$entries" ]; then
+            echo "::error::This PR adds exclusion entries to .reek.yml / .rubocop_todo.yml:"
+            printf '%s\n' "$entries"
+            fail=1
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            echo ""
+            echo "Don't silence the warning — fix the code so it genuinely passes, or keep"
+            echo "the honest violation (reek/rubocop don't block merges here). If a"
+            echo "suppression is truly justified, add the 'allow-suppression' label."
+            exit 1
+          fi
+
+          echo "No new lint suppressions added. 👍"
